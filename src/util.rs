@@ -1,18 +1,32 @@
-fn u32s_as_bytes(buffer: &mut [u32]) -> &mut [u8] {
-    // SAFETY: Slice guarantees the slice::len() * std::mem::size_of::<T>() is <= isize::MAX.
-    // SAFETY: Therefore, this multiplication will not overflow.
-    let len = buffer.len() * 4;
-    let ptr = buffer.as_mut_ptr() as *mut u8;
-    unsafe {
-        // SAFETY: This is valid because the pointer and length comes from a slice.
-        std::slice::from_raw_parts_mut(ptr, len)
-    }
-}
-
-pub fn read_u32s(reader: &mut impl std::io::Read, buffer: &mut [u32]) -> std::io::Result<()> {
-    reader.read_exact(u32s_as_bytes(buffer))?;
+pub(crate) fn read_u32_le_array<const N: usize>(
+    reader: &mut impl std::io::Read,
+) -> std::io::Result<[u32; N]> {
+    let mut buffer = [0; N];
+    reader.read_exact(bytemuck::cast_slice_mut(buffer.as_mut_slice()))?;
     for i in buffer.iter_mut() {
         *i = u32::from_le(*i);
     }
-    Ok(())
+    Ok(buffer)
+}
+
+/// An implementation of div_ceil to lower MSRV.
+pub(crate) fn div_ceil<T>(a: T, b: T) -> T
+where
+    T: Copy
+        + PartialEq
+        + PartialOrd
+        + From<u8>
+        + std::ops::Div<Output = T>
+        + std::ops::Rem<Output = T>
+        + std::ops::Add<Output = T>,
+{
+    assert!(a >= T::from(0));
+    assert!(b > T::from(0));
+
+    let d = a / b;
+    if a % b != T::from(0) {
+        d + T::from(1)
+    } else {
+        d
+    }
 }

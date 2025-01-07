@@ -1,5 +1,5 @@
-# DDS Decoder
+# DDSD
 
-A rust implementation of a DDS reader that aims to support as many DDS formats as possible.
+A DDS decoder focused on speed and correctness, while supporting as many DDS formats as possible.
 
-This library does not support writing DDS files.
+DDSD is written in 100% safe Rust.

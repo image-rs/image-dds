@@ -1,81 +1,236 @@
 use bitflags::bitflags;
 
-use crate::{
-    DdsCaps2, DdsDecodeError, DdsHeaderDxt10, DxgiFormat, FourCC, FullHeader, ResourceDimension,
-};
+use crate::{DdsCaps2, DecodeError, Header, MiscFlags, ResourceDimension, SupportedFormat};
 
-pub trait ByteLength {
-    /// Returns the number of bytes this object occupies in the data section of a DDS file.
-    fn byte_len(&self) -> usize;
+pub trait Region {
+    /// The number of bytes this object occupies in the data section of a DDS file.
+    ///
+    /// It is guaranteed that `self.offset() + self.len() <= u64::MAX`.
+    fn byte_len(&self) -> u64;
+    /// The byte offset of this object in the data section of a DDS file.
+    fn byte_offset(&self) -> u64;
+    /// The byte offset of the byte after this object in the data section of a DDS file.
+    ///
+    /// This is equivalent to `self.offset() + self.len()`.
+    fn byte_end(&self) -> u64 {
+        self.byte_offset() + self.byte_len()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SurfaceDescriptor {
-    pub width: u32,
-    pub height: u32,
-    pub offset: usize,
-    pub len: usize,
+    width: u32,
+    height: u32,
+    offset: u64,
+    len: u64,
 }
-impl ByteLength for SurfaceDescriptor {
-    fn byte_len(&self) -> usize {
+impl SurfaceDescriptor {
+    fn new(width: u32, height: u32, offset: u64, len: u64) -> Result<Self, DecodeError> {
+        debug_assert!(width > 0);
+        debug_assert!(height > 0);
+        debug_assert!(len > 0);
+
+        if offset.checked_add(len).is_none() {
+            return Err(DecodeError::DataLayoutTooBig);
+        }
+
+        Ok(Self {
+            width,
+            height,
+            offset,
+            len,
+        })
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+}
+impl Region for SurfaceDescriptor {
+    fn byte_len(&self) -> u64 {
         self.len
+    }
+    fn byte_offset(&self) -> u64 {
+        self.offset
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct VolumeDescriptor {
-    pub width: u32,
-    pub height: u32,
-    pub depth: u32,
-    pub offset: usize,
-    pub slice_len: usize,
+    width: u32,
+    height: u32,
+    depth: u32,
+    offset: u64,
+    slice_len: u64,
 }
 impl VolumeDescriptor {
+    fn new(
+        width: u32,
+        height: u32,
+        depth: u32,
+        offset: u64,
+        slice_len: u64,
+    ) -> Result<Self, DecodeError> {
+        debug_assert!(width > 0);
+        debug_assert!(height > 0);
+        debug_assert!(depth > 0);
+        debug_assert!(slice_len > 0);
+
+        // check that `offset + len` does not overflow
+        let end = slice_len
+            .checked_mul(depth as u64)
+            .and_then(|len| offset.checked_add(len));
+        if end.is_none() {
+            return Err(DecodeError::DataLayoutTooBig);
+        }
+
+        Ok(Self {
+            width,
+            height,
+            depth,
+            offset,
+            slice_len,
+        })
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+    pub fn depth(&self) -> u32 {
+        self.depth
+    }
+
     /// Iterates over all depth slices of the volume.
-    pub fn iter_slices(&self) -> impl Iterator<Item = SurfaceDescriptor> + '_ {
+    ///
+    /// To get the depth value of a slice, use `.enumerate()`. Example:
+    ///
+    /// ```
+    /// # use ddsfile::VolumeDescriptor;
+    /// let volume = VolumeDescriptor {
+    ///     width: 16,
+    ///     height: 16,
+    ///     depth: 8,
+    ///     offset: 0,
+    ///     slice_len: 256,
+    /// };
+    /// for (depth, slice) in volume.iter_slices().enumerate() {
+    ///     println!("Slice {} has a depth of {}", depth, slice.depth);
+    /// }
+    /// ```
+    pub fn iter_depth_slices(&self) -> impl Iterator<Item = SurfaceDescriptor> + '_ {
+        let Self {
+            width,
+            height,
+            offset,
+            slice_len,
+            ..
+        } = self.clone();
         (0..self.depth).map(move |depth| SurfaceDescriptor {
-            width: self.width,
-            height: self.height,
-            offset: self.offset + depth as usize * self.slice_len,
-            len: self.slice_len,
+            width,
+            height,
+            offset: offset + depth as u64 * slice_len,
+            len: slice_len,
         })
     }
 }
-impl ByteLength for VolumeDescriptor {
-    fn byte_len(&self) -> usize {
-        self.depth as usize * self.slice_len
+impl Region for VolumeDescriptor {
+    fn byte_len(&self) -> u64 {
+        // Cannot overflow. See `VolumeDescriptor::new`.
+        self.slice_len * self.depth as u64
+    }
+    fn byte_offset(&self) -> u64 {
+        self.offset
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Texture {
-    pub main: SurfaceDescriptor,
-    pub mips: Vec<SurfaceDescriptor>,
+    surfaces: Box<[SurfaceDescriptor]>,
 }
 impl Texture {
-    pub fn iter_surfaces(&self) -> impl Iterator<Item = SurfaceDescriptor> + '_ {
-        std::iter::once(&self.main).chain(self.mips.iter()).cloned()
+    fn new(surfaces: Vec<SurfaceDescriptor>) -> Self {
+        // we need at least one surface
+        debug_assert!(!surfaces.is_empty());
+        // mips must be sorted by size
+        debug_assert!(surfaces
+            .windows(2)
+            .all(|pair| pair[0].width >= pair[1].width && pair[0].height >= pair[1].height));
+        // must be packed
+        debug_assert!(surfaces
+            .windows(2)
+            .all(|pair| pair[0].byte_end() == pair[1].byte_offset()));
+
+        Self {
+            surfaces: surfaces.into_boxed_slice(),
+        }
+    }
+
+    pub fn main(&self) -> &SurfaceDescriptor {
+        &self.surfaces[0]
+    }
+    pub fn surfaces(&self) -> &[SurfaceDescriptor] {
+        self.surfaces.as_ref()
     }
 }
-impl ByteLength for Texture {
-    fn byte_len(&self) -> usize {
-        self.main.byte_len() + self.mips.iter().map(|mip| mip.byte_len()).sum::<usize>()
+impl Region for Texture {
+    fn byte_len(&self) -> u64 {
+        let last = &self.surfaces[self.surfaces.len() - 1];
+        last.byte_end() - self.main().byte_offset()
+    }
+    fn byte_offset(&self) -> u64 {
+        self.main().byte_offset()
+    }
+    fn byte_end(&self) -> u64 {
+        let last = &self.surfaces[self.surfaces.len() - 1];
+        last.byte_end()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Volume {
-    pub main: VolumeDescriptor,
-    pub mips: Vec<VolumeDescriptor>,
+    volumes: Box<[VolumeDescriptor]>,
 }
 impl Volume {
-    pub fn iter_volumes(&self) -> impl Iterator<Item = VolumeDescriptor> + '_ {
-        std::iter::once(&self.main).chain(self.mips.iter()).cloned()
+    fn new(volumes: Vec<VolumeDescriptor>) -> Self {
+        // we need at least one volume
+        debug_assert!(!volumes.is_empty());
+        // mips must be sorted by size
+        debug_assert!(volumes.windows(2).all(|pair| pair[0].width >= pair[1].width
+            && pair[0].height >= pair[1].height
+            && pair[0].depth >= pair[1].depth));
+        // the offset of the next surface must be offset + len of the previous surface
+        debug_assert!(volumes
+            .windows(2)
+            .all(|pair| pair[0].byte_end() == pair[1].byte_offset()));
+        // volume must start at offset 0
+        debug_assert_eq!(volumes[0].byte_offset(), 0);
+
+        Self {
+            volumes: volumes.into_boxed_slice(),
+        }
+    }
+
+    pub fn main(&self) -> &VolumeDescriptor {
+        &self.volumes[0]
+    }
+    pub fn volumes(&self) -> &[VolumeDescriptor] {
+        self.volumes.as_ref()
     }
 }
-impl ByteLength for Volume {
-    fn byte_len(&self) -> usize {
-        self.main.byte_len() + self.mips.iter().map(|mip| mip.byte_len()).sum::<usize>()
+impl Region for Volume {
+    fn byte_len(&self) -> u64 {
+        let last = &self.volumes[self.volumes.len() - 1];
+        last.byte_end()
+    }
+    fn byte_offset(&self) -> u64 {
+        // if there is a volume, it is the only object in the data section
+        0
     }
 }
 
@@ -104,7 +259,7 @@ bitflags! {
 }
 impl From<DdsCaps2> for CubeMapSide {
     fn from(value: DdsCaps2) -> Self {
-        let faces = (value & DdsCaps2::CUBEMAP_ALL_FACES).bits();
+        let faces = (value & DdsCaps2::CUBE_MAP_ALL_FACES).bits();
         CubeMapSide::from_bits_truncate((faces >> 10) as u8)
     }
 }
@@ -120,66 +275,148 @@ impl CubeMapSide {
     }
 }
 
+/// An array of textures or (partial) cube maps.
+///
+/// The array is guaranteed to have at least one texture.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TextureArray {
-    pub textures: Vec<Texture>,
-    pub kind: TextureArrayKind,
+    kind: TextureArrayKind,
+    // TODO: This needs a new design.
+    // Allocating potentially 2^32-1 textures is neither fast nor secure.
+    // Ideally, we would only store the first texture and generate the rest on demand,
+    // maybe even in a way to reuse the same allocation.
+    textures: Box<[Texture]>,
 }
 impl TextureArray {
-    pub fn iter_textures(&self) -> impl Iterator<Item = &Texture> {
-        self.textures.iter()
+    fn new(kind: TextureArrayKind, textures: Vec<Texture>) -> Self {
+        // we need at least one texture
+        debug_assert!(!textures.is_empty());
+        // the offset of the next surface must be offset + len of the previous surface
+        debug_assert!(textures
+            .windows(2)
+            .all(|pair| pair[0].byte_end() == pair[1].byte_offset()));
+        // must start at offset 0
+        debug_assert_eq!(textures[0].byte_offset(), 0);
+
+        Self {
+            kind,
+            textures: textures.into_boxed_slice(),
+        }
+    }
+
+    pub fn kind(&self) -> TextureArrayKind {
+        self.kind
+    }
+    pub fn textures(&self) -> &[Texture] {
+        self.textures.as_ref()
     }
 }
-impl ByteLength for TextureArray {
-    fn byte_len(&self) -> usize {
-        self.textures.iter().map(|texture| texture.byte_len()).sum()
+impl Region for TextureArray {
+    fn byte_len(&self) -> u64 {
+        let last = &self.textures[self.textures.len() - 1];
+        last.byte_end()
+    }
+    fn byte_offset(&self) -> u64 {
+        0
     }
 }
 
-trait Chainable: ByteLength {
-    fn offset(&self) -> usize;
-    fn next_offset(&self) -> usize {
-        self.offset() + self.byte_len()
+/// The type and layout of the surfaces/volumes in the data section of a DDS file.
+#[derive(Debug, Clone)]
+pub enum DataLayout {
+    Texture(Texture),
+    Volume(Volume),
+    TextureArray(TextureArray),
+}
+impl DataLayout {
+    pub fn from_header(
+        header: &Header,
+        pixel_format: SupportedFormat,
+    ) -> Result<Self, DecodeError> {
+        if let Some(ref header_dxt10) = header.dxt10 {
+            // DirectX 10+
+
+            match header_dxt10.resource_dimension {
+                ResourceDimension::Texture1D => {
+                    let mut info = SurfaceLayoutInfo::from_header(header, pixel_format)?;
+                    info.height = 1;
+                    let array_size = header_dxt10.array_size;
+
+                    if array_size == 1 {
+                        Ok(Self::Texture(info.create(0)?))
+                    } else {
+                        Ok(Self::TextureArray(TextureArray::new(
+                            TextureArrayKind::Textures,
+                            info.create_many(array_size)?,
+                        )))
+                    }
+                }
+                ResourceDimension::Texture2D => {
+                    let info = SurfaceLayoutInfo::from_header(header, pixel_format)?;
+                    // TODO: Limit array_size
+                    let array_size = header_dxt10.array_size;
+                    let is_cube_map = header_dxt10.misc_flag.contains(MiscFlags::TEXTURE_CUBE);
+
+                    if is_cube_map {
+                        // "For a 2D texture that is also a cube-map texture, array_size represents the number of cubes."
+                        return Ok(Self::TextureArray(TextureArray::new(
+                            TextureArrayKind::CubeMaps,
+                            info.create_many(array_size * 6)?,
+                        )));
+                    }
+
+                    if array_size == 1 {
+                        Ok(Self::Texture(info.create(0)?))
+                    } else {
+                        Ok(Self::TextureArray(TextureArray::new(
+                            TextureArrayKind::Textures,
+                            info.create_many(array_size)?,
+                        )))
+                    }
+                }
+                ResourceDimension::Texture3D => {
+                    let info = VolumeLayoutInfo::from_header(header, pixel_format)?;
+                    Ok(Self::Volume(info.create()?))
+                }
+            }
+        } else {
+            // DirectX <=9
+
+            if header.caps2.contains(DdsCaps2::VOLUME) {
+                let info = VolumeLayoutInfo::from_header(header, pixel_format)?;
+                Ok(Self::Volume(info.create()?))
+            } else if header.caps2.contains(DdsCaps2::CUBE_MAP) {
+                let info = SurfaceLayoutInfo::from_header(header, pixel_format)?;
+                let sides = CubeMapSide::from(header.caps2);
+                let side_count = sides.count();
+
+                Ok(Self::TextureArray(TextureArray::new(
+                    if side_count == 6 {
+                        TextureArrayKind::CubeMaps
+                    } else {
+                        TextureArrayKind::PartialCubeMap(sides)
+                    },
+                    info.create_many(side_count)?,
+                )))
+            } else {
+                let info = SurfaceLayoutInfo::from_header(header, pixel_format)?;
+                Ok(Self::Texture(info.create(0)?))
+            }
+        }
     }
 }
-impl Chainable for SurfaceDescriptor {
-    fn offset(&self) -> usize {
-        self.offset
+impl Region for DataLayout {
+    fn byte_len(&self) -> u64 {
+        match self {
+            DataLayout::Texture(texture) => texture.byte_len(),
+            DataLayout::Volume(volume) => volume.byte_len(),
+            DataLayout::TextureArray(textures) => textures.byte_len(),
+        }
     }
-}
-impl Chainable for VolumeDescriptor {
-    fn offset(&self) -> usize {
-        self.offset
+    fn byte_offset(&self) -> u64 {
+        // the data layout describes the entire data section, so it has to start at 0
+        0
     }
-}
-impl Chainable for Texture {
-    fn offset(&self) -> usize {
-        self.main.offset
-    }
-}
-fn create_chain<T: Chainable>(
-    range: std::ops::Range<u32>,
-    offset: usize,
-    f: impl Fn(usize, u32) -> T,
-) -> impl Iterator<Item = T> {
-    let mut offset = offset;
-    range.map(move |i| {
-        let result = f(offset, i);
-        offset = result.next_offset();
-        result
-    })
-}
-fn create_chain_u8<T: Chainable>(
-    range: std::ops::Range<u8>,
-    offset: usize,
-    f: impl Fn(usize, u8) -> T,
-) -> impl Iterator<Item = T> {
-    let mut offset = offset;
-    range.map(move |i| {
-        let result = f(offset, i);
-        offset = result.next_offset();
-        result
-    })
 }
 
 fn get_mip_size(main_size: u32, level: u8) -> u32 {
@@ -195,56 +432,68 @@ fn get_mip_size(main_size: u32, level: u8) -> u32 {
 struct SurfaceLayoutInfo {
     width: u32,
     height: u32,
-    mip_count: u8,
-    pitch: PitchInfo,
+    mipmaps: u8,
+    pixel_format: SupportedFormat,
 }
 impl SurfaceLayoutInfo {
-    fn from_header(header: &FullHeader) -> Result<Self, DdsDecodeError> {
-        let pitch = PitchInfo::from_header(header)?;
-
+    fn from_header(header: &Header, pixel_format: SupportedFormat) -> Result<Self, DecodeError> {
         // width and height are always required, so we can read them without checking `flags`.
-        let width = header.header.width;
-        let height = header.header.height;
+        let width = header.width;
+        let height = header.height;
 
-        let mip_count = u32::max(1, header.header.get_mipmap_count().unwrap_or(1));
-        if mip_count > 32 {
-            return Err(DdsDecodeError::TooManyMipMaps(mip_count));
+        if width == 0 || height == 0 {
+            return Err(DecodeError::ZeroDimension);
+        }
+
+        let mipmaps = header.mipmap_count.unwrap_or(1).max(1);
+        if mipmaps > 32 {
+            return Err(DecodeError::TooManyMipMaps(mipmaps));
         }
 
         Ok(Self {
             width,
             height,
-            mip_count: mip_count as u8,
-            pitch,
+            mipmaps: mipmaps as u8,
+            pixel_format,
         })
     }
 
-    fn create_desc(&self, offset: usize, level: u8) -> SurfaceDescriptor {
-        assert!(level < self.mip_count);
+    fn create_desc(&self, offset: u64, level: u8) -> Result<SurfaceDescriptor, DecodeError> {
+        assert!(level < self.mipmaps);
 
         let width = get_mip_size(self.width, level);
         let height = get_mip_size(self.height, level);
+        let len = self
+            .pixel_format
+            .get_surface_bytes(width, height)
+            .ok_or(DecodeError::DataLayoutTooBig)?;
 
-        SurfaceDescriptor {
-            width,
-            height,
-            offset,
-            len: self.pitch.get_byte_length(width, height),
+        SurfaceDescriptor::new(width, height, offset, len)
+    }
+
+    fn create(&self, mut offset: u64) -> Result<Texture, DecodeError> {
+        let mut surfaces = Vec::with_capacity(self.mipmaps as usize);
+        for level in 0..self.mipmaps {
+            let surface = self.create_desc(offset, level)?;
+            offset = surface.byte_end();
+            surfaces.push(surface);
         }
+
+        Ok(Texture::new(surfaces))
     }
 
-    fn create(&self, offset: usize) -> Texture {
-        let main = self.create_desc(offset, 0);
-        let mips = create_chain_u8(1..self.mip_count, main.next_offset(), |offset, level| {
-            self.create_desc(offset, level)
-        })
-        .collect();
+    fn create_many(&self, count: u32) -> Result<Vec<Texture>, DecodeError> {
+        debug_assert!(count > 0);
 
-        Texture { main, mips }
-    }
+        let mut textures = Vec::with_capacity(count as usize);
+        let mut offset = 0;
+        for _ in 0..count {
+            let texture = self.create(offset)?;
+            offset = texture.byte_end();
+            textures.push(texture);
+        }
 
-    fn create_many(&self, count: u32) -> Vec<Texture> {
-        create_chain(0..count, 0, |offset, _| self.create(offset)).collect()
+        Ok(textures)
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -252,305 +501,56 @@ struct VolumeLayoutInfo {
     width: u32,
     height: u32,
     depth: u32,
-    mip_count: u8,
-    pitch: PitchInfo,
+    mipmaps: u8,
+    pixel_format: SupportedFormat,
 }
 impl VolumeLayoutInfo {
-    fn from_header(header: &FullHeader) -> Result<Self, DdsDecodeError> {
+    fn from_header(header: &Header, pixel_format: SupportedFormat) -> Result<Self, DecodeError> {
         let SurfaceLayoutInfo {
             width,
             height,
-            mip_count,
-            pitch,
-        } = SurfaceLayoutInfo::from_header(header)?;
+            mipmaps,
+            pixel_format,
+        } = SurfaceLayoutInfo::from_header(header, pixel_format)?;
 
-        let depth = header
-            .header
-            .get_depth()
-            .ok_or_else(|| DdsDecodeError::InvalidHeader("3D texture without depth"))?;
+        let depth = header.depth.ok_or(DecodeError::MissingDepth)?;
+
+        if width == 0 || height == 0 || depth == 0 {
+            return Err(DecodeError::ZeroDimension);
+        }
 
         Ok(Self {
             width,
             height,
             depth,
-            mip_count,
-            pitch,
+            mipmaps,
+            pixel_format,
         })
     }
 
-    fn create_desc(&self, offset: usize, level: u8) -> VolumeDescriptor {
-        assert!(level < self.mip_count);
+    fn create_desc(&self, offset: u64, level: u8) -> Result<VolumeDescriptor, DecodeError> {
+        assert!(level < self.mipmaps);
 
         let width = get_mip_size(self.width, level);
         let height = get_mip_size(self.height, level);
         let depth = get_mip_size(self.depth, level);
+        let slice_len = self
+            .pixel_format
+            .get_surface_bytes(width, height)
+            .ok_or(DecodeError::DataLayoutTooBig)?;
 
-        VolumeDescriptor {
-            width,
-            height,
-            depth,
-            offset,
-            slice_len: self.pitch.get_byte_length(width, height),
-        }
+        VolumeDescriptor::new(width, height, depth, offset, slice_len)
     }
 
-    fn create(&self, offset: usize) -> Volume {
-        let main = self.create_desc(offset, 0);
-        let mips = create_chain_u8(1..self.mip_count, main.next_offset(), |offset, level| {
-            self.create_desc(offset, level)
-        })
-        .collect();
-
-        Volume { main, mips }
-    }
-}
-
-/// This describes the layout of surfaces and volumes in the data section of a DDS file.
-pub enum DataLayout {
-    Texture(Texture),
-    Volume(Volume),
-    TextureArray(TextureArray),
-}
-impl DataLayout {
-    pub fn from_header(header: &FullHeader) -> Result<Self, DdsDecodeError> {
-        if let Some(ref header_dxt10) = header.header_dxt10 {
-            // DirectX 10+
-
-            match header_dxt10.resource_dimension {
-                ResourceDimension::Unknown | ResourceDimension::Buffer => {
-                    Err(DdsDecodeError::InvalidHeader("Invalid resource dimension"))
-                }
-                ResourceDimension::Texture1D => {
-                    let mut info = SurfaceLayoutInfo::from_header(header)?;
-                    info.height = 1;
-                    let array_size = header_dxt10.array_size;
-
-                    if array_size == 1 {
-                        Ok(Self::Texture(info.create(0)))
-                    } else {
-                        Ok(Self::TextureArray(TextureArray {
-                            textures: info.create_many(array_size),
-                            kind: TextureArrayKind::Textures,
-                        }))
-                    }
-                }
-                ResourceDimension::Texture2D => {
-                    let info = SurfaceLayoutInfo::from_header(header)?;
-                    let array_size = header_dxt10.array_size;
-                    let is_cube_map = header_dxt10.misc_flag & 0x4 != 0;
-
-                    if is_cube_map {
-                        // "For a 2D texture that is also a cube-map texture, array_size represents the number of cubes."
-                        return Ok(Self::TextureArray(TextureArray {
-                            textures: info.create_many(array_size * 6),
-                            kind: TextureArrayKind::CubeMaps,
-                        }));
-                    }
-
-                    if array_size == 1 {
-                        Ok(Self::Texture(info.create(0)))
-                    } else {
-                        Ok(Self::TextureArray(TextureArray {
-                            textures: info.create_many(array_size),
-                            kind: TextureArrayKind::Textures,
-                        }))
-                    }
-                }
-                ResourceDimension::Texture3D => {
-                    let info = VolumeLayoutInfo::from_header(header)?;
-                    Ok(Self::Volume(info.create(0)))
-                }
-            }
-        } else {
-            // DirectX <=9
-
-            if header.header.caps2.contains(DdsCaps2::VOLUME) {
-                let info = VolumeLayoutInfo::from_header(header)?;
-                Ok(Self::Volume(info.create(0)))
-            } else if header.header.caps2.contains(DdsCaps2::CUBEMAP) {
-                let info = SurfaceLayoutInfo::from_header(header)?;
-                let sides = CubeMapSide::from(header.header.caps2);
-                let side_count = sides.count();
-
-                Ok(Self::TextureArray(TextureArray {
-                    textures: info.create_many(side_count),
-                    kind: if side_count == 6 {
-                        TextureArrayKind::CubeMaps
-                    } else {
-                        TextureArrayKind::PartialCubeMap(sides)
-                    },
-                }))
-            } else {
-                let info = SurfaceLayoutInfo::from_header(header)?;
-                Ok(Self::Texture(info.create(0)))
-            }
-        }
-    }
-}
-impl ByteLength for DataLayout {
-    fn byte_len(&self) -> usize {
-        match self {
-            DataLayout::Texture(texture) => texture.byte_len(),
-            DataLayout::Volume(volume) => volume.byte_len(),
-            DataLayout::TextureArray(textures) => textures.byte_len(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum PitchInfo {
-    BlockCompressed {
-        block_size: u8,
-    },
-    Other {
-        bits_per_pixel: u8,
-    },
-    SubSampled {
-        sub_sampling: SubSampling,
-        bits_per_pixel: u8,
-    },
-}
-impl PitchInfo {
-    pub fn from_header(header: &FullHeader) -> Result<Self, DdsDecodeError> {
-        if let Some(DdsHeaderDxt10 { dxgi_format, .. }) = header.header_dxt10 {
-            return match Self::from_dxgi(dxgi_format) {
-                Some(pitcher) => Ok(pitcher),
-                None => Err(DdsDecodeError::UnsupportedDxgiFormat(dxgi_format)),
-            };
+    fn create(&self) -> Result<Volume, DecodeError> {
+        let mut volumes = Vec::with_capacity(self.mipmaps as usize);
+        let mut offset = 0;
+        for level in 0..self.mipmaps {
+            let surface = self.create_desc(offset, level)?;
+            offset = surface.byte_end();
+            volumes.push(surface);
         }
 
-        let four_cc = header.header.pixel_format.four_cc;
-
-        // try to convert FourCC to DxgiFormat to get a pitcher
-        if let Some(pitcher) = four_cc.try_into().ok().and_then(Self::from_dxgi) {
-            return Ok(pitcher);
-        }
-
-        // at this point, we only have to deal with a few legacy formats
-        match four_cc {
-            FourCC::UYVY | FourCC::YUY2 | FourCC::RGBG | FourCC::GRGB => {
-                Ok(PitchInfo::SubSampled {
-                    sub_sampling: SubSampling::X2,
-                    bits_per_pixel: 16,
-                })
-            }
-            _ => Err(DdsDecodeError::UnsupportedFourCC(four_cc)),
-        }
-    }
-    pub fn from_dxgi(format: DxgiFormat) -> Option<PitchInfo> {
-        if let Some(block_size) = format.block_size() {
-            Some(PitchInfo::BlockCompressed { block_size })
-        } else if let Some(bits_per_pixel) = format.bits_per_pixel() {
-            let bits_per_pixel = bits_per_pixel.into();
-            if let Some(sub_sampling) = format.into() {
-                Some(PitchInfo::SubSampled {
-                    sub_sampling,
-                    bits_per_pixel,
-                })
-            } else {
-                Some(PitchInfo::Other { bits_per_pixel })
-            }
-        } else {
-            None
-        }
-    }
-
-    pub fn scan_line_length(&self, width: u32) -> usize {
-        let width = width as u64;
-        let pitch = match self {
-            PitchInfo::BlockCompressed { block_size } => {
-                u64::max(1, (width + 3) / 4) * (*block_size as u64)
-            }
-            PitchInfo::Other { bits_per_pixel } => (width * (*bits_per_pixel as u64) + 7) / 8,
-            PitchInfo::SubSampled {
-                sub_sampling,
-                bits_per_pixel,
-            } => {
-                let bits_per_pixel = *bits_per_pixel as u64;
-                match sub_sampling {
-                    SubSampling::X2 => {
-                        assert_eq!(bits_per_pixel % 4, 0);
-                        ((width + 1) / 2) * (bits_per_pixel / 4)
-                    }
-                    SubSampling::X2Y2 => {
-                        assert_eq!(bits_per_pixel % 2, 0);
-                        ((width + 1) / 2) * (bits_per_pixel / 2)
-                    }
-                    SubSampling::X4 => {
-                        assert_eq!(bits_per_pixel % 2, 0);
-                        ((width + 3) / 4) * (bits_per_pixel / 2)
-                    }
-                }
-            }
-        };
-        pitch as usize
-    }
-    pub fn number_of_scan_lines(&self, height: u32) -> usize {
-        match self {
-            PitchInfo::BlockCompressed { .. } => (height as usize + 3) / 4,
-            PitchInfo::SubSampled {
-                sub_sampling: SubSampling::X2Y2,
-                ..
-            } => {
-                // Because of sub sampling, each scan line covers 2 pixel lines
-                (height as usize + 1) / 2
-            }
-            _ => height as usize,
-        }
-    }
-
-    pub fn get_byte_length(&self, width: u32, height: u32) -> usize {
-        self.scan_line_length(width) * self.number_of_scan_lines(height)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum SubSampling {
-    /// 2:1 downsampling in the horizontal direction (4:2:2).
-    X2,
-    /// 2:1 downsampling in both directions (4:2:0).
-    X2Y2,
-    /// 4:1 downsampling in the horizontal direction (4:1:1).
-    X4,
-}
-impl SubSampling {
-    pub fn x(&self) -> u32 {
-        match self {
-            SubSampling::X2 | SubSampling::X2Y2 => 2,
-            SubSampling::X4 => 4,
-        }
-    }
-    pub fn y(&self) -> u32 {
-        match self {
-            SubSampling::X2Y2 => 2,
-            _ => 1,
-        }
-    }
-}
-impl From<DxgiFormat> for Option<SubSampling> {
-    fn from(value: DxgiFormat) -> Self {
-        match value {
-            DxgiFormat::R8G8_B8G8_UNORM
-            | DxgiFormat::G8R8_G8B8_UNORM
-            | DxgiFormat::YUY2
-            | DxgiFormat::Y210
-            | DxgiFormat::Y216 => Some(SubSampling::X2),
-            DxgiFormat::NV12 | DxgiFormat::P010 | DxgiFormat::P016 | DxgiFormat::OPAQUE_420 => {
-                Some(SubSampling::X2Y2)
-            }
-            DxgiFormat::NV11 => Some(SubSampling::X4),
-            _ => None,
-        }
-    }
-}
-impl From<FourCC> for Option<SubSampling> {
-    fn from(value: FourCC) -> Self {
-        if let Ok(value) = DxgiFormat::try_from(value) {
-            return Self::from(value);
-        }
-        match value {
-            FourCC::UYVY => Some(SubSampling::X2),
-            _ => None,
-        }
+        Ok(Volume::new(volumes))
     }
 }

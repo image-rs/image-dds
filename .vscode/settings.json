@@ -1,6 +1,10 @@
 {
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"cSpell.words": [
-		"mipmap"
+		"FOURCC",
+		"mipmap",
+		"SHAREDEXP",
+		"TYPELESS",
+		"YUV"
 	]
 }
