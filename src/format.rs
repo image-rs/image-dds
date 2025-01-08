@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::{detect, util::div_ceil, DecodeError, DxgiFormat, FourCC, Header};
+use crate::{cast, detect, util::div_ceil, DecodeError, DxgiFormat, FourCC, Header};
 
 /// The number and semantics of the color channels in a surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -191,8 +191,7 @@ impl SupportedFormat {
             .iter()
             .find(|d| d.channels == channels && d.precision == precision)
         {
-            size.check_buffer_len(channels, precision, output)?;
-            (decoder.decode_fn)(reader, size, output)
+            decoder.decode(reader, size, output)
         } else {
             Err(DecodeError::UnsupportedColorTypePrecision(
                 *self, channels, precision,
@@ -227,8 +226,7 @@ impl SupportedFormat {
             size,
             color_type,
             Precision::U16,
-            // Casting [u16] to [u8] cannot panic
-            bytemuck::cast_slice_mut(output),
+            cast::as_bytes_mut(output),
         )
     }
     /// A convenience method to decode with [`Precision::F32`].
@@ -246,8 +244,7 @@ impl SupportedFormat {
             size,
             color_type,
             Precision::F32,
-            // Casting [f32] to [u8] cannot panic
-            bytemuck::cast_slice_mut(output),
+            cast::as_bytes_mut(output),
         )
     }
 
@@ -329,31 +326,14 @@ impl SupportedFormat {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Size {
     pub width: u32,
     pub height: u32,
 }
 impl Size {
-    fn check_buffer_len(
-        &self,
-        channels: Channels,
-        precision: Precision,
-        buf: &[u8],
-    ) -> Result<(), DecodeError> {
-        // overflow isn't possible here
-        let bytes_per_pixel = channels.count() as usize * precision.size() as usize;
-        // saturate to usize::MAX on overflow
-        let required_bytes = usize::saturating_mul(self.width as usize, self.height as usize)
-            .saturating_mul(bytes_per_pixel);
-
-        if buf.len() != required_bytes {
-            Err(DecodeError::UnexpectedBufferSize {
-                expected: required_bytes,
-                actual: buf.len(),
-            })
-        } else {
-            Ok(())
-        }
+    pub fn is_empty(&self) -> bool {
+        self.width == 0 || self.height == 0
     }
 }
 impl From<(u32, u32)> for Size {
@@ -365,130 +345,16 @@ impl From<(u32, u32)> for Size {
 mod decoders {
     use std::io::Read;
 
-    use crate::DecodeError;
+    use crate::{
+        decode::{self, DecodeFn, Decoder, DecoderSet},
+        DecodeError,
+    };
 
     use super::{Channels, Precision, Size, SupportedFormat};
 
-    type DecodeFn =
-        fn(reader: &mut dyn Read, size: Size, output: &mut [u8]) -> Result<(), DecodeError>;
-    pub struct Decoder {
-        pub channels: Channels,
-        pub precision: Precision,
-        pub decode_fn: DecodeFn,
-    }
-    impl Decoder {
-        pub const fn new(channels: Channels, precision: Precision, decode_fn: DecodeFn) -> Self {
-            Self {
-                channels,
-                precision,
-                decode_fn,
-            }
-        }
-    }
+    const noop_decode: DecodeFn = |_, _, _| Ok(());
 
-    fn noop_decode(
-        _reader: &mut dyn Read,
-        _size: Size,
-        _output: &mut [u8],
-    ) -> Result<(), DecodeError> {
-        Ok(())
-    }
-
-    pub struct DecodersInfo {
-        pub decoders: &'static [Decoder],
-        pub supported_channels: &'static [Channels],
-        pub supported_precisions: &'static [Precision],
-    }
-    impl DecodersInfo {
-        pub const fn main(&self) -> &'static Decoder {
-            &self.decoders[0]
-        }
-        const fn verify(&self) {
-            // 1. The list must be non-empty.
-            assert!(!self.decoders.is_empty());
-
-            // 2. No color channel-precision combination may be repeated.
-            {
-                let mut bitset: u32 = 0;
-                let mut i = 0;
-                while i < self.decoders.len() {
-                    let decoder = &self.decoders[i];
-
-                    let key =
-                        decoder.channels as u32 * Precision::VARIANTS + decoder.precision as u32;
-                    assert!(key < 32);
-
-                    let bit_mask = 1 << key;
-                    if bitset & bit_mask != 0 {
-                        panic!("Repeated color channel-precision combination");
-                    }
-                    bitset |= bit_mask;
-
-                    i += 1;
-                }
-            }
-
-            // 3. Color channel-precision combination must be exhaustive.
-            let mut channels_bitset: u32 = 0;
-            let mut precision_bitset: u32 = 0;
-            {
-                let mut i = 0;
-                while i < self.decoders.len() {
-                    let decoder = &self.decoders[i];
-
-                    channels_bitset |= 1 << decoder.channels as u32;
-                    precision_bitset |= 1 << decoder.precision as u32;
-
-                    i += 1;
-                }
-
-                let channels_count = channels_bitset.count_ones();
-                let precision_count = precision_bitset.count_ones();
-                // the expected number of decoders IF all combinations are present
-                let expected = channels_count * precision_count;
-                if self.decoders.len() != expected as usize {
-                    panic!("Missing color channel-precision combination");
-                }
-            }
-
-            // Supported channels must match decoder channels
-            {
-                let mut supported_bitset: u32 = 0;
-                let mut i = 0;
-                while i < self.supported_channels.len() {
-                    let color = self.supported_channels[i] as u32;
-                    supported_bitset |= 1 << color;
-                    i += 1;
-                }
-
-                if supported_bitset != channels_bitset {
-                    panic!("Supported channels do not match decoder channels");
-                }
-                if supported_bitset.count_ones() != self.supported_channels.len() as u32 {
-                    panic!("Supported channels should contain no duplicates");
-                }
-            }
-
-            // Supported precisions must match decoder precisions
-            {
-                let mut supported_bitset: u32 = 0;
-                let mut i = 0;
-                while i < self.supported_precisions.len() {
-                    let precision = self.supported_precisions[i] as u32;
-                    supported_bitset |= 1 << precision;
-                    i += 1;
-                }
-
-                if supported_bitset != precision_bitset {
-                    panic!("Supported precisions do not match decoder precisions");
-                }
-                if supported_bitset.count_ones() != self.supported_precisions.len() as u32 {
-                    panic!("Supported precisions should contain no duplicates");
-                }
-            }
-        }
-    }
-    pub const fn get_decoders(format: SupportedFormat) -> DecodersInfo {
+    pub const fn get_decoders(format: SupportedFormat) -> DecoderSet {
         use Channels::*;
         use Precision::*;
 
@@ -530,8 +396,8 @@ mod decoders {
             ([$($ct:expr),*], [$($cp:expr),*], [$(($c:expr, $p:expr, $d:expr)),* $(,)? ] $(,)?) => {{
                 const DECODERS: &[Decoder] = &[$(Decoder::new($c, $p, $d)),*];
 
-                const INFO: DecodersInfo = {
-                    let info = DecodersInfo {
+                const INFO: DecoderSet = {
+                    let info = DecoderSet {
                         decoders: DECODERS,
                         supported_channels: &[$($ct),*],
                         supported_precisions: &[$($cp),*],
@@ -543,10 +409,10 @@ mod decoders {
                 INFO
             }};
             ($c:ident, $p:ident, $d:expr) => {{
-                const INFO: DecodersInfo = {
+                const INFO: DecoderSet = {
                     const DECODER: Decoder = Decoder::new($c, $p, $d);
 
-                    let info = DecodersInfo {
+                    let info = DecoderSet {
                         decoders: &[DECODER],
                         supported_channels: &[$c],
                         supported_precisions: &[$p],
@@ -561,11 +427,11 @@ mod decoders {
 
         match format {
             // uncompressed formats
-            SupportedFormat::R8G8B8_UNORM => decoders!(Rgb, U8, noop_decode),
-            SupportedFormat::B8G8R8_UNORM => decoders!(Rgb, U8, noop_decode),
-            SupportedFormat::R8G8B8A8_UNORM => decoders!(Rgba, U8, noop_decode),
-            SupportedFormat::R8G8B8A8_SNORM => decoders!(Rgba, U8, noop_decode),
-            SupportedFormat::B8G8R8A8_UNORM => decoders!(Rgba, U8, noop_decode),
+            SupportedFormat::R8G8B8_UNORM => decode::R8G8B8_UNORM,
+            SupportedFormat::B8G8R8_UNORM => decode::B8G8R8_UNORM,
+            SupportedFormat::R8G8B8A8_UNORM => decode::R8G8B8A8_UNORM,
+            SupportedFormat::R8G8B8A8_SNORM => decode::R8G8B8A8_SNORM,
+            SupportedFormat::B8G8R8A8_UNORM => decode::B8G8R8A8_UNORM,
             SupportedFormat::B8G8R8X8_UNORM => decoders!(Rgb, U8, noop_decode),
             SupportedFormat::B5G6R5_UNORM => decoders!(Rgb, U8, noop_decode),
             SupportedFormat::B5G5R5A1_UNORM => decoders!(Rgba, U8, noop_decode),

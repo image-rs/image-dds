@@ -1,8 +1,10 @@
+use crate::cast;
+
 pub(crate) fn read_u32_le_array<const N: usize>(
     reader: &mut impl std::io::Read,
 ) -> std::io::Result<[u32; N]> {
     let mut buffer = [0; N];
-    reader.read_exact(bytemuck::cast_slice_mut(buffer.as_mut_slice()))?;
+    reader.read_exact(cast::as_bytes_mut(&mut buffer))?;
     for i in buffer.iter_mut() {
         *i = u32::from_le(*i);
     }
@@ -18,7 +20,8 @@ where
         + From<u8>
         + std::ops::Div<Output = T>
         + std::ops::Rem<Output = T>
-        + std::ops::Add<Output = T>,
+        + std::ops::Add<Output = T>
+        + Unsigned,
 {
     assert!(a >= T::from(0));
     assert!(b > T::from(0));
@@ -28,5 +31,46 @@ where
         d + T::from(1)
     } else {
         d
+    }
+}
+
+/// Computes `(a as f64 / b as f64).round() as T`.
+///
+/// Results are NOT correct if `a + b/2` overflows `T`.
+#[inline(always)]
+pub(crate) fn div_round_fast<T>(a: T, b: T) -> T
+where
+    T: Copy + From<u8> + std::ops::Add<T, Output = T> + std::ops::Div<T, Output = T> + Unsigned,
+{
+    (a + b / 2.into()) / b
+}
+
+pub(crate) trait Unsigned {}
+impl Unsigned for u8 {}
+impl Unsigned for u16 {}
+impl Unsigned for u32 {}
+impl Unsigned for u64 {}
+impl Unsigned for usize {}
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn div_ceil() {
+        for a in 0..255 {
+            for b in 1..255 {
+                let expected = (a as f64 / b as f64).ceil() as u8;
+                assert_eq!(super::div_ceil(a, b), expected, "a={}, b={}", a, b);
+            }
+        }
+    }
+    #[test]
+    fn div_round_fast() {
+        for a in 0..32 {
+            for b in 1..32 {
+                let expected = (a as f64 / b as f64).round() as u8;
+                assert_eq!(super::div_round_fast(a, b), expected, "a={}, b={}", a, b);
+            }
+        }
     }
 }

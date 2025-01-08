@@ -1,6 +1,7 @@
 {
 	"rust-analyzer.showUnlinkedFileNotification": false,
 	"cSpell.words": [
+		"bytemuck",
 		"FOURCC",
 		"mipmap",
 		"SHAREDEXP",

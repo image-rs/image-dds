@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+mod cast;
 mod data;
 mod decode;
 mod detect;
@@ -10,10 +11,10 @@ mod util;
 
 use std::io::{BufRead, Read};
 
-use data::*;
-use error::*;
-use format::*;
-use header::*;
+pub use data::*;
+pub use error::*;
+pub use format::*;
+pub use header::*;
 
 /// Additional options for the DDS decoder specifying how to read and interpret
 /// the header.
@@ -40,13 +41,13 @@ impl Default for Options {
     }
 }
 
-pub struct Decoder {
+pub struct DdsDecoder {
     header: Header,
     format: SupportedFormat,
     layout: DataLayout,
 }
 
-impl Decoder {
+impl DdsDecoder {
     /// Creates a new decoder by reading the header from the given reader.
     ///
     /// This is equivalent to calling `Decoder::new_with(r, Options::default())`.
@@ -133,7 +134,7 @@ mod tests {
             let mut file = File::open(file).expect("Failed to open file");
             let file_len = file.metadata().unwrap().len();
 
-            let decoder_result = Decoder::new(&mut file);
+            let decoder_result = DdsDecoder::new(&mut file);
             if decoder_result.is_err() {
                 println!("Failed to decode file: {:?}", file);
             }
