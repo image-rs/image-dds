@@ -30,42 +30,6 @@ where
     }
     Ok(())
 }
-#[inline(always)]
-pub(crate) fn for_each_pixel_u8<const N: usize, const M: usize, OutChannel>(
-    r: &mut dyn Read,
-    buf: &mut [u8],
-    process_pixel: impl Fn([u8; N]) -> [OutChannel; M],
-) -> Result<(), DecodeError>
-where
-    [<u8 as FromLe>::Raw; N]: cast::Castable + Default,
-    [OutChannel; M]: cast::Castable + Default,
-{
-    for_each_pixel::<N, M, u8, OutChannel>(r, buf, process_pixel)
-}
-#[inline(always)]
-pub(crate) fn for_each_pixel_u16<const N: usize, const M: usize, OutChannel>(
-    r: &mut dyn Read,
-    buf: &mut [u8],
-    process_pixel: impl Fn([u16; N]) -> [OutChannel; M],
-) -> Result<(), DecodeError>
-where
-    [<u16 as FromLe>::Raw; N]: cast::Castable + Default,
-    [OutChannel; M]: cast::Castable + Default,
-{
-    for_each_pixel::<N, M, u16, OutChannel>(r, buf, process_pixel)
-}
-#[inline(always)]
-pub(crate) fn for_each_pixel_u32<const N: usize, const M: usize, OutChannel>(
-    r: &mut dyn Read,
-    buf: &mut [u8],
-    process_pixel: impl Fn([u32; N]) -> [OutChannel; M],
-) -> Result<(), DecodeError>
-where
-    [<u32 as FromLe>::Raw; N]: cast::Castable + Default,
-    [OutChannel; M]: cast::Castable + Default,
-{
-    for_each_pixel::<N, M, u32, OutChannel>(r, buf, process_pixel)
-}
 
 pub(crate) trait FromLe {
     type Raw;
