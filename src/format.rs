@@ -391,30 +391,7 @@ mod decoders {
         // default channels and precision for the format.
 
         /// A helper macro to make it easier to define a const array of decoders.
-        ///
-        /// This macro can be used in two ways:
-        ///
-        /// For a single decoder:
-        ///
-        /// ```no_run
-        /// decoders!(Rgb, U8, my_decode_fn)
-        /// ```
-        ///
-        /// For multiple decoders:
-        ///
-        /// ```no_run
-        /// decoders!(
-        ///     [Rgb, Rgba], // supported colors
-        ///     [U8],        // supported precisions
-        ///     [(Rgba, U8, decode_rgba_fn), (Rgb, U8, decode_rgb_fn)],
-        /// )
-        /// ```
         macro_rules! decoders {
-            ([$($ct:expr),*], [$($cp:expr),*], [$(($c:expr, $p:expr, $d:expr)),* $(,)? ] $(,)?) => {{
-                const DECODERS: &[Decoder] = &[$(Decoder::new($c, $p, $d)),*];
-                const INFO: DecoderSet = DecoderSet::new(DECODERS);
-                INFO
-            }};
             ($c:ident, $p:ident, $d:expr) => {{
                 const DECODER: Decoder = Decoder::new($c, $p, $d);
                 const INFO: DecoderSet = DecoderSet::new(&[DECODER]);
@@ -470,11 +447,7 @@ mod decoders {
             SupportedFormat::BC5_SNORM => decoders!(Rgb, U8, noop_decode),
             SupportedFormat::BC6H_UF16 => decoders!(Rgb, F32, noop_decode),
             SupportedFormat::BC6H_SF16 => decoders!(Rgb, F32, noop_decode),
-            SupportedFormat::BC7_UNORM => decoders!(
-                [Rgb, Rgba],
-                [U8],
-                [(Rgba, U8, noop_decode), (Rgb, U8, noop_decode)],
-            ),
+            SupportedFormat::BC7_UNORM => decoders!(Rgb, U8, noop_decode),
         }
     }
 }
