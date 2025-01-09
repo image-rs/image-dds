@@ -1,7 +1,15 @@
 [package]
 name = "ddsd"
 version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+description = "DDS decoding library in pure safe Rust"
+categories = ["multimedia::images"]
+authors = ["Michael Schmidt"]
+repository = "https://github.com/RunDevelopment/ddsd"
+
 edition = "2021"
+rust-version = "1.70"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
