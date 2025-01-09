@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 
-use crate::{DdsCaps2, DecodeError, Header, MiscFlags, ResourceDimension, SupportedFormat};
+use crate::{DdsCaps2, DecodeError, Header, MiscFlags, ResourceDimension, Size, SupportedFormat};
 
 pub trait Region {
     /// The number of bytes this object occupies in the data section of a DDS file.
@@ -47,6 +47,9 @@ impl SurfaceDescriptor {
     }
     pub fn height(&self) -> u32 {
         self.height
+    }
+    pub fn size(&self) -> Size {
+        Size::new(self.width, self.height)
     }
 }
 impl Region for SurfaceDescriptor {
@@ -104,6 +107,9 @@ impl VolumeDescriptor {
     }
     pub fn depth(&self) -> u32 {
         self.depth
+    }
+    pub fn size(&self) -> Size {
+        Size::new(self.width, self.height)
     }
 
     /// Iterates over all depth slices of the volume.
@@ -465,7 +471,7 @@ impl SurfaceLayoutInfo {
         let height = get_mip_size(self.height, level);
         let len = self
             .pixel_format
-            .get_surface_bytes(width, height)
+            .get_surface_bytes(Size::new(width, height))
             .ok_or(DecodeError::DataLayoutTooBig)?;
 
         SurfaceDescriptor::new(width, height, offset, len)
@@ -536,7 +542,7 @@ impl VolumeLayoutInfo {
         let depth = get_mip_size(self.depth, level);
         let slice_len = self
             .pixel_format
-            .get_surface_bytes(width, height)
+            .get_surface_bytes(Size::new(width, height))
             .ok_or(DecodeError::DataLayoutTooBig)?;
 
         VolumeDescriptor::new(width, height, depth, offset, slice_len)

@@ -1,4 +1,4 @@
-use crate::{util::read_u32_le_array, HeaderError};
+use crate::{util::read_u32_le_array, HeaderError, Size};
 use bitflags::bitflags;
 use std::io::Read;
 
@@ -131,6 +131,10 @@ impl Header {
             // reserved2: buffer[30],
             dxt10,
         })
+    }
+
+    pub fn size(&self) -> Size {
+        Size::new(self.width, self.height)
     }
 }
 

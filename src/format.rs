@@ -269,9 +269,9 @@ impl SupportedFormat {
     /// Returns the number of bytes required to store a surface of the given dimensions.
     ///
     /// If the number of bytes overflows a `usize`, `None` is returned.
-    pub(crate) fn get_surface_bytes(&self, width: u32, height: u32) -> Option<u64> {
+    pub fn get_surface_bytes(&self, size: Size) -> Option<u64> {
         // this cannot overflow
-        let pixels = width as u64 * height as u64;
+        let pixels = size.width as u64 * size.height as u64;
 
         match self {
             // 1 bytes per pixel
@@ -313,8 +313,8 @@ impl SupportedFormat {
             // sub-sampled formats
             Self::R8G8_B8G8_UNORM | Self::G8R8_G8B8_UNORM => {
                 // 4 bytes per one 2x1 block
-                let blocks_x = div_ceil(width, 2);
-                let blocks_y = height;
+                let blocks_x = div_ceil(size.width, 2);
+                let blocks_y = size.height;
                 let blocks = u64::checked_mul(blocks_x as u64, blocks_y as u64)?;
                 blocks.checked_mul(4)
             }
@@ -322,8 +322,8 @@ impl SupportedFormat {
             // block compression formats
             Self::BC1_ALPHA_UNORM | Self::BC4_UNORM | Self::BC4_SNORM => {
                 // 8 bytes per one 4x4 block
-                let blocks_x = div_ceil(width, 4);
-                let blocks_y = div_ceil(height, 4);
+                let blocks_x = div_ceil(size.width, 4);
+                let blocks_y = div_ceil(size.height, 4);
                 let blocks = u64::checked_mul(blocks_x as u64, blocks_y as u64)?;
                 blocks.checked_mul(8)
             }
@@ -335,8 +335,8 @@ impl SupportedFormat {
             | Self::BC6H_UF16
             | Self::BC7_UNORM => {
                 // 16 bytes per one 4x4 block
-                let blocks_x = div_ceil(width, 4);
-                let blocks_y = div_ceil(height, 4);
+                let blocks_x = div_ceil(size.width, 4);
+                let blocks_y = div_ceil(size.height, 4);
                 let blocks = u64::checked_mul(blocks_x as u64, blocks_y as u64)?;
                 blocks.checked_mul(16)
             }
@@ -350,6 +350,9 @@ pub struct Size {
     pub height: u32,
 }
 impl Size {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
     pub fn is_empty(&self) -> bool {
         self.width == 0 || self.height == 0
     }
