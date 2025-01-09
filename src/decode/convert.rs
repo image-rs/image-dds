@@ -212,7 +212,7 @@ pub(crate) mod n8 {
     }
 }
 
-/// Functions for converting **FROM Unorm5** values to other formats.
+/// Functions for converting **FROM Unorm10** values to other formats.
 pub(crate) mod n10 {
     #[inline(always)]
     pub fn n8(x: u16) -> u8 {
@@ -228,6 +228,19 @@ pub(crate) mod n10 {
     pub fn f32(x: u16) -> f32 {
         debug_assert!(x <= 1023);
         const F: f32 = 1.0 / 1023.0;
+        x as f32 * F
+    }
+}
+
+/// Functions for converting **FROM Unorm16** values to other formats.
+pub(crate) mod n16 {
+    #[inline(always)]
+    pub fn n8(x: u16) -> u8 {
+        ((x as u32 * 255 + 32895) >> 16) as u8
+    }
+    #[inline(always)]
+    pub fn f32(x: u16) -> f32 {
+        const F: f32 = 1.0 / 65535.0;
         x as f32 * F
     }
 }
@@ -419,6 +432,7 @@ mod test {
     test_to_unorm8!(n5_to_n8, super::n5::n8, 31);
     test_to_unorm8!(n6_to_n8, super::n6::n8, 63);
     test_to_unorm8!(n10_to_n8, super::n10::n8, 1023);
+    test_to_unorm8!(n16_to_n8, super::n16::n8, 65535);
 
     macro_rules! test_to_unorm16 {
         ($name:ident, $convert:path, $max_in:expr) => {
@@ -439,6 +453,7 @@ mod test {
     test_to_unorm16!(n4_to_n16, super::n4::n16, 15);
     test_to_unorm16!(n5_to_n16, super::n5::n16, 31);
     test_to_unorm16!(n6_to_n16, super::n6::n16, 63);
+    test_to_unorm16!(n8_to_n16, super::n8::n16, 255);
     test_to_unorm16!(n10_to_n16, super::n10::n16, 1023);
 
     #[test]
