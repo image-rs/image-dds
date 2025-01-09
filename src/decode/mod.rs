@@ -4,9 +4,9 @@ use crate::{Channels, DecodeError, Precision, Size, TinyEnum, TinySet};
 
 mod bc1;
 mod convert;
+mod read_write;
 mod sub_sampled;
 mod uncompressed;
-mod util;
 
 pub(crate) use sub_sampled::*;
 pub(crate) use uncompressed::*;
@@ -82,6 +82,19 @@ fn check_buffer_len(
     } else {
         Ok(())
     }
+}
+
+pub(crate) trait WithPrecision {
+    const PRECISION: Precision;
+}
+impl WithPrecision for u8 {
+    const PRECISION: Precision = Precision::U8;
+}
+impl WithPrecision for u16 {
+    const PRECISION: Precision = Precision::U16;
+}
+impl WithPrecision for f32 {
+    const PRECISION: Precision = Precision::F32;
 }
 
 pub(crate) struct DecoderSet {

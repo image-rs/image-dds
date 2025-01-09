@@ -361,14 +361,10 @@ impl From<(u32, u32)> for Size {
 }
 
 mod decoders {
-    use std::io::Read;
 
-    use crate::{
-        decode::{self, DecodeFn, Decoder, DecoderSet},
-        DecodeError,
-    };
+    use crate::decode::{self, DecodeFn, Decoder, DecoderSet};
 
-    use super::{Channels, Precision, Size, SupportedFormat};
+    use super::{Channels, Precision, SupportedFormat};
 
     const noop_decode: DecodeFn = |_, _, _| Ok(());
 

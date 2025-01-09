@@ -1,6 +1,6 @@
 //! Internal module for converting between different number formats.
 //!
-//! All magic constants for the U/SNorm conversion are from:
+//! Most magic constants for the U/SNorm conversion are from:
 //! https://rundevelopment.github.io/projects/multiply-add-constants-finder
 
 #[derive(Debug, Clone, Copy)]

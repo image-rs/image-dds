@@ -11,6 +11,28 @@ pub(crate) fn read_u32_le_array<const N: usize>(
     Ok(buffer)
 }
 
+pub(crate) fn le_to_native_endian_16(buf: &mut [u8]) {
+    assert!(buf.len() % 2 == 0);
+
+    if cfg!(target_endian = "big") {
+        // TODO: optimize this for when the buffer is aligned to u16/u32/u64
+        for i in (0..buf.len()).step_by(2) {
+            buf.swap(i, i + 1);
+        }
+    }
+}
+pub(crate) fn le_to_native_endian_32(buf: &mut [u8]) {
+    assert!(buf.len() % 4 == 0);
+
+    if cfg!(target_endian = "big") {
+        // TODO: optimize this for when the buffer is aligned to u32/u64
+        for i in (0..buf.len()).step_by(4) {
+            buf.swap(i, i + 3);
+            buf.swap(i + 1, i + 2);
+        }
+    }
+}
+
 /// An implementation of div_ceil to lower MSRV.
 pub(crate) fn div_ceil<T>(a: T, b: T) -> T
 where

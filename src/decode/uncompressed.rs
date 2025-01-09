@@ -2,25 +2,13 @@ use super::convert::{
     f10_to_f32, f11_to_f32, f16_to_f32, n10, n16, n2, n4, n8, s16, s8, SwapRB, ToRgba, B5G5R5A1,
     B5G6R5,
 };
-use super::util::{for_each_pixel, le_to_native_endian_16, le_to_native_endian_32};
-use super::{Decoder, DecoderSet};
+use super::read_write::for_each_pixel;
+use super::{Decoder, DecoderSet, WithPrecision};
 
-use crate::{Channels::*, Precision, Precision::*};
+use crate::util::{le_to_native_endian_16, le_to_native_endian_32};
+use crate::{Channels::*, Precision::*};
 
 // helpers
-
-trait WithPrecision {
-    const PRECISION: Precision;
-}
-impl WithPrecision for u8 {
-    const PRECISION: Precision = U8;
-}
-impl WithPrecision for u16 {
-    const PRECISION: Precision = U16;
-}
-impl WithPrecision for f32 {
-    const PRECISION: Precision = F32;
-}
 
 macro_rules! gray {
     ($out:ty, $f:expr) => {
