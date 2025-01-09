@@ -2,6 +2,7 @@
 //! writing decoded pixels to the output buffer.
 
 use std::io::Read;
+use std::mem::size_of;
 
 use crate::{cast, util::div_ceil, DecodeError, Size};
 

@@ -2,7 +2,7 @@
 /// variant is <8.
 pub trait TinyEnum: Sized + Copy + 'static {
     /// A list of all variants of the enum.
-    const VARIANTS: &[Self];
+    const VARIANTS: &'static [Self];
 
     /// The bit mask of the given variant.
     fn bit_mask(self) -> u8;
