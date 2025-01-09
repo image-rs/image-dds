@@ -31,7 +31,14 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain:
+          - 1.70
+          - stable
+          - beta
+          - nightly
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update --no-self-update stable && rustup default stable
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo test
