@@ -10,7 +10,7 @@ mod header;
 mod tiny_set;
 mod util;
 
-use std::io::{BufRead, Read};
+use std::io::Read;
 
 pub use data::*;
 pub use error::*;
@@ -98,60 +98,5 @@ impl DdsDecoder {
     }
     pub fn layout(&self) -> &DataLayout {
         &self.layout
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs::File;
-
-    // #[test]
-    // fn it_works() {
-    //     let mut file =
-    //         File::open(r"C:\Program Files (x86)\Steam\steamapps\common\DARK SOULS III\Game_mod\other\cubegen.dds").expect("Failed to open file");
-    //     let options = HeaderReadOptions {
-    //         magic: MagicBytes::Check,
-    //         ..Default::default()
-    //     };
-    //     let full_header = FullHeader::read_with_options(&mut file, &options).unwrap();
-    //     let data = DataLayout::from_header(&full_header);
-    //     let header = full_header.header;
-    //     let bar = file;
-    //     assert_eq!(header.size, 124);
-    // }
-
-    #[test]
-    fn lots_of_files() {
-        println!("Searching for DDS files...");
-        let dds_files = glob::glob(r"C:\Users\micha\Git\ddsd\test-data\valid\**\*.dds")
-            .expect("Failed to read glob pattern")
-            .map(|x| x.unwrap())
-            .collect::<Vec<_>>();
-
-        println!("Found {} DDS files", dds_files.len());
-        for (i, file) in dds_files.iter().enumerate() {
-            println!("{}", i);
-
-            let mut file = File::open(file).expect("Failed to open file");
-            let file_len = file.metadata().unwrap().len();
-
-            let decoder_result = DdsDecoder::new(&mut file);
-            if decoder_result.is_err() {
-                println!("Failed to decode file: {:?}", file);
-            }
-
-            if let Ok(decoder) = decoder_result {
-                let header = decoder.header();
-                let header_len = 4 + 124 + if header.dxt10.is_some() { 20 } else { 0 };
-                let data_len = file_len - header_len;
-                let expected_len = decoder.layout().byte_len();
-                if expected_len != data_len {
-                    // let again = DataLayout::from_header(&header);
-                    // assert!(again.is_ok());
-                }
-                assert_eq!(data_len, expected_len);
-            }
-        }
     }
 }
