@@ -23,7 +23,7 @@ pub(crate) struct Decoder {
     decode_fn: DecodeFn,
 }
 impl Decoder {
-    const DISABLED: DecodeFn = |_, _, _| unreachable!();
+    const DISABLED_FN: DecodeFn = |_, _, _| unreachable!();
 
     pub const fn new(channels: Channels, precision: Precision, decode_fn: DecodeFn) -> Self {
         Self {
@@ -31,6 +31,14 @@ impl Decoder {
             precision,
             disabled: false,
             decode_fn,
+        }
+    }
+    pub const fn new_disabled(channels: Channels, precision: Precision) -> Self {
+        Self {
+            channels,
+            precision,
+            disabled: true,
+            decode_fn: Self::DISABLED_FN,
         }
     }
 
