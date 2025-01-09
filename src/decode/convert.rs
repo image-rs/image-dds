@@ -98,6 +98,7 @@ impl B5G5R5A1 {
 pub(crate) mod n1 {
     #[inline(always)]
     pub fn n8(x: u8) -> u8 {
+        debug_assert!(x <= 1);
         if x == 0 {
             0
         } else {
@@ -106,6 +107,7 @@ pub(crate) mod n1 {
     }
     #[inline(always)]
     pub fn n16(x: u8) -> u16 {
+        debug_assert!(x <= 1);
         if x == 0 {
             0
         } else {
@@ -114,6 +116,7 @@ pub(crate) mod n1 {
     }
     #[inline(always)]
     pub fn f32(x: u8) -> f32 {
+        debug_assert!(x <= 1);
         if x == 0 {
             0.0
         } else {
@@ -126,14 +129,17 @@ pub(crate) mod n1 {
 pub(crate) mod n2 {
     #[inline(always)]
     pub fn n8(x: u8) -> u8 {
+        debug_assert!(x <= 3);
         x * 85
     }
     #[inline(always)]
     pub fn n16(x: u8) -> u16 {
+        debug_assert!(x <= 3);
         x as u16 * 21845
     }
     #[inline(always)]
     pub fn f32(x: u8) -> f32 {
+        debug_assert!(x <= 3);
         // This turns out to be exact, so we don't need another method.
         const F: f32 = 1.0 / 3.0;
         x as f32 * F
