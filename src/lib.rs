@@ -7,6 +7,7 @@ mod detect;
 mod error;
 mod format;
 mod header;
+mod tiny_set;
 mod util;
 
 use std::io::{BufRead, Read};
@@ -15,6 +16,7 @@ pub use data::*;
 pub use error::*;
 pub use format::*;
 pub use header::*;
+pub use tiny_set::*;
 
 /// Additional options for the DDS decoder specifying how to read and interpret
 /// the header.

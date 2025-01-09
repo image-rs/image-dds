@@ -1,6 +1,8 @@
 use std::io::Read;
 
-use crate::{cast, detect, util::div_ceil, DecodeError, DxgiFormat, FourCC, Header};
+use crate::{
+    cast, detect, util::div_ceil, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet,
+};
 
 /// The number and semantics of the color channels in a surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -17,8 +19,6 @@ pub enum Channels {
     Rgba,
 }
 impl Channels {
-    pub(crate) const VARIANTS: u32 = 4;
-
     /// Returns the number of channels.
     pub const fn count(&self) -> u8 {
         match self {
@@ -26,6 +26,13 @@ impl Channels {
             Self::Rgb => 3,
             Self::Rgba => 4,
         }
+    }
+}
+impl TinyEnum for Channels {
+    const VARIANTS: &'static [Self] = &[Self::Grayscale, Self::Alpha, Self::Rgb, Self::Rgba];
+
+    fn bit_mask(self) -> u8 {
+        1 << self as u8
     }
 }
 
@@ -46,8 +53,6 @@ pub enum Precision {
     F32,
 }
 impl Precision {
-    pub(crate) const VARIANTS: u32 = 3;
-
     /// Returns the size of a single value of this precision in bytes.
     pub const fn size(&self) -> u8 {
         match self {
@@ -55,6 +60,13 @@ impl Precision {
             Self::U16 => 2,
             Self::F32 => 4,
         }
+    }
+}
+impl TinyEnum for Precision {
+    const VARIANTS: &'static [Self] = &[Self::U8, Self::U16, Self::F32];
+
+    fn bit_mask(self) -> u8 {
+        1 << self as u8
     }
 }
 
@@ -130,13 +142,13 @@ impl SupportedFormat {
     /// Returns the format of a surface from a DXGI format.
     ///
     /// `None` if the DXGI format is not supported for decoding.
-    pub fn from_dxgi(dxgi: DxgiFormat) -> Option<SupportedFormat> {
+    pub const fn from_dxgi(dxgi: DxgiFormat) -> Option<SupportedFormat> {
         detect::dxgi_format_to_supported(dxgi)
     }
     /// Returns the format of a surface from a FourCC code.
     ///
     /// `None` if the FourCC code is not supported for decoding.
-    pub fn from_four_cc(four_cc: FourCC) -> Option<SupportedFormat> {
+    pub const fn from_four_cc(four_cc: FourCC) -> Option<SupportedFormat> {
         detect::four_cc_to_supported(four_cc)
     }
 
@@ -145,7 +157,7 @@ impl SupportedFormat {
     /// If the channels of a format cannot be accurately described by
     /// [`Channels`], the next larger type is used. For example, a format with
     /// only R and G channels will be described as [`Channels::Rgb`].
-    pub fn channels(&self) -> Channels {
+    pub const fn channels(&self) -> Channels {
         decoders::get_decoders(*self).main().channels
     }
     /// The precision/bit depth closest to the values in the surface.
@@ -159,22 +171,22 @@ impl SupportedFormat {
     /// closest precision is `U8`. While `U8` can closely approximate all
     /// `B5G6R5_UNORM` values, it is not exact. E.g. a 5-bit UNORM value of 11
     /// is 90.48 as an 8-bit UNORM value exactly but will be rounded to 90.
-    pub fn precision(&self) -> Precision {
+    pub const fn precision(&self) -> Precision {
         decoders::get_decoders(*self).main().precision
     }
 
-    /// A list of all channels this formats supports for decoding.
+    /// A set of all channels this formats supports for decoding.
     ///
     /// This list is guaranteed to be without duplicates and to contain
     /// `self.channels()`.
-    pub fn supported_channels(&self) -> &'static [Channels] {
+    pub const fn supported_channels(&self) -> TinySet<Channels> {
         decoders::get_decoders(*self).supported_channels
     }
-    /// A list of all precisions this formats supports for decoding.
+    /// A set of all precisions this formats supports for decoding.
     ///
     /// This list is guaranteed to be without duplicates and to contain
     /// `self.precision()`.
-    pub fn supported_precisions(&self) -> &'static [Precision] {
+    pub const fn supported_precisions(&self) -> TinySet<Precision> {
         decoders::get_decoders(*self).supported_precisions
     }
 
@@ -187,16 +199,22 @@ impl SupportedFormat {
         output: &mut [u8],
     ) -> Result<(), DecodeError> {
         let decoders = decoders::get_decoders(*self).decoders;
-        if let Some(decoder) = decoders
+        let found = decoders
             .iter()
-            .find(|d| d.channels == channels && d.precision == precision)
-        {
-            decoder.decode(reader, size, output)
-        } else {
-            Err(DecodeError::UnsupportedColorTypePrecision(
-                *self, channels, precision,
-            ))
+            .find(|d| d.channels == channels && d.precision == precision);
+
+        if let Some(decoder) = found {
+            if !decoder.disabled {
+                return decoder.decode(reader, size, output);
+            }
         }
+
+        Err(DecodeError::UnsupportedChannelsPrecision {
+            format: *self,
+            channels,
+            precision,
+            missing_feature: found.is_some(),
+        })
     }
 
     /// A convenience method to decode with [`Precision::U8`].
@@ -379,13 +397,13 @@ mod decoders {
         ///
         /// For a single decoder:
         ///
-        /// ```rust
+        /// ```no_run
         /// decoders!(Rgb, U8, my_decode_fn)
         /// ```
         ///
         /// For multiple decoders:
         ///
-        /// ```rust
+        /// ```no_run
         /// decoders!(
         ///     [Rgb, Rgba], // supported colors
         ///     [U8],        // supported precisions
@@ -395,32 +413,12 @@ mod decoders {
         macro_rules! decoders {
             ([$($ct:expr),*], [$($cp:expr),*], [$(($c:expr, $p:expr, $d:expr)),* $(,)? ] $(,)?) => {{
                 const DECODERS: &[Decoder] = &[$(Decoder::new($c, $p, $d)),*];
-
-                const INFO: DecoderSet = {
-                    let info = DecoderSet {
-                        decoders: DECODERS,
-                        supported_channels: &[$($ct),*],
-                        supported_precisions: &[$($cp),*],
-                    };
-                    info.verify();
-                    info
-                };
-
+                const INFO: DecoderSet = DecoderSet::new(DECODERS);
                 INFO
             }};
             ($c:ident, $p:ident, $d:expr) => {{
-                const INFO: DecoderSet = {
-                    const DECODER: Decoder = Decoder::new($c, $p, $d);
-
-                    let info = DecoderSet {
-                        decoders: &[DECODER],
-                        supported_channels: &[$c],
-                        supported_precisions: &[$p],
-                    };
-                    info.verify();
-                    info
-                };
-
+                const DECODER: Decoder = Decoder::new($c, $p, $d);
+                const INFO: DecoderSet = DecoderSet::new(&[DECODER]);
                 INFO
             }};
         }

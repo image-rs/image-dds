@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use crate::{Channels, DecodeError, Precision, Size};
+use crate::{Channels, DecodeError, Precision, Size, TinyEnum, TinySet};
 
 mod bc1;
 mod convert;
@@ -19,13 +19,17 @@ pub(crate) type DecodeFn =
 pub(crate) struct Decoder {
     pub channels: Channels,
     pub precision: Precision,
+    pub disabled: bool,
     decode_fn: DecodeFn,
 }
 impl Decoder {
+    const DISABLED: DecodeFn = |_, _, _| unreachable!();
+
     pub const fn new(channels: Channels, precision: Precision, decode_fn: DecodeFn) -> Self {
         Self {
             channels,
             precision,
+            disabled: false,
             decode_fn,
         }
     }
@@ -72,15 +76,34 @@ fn check_buffer_len(
 
 pub(crate) struct DecoderSet {
     pub decoders: &'static [Decoder],
-    pub supported_channels: &'static [Channels],
-    pub supported_precisions: &'static [Precision],
+    pub supported_channels: TinySet<Channels>,
+    pub supported_precisions: TinySet<Precision>,
 }
 impl DecoderSet {
-    pub const fn new(
-        channels: &'static [Channels],
-        precisions: &'static [Precision],
-        decoders: &'static [Decoder],
-    ) -> Self {
+    pub const fn new(decoders: &'static [Decoder]) -> Self {
+        let channels = TinySet::from_raw_unchecked({
+            let mut set: u8 = 0;
+
+            let mut i = 0;
+            while i < decoders.len() {
+                let decoder = &decoders[i];
+                set |= 1 << decoder.channels as u8;
+                i += 1;
+            }
+            set
+        });
+        let precisions = TinySet::from_raw_unchecked({
+            let mut set: u8 = 0;
+
+            let mut i = 0;
+            while i < decoders.len() {
+                let decoder = &decoders[i];
+                set |= 1 << decoder.precision as u8;
+                i += 1;
+            }
+            set
+        });
+
         let value = Self {
             decoders,
             supported_channels: channels,
@@ -104,7 +127,8 @@ impl DecoderSet {
             while i < self.decoders.len() {
                 let decoder = &self.decoders[i];
 
-                let key = decoder.channels as u32 * Precision::VARIANTS + decoder.precision as u32;
+                let key = decoder.channels as u32 * Precision::VARIANTS.len() as u32
+                    + decoder.precision as u32;
                 assert!(key < 32);
 
                 let bit_mask = 1 << key;
@@ -137,42 +161,6 @@ impl DecoderSet {
             let expected = channels_count * precision_count;
             if self.decoders.len() != expected as usize {
                 panic!("Missing color channel-precision combination");
-            }
-        }
-
-        // Supported channels must match decoder channels
-        {
-            let mut supported_bitset: u32 = 0;
-            let mut i = 0;
-            while i < self.supported_channels.len() {
-                let color = self.supported_channels[i] as u32;
-                supported_bitset |= 1 << color;
-                i += 1;
-            }
-
-            if supported_bitset != channels_bitset {
-                panic!("Supported channels do not match decoder channels");
-            }
-            if supported_bitset.count_ones() != self.supported_channels.len() as u32 {
-                panic!("Supported channels should contain no duplicates");
-            }
-        }
-
-        // Supported precisions must match decoder precisions
-        {
-            let mut supported_bitset: u32 = 0;
-            let mut i = 0;
-            while i < self.supported_precisions.len() {
-                let precision = self.supported_precisions[i] as u32;
-                supported_bitset |= 1 << precision;
-                i += 1;
-            }
-
-            if supported_bitset != precision_bitset {
-                panic!("Supported precisions do not match decoder precisions");
-            }
-            if supported_bitset.count_ones() != self.supported_precisions.len() as u32 {
-                panic!("Supported precisions should contain no duplicates");
             }
         }
     }

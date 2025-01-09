@@ -53,6 +53,10 @@ pub(crate) fn x1_to_x8(x: u16) -> u8 {
         255
     }
 }
+#[inline(always)]
+pub(crate) fn unorm8_to_unorm16(x: u8) -> u16 {
+    x as u16 * 257
+}
 
 #[inline(always)]
 pub(crate) fn x2_to_x16(x: u32) -> u16 {
@@ -83,6 +87,34 @@ pub(crate) fn snorm8_to_unorm8(x: u8) -> u8 {
     ((y as u16 * 258 + 2) >> 8) as u8
 }
 #[inline(always)]
+pub(crate) fn snorm8_to_unorm16(x: u8) -> u16 {
+    // If you think that we can just do `x.wrapping_add(128)`, you'd be wrong.
+    // https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format#format-modifiers
+    // Both -128 and -127 map to -1.0. So we have to do more work:
+    //
+    // We start with `y = x.wrapping_add(128).saturating_sub(1)`. This maps
+    // [-128, 127] to [0, 254] and correctly maps both -128 and -127 to 0.
+    let y = x.wrapping_add(128).saturating_sub(1);
+
+    // So now, we only have to map the interval [0, 254] to [0, 65535].
+    // https://rundevelopment.github.io/projects/multiply-add-constants-finder#r=round&t=65535&d=254&u=254
+    ((y as u32 * 16909064 + 32520) >> 16) as u16
+}
+#[inline(always)]
+pub(crate) fn snorm8_to_uf32(x: u8) -> f32 {
+    // If you think that we can just do `x.wrapping_add(128)`, you'd be wrong.
+    // https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format#format-modifiers
+    // Both -128 and -127 map to -1.0. So we have to do more work:
+    //
+    // We start with `y = x.wrapping_add(128).saturating_sub(1)`. This maps
+    // [-128, 127] to [0, 254] and correctly maps both -128 and -127 to 0.
+    let y = x.wrapping_add(128).saturating_sub(1);
+
+    const F: f32 = 1.0 / 254.0;
+    y as f32 * F
+}
+
+#[inline(always)]
 pub(crate) fn snorm16_to_unorm16(x: u16) -> u16 {
     // Same as above, just 16 bits.
     let y = x.wrapping_add(32768).saturating_sub(1);
@@ -90,6 +122,10 @@ pub(crate) fn snorm16_to_unorm16(x: u16) -> u16 {
     ((y as u32 * 65538 + 2) >> 16) as u16
 }
 
+pub(crate) fn unorm8_to_f32(u: u8) -> f32 {
+    const F: f32 = 1.0 / 255.0;
+    u as f32 * F
+}
 pub(crate) fn f16_to_f32(half: u16) -> f32 {
     // https://stackoverflow.com/questions/36008434/how-can-i-decode-f16-to-f32-using-only-the-stable-standard-library
     let exp: u16 = half >> 10 & 0b1_1111;
@@ -150,6 +186,48 @@ pub(crate) fn float3_to_bytes(floats: [f32; 3]) -> [u8; 12] {
 }
 pub(crate) fn float4_to_bytes(floats: [f32; 4]) -> [u8; 16] {
     bytemuck::cast(floats)
+}
+
+pub(crate) trait ToRgba {
+    type Channel;
+    fn to_rgba(self) -> [Self::Channel; 4];
+}
+impl ToRgba for [u8; 3] {
+    type Channel = u8;
+
+    fn to_rgba(self) -> [u8; 4] {
+        [self[0], self[1], self[2], u8::MAX]
+    }
+}
+impl ToRgba for [u16; 3] {
+    type Channel = u16;
+
+    fn to_rgba(self) -> [u16; 4] {
+        [self[0], self[1], self[2], u16::MAX]
+    }
+}
+impl ToRgba for [f32; 3] {
+    type Channel = f32;
+
+    fn to_rgba(self) -> [f32; 4] {
+        [self[0], self[1], self[2], 1.0]
+    }
+}
+
+pub(crate) trait SwapRB {
+    fn swap_rb(self) -> Self;
+}
+impl<T> SwapRB for [T; 3] {
+    fn swap_rb(self) -> Self {
+        let [r, g, b] = self;
+        [b, g, r]
+    }
+}
+impl<T> SwapRB for [T; 4] {
+    fn swap_rb(self) -> Self {
+        let [r, g, b, a] = self;
+        [b, g, r, a]
+    }
 }
 
 #[cfg(test)]

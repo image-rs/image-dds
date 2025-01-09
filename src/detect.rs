@@ -3,7 +3,7 @@
 
 use crate::{DxgiFormat, FourCC, PixelFormat, PixelFormatFlags, SupportedFormat};
 
-pub(crate) fn dxgi_format_to_supported(dxgi_format: DxgiFormat) -> Option<SupportedFormat> {
+pub(crate) const fn dxgi_format_to_supported(dxgi_format: DxgiFormat) -> Option<SupportedFormat> {
     match dxgi_format {
         // uncompressed formats
         DxgiFormat::R8G8B8A8_TYPELESS
@@ -81,7 +81,7 @@ pub(crate) fn dxgi_format_to_supported(dxgi_format: DxgiFormat) -> Option<Suppor
     }
 }
 
-fn four_cc_to_dxgi(four_cc: FourCC) -> Option<DxgiFormat> {
+const fn four_cc_to_dxgi(four_cc: FourCC) -> Option<DxgiFormat> {
     match four_cc {
         FourCC::DXT1 => Some(DxgiFormat::BC1_UNORM),
         FourCC::DXT2 => Some(DxgiFormat::BC2_UNORM),
@@ -124,8 +124,12 @@ fn four_cc_to_dxgi(four_cc: FourCC) -> Option<DxgiFormat> {
     }
 }
 
-pub(crate) fn four_cc_to_supported(four_cc: FourCC) -> Option<SupportedFormat> {
-    four_cc_to_dxgi(four_cc).and_then(dxgi_format_to_supported)
+pub(crate) const fn four_cc_to_supported(four_cc: FourCC) -> Option<SupportedFormat> {
+    if let Some(dxgi_format) = four_cc_to_dxgi(four_cc) {
+        dxgi_format_to_supported(dxgi_format)
+    } else {
+        None
+    }
 }
 
 pub(crate) fn pixel_format_to_supported(pf: &PixelFormat) -> Option<SupportedFormat> {

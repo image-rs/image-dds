@@ -16,7 +16,13 @@ pub enum DecodeError {
     /// I.e. it is possible for the header to describe a texture that requires
     /// >2^64 bytes of memory.
     DataLayoutTooBig,
-    UnsupportedColorTypePrecision(SupportedFormat, Channels, Precision),
+    UnsupportedChannelsPrecision {
+        format: SupportedFormat,
+        channels: Channels,
+        precision: Precision,
+        /// Whether the decoder is supported, but the necessary feature flag is not set.
+        missing_feature: bool,
+    },
     UnexpectedBufferSize {
         expected: usize,
         actual: usize,
@@ -70,16 +76,25 @@ impl std::fmt::Display for DecodeError {
             DecodeError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")
             }
-            DecodeError::UnsupportedColorTypePrecision(format, color_type, color_precision) => {
-                write!(
-                    f,
-                    "{:?} x {:?} is not supported for format {:?}. Supported are {:?} x {:?}",
-                    color_type,
-                    color_precision,
-                    format,
-                    format.supported_channels(),
-                    format.supported_precisions()
-                )
+            DecodeError::UnsupportedChannelsPrecision {
+                format,
+                channels,
+                precision,
+                missing_feature,
+            } => {
+                if *missing_feature {
+                    write!(
+                        f,
+                        "{:?} x {:?} is not supported for format {:?} because the necessary feature flag is not set.",
+                        channels, precision, format,
+                    )
+                } else {
+                    write!(
+                        f,
+                        "{:?} x {:?} is not supported for format {:?}.",
+                        channels, precision, format,
+                    )
+                }
             }
             DecodeError::UnexpectedBufferSize { expected, actual } => {
                 write!(
