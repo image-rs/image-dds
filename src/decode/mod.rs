@@ -4,9 +4,11 @@ use crate::{Channels, DecodeError, Precision, Size, TinyEnum, TinySet};
 
 mod bc1;
 mod convert;
+mod sub_sampled;
 mod uncompressed;
 mod util;
 
+pub(crate) use sub_sampled::*;
 pub(crate) use uncompressed::*;
 
 pub(crate) struct DecodeContext {

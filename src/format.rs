@@ -458,8 +458,8 @@ mod decoders {
             SupportedFormat::R10G10B10_XR_BIAS_A2_UNORM => decode::R10G10B10_XR_BIAS_A2_UNORM,
 
             // sub-sampled formats
-            SupportedFormat::R8G8_B8G8_UNORM => decoders!(Rgb, U8, noop_decode),
-            SupportedFormat::G8R8_G8B8_UNORM => decoders!(Rgb, U8, noop_decode),
+            SupportedFormat::R8G8_B8G8_UNORM => decode::R8G8_B8G8_UNORM,
+            SupportedFormat::G8R8_G8B8_UNORM => decode::G8R8_G8B8_UNORM,
 
             // block compression formats
             SupportedFormat::BC1_ALPHA_UNORM => decoders!(Rgba, U8, noop_decode),
