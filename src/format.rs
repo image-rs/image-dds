@@ -269,13 +269,10 @@ impl SupportedFormat {
     /// Returns the number of bytes required to store a surface of the given dimensions.
     ///
     /// If the number of bytes overflows a `usize`, `None` is returned.
-    pub fn get_surface_bytes(&self, size: Size) -> Option<u64> {
-        // this cannot overflow
-        let pixels = size.width as u64 * size.height as u64;
-
+    pub(crate) fn get_surface_bytes(&self, size: Size) -> Option<u64> {
         match self {
             // 1 bytes per pixel
-            Self::R8_UNORM | Self::R8_SNORM | Self::A8_UNORM => Some(pixels),
+            Self::R8_UNORM | Self::R8_SNORM | Self::A8_UNORM => Some(size.pixels()),
             // 2 bytes per pixel
             Self::B5G6R5_UNORM
             | Self::B5G5R5A1_UNORM
@@ -284,9 +281,9 @@ impl SupportedFormat {
             | Self::R8G8_SNORM
             | Self::R16_UNORM
             | Self::R16_SNORM
-            | Self::R16_FLOAT => pixels.checked_mul(2),
+            | Self::R16_FLOAT => size.pixels().checked_mul(2),
             // 3 bytes per pixel
-            Self::R8G8B8_UNORM | Self::B8G8R8_UNORM => pixels.checked_mul(3),
+            Self::R8G8B8_UNORM | Self::B8G8R8_UNORM => size.pixels().checked_mul(3),
             // 4 bytes per pixel
             Self::R8G8B8A8_UNORM
             | Self::R8G8B8A8_SNORM
@@ -299,16 +296,16 @@ impl SupportedFormat {
             | Self::R9G9B9E5_SHAREDEXP
             | Self::R16G16_FLOAT
             | Self::R32_FLOAT
-            | Self::R10G10B10_XR_BIAS_A2_UNORM => pixels.checked_mul(4),
+            | Self::R10G10B10_XR_BIAS_A2_UNORM => size.pixels().checked_mul(4),
             // 8 bytes per pixel
             Self::R16G16B16A16_UNORM
             | Self::R16G16B16A16_SNORM
             | Self::R16G16B16A16_FLOAT
-            | Self::R32G32_FLOAT => pixels.checked_mul(8),
+            | Self::R32G32_FLOAT => size.pixels().checked_mul(8),
             // 12 bytes per pixel
-            Self::R32G32B32_FLOAT => pixels.checked_mul(12),
+            Self::R32G32B32_FLOAT => size.pixels().checked_mul(12),
             // 16 bytes per pixel
-            Self::R32G32B32A32_FLOAT => pixels.checked_mul(16),
+            Self::R32G32B32A32_FLOAT => size.pixels().checked_mul(16),
 
             // sub-sampled formats
             Self::R8G8_B8G8_UNORM | Self::G8R8_G8B8_UNORM => {
@@ -350,11 +347,14 @@ pub struct Size {
     pub height: u32,
 }
 impl Size {
-    pub fn new(width: u32, height: u32) -> Self {
+    pub const fn new(width: u32, height: u32) -> Self {
         Self { width, height }
     }
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.width == 0 || self.height == 0
+    }
+    pub const fn pixels(&self) -> u64 {
+        self.width as u64 * self.height as u64
     }
 }
 impl From<(u32, u32)> for Size {
