@@ -15,8 +15,20 @@ pub(crate) struct DecodeContext {
     size: Size,
 }
 
-pub(crate) type DecodeFn =
-    fn(reader: &mut dyn Read, output: &mut [u8], context: DecodeContext) -> Result<(), DecodeError>;
+/// This is a silly hack to make [DecodeFn] `const`-compatible on MSRV.
+///
+/// The issue is that `const fn`s not not allow mutable references. On older
+/// Rust versions, this also included multiple references in function pointers.
+/// Of course, functions pointers can't be called in `const`, so them having
+/// mutable references doesn't matter, but the compiler wasn't smart enough
+/// back then. It only looked at types, saw an `&mut` and rejected the code.
+///
+/// The "fix" is to wrap all mutable references in a struct so that compiler
+/// can't see them in the type signature of the function pointer anymore. Truly
+/// silly, and thankfully not necessary on never compiler versions.
+pub(crate) struct Io<'a, 'b>(pub &'a mut dyn Read, pub &'b mut [u8]);
+
+pub(crate) type DecodeFn = fn(io: Io, context: DecodeContext) -> Result<(), DecodeError>;
 
 pub(crate) struct Decoder {
     pub channels: Channels,
@@ -25,7 +37,7 @@ pub(crate) struct Decoder {
     decode_fn: DecodeFn,
 }
 impl Decoder {
-    const DISABLED_FN: DecodeFn = |_, _, _| unreachable!();
+    const DISABLED_FN: DecodeFn = |_, _| unreachable!();
 
     pub const fn new(channels: Channels, precision: Precision, decode_fn: DecodeFn) -> Self {
         Self {
@@ -57,7 +69,7 @@ impl Decoder {
             return Ok(());
         }
 
-        (self.decode_fn)(reader, output, DecodeContext { size })
+        (self.decode_fn)(Io(reader, output), DecodeContext { size })
     }
 }
 

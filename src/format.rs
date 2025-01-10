@@ -369,9 +369,9 @@ mod decoders {
 
     use super::{Channels, Precision, SupportedFormat};
 
-    const noop_decode: DecodeFn = |_, _, _| Ok(());
+    const noop_decode: DecodeFn = |_, _| Ok(());
 
-    pub const fn get_decoders(format: SupportedFormat) -> DecoderSet {
+    pub(crate) const fn get_decoders(format: SupportedFormat) -> DecoderSet {
         use Channels::*;
         use Precision::*;
 

@@ -2,7 +2,7 @@ use crate::Channels::*;
 
 use super::convert::{n8, ToRgba};
 use super::read_write::for_each_pair;
-use super::{Decoder, DecoderSet, WithPrecision};
+use super::{Decoder, DecoderSet, Io, WithPrecision};
 
 // helpers
 
@@ -11,7 +11,7 @@ macro_rules! rgb {
         Decoder::new(
             Rgb,
             <$out as WithPrecision>::PRECISION,
-            |r, out, context| {
+            |Io(r, out), context| {
                 let f1 = $f1;
                 let f2 = $f2;
                 for_each_pair(
@@ -30,7 +30,7 @@ macro_rules! rgba {
         Decoder::new(
             Rgba,
             <$out as WithPrecision>::PRECISION,
-            |r, out, context| {
+            |Io(r, out), context| {
                 let f1 = $f1;
                 let f2 = $f2;
                 for_each_pair(
