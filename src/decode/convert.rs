@@ -381,6 +381,61 @@ pub(crate) mod s16 {
     }
 }
 
+/// Functions for converting **FROM 10-bit XR_BIAS** values to other formats.
+///
+/// These are 2.8 fixed-point numbers, meaning 2 integer bits and 8 fractional
+/// bits. These numbers are biased by -1.5 and then scaled by 256/510, resulting
+/// in an effective range of `[-0.75294, 1.25294]`. XR (probably) means extended
+/// range.
+///
+/// The conversion from 10-bit XR_BIAS to float is:
+///
+/// ```c
+/// // source: https://learn.microsoft.com/en-us/windows-hardware/drivers/display/xr-bias-to-float-conversion-rules
+/// float XRtoFloat( UINT XRComponent ) {
+///     // The & 0x3ff shows that only 10 bits contribute to the conversion.
+///     return (float)( (XRComponent & 0x3ff) - 0x180 ) / 510.f;
+/// }
+/// ```
+pub(crate) mod xr10 {
+    #[inline(always)]
+    pub fn n8(x: u16) -> u8 {
+        // new range: [-384, 639] (or [-0.75294, 1.25294])
+        let x = x as i16 - 0x180;
+        // new range: [0, 510] (or [0.0, 1.0])
+        let x = x.clamp(0, 510) as u16;
+        // this is round(x / 510 * 255), but faster
+        ((x + 1) >> 1) as u8
+    }
+    #[inline(always)]
+    pub fn n16(x: u16) -> u16 {
+        // new range: [-384, 639] (or [-0.75294, 1.25294])
+        let x = x as i16 - 0x180;
+        // new range: [0, 510] (or [0.0, 1.0])
+        let x = x.clamp(0, 510) as u16;
+        // this is round(x / 510 * 65535), but faster
+        ((x as u32 * 8421376 + 65535) >> 16) as u16
+    }
+    #[inline(always)]
+    pub fn f32(x: u16) -> f32 {
+        // 0x180 == 1.5 in 2.8 fixed-point.
+        const F: f32 = 1.0 / 510.0;
+        (x as i16 - 0x180) as f32 * F
+    }
+}
+
+/// Functions for converting `f32`` values to other formats.
+pub(crate) mod fp {
+    #[inline(always)]
+    pub fn n8(x: f32) -> u8 {
+        (x * 255.0 + 0.5) as u8
+    }
+    #[inline(always)]
+    pub fn n16(x: f32) -> u16 {
+        (x * 65535.0 + 0.5) as u16
+    }
+}
+
 // TODO: Check whether these methods correctly implement the DirectX spec:
 // https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion
 
@@ -667,4 +722,52 @@ mod test {
     }
     test_snorm_to_f32_exact!(i8 / u8, s8_to_uf32_exact, super::s8::uf32_exact);
     test_snorm_to_f32_exact!(i16 / u16, s16_to_uf32_exact, super::s16::uf32_exact);
+
+    #[test]
+    fn fp_to_n8() {
+        use super::fp;
+
+        assert_eq!(fp::n8(f32::NEG_INFINITY), 0);
+        assert_eq!(fp::n8(-1000.0), 0);
+        assert_eq!(fp::n8(-1.0), 0);
+        assert_eq!(fp::n8(0.0), 0);
+        assert_eq!(fp::n8(0.5), 128);
+        assert_eq!(fp::n8(1.0), 255);
+        assert_eq!(fp::n8(1000.0), 255);
+        assert_eq!(fp::n8(f32::INFINITY), 255);
+
+        assert_eq!(fp::n8(f32::NAN), 0);
+    }
+    #[test]
+    fn fp_to_n16() {
+        use super::fp;
+
+        assert_eq!(fp::n16(f32::NEG_INFINITY), 0);
+        assert_eq!(fp::n16(-1000.0), 0);
+        assert_eq!(fp::n16(-1.0), 0);
+        assert_eq!(fp::n16(0.0), 0);
+        assert_eq!(fp::n16(0.5), 32768);
+        assert_eq!(fp::n16(1.0), u16::MAX);
+        assert_eq!(fp::n16(1000.0), u16::MAX);
+        assert_eq!(fp::n16(f32::INFINITY), u16::MAX);
+
+        assert_eq!(fp::n16(f32::NAN), 0);
+    }
+
+    #[test]
+    fn xr10_to_n8() {
+        for i in 0..1024 {
+            let expected = super::fp::n8(super::xr10::f32(i));
+            let actual = super::xr10::n8(i);
+            assert_eq!(actual, expected, "failed for i={}", i);
+        }
+    }
+    #[test]
+    fn xr10_to_n16() {
+        for i in 0..1024 {
+            let expected = super::fp::n16(super::xr10::f32(i));
+            let actual = super::xr10::n16(i);
+            assert_eq!(actual, expected, "failed for i={}", i);
+        }
+    }
 }
