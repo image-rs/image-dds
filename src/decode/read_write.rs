@@ -22,6 +22,14 @@ where
     assert!(buf.len() % out_pixel_size == 0);
     let pixels = buf.len() / out_pixel_size;
 
+    // TODO: If buf is aligned for BOTH `[InChannel::Raw; N]` and `OutPixel`, then:
+    //       - if `size_of([InChannel::Raw; N]) == size_of(OutPixel)`:
+    //         we can read the entire encoded surface into the output buffer
+    //         and decode it in place.
+    //       - if `size_of([InChannel::Raw; N]) < size_of(OutPixel)`:
+    //         we can read the entire encoded surface into the front of the
+    //         output buffer and decode it in place back to front.
+
     let mut read_buffer: PixelBuffer<[InChannel::Raw; N]> = PixelBuffer::new(pixels);
     let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
     for buf in buf.chunks_mut(read_buffer.buffered_pixels * write_aligned.element_size()) {
@@ -237,34 +245,59 @@ impl<T> AlignedWriter<T> {
         size_of::<T>()
     }
 
+    // Don't inline this method for code size reasons.
+    #[inline(never)]
+    fn get_temp(&mut self, buf_len: usize) -> &mut [T]
+    where
+        T: Default + Copy,
+    {
+        let size = self.element_size();
+        assert_eq!(buf_len % size, 0);
+        let len = buf_len / size;
+
+        // create a buffer if it doesn't exist
+        if self.temp_buf.is_none() {
+            self.temp_buf = Some(vec![T::default(); len]);
+        }
+
+        // NOTE: This unwrap cannot fail
+        let temp = self.temp_buf.as_deref_mut().unwrap();
+        assert!(temp.len() >= len);
+        &mut temp[..len]
+    }
+
     fn write(&mut self, buf: &mut [u8], write: impl FnOnce(&mut [T]))
     where
         T: cast::Castable + Default + Copy,
     {
-        // TODO: Restructure this method to call `write` exactly once to reduce
-        //       code size. The borrow checker is going to hate this though.
+        // The whole method is structured around calling `write` at one place.
+        // This is done to
 
-        if let Ok(buf) = bytemuck::try_cast_slice_mut(buf) {
+        enum Aligned<'a, 'b, T> {
+            Slice(&'a mut [T]),
+            Temp(&'b mut [T]),
+        }
+        impl<T> Aligned<'_, '_, T> {
+            fn as_mut(&mut self) -> &mut [T] {
+                match self {
+                    Self::Slice(buf) => buf,
+                    Self::Temp(buf) => buf,
+                }
+            }
+        }
+
+        let mut write_to: Aligned<T> = if let Ok(buf) = bytemuck::try_cast_slice_mut(buf) {
             // the buffer is aligned already
-            write(buf);
+            Aligned::Slice(buf)
         } else {
-            // use a temporary buffer and copy over
-            let size = size_of::<T>();
-            assert_eq!(buf.len() % size, 0);
-            let len = buf.len() / size;
+            // use a temporary buffer and copy over the result later
+            Aligned::Temp(self.get_temp(buf.len()))
+        };
 
-            let temp = if let Some(temp) = self.temp_buf.as_mut() {
-                assert!(temp.len() >= len);
-                &mut temp[..len]
-            } else {
-                let temp = vec![T::default(); len];
-                self.temp_buf = Some(temp);
-                // we just assigned a value, so unwrap is okay
-                self.temp_buf.as_mut().unwrap()
-            };
+        write(write_to.as_mut());
 
-            write(temp);
-
+        if let Aligned::Temp(temp) = write_to {
+            // copy the result to the output buffer
             buf.copy_from_slice(cast::as_bytes(temp));
         }
     }
