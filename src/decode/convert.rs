@@ -381,6 +381,9 @@ pub(crate) mod s16 {
     }
 }
 
+// TODO: Check whether these methods correctly implement the DirectX spec:
+// https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion
+
 pub(crate) fn f16_to_f32(half: u16) -> f32 {
     // https://stackoverflow.com/questions/36008434/how-can-i-decode-f16-to-f32-using-only-the-stable-standard-library
     let exp: u16 = half >> 10 & 0b1_1111;
@@ -469,6 +472,20 @@ impl ToRgba for [f32; 3] {
     #[inline(always)]
     fn to_rgba(self) -> [f32; 4] {
         [self[0], self[1], self[2], 1.0]
+    }
+}
+
+pub(crate) trait ToRgb {
+    type Channel;
+    fn to_rgb(self) -> [Self::Channel; 3];
+}
+impl<T> ToRgb for [T; 4] {
+    type Channel = T;
+
+    #[inline(always)]
+    fn to_rgb(self) -> [T; 3] {
+        let [r, g, b, _] = self;
+        [r, g, b]
     }
 }
 
