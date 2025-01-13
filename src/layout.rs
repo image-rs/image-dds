@@ -109,11 +109,11 @@ impl VolumeDescriptor {
     /// To get the depth value of a slice, use `.enumerate()`. Example:
     ///
     /// ```no_run
-    /// # use ddsd::{VolumeDescriptor, Region};
+    /// # use ddsd::{VolumeDescriptor, DataRegion};
     /// # fn get_volume() -> VolumeDescriptor { todo!() }
     /// let volume: VolumeDescriptor = get_volume();
     /// for (depth, slice) in volume.iter_depth_slices().enumerate() {
-    ///     println!("Slice {} starts at {}", depth, slice.byte_offset());
+    ///     println!("Slice {} starts at {}", depth, slice.data_offset());
     /// }
     /// ```
     pub fn iter_depth_slices(&self) -> impl Iterator<Item = SurfaceDescriptor> {
