@@ -370,12 +370,7 @@ impl From<DdsCaps2> for CubeMapSide {
 impl CubeMapSide {
     /// Returns the number of cube map sides set in this bit mask.
     pub fn count(&self) -> u32 {
-        self.contains(CubeMapSide::POSITIVE_X) as u32
-            + self.contains(CubeMapSide::NEGATIVE_X) as u32
-            + self.contains(CubeMapSide::POSITIVE_Y) as u32
-            + self.contains(CubeMapSide::NEGATIVE_Y) as u32
-            + self.contains(CubeMapSide::POSITIVE_Z) as u32
-            + self.contains(CubeMapSide::NEGATIVE_Z) as u32
+        self.bits().count_ones()
     }
 }
 

@@ -1,21 +1,21 @@
 #![forbid(unsafe_code)]
 
 mod cast;
-mod data;
 mod decode;
 mod detect;
 mod error;
 mod format;
 mod header;
+mod layout;
 mod tiny_set;
 mod util;
 
 use std::io::Read;
 
-pub use data::*;
 pub use error::*;
 pub use format::*;
 pub use header::*;
+pub use layout::*;
 pub use tiny_set::*;
 
 /// Additional options for the DDS decoder specifying how to read and interpret
@@ -34,7 +34,8 @@ pub struct Options {
     ///
     /// Defaults to `false`.
     pub skip_magic_bytes: bool,
-    /// The allowed value of the `array_size` field in the header.
+
+    /// The maximum allowed value of the `array_size` field in the header.
     ///
     /// DDS files support texture arrays and the `array_size` field denotes the
     /// number of textures in the array. The only exception for this are cube
@@ -45,6 +46,8 @@ pub struct Options {
     /// Since `array_size` is defined by the file, it is possible for a
     /// malicious or corrupted file to contain a very large value. For security
     /// reasons, this option can be used to limit the maximum allowed value.
+    ///
+    /// To disable this limit, set this to `u32::MAX`.
     ///
     /// Defaults to `4096`.
     pub max_array_size: u32,

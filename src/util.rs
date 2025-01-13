@@ -76,7 +76,6 @@ impl Unsigned for usize {}
 
 #[cfg(test)]
 mod test {
-
     #[test]
     fn div_ceil() {
         for a in 0..255 {
