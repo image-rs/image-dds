@@ -26,9 +26,9 @@ pub(crate) struct DecodeContext {
 /// The "fix" is to wrap all mutable references in a struct so that compiler
 /// can't see them in the type signature of the function pointer anymore. Truly
 /// silly, and thankfully not necessary on never compiler versions.
-pub(crate) struct Io<'a, 'b>(pub &'a mut dyn Read, pub &'b mut [u8]);
+pub(crate) struct Args<'a, 'b>(pub &'a mut dyn Read, pub &'b mut [u8], DecodeContext);
 
-pub(crate) type DecodeFn = fn(io: Io, context: DecodeContext) -> Result<(), DecodeError>;
+pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodeError>;
 
 pub(crate) struct Decoder {
     pub channels: Channels,
@@ -37,7 +37,7 @@ pub(crate) struct Decoder {
     decode_fn: DecodeFn,
 }
 impl Decoder {
-    const DISABLED_FN: DecodeFn = |_, _| unreachable!();
+    const DISABLED_FN: DecodeFn = |_| unreachable!();
 
     pub const fn new(channels: Channels, precision: Precision, decode_fn: DecodeFn) -> Self {
         Self {
@@ -69,7 +69,7 @@ impl Decoder {
             return Ok(());
         }
 
-        (self.decode_fn)(Io(reader, output), DecodeContext { size })
+        (self.decode_fn)(Args(reader, output, DecodeContext { size }))
     }
 }
 

@@ -3,7 +3,7 @@ use super::convert::{
     B5G5R5A1, B5G6R5,
 };
 use super::read_write::for_each_pixel;
-use super::{Decoder, DecoderSet, Io, WithPrecision};
+use super::{Args, Decoder, DecoderSet, WithPrecision};
 
 use crate::util::{le_to_native_endian_16, le_to_native_endian_32};
 use crate::{Channels::*, Precision::*};
@@ -15,7 +15,7 @@ macro_rules! gray {
         Decoder::new(
             Grayscale,
             <$out as WithPrecision>::PRECISION,
-            |Io(r, out), _| {
+            |Args(r, out, _)| {
                 let f = $f;
                 for_each_pixel(r, out, |pixel| -> [$out; 1] { f(pixel) })
             },
@@ -27,7 +27,7 @@ macro_rules! alpha {
         Decoder::new(
             Alpha,
             <$out as WithPrecision>::PRECISION,
-            |Io(r, out), _| {
+            |Args(r, out, _)| {
                 let f = $f;
                 for_each_pixel(r, out, |pixel| -> [$out; 1] { f(pixel) })
             },
@@ -36,25 +36,33 @@ macro_rules! alpha {
 }
 macro_rules! rgb {
     ($out:ty, $f:expr) => {
-        Decoder::new(Rgb, <$out as WithPrecision>::PRECISION, |Io(r, out), _| {
-            let f = $f;
-            for_each_pixel(r, out, |pixel| -> [$out; 3] { f(pixel) })
-        })
+        Decoder::new(
+            Rgb,
+            <$out as WithPrecision>::PRECISION,
+            |Args(r, out, _)| {
+                let f = $f;
+                for_each_pixel(r, out, |pixel| -> [$out; 3] { f(pixel) })
+            },
+        )
     };
 }
 macro_rules! rgba {
     ($out:ty, $f:expr) => {
-        Decoder::new(Rgba, <$out as WithPrecision>::PRECISION, |Io(r, out), _| {
-            let f = $f;
-            for_each_pixel(r, out, |pixel| -> [$out; 4] { f(pixel) })
-        })
+        Decoder::new(
+            Rgba,
+            <$out as WithPrecision>::PRECISION,
+            |Args(r, out, _)| {
+                let f = $f;
+                for_each_pixel(r, out, |pixel| -> [$out; 4] { f(pixel) })
+            },
+        )
     };
 }
 
 // decoders
 
 pub(crate) const R8G8B8_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Rgb, U8, |Io(r, out), _| {
+    Decoder::new(Rgb, U8, |Args(r, out, _)| {
         r.read_exact(out)?;
         Ok(())
     }),
@@ -75,7 +83,7 @@ pub(crate) const B8G8R8_UNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R8G8B8A8_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Rgba, U8, |Io(r, out), _| {
+    Decoder::new(Rgba, U8, |Args(r, out, _)| {
         r.read_exact(out)?;
         Ok(())
     }),
@@ -87,7 +95,7 @@ pub(crate) const R8G8B8A8_UNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R8G8B8A8_SNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Rgba, U8, |Io(r, out), _| {
+    Decoder::new(Rgba, U8, |Args(r, out, _)| {
         r.read_exact(out)?;
         out.iter_mut().for_each(|v| *v = s8::n8(*v));
         Ok(())
@@ -100,7 +108,7 @@ pub(crate) const R8G8B8A8_SNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const B8G8R8A8_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Rgba, U8, |Io(r, out), _| {
+    Decoder::new(Rgba, U8, |Args(r, out, _)| {
         // read everything in BGRA order
         r.read_exact(out)?;
         // swap R and B
@@ -189,7 +197,7 @@ pub(crate) const B4G4R4A4_UNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R8_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Grayscale, U8, |Io(r, out), _| {
+    Decoder::new(Grayscale, U8, |Args(r, out, _)| {
         r.read_exact(out)?;
         Ok(())
     }),
@@ -199,7 +207,7 @@ pub(crate) const R8_UNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R8_SNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Grayscale, U8, |Io(r, out), _| {
+    Decoder::new(Grayscale, U8, |Args(r, out, _)| {
         r.read_exact(out)?;
         out.iter_mut().for_each(|v| *v = s8::n8(*v));
         Ok(())
@@ -230,7 +238,7 @@ pub(crate) const R8G8_SNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const A8_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Alpha, U8, |Io(r, out), _| {
+    Decoder::new(Alpha, U8, |Args(r, out, _)| {
         r.read_exact(out)?;
         Ok(())
     }),
@@ -242,7 +250,7 @@ pub(crate) const A8_UNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R16_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Grayscale, U16, |Io(r, out), _| {
+    Decoder::new(Grayscale, U16, |Args(r, out, _)| {
         // read everything in LE order and fix it later
         r.read_exact(out)?;
         le_to_native_endian_16(out);
@@ -284,7 +292,7 @@ pub(crate) const R16G16_SNORM: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R16G16B16A16_UNORM: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Rgba, U16, |Io(r, out), _| {
+    Decoder::new(Rgba, U16, |Args(r, out, _)| {
         // read everything in LE order and fix it later
         r.read_exact(out)?;
         le_to_native_endian_16(out);
@@ -388,7 +396,7 @@ pub(crate) const R16G16B16A16_FLOAT: DecoderSet =
     DecoderSet::new(&[rgba!(f32, |rgba: [u16; 4]| rgba.map(f16_to_f32))]);
 
 pub(crate) const R32_FLOAT: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Grayscale, F32, |Io(r, out), _| {
+    Decoder::new(Grayscale, F32, |Args(r, out, _)| {
         // read everything in LE order and fix it later
         r.read_exact(out)?;
         le_to_native_endian_32(out);
@@ -404,7 +412,7 @@ pub(crate) const R32G32_FLOAT: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R32G32B32_FLOAT: DecoderSet = DecoderSet::new(&[
-    Decoder::new(Rgb, F32, |Io(r, out), _| {
+    Decoder::new(Rgb, F32, |Args(r, out, _)| {
         // read everything in LE order and fix it later
         r.read_exact(out)?;
         le_to_native_endian_32(out);
@@ -414,7 +422,7 @@ pub(crate) const R32G32B32_FLOAT: DecoderSet = DecoderSet::new(&[
 ]);
 
 pub(crate) const R32G32B32A32_FLOAT: DecoderSet =
-    DecoderSet::new(&[Decoder::new(Rgba, F32, |Io(r, out), _| {
+    DecoderSet::new(&[Decoder::new(Rgba, F32, |Args(r, out, _)| {
         // read everything in LE order and fix it later
         r.read_exact(out)?;
         le_to_native_endian_32(out);
