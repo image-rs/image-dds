@@ -44,7 +44,7 @@ fn file_data_layout() {
         let header = decoder.header();
         let header_len = 4 + 124 + if header.dxt10.is_some() { 20 } else { 0 };
         let data_len = file_len - header_len;
-        let expected_len = decoder.layout().byte_len();
+        let expected_len = decoder.layout().data_len();
         assert_eq!(data_len, expected_len, "File: {:?}", &test_image.path);
     }
 }
@@ -81,7 +81,7 @@ fn output() {
         };
         if !format.supported_channels().contains(channels) {
             // can't read in a way PNG likes
-            return Ok(());
+            return Err("Unsupported channels".into());
         }
 
         let mut image_data = vec![0_u8; size.pixels() as usize * channels.count() as usize];
@@ -97,16 +97,17 @@ fn output() {
                 return Err("Output PNG is not 8-bit, which shouldn't happen.".into());
             }
             if png_color != color {
-                return Err("The color data of the output PNG isn't as expected".into());
-            }
-            assert!(png_reader.output_buffer_size() == image_data.len());
-            let mut png_image_data = vec![0; image_data.len()];
-            png_reader.next_frame(&mut png_image_data)?;
-            png_reader.finish()?;
+                eprintln!("Color mismatch: {:?} != {:?}", png_color, color);
+            } else {
+                assert!(png_reader.output_buffer_size() == image_data.len());
+                let mut png_image_data = vec![0; image_data.len()];
+                png_reader.next_frame(&mut png_image_data)?;
+                png_reader.finish()?;
 
-            if png_image_data == image_data {
-                // all good
-                return Ok(());
+                if png_image_data == image_data {
+                    // all good
+                    return Ok(());
+                }
             }
         }
 
@@ -134,7 +135,8 @@ fn output() {
     let mut failed_count = 0;
     for test_image in get_test_images() {
         if let Err(e) = dds_to_png_8bit(&test_image.path, &get_png_path(&test_image.path)) {
-            eprintln!("Failed to convert {:?}: {}", test_image.path, e);
+            let path = test_image.path.strip_prefix(test_data_dir()).unwrap();
+            eprintln!("Failed to convert {:?}: {}", path, e);
             failed_count += 1;
         }
     }

@@ -11,6 +11,10 @@ pub enum DecodeError {
     MissingDepth,
     /// The width, height, or depth of the texture is zero.
     ZeroDimension,
+    /// The `array_size` field is too large.
+    ///
+    /// It either exceeds a user-defined limit or causes an overflow for cube map faces.
+    ArraySizeTooBig(u32),
     /// The header of the DDS file describes a data section that is too large.
     ///
     /// I.e. it is possible for the header to describe a texture that requires
@@ -72,6 +76,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::ZeroDimension => {
                 write!(f, "The width, height, or depth of the texture is zero")
+            }
+            DecodeError::ArraySizeTooBig(size) => {
+                write!(f, "Array size {} is too large", size)
             }
             DecodeError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")

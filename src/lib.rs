@@ -34,11 +34,26 @@ pub struct Options {
     ///
     /// Defaults to `false`.
     pub skip_magic_bytes: bool,
+    /// The allowed value of the `array_size` field in the header.
+    ///
+    /// DDS files support texture arrays and the `array_size` field denotes the
+    /// number of textures in the array. The only exception for this are cube
+    /// maps where `array_size` denotes the number of cube maps instead, meaning
+    /// that the DDS file will contain `array_size * 6` textures (6 faces per
+    /// cube map).
+    ///
+    /// Since `array_size` is defined by the file, it is possible for a
+    /// malicious or corrupted file to contain a very large value. For security
+    /// reasons, this option can be used to limit the maximum allowed value.
+    ///
+    /// Defaults to `4096`.
+    pub max_array_size: u32,
 }
 impl Default for Options {
     fn default() -> Self {
         Self {
             skip_magic_bytes: false,
+            max_array_size: 4096,
         }
     }
 }
@@ -77,6 +92,13 @@ impl DdsDecoder {
         Self::from_header_with(header, Options::default())
     }
     pub fn from_header_with(header: Header, options: Options) -> Result<Self, DecodeError> {
+        // enforce `array_size` limit
+        if let Some(dxt10) = &header.dxt10 {
+            if dxt10.array_size > options.max_array_size {
+                return Err(DecodeError::ArraySizeTooBig(dxt10.array_size));
+            }
+        }
+
         // detect format
         let format = SupportedFormat::from_header(&header)?;
 
