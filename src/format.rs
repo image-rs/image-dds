@@ -375,21 +375,6 @@ mod decoders {
         use Channels::*;
         use Precision::*;
 
-        // INFO
-        //
-        // Decoder lists have a few requirements that are checked at compile
-        // time. The requirements are:
-        //
-        // 1. There must be at least one decoder.
-        // 2. No color channels-precision combination may be repeated.
-        // 3. Color channels-precision combination must be exhaustive. This means
-        //    that if there exists a combination with channels C and precision P,
-        //    there must be a decoder for combination (C,P).
-        //
-        // Additionally, the first decoder will be treated as the MAIN decoder.
-        // This means that its channels and precision will be used as the
-        // default channels and precision for the format.
-
         /// A helper macro to make it easier to define a const array of decoders.
         macro_rules! decoders {
             ($c:ident, $p:ident, $d:expr) => {{

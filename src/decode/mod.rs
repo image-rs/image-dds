@@ -198,5 +198,16 @@ impl DecoderSet {
                 panic!("Missing color channel-precision combination");
             }
         }
+
+        // 4. u8, u16, and f32 must be supported precisions.
+        {
+            let mut required: u32 = 0;
+            required |= 1 << Precision::U8 as u32;
+            required |= 1 << Precision::U16 as u32;
+            required |= 1 << Precision::F32 as u32;
+
+            // TODO: Enable soon.
+            // assert!((precision_bitset & required) == required);
+        }
     }
 }
