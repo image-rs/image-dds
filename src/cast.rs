@@ -19,6 +19,30 @@ impl<T: NonZeroSized> NonZeroSized for [T; 5] {}
 impl<T: NonZeroSized> NonZeroSized for [T; 6] {}
 impl<T: NonZeroSized> NonZeroSized for [T; 7] {}
 impl<T: NonZeroSized> NonZeroSized for [T; 8] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 9] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 10] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 11] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 12] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 13] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 14] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 15] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 16] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 17] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 18] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 19] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 20] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 21] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 22] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 23] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 24] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 25] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 26] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 27] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 28] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 29] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 30] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 31] {}
+impl<T: NonZeroSized> NonZeroSized for [T; 32] {}
 
 pub(crate) trait Castable: bytemuck::Pod + NonZeroSized {}
 impl<T: bytemuck::Pod + NonZeroSized> Castable for T {}

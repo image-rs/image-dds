@@ -103,6 +103,82 @@ where
     Ok(())
 }
 
+/// Utility method for 4x4 block-compressed formats.
+pub(crate) fn for_each_block_4x4<const BYTES_PER_BLOCK: usize, OutPixel>(
+    r: &mut dyn Read,
+    out: &mut [u8],
+    size: Size,
+    process_block: impl Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; 16],
+) -> Result<(), DecodeError>
+where
+    [u8; BYTES_PER_BLOCK]: cast::Castable + Default,
+    OutPixel: cast::Castable + Default,
+{
+    // The basic idea here is to decode the image line by line. A line is a
+    // sequence of encoded pixels pairs that together describe a single row of
+    // pixels in the final image.
+    //
+    // Since reading a bunch of small lines from disk is slow, we allocate one
+    // large buffer to hold N lines at a time. The we process the lines in the
+    // buffer and refill as needed.
+
+    assert!(!size.is_empty());
+
+    let width_blocks = div_ceil(size.width, 4) as usize;
+    let height_blocks = div_ceil(size.height, 4) as usize;
+
+    let mut line_buffer: LineBuffer<[u8; BYTES_PER_BLOCK]> =
+        LineBuffer::new(width_blocks, height_blocks);
+    let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
+
+    let mut block_y = 0;
+    while let Some(block_line) = line_buffer.next_line(r)? {
+        // how many rows of pixels we'll decode
+        // this is usually 4, but might be less for the last block
+        let pixel_rows = 4.min(size.height - block_y * 4) as usize;
+        let pixel_row_bytes = size.width as usize * size_of::<OutPixel>();
+        let start_pixel_y = block_y as usize * 4;
+        let out_pixel_rows = out
+            [(start_pixel_y * pixel_row_bytes)..(start_pixel_y + pixel_rows) * pixel_row_bytes]
+            .as_mut();
+
+        write_aligned.write(out_pixel_rows, |out| {
+            if size.width % 4 == 0 && pixel_rows == 4 {
+                // This is the easy case where we can always write the entire
+                // 4x4 block out without needing to do bounds checking.
+                assert!(out.len() == 4 * size.width as usize);
+
+                for (block_index, block) in block_line.iter().enumerate() {
+                    let pixels = process_block(*block);
+                    for y in 0..4 {
+                        let row_start = block_index * 4 + y * size.width as usize;
+                        let row = &mut out[row_start..row_start + 4];
+                        for x in 0..4 {
+                            row[x] = pixels[y * 4 + x];
+                        }
+                    }
+                }
+            } else {
+                let block_h = pixel_rows;
+                for (block_index, block) in block_line.iter().enumerate() {
+                    let block_w = 4.min(size.width as usize - block_index * 4);
+                    let pixels = process_block(*block);
+                    for y in 0..block_h {
+                        let row_start = block_index * 4 + y * size.width as usize;
+                        let row = &mut out[row_start..row_start + block_w];
+                        for x in 0..block_w {
+                            row[x] = pixels[y * 4 + x];
+                        }
+                    }
+                }
+            }
+        });
+
+        block_y += 1;
+    }
+    Ok(())
+}
+
 pub(crate) trait FromLe {
     type Raw;
 

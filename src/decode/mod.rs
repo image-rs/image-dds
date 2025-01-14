@@ -8,6 +8,7 @@ mod read_write;
 mod sub_sampled;
 mod uncompressed;
 
+pub(crate) use bc::*;
 pub(crate) use sub_sampled::*;
 pub(crate) use uncompressed::*;
 
