@@ -112,7 +112,7 @@ pub enum SupportedFormat {
     G8R8_G8B8_UNORM,
 
     // block compression formats
-    BC1_ALPHA_UNORM,
+    BC1_UNORM,
     BC2_UNORM,
     BC3_UNORM,
     BC4_UNORM,
@@ -317,7 +317,7 @@ impl SupportedFormat {
             }
 
             // block compression formats
-            Self::BC1_ALPHA_UNORM | Self::BC4_UNORM | Self::BC4_SNORM => {
+            Self::BC1_UNORM | Self::BC4_UNORM | Self::BC4_SNORM => {
                 // 8 bytes per one 4x4 block
                 let blocks_x = div_ceil(size.width, 4);
                 let blocks_y = div_ceil(size.height, 4);
@@ -423,9 +423,9 @@ mod decoders {
             SupportedFormat::G8R8_G8B8_UNORM => decode::G8R8_G8B8_UNORM,
 
             // block compression formats
-            SupportedFormat::BC1_ALPHA_UNORM => decoders!(Rgba, U8, noop_decode),
-            SupportedFormat::BC2_UNORM => decoders!(Rgba, U8, noop_decode),
-            SupportedFormat::BC3_UNORM => decoders!(Rgba, U8, noop_decode),
+            SupportedFormat::BC1_UNORM => decode::BC1_UNORM,
+            SupportedFormat::BC2_UNORM => decode::BC2_UNORM,
+            SupportedFormat::BC3_UNORM => decode::BC3_UNORM,
             SupportedFormat::BC4_UNORM => decode::BC4_UNORM,
             SupportedFormat::BC4_SNORM => decode::BC4_SNORM,
             SupportedFormat::BC5_UNORM => decode::BC5_UNORM,

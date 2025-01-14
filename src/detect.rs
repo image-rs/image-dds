@@ -60,7 +60,7 @@ pub(crate) const fn dxgi_format_to_supported(dxgi_format: DxgiFormat) -> Option<
 
         // block compression formats
         DxgiFormat::BC1_TYPELESS | DxgiFormat::BC1_UNORM | DxgiFormat::BC1_UNORM_SRGB => {
-            Some(SupportedFormat::BC1_ALPHA_UNORM)
+            Some(SupportedFormat::BC1_UNORM)
         }
         DxgiFormat::BC2_TYPELESS | DxgiFormat::BC2_UNORM | DxgiFormat::BC2_UNORM_SRGB => {
             Some(SupportedFormat::BC2_UNORM)

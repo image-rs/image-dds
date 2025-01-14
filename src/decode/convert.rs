@@ -46,6 +46,40 @@ impl B5G6R5 {
             n5::f32(self.b5 as u8),
         ]
     }
+
+    // The nearest RGB8 color that represents `self * 2/3 + color * 1/3`.
+    pub(crate) fn one_third_color_rgb8(self, color: Self) -> [u8; 3] {
+        let r = self.r5 * 2 + color.r5;
+        let g = self.g6 * 2 + color.g6;
+        let b = self.b5 * 2 + color.b5;
+
+        let r = ((r * 351 + 61) >> 7) as u8;
+        let g = ((g as u32 * 2763 + 1039) >> 11) as u8;
+        let b = ((b * 351 + 61) >> 7) as u8;
+        [r, g, b]
+    }
+    // The nearest RGB8 color that represents `self * 1/3 + color * 2/3`.
+    pub(crate) fn two_third_color_rgb8(self, color: Self) -> [u8; 3] {
+        let r = self.r5 + color.r5 * 2;
+        let g = self.g6 + color.g6 * 2;
+        let b = self.b5 + color.b5 * 2;
+
+        let r = ((r * 351 + 61) >> 7) as u8;
+        let g = ((g as u32 * 2763 + 1039) >> 11) as u8;
+        let b = ((b * 351 + 61) >> 7) as u8;
+        [r, g, b]
+    }
+    // The nearest RGB8 color that represents `self * 1/2 + color * 1/2`.
+    pub(crate) fn mid_color_rgb8(self, color: Self) -> [u8; 3] {
+        let r = self.r5 + color.r5;
+        let g = self.g6 + color.g6;
+        let b = self.b5 + color.b5;
+
+        let r = ((r * 1053 + 125) >> 8) as u8;
+        let g = ((g as u32 * 4145 + 1019) >> 11) as u8;
+        let b = ((b * 1053 + 125) >> 8) as u8;
+        [r, g, b]
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
