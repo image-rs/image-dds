@@ -240,7 +240,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, SupportedFormat)] = {
         (rgba(32, 0xFF0000, 0xFF00, 0xFF, 0xFF000000), B8G8R8A8_UNORM),
         (rgba(32, 0xFF, 0xFF00, 0xFF0000, 0xFF000000), R8G8B8A8_UNORM),
         (
-            rgba(32, 0x3FF00000, 0x000FFC00, 0x000003FF, 0xC0000000),
+            rgba(32, 0x3FF00000, 0xFFC00, 0x3FF, 0xC0000000),
             R10G10B10A2_UNORM,
         ),
         // snorm
