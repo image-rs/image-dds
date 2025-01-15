@@ -239,6 +239,10 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, SupportedFormat)] = {
         (rgba(16, 0x7C00, 0x3E0, 0x1F, 0x8000), B5G5R5A1_UNORM),
         (rgba(32, 0xFF0000, 0xFF00, 0xFF, 0xFF000000), B8G8R8A8_UNORM),
         (rgba(32, 0xFF, 0xFF00, 0xFF0000, 0xFF000000), R8G8B8A8_UNORM),
+        (
+            rgba(32, 0x3FF00000, 0x000FFC00, 0x000003FF, 0xC0000000),
+            R10G10B10A2_UNORM,
+        ),
         // snorm
         (
             snorm(32, 0xFF, 0xFF00, 0xFF0000, 0xFF000000),
