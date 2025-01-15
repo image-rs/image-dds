@@ -124,4 +124,16 @@ impl DdsDecoder {
     pub fn layout(&self) -> &DataLayout {
         &self.layout
     }
+
+    /// Whether the texture is in sRGB color space.
+    ///
+    /// This can only be `true` for DX10+ DDS files. Legacy (DX9) formats cannot
+    /// specify the color space and are assumed to be linear.
+    pub fn is_srgb(&self) -> bool {
+        if let Some(dx10) = &self.header.dxt10 {
+            dx10.dxgi_format.is_srgb()
+        } else {
+            false
+        }
+    }
 }

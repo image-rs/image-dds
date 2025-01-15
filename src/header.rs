@@ -547,6 +547,19 @@ impl DxgiFormat {
     pub const P208: DxgiFormat = DxgiFormat(130);
     pub const V208: DxgiFormat = DxgiFormat(131);
     pub const V408: DxgiFormat = DxgiFormat(132);
+
+    pub fn is_srgb(&self) -> bool {
+        matches!(
+            *self,
+            DxgiFormat::BC1_UNORM_SRGB
+                | DxgiFormat::BC2_UNORM_SRGB
+                | DxgiFormat::BC3_UNORM_SRGB
+                | DxgiFormat::BC7_UNORM_SRGB
+                | DxgiFormat::R8G8B8A8_UNORM_SRGB
+                | DxgiFormat::B8G8R8A8_UNORM_SRGB
+                | DxgiFormat::B8G8R8X8_UNORM_SRGB
+        )
+    }
 }
 
 impl TryFrom<u32> for DxgiFormat {
