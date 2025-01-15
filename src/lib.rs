@@ -7,6 +7,7 @@ mod error;
 mod format;
 mod header;
 mod layout;
+mod pixel;
 mod tiny_set;
 mod util;
 
@@ -16,6 +17,7 @@ pub use error::*;
 pub use format::*;
 pub use header::*;
 pub use layout::*;
+pub use pixel::*;
 pub use tiny_set::*;
 
 /// Additional options for the DDS decoder specifying how to read and interpret
@@ -106,7 +108,7 @@ impl DdsDecoder {
         let format = SupportedFormat::from_header(&header)?;
 
         // data layout
-        let layout = DataLayout::from_header(&header, format)?;
+        let layout = DataLayout::from_header_with(&header, format.into())?;
 
         Ok(Self {
             header,

@@ -1,8 +1,6 @@
 use std::io::Read;
 
-use crate::{
-    cast, detect, util::div_ceil, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet,
-};
+use crate::{cast, detect, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet};
 
 /// The number and semantics of the color channels in a surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -264,80 +262,6 @@ impl SupportedFormat {
             Precision::F32,
             cast::as_bytes_mut(output),
         )
-    }
-
-    /// Returns the number of bytes required to store a surface of the given dimensions.
-    ///
-    /// If the number of bytes overflows a `usize`, `None` is returned.
-    pub(crate) fn get_surface_bytes(&self, size: Size) -> Option<u64> {
-        match self {
-            // 1 bytes per pixel
-            Self::R8_UNORM | Self::R8_SNORM | Self::A8_UNORM => Some(size.pixels()),
-            // 2 bytes per pixel
-            Self::B5G6R5_UNORM
-            | Self::B5G5R5A1_UNORM
-            | Self::B4G4R4A4_UNORM
-            | Self::R8G8_UNORM
-            | Self::R8G8_SNORM
-            | Self::R16_UNORM
-            | Self::R16_SNORM
-            | Self::R16_FLOAT => size.pixels().checked_mul(2),
-            // 3 bytes per pixel
-            Self::R8G8B8_UNORM | Self::B8G8R8_UNORM => size.pixels().checked_mul(3),
-            // 4 bytes per pixel
-            Self::R8G8B8A8_UNORM
-            | Self::R8G8B8A8_SNORM
-            | Self::B8G8R8A8_UNORM
-            | Self::B8G8R8X8_UNORM
-            | Self::R16G16_UNORM
-            | Self::R16G16_SNORM
-            | Self::R10G10B10A2_UNORM
-            | Self::R11G11B10_FLOAT
-            | Self::R9G9B9E5_SHAREDEXP
-            | Self::R16G16_FLOAT
-            | Self::R32_FLOAT
-            | Self::R10G10B10_XR_BIAS_A2_UNORM => size.pixels().checked_mul(4),
-            // 8 bytes per pixel
-            Self::R16G16B16A16_UNORM
-            | Self::R16G16B16A16_SNORM
-            | Self::R16G16B16A16_FLOAT
-            | Self::R32G32_FLOAT => size.pixels().checked_mul(8),
-            // 12 bytes per pixel
-            Self::R32G32B32_FLOAT => size.pixels().checked_mul(12),
-            // 16 bytes per pixel
-            Self::R32G32B32A32_FLOAT => size.pixels().checked_mul(16),
-
-            // sub-sampled formats
-            Self::R8G8_B8G8_UNORM | Self::G8R8_G8B8_UNORM => {
-                // 4 bytes per one 2x1 block
-                let blocks_x = div_ceil(size.width, 2);
-                let blocks_y = size.height;
-                let blocks = u64::checked_mul(blocks_x as u64, blocks_y as u64)?;
-                blocks.checked_mul(4)
-            }
-
-            // block compression formats
-            Self::BC1_UNORM | Self::BC4_UNORM | Self::BC4_SNORM => {
-                // 8 bytes per one 4x4 block
-                let blocks_x = div_ceil(size.width, 4);
-                let blocks_y = div_ceil(size.height, 4);
-                let blocks = u64::checked_mul(blocks_x as u64, blocks_y as u64)?;
-                blocks.checked_mul(8)
-            }
-            Self::BC2_UNORM
-            | Self::BC3_UNORM
-            | Self::BC5_UNORM
-            | Self::BC5_SNORM
-            | Self::BC6H_SF16
-            | Self::BC6H_UF16
-            | Self::BC7_UNORM => {
-                // 16 bytes per one 4x4 block
-                let blocks_x = div_ceil(size.width, 4);
-                let blocks_y = div_ceil(size.height, 4);
-                let blocks = u64::checked_mul(blocks_x as u64, blocks_y as u64)?;
-                blocks.checked_mul(16)
-            }
-        }
     }
 }
 
