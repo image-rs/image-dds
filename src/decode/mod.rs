@@ -1,6 +1,6 @@
-use std::io::Read;
+use std::io::{Read, Seek};
 
-use crate::{Channels, DecodeError, Precision, Size, TinyEnum, TinySet};
+use crate::{Channels, DecodeError, Precision, Rect, Size, TinyEnum, TinySet};
 
 mod bc;
 mod convert;
@@ -31,21 +31,54 @@ pub(crate) struct Args<'a, 'b>(pub &'a mut dyn Read, pub &'b mut [u8], DecodeCon
 
 pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodeError>;
 
+pub(crate) trait ReadSeek: Read + Seek {}
+impl<T: Read + Seek> ReadSeek for T {}
+
+pub(crate) struct RArgs<'a, 'b>(
+    pub &'a mut dyn ReadSeek,
+    pub &'b mut [u8],
+    usize,
+    Rect,
+    DecodeContext,
+);
+
+pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodeError>;
+
 pub(crate) struct Decoder {
     pub channels: Channels,
     pub precision: Precision,
     pub disabled: bool,
     decode_fn: DecodeFn,
+    decode_rect_fn: Option<DecodeRectFn>,
 }
 impl Decoder {
     const DISABLED_FN: DecodeFn = |_| unreachable!();
 
-    pub const fn new(channels: Channels, precision: Precision, decode_fn: DecodeFn) -> Self {
+    pub const fn new(
+        channels: Channels,
+        precision: Precision,
+        decode_fn: DecodeFn,
+        decode_rect_fn: DecodeRectFn,
+    ) -> Self {
         Self {
             channels,
             precision,
             disabled: false,
             decode_fn,
+            decode_rect_fn: Some(decode_rect_fn),
+        }
+    }
+    pub const fn new_without_rect_decode(
+        channels: Channels,
+        precision: Precision,
+        decode_fn: DecodeFn,
+    ) -> Self {
+        Self {
+            channels,
+            precision,
+            disabled: false,
+            decode_fn,
+            decode_rect_fn: None,
         }
     }
     pub const fn new_disabled(channels: Channels, precision: Precision) -> Self {
@@ -54,7 +87,13 @@ impl Decoder {
             precision,
             disabled: true,
             decode_fn: Self::DISABLED_FN,
+            decode_rect_fn: None,
         }
+    }
+
+    pub const fn with_decode_fn(mut self, decode_fn: DecodeFn) -> Self {
+        self.decode_fn = decode_fn;
+        self
     }
 
     pub fn decode(
@@ -71,6 +110,33 @@ impl Decoder {
         }
 
         (self.decode_fn)(Args(reader, output, DecodeContext { size }))
+    }
+
+    pub fn decode_rect(
+        &self,
+        reader: &mut dyn ReadSeek,
+        size: Size,
+        rect: Rect,
+        output: &mut [u8],
+        row_pitch: usize,
+    ) -> Result<(), DecodeError> {
+        check_rect_buffer_len(size, rect, self.channels, self.precision, output, row_pitch)?;
+
+        // never decode empty rects
+        if rect.size().is_empty() {
+            return Ok(());
+        }
+
+        // TODO: temporary. In the future, we should always have a rect decoder.
+        let f = self.decode_rect_fn.unwrap();
+
+        (f)(RArgs(
+            reader,
+            output,
+            row_pitch,
+            rect,
+            DecodeContext { size },
+        ))
     }
 }
 
@@ -95,6 +161,45 @@ fn check_buffer_len(
     } else {
         Ok(())
     }
+}
+
+/// Verifies that the rect, buffer, and row pitch are all valid.
+fn check_rect_buffer_len(
+    size: Size,
+    rect: Rect,
+    channels: Channels,
+    precision: Precision,
+    buf: &[u8],
+    row_pitch: usize,
+) -> Result<(), DecodeError> {
+    // Check that the rect is within the bounds of the image.
+    if !rect.is_within_bounds(size) {
+        return Err(DecodeError::RectOutOfBounds);
+    }
+
+    // overflow isn't possible here
+    let bytes_per_pixel = channels.count() as usize * precision.size() as usize;
+
+    // Check row pitch
+    let min_row_pitch = bytes_per_pixel.saturating_mul(rect.width as usize);
+    if row_pitch < min_row_pitch {
+        return Err(DecodeError::RowPitchTooSmall {
+            required_minimum: min_row_pitch,
+            actual: row_pitch,
+        });
+    }
+
+    // Check that the buffer is long enough
+    // saturate to usize::MAX on overflow
+    let required_bytes = usize::saturating_mul(row_pitch, rect.height as usize);
+    if buf.len() < required_bytes {
+        return Err(DecodeError::RectBufferTooSmall {
+            required_minimum: required_bytes,
+            actual: buf.len(),
+        });
+    }
+
+    Ok(())
 }
 
 pub(crate) trait WithPrecision {

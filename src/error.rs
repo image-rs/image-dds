@@ -31,9 +31,35 @@ pub enum DecodeError {
         actual: usize,
     },
 
+    /// When decoding a rectangle, the rectangle is out of bounds of the size
+    /// of the image.
+    RectOutOfBounds,
+    /// When decoding a rectangle, the row pitch is too small.
+    ///
+    /// A row pitch must be at least `channels.count() * precision.size() * rect.width` bytes.
+    RowPitchTooSmall {
+        required_minimum: usize,
+        actual: usize,
+    },
+    /// When decoding a rectangle, the buffer is too small.
+    ///
+    /// A buffer much have at least `row_pitch * rect.height` bytes.
+    RectBufferTooSmall {
+        required_minimum: usize,
+        actual: usize,
+    },
+
     Header(HeaderError),
     Io(std::io::Error),
 }
+
+const _SIZE_CHECK: () = {
+    let error_size = std::mem::size_of::<DecodeError>();
+    assert!(
+        error_size <= 24,
+        "The size a decoder error should not be more than 3 words."
+    );
+};
 
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -106,6 +132,30 @@ impl std::fmt::Display for DecodeError {
                     f,
                     "Unexpected buffer size: expected {} bytes, got {} bytes",
                     expected, actual
+                )
+            }
+
+            DecodeError::RectOutOfBounds => {
+                write!(f, "Rectangle is out of bounds of the image size")
+            }
+            DecodeError::RowPitchTooSmall {
+                required_minimum,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "Row pitch too small: required at least {} bytes, got {} bytes",
+                    required_minimum, actual
+                )
+            }
+            DecodeError::RectBufferTooSmall {
+                required_minimum,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "Buffer too small for rectangle: required at least {} bytes, got {} bytes",
+                    required_minimum, actual
                 )
             }
 

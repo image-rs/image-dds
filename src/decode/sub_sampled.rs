@@ -8,7 +8,7 @@ use super::{Args, Decoder, DecoderSet, WithPrecision};
 
 macro_rules! rgb {
     ($out:ty, $f1:expr, $f2:expr) => {
-        Decoder::new(
+        Decoder::new_without_rect_decode(
             Rgb,
             <$out as WithPrecision>::PRECISION,
             |Args(r, out, context)| {
@@ -27,7 +27,7 @@ macro_rules! rgb {
 }
 macro_rules! rgba {
     ($out:ty, $f1:expr, $f2:expr) => {
-        Decoder::new(
+        Decoder::new_without_rect_decode(
             Rgba,
             <$out as WithPrecision>::PRECISION,
             |Args(r, out, context)| {

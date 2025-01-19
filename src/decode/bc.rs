@@ -7,7 +7,7 @@ use crate::Channels::*;
 
 macro_rules! gray {
     ($out:ty, $f:expr) => {
-        Decoder::new(
+        Decoder::new_without_rect_decode(
             Grayscale,
             <$out as WithPrecision>::PRECISION,
             |Args(r, out, context)| {
@@ -21,7 +21,7 @@ macro_rules! gray {
 }
 macro_rules! rgb {
     ($out:ty, $f:expr) => {
-        Decoder::new(
+        Decoder::new_without_rect_decode(
             Rgb,
             <$out as WithPrecision>::PRECISION,
             |Args(r, out, context)| {
@@ -35,7 +35,7 @@ macro_rules! rgb {
 }
 macro_rules! rgba {
     ($out:ty, $f:expr) => {
-        Decoder::new(
+        Decoder::new_without_rect_decode(
             Rgba,
             <$out as WithPrecision>::PRECISION,
             |Args(r, out, context)| {

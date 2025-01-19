@@ -1,7 +1,9 @@
-use std::io::Read;
+use std::io::{Read, Seek};
 
 use crate::{
-    cast, decode::Decoder, detect, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet,
+    cast,
+    decode::{Decoder, ReadSeek},
+    detect, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet,
 };
 
 /// The number and semantics of the color channels in a surface.
@@ -352,6 +354,53 @@ impl SupportedFormat {
             cast::as_bytes_mut(output),
         )
     }
+
+    /// Decodes a rectangle of the image data of a surface from the given reader
+    /// and writes it to the given output buffer.
+    ///
+    /// If this format does not support the given channels and precision, an
+    /// error is returned. Support can be checked ahead of time with
+    /// [`Self::supported_channels`] and [`Self::supported_precisions`].
+    ///
+    /// It is highly recommended for the output buffer to be aligned to the
+    /// given precision to improve performance. E.g. if the precision is `U16`,
+    /// the output buffer should be aligned to 2 bytes. As such, using the
+    /// `decode_*` methods is recommended.
+    ///
+    /// ## Row pitch and the output buffer
+    ///
+    /// The `row_pitch` parameter specifies the number of bytes between the start
+    /// of one row and the start of the next row in the output buffer.
+    ///
+    ///
+    /// ## State of the reader
+    ///
+    /// The reader is expected to be positioned at the start of the encoded
+    /// image data of the current surface.
+    ///
+    /// If the operation completes successfully, the reader will be positioned
+    /// at the end of the encoded image data, meaning that the next byte read
+    /// will be the first byte of either the next encoded surface or EOF.
+    ///
+    /// If the operation fails and returns an error, the position of the reader
+    /// remains unchanged.
+    ///
+    /// ## Panics
+    ///
+    /// This method will only panic in the given reader panics while reading.
+    pub fn decode_rect<R: Read + Seek>(
+        &self,
+        reader: &mut R,
+        size: Size,
+        rect: Rect,
+        color: ColorFormat,
+        output: &mut [u8],
+        row_pitch: usize,
+    ) -> Result<(), DecodeError> {
+        let reader = reader as &mut dyn ReadSeek;
+        self.get_decoder(color)?
+            .decode_rect(reader, size, rect, output, row_pitch)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -376,6 +425,40 @@ impl From<(u32, u32)> for Size {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Rect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+impl Rect {
+    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    pub fn size(&self) -> Size {
+        Size::new(self.width, self.height)
+    }
+
+    /// Returns `true` if this rectangle is completely within the bounds of the
+    /// given size.
+    ///
+    /// This means that `self.x + self.width <= size.width` and
+    /// `self.y + self.height <= size.height`.
+    pub fn is_within_bounds(&self, size: Size) -> bool {
+        // use u64 to prevent overflow
+        let end_x = self.x as u64 + self.width as u64;
+        let end_y = self.y as u64 + self.height as u64;
+        end_x <= size.width as u64 && end_y <= size.height as u64
+    }
+}
+
 mod decoders {
 
     use crate::decode::{self, DecodeFn, Decoder, DecoderSet};
@@ -391,7 +474,7 @@ mod decoders {
         /// A helper macro to make it easier to define a const array of decoders.
         macro_rules! decoders {
             ($c:ident, $p:ident, $d:expr) => {{
-                const DECODER: Decoder = Decoder::new($c, $p, $d);
+                const DECODER: Decoder = Decoder::new_without_rect_decode($c, $p, $d);
                 const INFO: DecoderSet = DecoderSet::new(&[DECODER]);
                 INFO
             }};

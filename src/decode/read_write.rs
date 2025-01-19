@@ -1,10 +1,12 @@
 //! An internal module with helper methods for reading bytes from a reader, and
 //! writing decoded pixels to the output buffer.
 
-use std::io::Read;
+use std::io::{Read, SeekFrom};
 use std::mem::size_of;
 
-use crate::{cast, util::div_ceil, DecodeError, Size};
+use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
+
+use super::ReadSeek;
 
 /// Helper method for decoding UNCOMPRESSED formats.
 #[inline(always)]
@@ -40,6 +42,78 @@ where
                 *out = process_pixel(pixel.map(FromLe::from_le));
             }
         });
+    }
+    Ok(())
+}
+
+/// Helper method for decoding UNCOMPRESSED formats.
+#[inline(always)]
+pub(crate) fn for_each_pixel_rect<const N: usize, InChannel, OutPixel>(
+    r: &mut dyn ReadSeek,
+    buf: &mut [u8],
+    row_pitch: usize,
+    size: Size,
+    rect: Rect,
+    process_pixel: impl Fn([InChannel; N]) -> OutPixel,
+) -> Result<(), DecodeError>
+where
+    InChannel: FromLe,
+    [InChannel::Raw; N]: cast::Castable + Default,
+    OutPixel: cast::Castable + Default,
+{
+    let encoded_bytes_per_pixel = size_of::<[InChannel::Raw; N]>();
+    // assert that no overflow will occur for byte positions in the encoded image/reader
+    assert!(size
+        .pixels()
+        .checked_mul(encoded_bytes_per_pixel as u64)
+        .map(|bytes| bytes <= i64::MAX as u64)
+        .unwrap_or(false));
+
+    let encoded_bytes_per_row = size.width as i64 * encoded_bytes_per_pixel as i64;
+    let encoded_bytes_before_rect = rect.x as i64 * encoded_bytes_per_pixel as i64;
+    let encoded_bytes_after_rect =
+        (size.width - rect.x - rect.width) as i64 * encoded_bytes_per_pixel as i64;
+
+    // jump to the first pixel
+    seek_relative(
+        r,
+        encoded_bytes_per_row * rect.y as i64 + encoded_bytes_before_rect,
+    )?;
+
+    let pixels_per_line = rect.width as usize;
+    let mut read_buffer: PixelBuffer<[InChannel::Raw; N]> = PixelBuffer::new(pixels_per_line);
+    let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
+    for y in 0..rect.height {
+        if y > 0 {
+            // jump to the first pixel in the next row
+            // (this has already been done for the first row; see above)
+            seek_relative(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
+        }
+
+        let row = read_buffer.read(r)?;
+
+        let buf_start = y as usize * row_pitch;
+        let buf_len = pixels_per_line * size_of::<OutPixel>();
+        write_aligned.write(&mut buf[buf_start..(buf_start + buf_len)], |buf| {
+            for (pixel, out) in row.iter().zip(buf) {
+                *out = process_pixel(pixel.map(FromLe::from_le));
+            }
+        });
+    }
+
+    // jump to the end of the surface to put the reader into a known position
+    seek_relative(
+        r,
+        encoded_bytes_after_rect
+            + (size.height - rect.y - rect.height) as i64 * encoded_bytes_per_row,
+    )?;
+
+    Ok(())
+}
+
+fn seek_relative(r: &mut dyn ReadSeek, offset: i64) -> std::io::Result<()> {
+    if offset != 0 {
+        r.seek(SeekFrom::Current(offset))?;
     }
     Ok(())
 }
@@ -237,7 +311,7 @@ impl<T> PixelBuffer<T> {
         }
     }
 
-    fn read(&mut self, r: &mut dyn Read) -> Result<&[T], DecodeError>
+    fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[T], DecodeError>
     where
         T: cast::Castable,
     {
