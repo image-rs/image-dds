@@ -90,3 +90,44 @@ fn decode_all_dds_files() {
         panic!("{} tests failed", failed_count);
     }
 }
+
+#[test]
+fn decode_rect() {
+    let files = [
+        // "normal" format
+        "images/uncompressed/DX9 B4G4R4A4_UNORM.dds",
+        // This one is optimized for mem-copying
+        "images/uncompressed/DX10 R8_UNORM.dds",
+    ]
+    .map(|x| util::test_data_dir().join(x));
+
+    fn get_png_path(dds_path: &Path) -> PathBuf {
+        util::test_data_dir()
+            .join("output-rect")
+            .join(dds_path.file_name().unwrap())
+            .with_extension("png")
+    }
+    fn dds_to_png_8bit(
+        dds_path: &PathBuf,
+        png_path: &PathBuf,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (image, _) = util::read_dds_rect_as_u8(dds_path, Rect::new(47, 2, 63, 35))?;
+
+        // compare to PNG
+        util::compare_snapshot_png_u8(png_path, &image)?;
+
+        Ok(())
+    }
+
+    let mut failed_count = 0;
+    for test_image in files {
+        if let Err(e) = dds_to_png_8bit(&test_image, &get_png_path(&test_image)) {
+            let path = test_image.strip_prefix(util::test_data_dir()).unwrap();
+            eprintln!("Failed to convert {:?}: {}", path, e);
+            failed_count += 1;
+        }
+    }
+    if failed_count > 0 {
+        panic!("{} tests failed", failed_count);
+    }
+}

@@ -81,7 +81,8 @@ where
     )?;
 
     let pixels_per_line = rect.width as usize;
-    let mut read_buffer: PixelBuffer<[InChannel::Raw; N]> = PixelBuffer::new(pixels_per_line);
+    let mut row: Box<[[InChannel::Raw; N]]> =
+        vec![Default::default(); pixels_per_line].into_boxed_slice();
     let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
     for y in 0..rect.height {
         if y > 0 {
@@ -90,7 +91,7 @@ where
             seek_relative(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
         }
 
-        let row = read_buffer.read(r)?;
+        r.read_exact(cast::as_bytes_mut(&mut row))?;
 
         let buf_start = y as usize * row_pitch;
         let buf_len = pixels_per_line * size_of::<OutPixel>();

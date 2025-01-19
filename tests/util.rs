@@ -1,4 +1,5 @@
 use ddsd::*;
+use Precision::*;
 
 use std::{fs::File, path::PathBuf};
 
@@ -44,6 +45,46 @@ pub fn read_dds_as_u8(
         data: image_data,
         channels,
         size,
+    };
+    Ok((image, decoder))
+}
+
+pub fn read_dds_rect_as_u8(
+    dds_path: &PathBuf,
+    rect: Rect,
+) -> Result<(Image, DdsDecoder), Box<dyn std::error::Error>> {
+    // read dds
+    let mut file = File::open(dds_path)?;
+
+    let decoder = DdsDecoder::new(&mut file)?;
+    let size = decoder.header().size();
+    let format = decoder.format();
+    if !format.supported_precisions().contains(Precision::U8) {
+        return Err("Format does not support decoding as U8".into());
+    }
+
+    let channels = to_png_compatible_channels(format.channels()).0;
+    if !format.supported_channels().contains(channels) {
+        // can't read in a way PNG likes
+        return Err("Unsupported channels".into());
+    }
+
+    let color = ColorFormat::new(channels, U8);
+    let bpp = color.bytes_per_pixel() as usize;
+    let mut image_data = vec![0_u8; rect.size().pixels() as usize * bpp];
+    format.decode_rect(
+        &mut file,
+        size,
+        rect,
+        color,
+        &mut image_data,
+        rect.width as usize * bpp,
+    )?;
+
+    let image = Image {
+        data: image_data,
+        channels,
+        size: rect.size(),
     };
     Ok((image, decoder))
 }
