@@ -1,6 +1,8 @@
 use std::io::Read;
 
-use crate::{cast, detect, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet};
+use crate::{
+    cast, decode::Decoder, detect, DecodeError, DxgiFormat, FourCC, Header, TinyEnum, TinySet,
+};
 
 /// The number and semantics of the color channels in a surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -65,6 +67,33 @@ impl TinyEnum for Precision {
 
     fn bit_mask(self) -> u8 {
         1 << self as u8
+    }
+}
+
+/// A color format with a specific number of channels and precision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ColorFormat {
+    pub channels: Channels,
+    pub precision: Precision,
+}
+impl ColorFormat {
+    pub const fn new(channels: Channels, precision: Precision) -> Self {
+        Self {
+            channels,
+            precision,
+        }
+    }
+
+    /// The number of bytes per pixel in the decoded surface/output buffer.
+    ///
+    /// This is calculated as simply `channels.count() * precision.size()`.
+    pub const fn bytes_per_pixel(&self) -> u8 {
+        self.channels.count() * self.precision.size()
+    }
+}
+impl core::fmt::Display for ColorFormat {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?} {:?}", self.channels, self.precision)
     }
 }
 
@@ -173,46 +202,103 @@ impl SupportedFormat {
         decoders::get_decoders(*self).main().precision
     }
 
+    pub const fn color_format(&self) -> ColorFormat {
+        ColorFormat::new(self.channels(), self.precision())
+    }
+
     /// A set of all channels this formats supports for decoding.
     ///
     /// This list is guaranteed to be without duplicates and to contain
     /// `self.channels()`.
-    pub const fn supported_channels(&self) -> TinySet<Channels> {
+    pub fn supported_channels(&self) -> TinySet<Channels> {
         decoders::get_decoders(*self).supported_channels
     }
     /// A set of all precisions this formats supports for decoding.
     ///
     /// This list is guaranteed to be without duplicates and to contain
     /// `self.precision()`.
-    pub const fn supported_precisions(&self) -> TinySet<Precision> {
+    pub fn supported_precisions(&self) -> TinySet<Precision> {
         decoders::get_decoders(*self).supported_precisions
     }
 
+    /// Returns `true` if this format supports decoding as the given color
+    /// format.
+    ///
+    /// ## Channel and precision combinations
+    ///
+    /// All color formats that consist of a supported channels type and
+    /// supported precision are supported. This means that all combinations
+    /// of channel and precisions from `supported_channels()` and
+    /// `supported_precisions()` respectively are supported color formats.
+    pub fn supports(&self, color: ColorFormat) -> bool {
+        self.supported_channels().contains(color.channels)
+            && self.supported_precisions().contains(color.precision)
+    }
+
+    fn get_decoder(&self, color: ColorFormat) -> Result<&'static Decoder, DecodeError> {
+        let decoders = decoders::get_decoders(*self).decoders;
+        let found = decoders
+            .iter()
+            .find(|d| d.channels == color.channels && d.precision == color.precision);
+
+        if let Some(decoder) = found {
+            if !decoder.disabled {
+                return Ok(decoder);
+            }
+        }
+
+        Err(DecodeError::UnsupportedColorFormat {
+            format: *self,
+            color,
+            missing_feature: found.is_some(),
+        })
+    }
+
+    /// Decodes the image data of a surface from the given reader and writes it
+    /// to the given output buffer.
+    ///
+    /// If this format does not support the given channels and precision, an
+    /// error is returned. Support can be checked ahead of time with
+    /// [`Self::supported_channels`] and [`Self::supported_precisions`].
+    ///
+    /// It is highly recommended for the output buffer to be aligned to the
+    /// given precision to improve performance. E.g. if the precision is `U16`,
+    /// the output buffer should be aligned to 2 bytes. As such, using the
+    /// `decode_<precision>` methods is recommended.
+    ///
+    /// ## Output buffer
+    ///
+    /// The output buffer must be exactly the right size to hold the decoded
+    /// image data.
+    ///
+    /// The size in bytes of the output buffer can be calculated as
+    /// `size.pixels() * color.bytes_per_pixel()`. If you are using one of the
+    /// `decode_<precision>` methods, the length of the types output buffer is
+    /// `size.pixels() * channels.count()`
+    ///
+    /// ## State of the reader
+    ///
+    /// The reader is expected to be positioned at the start of the encoded
+    /// image data of the current surface.
+    ///
+    /// If the operation completes successfully, the reader will be positioned
+    /// at the end of the encoded image data, meaning that the next byte read
+    /// will be the first byte of either the next encoded surface or EOF.
+    ///
+    /// If the operation fails and returns an error, the position of the reader
+    /// remains unchanged.
+    ///
+    /// ## Panics
+    ///
+    /// This method will only panic in the given reader panics while reading.
     pub fn decode(
         &self,
         reader: &mut dyn Read,
         size: Size,
-        channels: Channels,
-        precision: Precision,
+        color: ColorFormat,
         output: &mut [u8],
     ) -> Result<(), DecodeError> {
-        let decoders = decoders::get_decoders(*self).decoders;
-        let found = decoders
-            .iter()
-            .find(|d| d.channels == channels && d.precision == precision);
-
-        if let Some(decoder) = found {
-            if !decoder.disabled {
-                return decoder.decode(reader, size, output);
-            }
-        }
-
-        Err(DecodeError::UnsupportedChannelsPrecision {
-            format: *self,
-            channels,
-            precision,
-            missing_feature: found.is_some(),
-        })
+        self.get_decoder(color)?.decode(reader, size, output)
     }
 
     /// A convenience method to decode with [`Precision::U8`].
@@ -222,10 +308,15 @@ impl SupportedFormat {
         &self,
         reader: &mut dyn Read,
         size: Size,
-        color_type: Channels,
+        channels: Channels,
         output: &mut [u8],
     ) -> Result<(), DecodeError> {
-        self.decode(reader, size, color_type, Precision::U8, output)
+        self.decode(
+            reader,
+            size,
+            ColorFormat::new(channels, Precision::U8),
+            output,
+        )
     }
     /// A convenience method to decode with [`Precision::U16`].
     ///
@@ -234,14 +325,13 @@ impl SupportedFormat {
         &self,
         reader: &mut dyn Read,
         size: Size,
-        color_type: Channels,
+        channels: Channels,
         output: &mut [u16],
     ) -> Result<(), DecodeError> {
         self.decode(
             reader,
             size,
-            color_type,
-            Precision::U16,
+            ColorFormat::new(channels, Precision::U16),
             cast::as_bytes_mut(output),
         )
     }
@@ -252,14 +342,13 @@ impl SupportedFormat {
         &self,
         reader: &mut dyn Read,
         size: Size,
-        color_type: Channels,
+        channels: Channels,
         output: &mut [f32],
     ) -> Result<(), DecodeError> {
         self.decode(
             reader,
             size,
-            color_type,
-            Precision::F32,
+            ColorFormat::new(channels, Precision::F32),
             cast::as_bytes_mut(output),
         )
     }
