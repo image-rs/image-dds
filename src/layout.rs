@@ -523,6 +523,25 @@ impl DataLayout {
             }
         }
     }
+
+    pub fn texture(&self) -> Option<&Texture> {
+        match self {
+            DataLayout::Texture(texture) => Some(texture),
+            _ => None,
+        }
+    }
+    pub fn volume(&self) -> Option<&Volume> {
+        match self {
+            DataLayout::Volume(volume) => Some(volume),
+            _ => None,
+        }
+    }
+    pub fn texture_array(&self) -> Option<&TextureArray> {
+        match self {
+            DataLayout::TextureArray(array) => Some(array),
+            _ => None,
+        }
+    }
 }
 impl DataRegion for DataLayout {
     fn data_len(&self) -> u64 {

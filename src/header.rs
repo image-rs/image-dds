@@ -8,7 +8,6 @@ use std::io::Read;
 ///
 /// https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-#[non_exhaustive]
 pub struct Header {
     /// Flags to indicate which members contain valid data.
     pub flags: DdsFlags,
@@ -16,10 +15,6 @@ pub struct Header {
     pub height: u32,
     /// Surface width (in pixels).
     pub width: u32,
-    /// The pitch or number of bytes per scan line in an uncompressed texture; the total number of bytes in the top level texture for a compressed texture. For information about how to compute the pitch, see the DDS File Layout section of the [Programming Guide for DDS](https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dx-graphics-dds-pguide).
-    ///
-    /// This number is **highly** unreliable and should not be used.
-    pub pitch_or_linear_size: Option<u32>,
     /// Depth of a volume texture (in pixels).
     pub depth: Option<u32>,
     /// Number of mipmap levels.
@@ -77,11 +72,6 @@ impl Header {
 
         let height = buffer[2];
         let width = buffer[3];
-        let pitch_or_linear_size = if flags.contains(DdsFlags::PITCH | DdsFlags::LINEAR_SIZE) {
-            Some(buffer[8])
-        } else {
-            None
-        };
         let depth = if flags.contains(DdsFlags::DEPTH) {
             Some(buffer[5])
         } else {
@@ -116,19 +106,11 @@ impl Header {
             flags,
             height,
             width,
-            pitch_or_linear_size,
             depth,
             mipmap_count,
-            // reserved1: [
-            //     buffer[7], buffer[8], buffer[9], buffer[10], buffer[11], buffer[12], buffer[13],
-            //     buffer[14], buffer[15], buffer[16], buffer[17],
-            // ],
             pixel_format,
             caps,
             caps2,
-            // caps3: buffer[28],
-            // caps4: buffer[29],
-            // reserved2: buffer[30],
             dxt10,
         })
     }
