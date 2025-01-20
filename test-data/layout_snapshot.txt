@@ -7,7 +7,7 @@ images/bc/DX10 BC1_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(71)
+            dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -37,7 +37,7 @@ images/bc/DX10 BC1_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(72)
+            dxgi_format: BC1_UNORM_SRGB (72)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -67,7 +67,7 @@ images/bc/DX10 BC2_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(74)
+            dxgi_format: BC2_UNORM (74)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -97,7 +97,7 @@ images/bc/DX10 BC2_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(75)
+            dxgi_format: BC2_UNORM_SRGB (75)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -127,7 +127,7 @@ images/bc/DX10 BC3_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(77)
+            dxgi_format: BC3_UNORM (77)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -157,7 +157,7 @@ images/bc/DX10 BC3_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(78)
+            dxgi_format: BC3_UNORM_SRGB (78)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -187,7 +187,7 @@ images/bc/DX10 BC4_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(81)
+            dxgi_format: BC4_SNORM (81)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -217,7 +217,7 @@ images/bc/DX10 BC4_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(80)
+            dxgi_format: BC4_UNORM (80)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -247,7 +247,7 @@ images/bc/DX10 BC5_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(84)
+            dxgi_format: BC5_SNORM (84)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -277,7 +277,7 @@ images/bc/DX10 BC5_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(83)
+            dxgi_format: BC5_UNORM (83)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -307,7 +307,7 @@ images/bc/DX10 BC7_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(98)
+            dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -337,7 +337,7 @@ images/bc/DX10 BC7_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(99)
+            dxgi_format: BC7_UNORM_SRGB (99)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -675,7 +675,7 @@ images/cube/BC1 Pretoria Gardens DX10.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         dxt10:
-            dxgi_format: DxgiFormat(71)
+            dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(TEXTURE_CUBE)
             array_size: 1
@@ -822,7 +822,7 @@ images/cube/Pretoria Gardens DX10.dds
         caps: DdsCaps(COMPLEX | TEXTURE)
         caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         dxt10:
-            dxgi_format: DxgiFormat(85)
+            dxgi_format: B5G6R5_UNORM (85)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(TEXTURE_CUBE)
             array_size: 1
@@ -1001,7 +1001,7 @@ images/other/BC1_UNORM_SRGB-47.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(72)
+            dxgi_format: BC1_UNORM_SRGB (72)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1057,7 +1057,7 @@ images/other/both-dx10-and-pixel-format.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(93)
+            dxgi_format: B8G8R8X8_UNORM_SRGB (93)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1256,7 +1256,7 @@ images/sub-sampled/DX10 G8R8_G8B8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(69)
+            dxgi_format: G8R8_G8B8_UNORM (69)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1286,7 +1286,7 @@ images/sub-sampled/DX10 R8G8_B8G8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(68)
+            dxgi_format: R8G8_B8G8_UNORM (68)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1366,7 +1366,7 @@ images/uncompressed/DX10 A8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(65)
+            dxgi_format: A8_UNORM (65)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1396,7 +1396,7 @@ images/uncompressed/DX10 B4G4R4A4_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(115)
+            dxgi_format: B4G4R4A4_UNORM (115)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1426,7 +1426,7 @@ images/uncompressed/DX10 B5G5R5A1_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(86)
+            dxgi_format: B5G5R5A1_UNORM (86)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1456,7 +1456,7 @@ images/uncompressed/DX10 B5G6R5_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(85)
+            dxgi_format: B5G6R5_UNORM (85)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1486,7 +1486,7 @@ images/uncompressed/DX10 B8G8R8A8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(87)
+            dxgi_format: B8G8R8A8_UNORM (87)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1516,7 +1516,7 @@ images/uncompressed/DX10 B8G8R8A8_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(91)
+            dxgi_format: B8G8R8A8_UNORM_SRGB (91)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1546,7 +1546,7 @@ images/uncompressed/DX10 B8G8R8X8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(88)
+            dxgi_format: B8G8R8X8_UNORM (88)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1576,7 +1576,7 @@ images/uncompressed/DX10 B8G8R8X8_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(93)
+            dxgi_format: B8G8R8X8_UNORM_SRGB (93)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1606,7 +1606,7 @@ images/uncompressed/DX10 R10G10B10A2_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(24)
+            dxgi_format: R10G10B10A2_UNORM (24)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1636,7 +1636,7 @@ images/uncompressed/DX10 R10G10B10_XR_BIAS_A2_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(89)
+            dxgi_format: R10G10B10_XR_BIAS_A2_UNORM (89)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1666,7 +1666,7 @@ images/uncompressed/DX10 R11G11B10_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(26)
+            dxgi_format: R11G11B10_FLOAT (26)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1696,7 +1696,7 @@ images/uncompressed/DX10 R16G16B16A16_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(10)
+            dxgi_format: R16G16B16A16_FLOAT (10)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1726,7 +1726,7 @@ images/uncompressed/DX10 R16G16B16A16_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(13)
+            dxgi_format: R16G16B16A16_SNORM (13)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1756,7 +1756,7 @@ images/uncompressed/DX10 R16G16B16A16_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(11)
+            dxgi_format: R16G16B16A16_UNORM (11)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1786,7 +1786,7 @@ images/uncompressed/DX10 R16G16_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(34)
+            dxgi_format: R16G16_FLOAT (34)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1816,7 +1816,7 @@ images/uncompressed/DX10 R16G16_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(37)
+            dxgi_format: R16G16_SNORM (37)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1846,7 +1846,7 @@ images/uncompressed/DX10 R16G16_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(35)
+            dxgi_format: R16G16_UNORM (35)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1876,7 +1876,7 @@ images/uncompressed/DX10 R16_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(54)
+            dxgi_format: R16_FLOAT (54)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1906,7 +1906,7 @@ images/uncompressed/DX10 R16_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(58)
+            dxgi_format: R16_SNORM (58)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1936,7 +1936,7 @@ images/uncompressed/DX10 R16_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(56)
+            dxgi_format: R16_UNORM (56)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1966,7 +1966,7 @@ images/uncompressed/DX10 R32G32B32A32_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(2)
+            dxgi_format: R32G32B32A32_FLOAT (2)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -1996,7 +1996,7 @@ images/uncompressed/DX10 R32G32B32_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(6)
+            dxgi_format: R32G32B32_FLOAT (6)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2026,7 +2026,7 @@ images/uncompressed/DX10 R32G32_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(16)
+            dxgi_format: R32G32_FLOAT (16)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2056,7 +2056,7 @@ images/uncompressed/DX10 R32_FLOAT.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(41)
+            dxgi_format: R32_FLOAT (41)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2086,7 +2086,7 @@ images/uncompressed/DX10 R8G8B8A8_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(31)
+            dxgi_format: R8G8B8A8_SNORM (31)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2116,7 +2116,7 @@ images/uncompressed/DX10 R8G8B8A8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(28)
+            dxgi_format: R8G8B8A8_UNORM (28)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2146,7 +2146,7 @@ images/uncompressed/DX10 R8G8B8A8_UNORM_SRGB.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(29)
+            dxgi_format: R8G8B8A8_UNORM_SRGB (29)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2176,7 +2176,7 @@ images/uncompressed/DX10 R8G8_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(51)
+            dxgi_format: R8G8_SNORM (51)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2206,7 +2206,7 @@ images/uncompressed/DX10 R8G8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(49)
+            dxgi_format: R8G8_UNORM (49)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2236,7 +2236,7 @@ images/uncompressed/DX10 R8_SNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(63)
+            dxgi_format: R8_SNORM (63)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2266,7 +2266,7 @@ images/uncompressed/DX10 R8_UNORM.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(61)
+            dxgi_format: R8_UNORM (61)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2296,7 +2296,7 @@ images/uncompressed/DX10 R9G9B9E5_SHAREDEXP.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(0x0)
         dxt10:
-            dxgi_format: DxgiFormat(67)
+            dxgi_format: R9G9B9E5_SHAREDEXP (67)
             resource_dimension: Texture2D
             misc_flag: MiscFlags(0x0)
             array_size: 1
@@ -2946,7 +2946,7 @@ images/volume/TestVolume_Noise3D BC1.dds
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
         caps2: DdsCaps2(VOLUME)
         dxt10:
-            dxgi_format: DxgiFormat(71)
+            dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture3D
             misc_flag: MiscFlags(0x0)
             array_size: 1

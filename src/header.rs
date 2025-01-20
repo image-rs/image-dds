@@ -422,129 +422,9 @@ impl std::fmt::Debug for FourCC {
 /// type.
 ///
 /// https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DxgiFormat(u8);
 impl DxgiFormat {
-    pub const UNKNOWN: DxgiFormat = DxgiFormat(0);
-    pub const R32G32B32A32_TYPELESS: DxgiFormat = DxgiFormat(1);
-    pub const R32G32B32A32_FLOAT: DxgiFormat = DxgiFormat(2);
-    pub const R32G32B32A32_UINT: DxgiFormat = DxgiFormat(3);
-    pub const R32G32B32A32_SINT: DxgiFormat = DxgiFormat(4);
-    pub const R32G32B32_TYPELESS: DxgiFormat = DxgiFormat(5);
-    pub const R32G32B32_FLOAT: DxgiFormat = DxgiFormat(6);
-    pub const R32G32B32_UINT: DxgiFormat = DxgiFormat(7);
-    pub const R32G32B32_SINT: DxgiFormat = DxgiFormat(8);
-    pub const R16G16B16A16_TYPELESS: DxgiFormat = DxgiFormat(9);
-    pub const R16G16B16A16_FLOAT: DxgiFormat = DxgiFormat(10);
-    pub const R16G16B16A16_UNORM: DxgiFormat = DxgiFormat(11);
-    pub const R16G16B16A16_UINT: DxgiFormat = DxgiFormat(12);
-    pub const R16G16B16A16_SNORM: DxgiFormat = DxgiFormat(13);
-    pub const R16G16B16A16_SINT: DxgiFormat = DxgiFormat(14);
-    pub const R32G32_TYPELESS: DxgiFormat = DxgiFormat(15);
-    pub const R32G32_FLOAT: DxgiFormat = DxgiFormat(16);
-    pub const R32G32_UINT: DxgiFormat = DxgiFormat(17);
-    pub const R32G32_SINT: DxgiFormat = DxgiFormat(18);
-    pub const R32G8X24_TYPELESS: DxgiFormat = DxgiFormat(19);
-    pub const D32_FLOAT_S8X24_UINT: DxgiFormat = DxgiFormat(20);
-    pub const R32_FLOAT_X8X24_TYPELESS: DxgiFormat = DxgiFormat(21);
-    pub const X32_TYPELESS_G8X24_UINT: DxgiFormat = DxgiFormat(22);
-    pub const R10G10B10A2_TYPELESS: DxgiFormat = DxgiFormat(23);
-    pub const R10G10B10A2_UNORM: DxgiFormat = DxgiFormat(24);
-    pub const R10G10B10A2_UINT: DxgiFormat = DxgiFormat(25);
-    pub const R11G11B10_FLOAT: DxgiFormat = DxgiFormat(26);
-    pub const R8G8B8A8_TYPELESS: DxgiFormat = DxgiFormat(27);
-    pub const R8G8B8A8_UNORM: DxgiFormat = DxgiFormat(28);
-    pub const R8G8B8A8_UNORM_SRGB: DxgiFormat = DxgiFormat(29);
-    pub const R8G8B8A8_UINT: DxgiFormat = DxgiFormat(30);
-    pub const R8G8B8A8_SNORM: DxgiFormat = DxgiFormat(31);
-    pub const R8G8B8A8_SINT: DxgiFormat = DxgiFormat(32);
-    pub const R16G16_TYPELESS: DxgiFormat = DxgiFormat(33);
-    pub const R16G16_FLOAT: DxgiFormat = DxgiFormat(34);
-    pub const R16G16_UNORM: DxgiFormat = DxgiFormat(35);
-    pub const R16G16_UINT: DxgiFormat = DxgiFormat(36);
-    pub const R16G16_SNORM: DxgiFormat = DxgiFormat(37);
-    pub const R16G16_SINT: DxgiFormat = DxgiFormat(38);
-    pub const R32_TYPELESS: DxgiFormat = DxgiFormat(39);
-    pub const D32_FLOAT: DxgiFormat = DxgiFormat(40);
-    pub const R32_FLOAT: DxgiFormat = DxgiFormat(41);
-    pub const R32_UINT: DxgiFormat = DxgiFormat(42);
-    pub const R32_SINT: DxgiFormat = DxgiFormat(43);
-    pub const R24G8_TYPELESS: DxgiFormat = DxgiFormat(44);
-    pub const D24_UNORM_S8_UINT: DxgiFormat = DxgiFormat(45);
-    pub const R24_UNORM_X8_TYPELESS: DxgiFormat = DxgiFormat(46);
-    pub const X24_TYPELESS_G8_UINT: DxgiFormat = DxgiFormat(47);
-    pub const R8G8_TYPELESS: DxgiFormat = DxgiFormat(48);
-    pub const R8G8_UNORM: DxgiFormat = DxgiFormat(49);
-    pub const R8G8_UINT: DxgiFormat = DxgiFormat(50);
-    pub const R8G8_SNORM: DxgiFormat = DxgiFormat(51);
-    pub const R8G8_SINT: DxgiFormat = DxgiFormat(52);
-    pub const R16_TYPELESS: DxgiFormat = DxgiFormat(53);
-    pub const R16_FLOAT: DxgiFormat = DxgiFormat(54);
-    pub const D16_UNORM: DxgiFormat = DxgiFormat(55);
-    pub const R16_UNORM: DxgiFormat = DxgiFormat(56);
-    pub const R16_UINT: DxgiFormat = DxgiFormat(57);
-    pub const R16_SNORM: DxgiFormat = DxgiFormat(58);
-    pub const R16_SINT: DxgiFormat = DxgiFormat(59);
-    pub const R8_TYPELESS: DxgiFormat = DxgiFormat(60);
-    pub const R8_UNORM: DxgiFormat = DxgiFormat(61);
-    pub const R8_UINT: DxgiFormat = DxgiFormat(62);
-    pub const R8_SNORM: DxgiFormat = DxgiFormat(63);
-    pub const R8_SINT: DxgiFormat = DxgiFormat(64);
-    pub const A8_UNORM: DxgiFormat = DxgiFormat(65);
-    pub const R1_UNORM: DxgiFormat = DxgiFormat(66);
-    pub const R9G9B9E5_SHAREDEXP: DxgiFormat = DxgiFormat(67);
-    pub const R8G8_B8G8_UNORM: DxgiFormat = DxgiFormat(68);
-    pub const G8R8_G8B8_UNORM: DxgiFormat = DxgiFormat(69);
-    pub const BC1_TYPELESS: DxgiFormat = DxgiFormat(70);
-    pub const BC1_UNORM: DxgiFormat = DxgiFormat(71);
-    pub const BC1_UNORM_SRGB: DxgiFormat = DxgiFormat(72);
-    pub const BC2_TYPELESS: DxgiFormat = DxgiFormat(73);
-    pub const BC2_UNORM: DxgiFormat = DxgiFormat(74);
-    pub const BC2_UNORM_SRGB: DxgiFormat = DxgiFormat(75);
-    pub const BC3_TYPELESS: DxgiFormat = DxgiFormat(76);
-    pub const BC3_UNORM: DxgiFormat = DxgiFormat(77);
-    pub const BC3_UNORM_SRGB: DxgiFormat = DxgiFormat(78);
-    pub const BC4_TYPELESS: DxgiFormat = DxgiFormat(79);
-    pub const BC4_UNORM: DxgiFormat = DxgiFormat(80);
-    pub const BC4_SNORM: DxgiFormat = DxgiFormat(81);
-    pub const BC5_TYPELESS: DxgiFormat = DxgiFormat(82);
-    pub const BC5_UNORM: DxgiFormat = DxgiFormat(83);
-    pub const BC5_SNORM: DxgiFormat = DxgiFormat(84);
-    pub const B5G6R5_UNORM: DxgiFormat = DxgiFormat(85);
-    pub const B5G5R5A1_UNORM: DxgiFormat = DxgiFormat(86);
-    pub const B8G8R8A8_UNORM: DxgiFormat = DxgiFormat(87);
-    pub const B8G8R8X8_UNORM: DxgiFormat = DxgiFormat(88);
-    pub const R10G10B10_XR_BIAS_A2_UNORM: DxgiFormat = DxgiFormat(89);
-    pub const B8G8R8A8_TYPELESS: DxgiFormat = DxgiFormat(90);
-    pub const B8G8R8A8_UNORM_SRGB: DxgiFormat = DxgiFormat(91);
-    pub const B8G8R8X8_TYPELESS: DxgiFormat = DxgiFormat(92);
-    pub const B8G8R8X8_UNORM_SRGB: DxgiFormat = DxgiFormat(93);
-    pub const BC6H_TYPELESS: DxgiFormat = DxgiFormat(94);
-    pub const BC6H_UF16: DxgiFormat = DxgiFormat(95);
-    pub const BC6H_SF16: DxgiFormat = DxgiFormat(96);
-    pub const BC7_TYPELESS: DxgiFormat = DxgiFormat(97);
-    pub const BC7_UNORM: DxgiFormat = DxgiFormat(98);
-    pub const BC7_UNORM_SRGB: DxgiFormat = DxgiFormat(99);
-    pub const AYUV: DxgiFormat = DxgiFormat(100);
-    pub const Y410: DxgiFormat = DxgiFormat(101);
-    pub const Y416: DxgiFormat = DxgiFormat(102);
-    pub const NV12: DxgiFormat = DxgiFormat(103);
-    pub const P010: DxgiFormat = DxgiFormat(104);
-    pub const P016: DxgiFormat = DxgiFormat(105);
-    pub const OPAQUE_420: DxgiFormat = DxgiFormat(106);
-    pub const YUY2: DxgiFormat = DxgiFormat(107);
-    pub const Y210: DxgiFormat = DxgiFormat(108);
-    pub const Y216: DxgiFormat = DxgiFormat(109);
-    pub const NV11: DxgiFormat = DxgiFormat(110);
-    pub const AI44: DxgiFormat = DxgiFormat(111);
-    pub const IA44: DxgiFormat = DxgiFormat(112);
-    pub const P8: DxgiFormat = DxgiFormat(113);
-    pub const A8P8: DxgiFormat = DxgiFormat(114);
-    pub const B4G4R4A4_UNORM: DxgiFormat = DxgiFormat(115);
-    pub const P208: DxgiFormat = DxgiFormat(130);
-    pub const V208: DxgiFormat = DxgiFormat(131);
-    pub const V408: DxgiFormat = DxgiFormat(132);
-
     pub fn is_srgb(&self) -> bool {
         matches!(
             *self,
@@ -559,10 +439,158 @@ impl DxgiFormat {
     }
 }
 
+macro_rules! define_dxgi_formats {
+    ($($name:ident - $n:literal),+) => {
+        impl DxgiFormat {
+            $(pub const $name: DxgiFormat = DxgiFormat($n);)+
+        }
+
+        impl std::fmt::Debug for DxgiFormat {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                let name = match *self {
+                    $(Self::$name => stringify!($name),)+
+                    _ => {
+                        return write!(f, "DxgiFormat({})", self.0);
+                    }
+                };
+                write!(f, "{} ({})", name, self.0)
+            }
+        }
+    };
+}
+define_dxgi_formats!(
+    UNKNOWN - 0,
+    R32G32B32A32_TYPELESS - 1,
+    R32G32B32A32_FLOAT - 2,
+    R32G32B32A32_UINT - 3,
+    R32G32B32A32_SINT - 4,
+    R32G32B32_TYPELESS - 5,
+    R32G32B32_FLOAT - 6,
+    R32G32B32_UINT - 7,
+    R32G32B32_SINT - 8,
+    R16G16B16A16_TYPELESS - 9,
+    R16G16B16A16_FLOAT - 10,
+    R16G16B16A16_UNORM - 11,
+    R16G16B16A16_UINT - 12,
+    R16G16B16A16_SNORM - 13,
+    R16G16B16A16_SINT - 14,
+    R32G32_TYPELESS - 15,
+    R32G32_FLOAT - 16,
+    R32G32_UINT - 17,
+    R32G32_SINT - 18,
+    R32G8X24_TYPELESS - 19,
+    D32_FLOAT_S8X24_UINT - 20,
+    R32_FLOAT_X8X24_TYPELESS - 21,
+    X32_TYPELESS_G8X24_UINT - 22,
+    R10G10B10A2_TYPELESS - 23,
+    R10G10B10A2_UNORM - 24,
+    R10G10B10A2_UINT - 25,
+    R11G11B10_FLOAT - 26,
+    R8G8B8A8_TYPELESS - 27,
+    R8G8B8A8_UNORM - 28,
+    R8G8B8A8_UNORM_SRGB - 29,
+    R8G8B8A8_UINT - 30,
+    R8G8B8A8_SNORM - 31,
+    R8G8B8A8_SINT - 32,
+    R16G16_TYPELESS - 33,
+    R16G16_FLOAT - 34,
+    R16G16_UNORM - 35,
+    R16G16_UINT - 36,
+    R16G16_SNORM - 37,
+    R16G16_SINT - 38,
+    R32_TYPELESS - 39,
+    D32_FLOAT - 40,
+    R32_FLOAT - 41,
+    R32_UINT - 42,
+    R32_SINT - 43,
+    R24G8_TYPELESS - 44,
+    D24_UNORM_S8_UINT - 45,
+    R24_UNORM_X8_TYPELESS - 46,
+    X24_TYPELESS_G8_UINT - 47,
+    R8G8_TYPELESS - 48,
+    R8G8_UNORM - 49,
+    R8G8_UINT - 50,
+    R8G8_SNORM - 51,
+    R8G8_SINT - 52,
+    R16_TYPELESS - 53,
+    R16_FLOAT - 54,
+    D16_UNORM - 55,
+    R16_UNORM - 56,
+    R16_UINT - 57,
+    R16_SNORM - 58,
+    R16_SINT - 59,
+    R8_TYPELESS - 60,
+    R8_UNORM - 61,
+    R8_UINT - 62,
+    R8_SNORM - 63,
+    R8_SINT - 64,
+    A8_UNORM - 65,
+    R1_UNORM - 66,
+    R9G9B9E5_SHAREDEXP - 67,
+    R8G8_B8G8_UNORM - 68,
+    G8R8_G8B8_UNORM - 69,
+    BC1_TYPELESS - 70,
+    BC1_UNORM - 71,
+    BC1_UNORM_SRGB - 72,
+    BC2_TYPELESS - 73,
+    BC2_UNORM - 74,
+    BC2_UNORM_SRGB - 75,
+    BC3_TYPELESS - 76,
+    BC3_UNORM - 77,
+    BC3_UNORM_SRGB - 78,
+    BC4_TYPELESS - 79,
+    BC4_UNORM - 80,
+    BC4_SNORM - 81,
+    BC5_TYPELESS - 82,
+    BC5_UNORM - 83,
+    BC5_SNORM - 84,
+    B5G6R5_UNORM - 85,
+    B5G5R5A1_UNORM - 86,
+    B8G8R8A8_UNORM - 87,
+    B8G8R8X8_UNORM - 88,
+    R10G10B10_XR_BIAS_A2_UNORM - 89,
+    B8G8R8A8_TYPELESS - 90,
+    B8G8R8A8_UNORM_SRGB - 91,
+    B8G8R8X8_TYPELESS - 92,
+    B8G8R8X8_UNORM_SRGB - 93,
+    BC6H_TYPELESS - 94,
+    BC6H_UF16 - 95,
+    BC6H_SF16 - 96,
+    BC7_TYPELESS - 97,
+    BC7_UNORM - 98,
+    BC7_UNORM_SRGB - 99,
+    AYUV - 100,
+    Y410 - 101,
+    Y416 - 102,
+    NV12 - 103,
+    P010 - 104,
+    P016 - 105,
+    OPAQUE_420 - 106,
+    YUY2 - 107,
+    Y210 - 108,
+    Y216 - 109,
+    NV11 - 110,
+    AI44 - 111,
+    IA44 - 112,
+    P8 - 113,
+    A8P8 - 114,
+    B4G4R4A4_UNORM - 115,
+    P208 - 130,
+    V208 - 131,
+    V408 - 132
+);
+
 impl TryFrom<u32> for DxgiFormat {
     type Error = u32;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
+        // NOTE: This implementation is NOT generated by the marco for
+        // performance and code size reasons. On virtually any optimization
+        // level, the below code translates to around 6 instructions, while a
+        // generated match arm (0 | 1 | 2 | ... | 115 | 130 | 131 | 132 => ...)
+        // translates to a LUT on -O3 and a jump table with 133 entries on
+        // <= -O2, -Os, and -Oz. It's slower and takes up vastly more binary
+        // size.
         match value {
             0..=115 | 130..=132 => Ok(DxgiFormat(value as u8)),
             _ => Err(value),
