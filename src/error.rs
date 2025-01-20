@@ -68,23 +68,7 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "DXGI format {:?} is not supported for decoding", format)
             }
             DecodeError::UnsupportedFourCC(four_cc) => {
-                let bytes = four_cc.0.to_le_bytes();
-                let ascii = if bytes.iter().all(|&b| b.is_ascii_alphanumeric()) {
-                    let mut ascii = " (ASCII: ".to_string();
-                    for &b in &bytes {
-                        ascii.push(b as char);
-                    }
-                    ascii.push(')');
-                    ascii
-                } else {
-                    String::new()
-                };
-
-                write!(
-                    f,
-                    "Unsupported FourCC code {}{} in DX10 header extension",
-                    four_cc.0, ascii
-                )
+                write!(f, "Unsupported {:?} in DX10 header extension", four_cc)
             }
             DecodeError::UnsupportedPixelFormat => {
                 write!(f, "Unsupported pixel format in the DDS header")

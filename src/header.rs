@@ -362,7 +362,7 @@ impl TryFrom<u32> for ResourceDimension {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FourCC(pub u32);
 
 impl FourCC {
@@ -399,6 +399,21 @@ impl From<u32> for FourCC {
 impl From<FourCC> for u32 {
     fn from(value: FourCC) -> Self {
         value.0
+    }
+}
+
+impl std::fmt::Debug for FourCC {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let bytes = self.0.to_le_bytes();
+        if bytes.iter().all(|&b| b.is_ascii_alphanumeric()) {
+            write!(
+                f,
+                "FourCC(0x{:x}; {}{}{}{})",
+                self.0, bytes[0] as char, bytes[1] as char, bytes[2] as char, bytes[3] as char
+            )
+        } else {
+            write!(f, "FourCC(0x{:x})", self.0)
+        }
     }
 }
 

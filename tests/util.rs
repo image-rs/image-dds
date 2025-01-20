@@ -13,6 +13,15 @@ pub fn test_data_dir() -> PathBuf {
     path
 }
 
+pub fn example_dds_files() -> Vec<PathBuf> {
+    glob::glob(test_data_dir().join("images/**/*.dds").to_str().unwrap())
+        .expect("Failed to read glob pattern")
+        .map(|x| x.unwrap())
+        // ignore files starting with "_"
+        .filter(|x| !x.file_name().unwrap().to_str().unwrap().starts_with('_'))
+        .collect()
+}
+
 pub struct Image<T> {
     pub data: Vec<T>,
     pub channels: Channels,

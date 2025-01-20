@@ -20,7 +20,7 @@ use crate::{util::div_ceil, DecodeError, DxgiFormat, Header, Size, SupportedForm
 /// Note that [`PixelInfo`] can even describe pixel formats `ddsd` does not
 /// support. This is by design to allow users to get the data layout for DDS
 /// files this library doesn't fully support.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PixelInfo {
     /// Each pixel has a fixed number of bytes, regardless of the dimensions of
     /// the surface.
@@ -150,6 +150,32 @@ impl PixelInfo {
                 let samples = size.pixels().checked_add(samples_chroma.checked_mul(2)?)?;
                 samples.checked_mul(bytes_per_sample as u64)
             }
+        }
+    }
+}
+
+impl std::fmt::Debug for PixelInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Fixed { bytes_per_pixel } => {
+                write!(f, "Fixed({} bytes per pixel)", bytes_per_pixel)
+            }
+            Self::Block {
+                bytes_per_block,
+                block_size,
+            } => write!(
+                f,
+                "Block({} bytes per {}x{} block)",
+                bytes_per_block, block_size.0, block_size.1
+            ),
+            Self::ChromaSubSampled {
+                bytes_per_sample,
+                sub_sampling,
+            } => write!(
+                f,
+                "ChromaSubSampled({} bytes per sample, {}x{})",
+                bytes_per_sample, sub_sampling.0, sub_sampling.1
+            ),
         }
     }
 }
