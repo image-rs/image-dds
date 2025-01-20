@@ -13,33 +13,71 @@ pub fn test_data_dir() -> PathBuf {
     path
 }
 
-pub struct Image {
-    pub data: Vec<u8>,
+pub struct Image<T> {
+    pub data: Vec<T>,
     pub channels: Channels,
     pub size: Size,
 }
+impl<T: WithPrecision> Image<T> {
+    pub fn precision(&self) -> Precision {
+        T::PRECISION
+    }
+    pub fn color(&self) -> ColorFormat {
+        ColorFormat::new(self.channels, T::PRECISION)
+    }
+}
 
-pub fn read_dds_as_u8(
+pub trait WithPrecision {
+    const PRECISION: Precision;
+}
+impl WithPrecision for u8 {
+    const PRECISION: Precision = U8;
+}
+impl WithPrecision for u16 {
+    const PRECISION: Precision = U16;
+}
+impl WithPrecision for f32 {
+    const PRECISION: Precision = F32;
+}
+
+pub fn read_dds<T: WithPrecision + Default + Copy + bytemuck::Pod>(
     dds_path: &PathBuf,
-) -> Result<(Image, DdsDecoder), Box<dyn std::error::Error>> {
-    // read dds
+) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
+    read_dds_with_channels_select(dds_path, |f| f.channels())
+}
+pub fn read_dds_with_channels<T: WithPrecision + Default + Copy + bytemuck::Pod>(
+    dds_path: &PathBuf,
+    channels: Channels,
+) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
+    read_dds_with_channels_select(dds_path, |_| channels)
+}
+pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + bytemuck::Pod>(
+    dds_path: &PathBuf,
+    select_channels: impl FnOnce(SupportedFormat) -> Channels,
+) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     let mut file = File::open(dds_path)?;
 
     let decoder = DdsDecoder::new(&mut file)?;
     let size = decoder.header().size();
     let format = decoder.format();
-    if !format.supported_precisions().contains(Precision::U8) {
-        return Err("Format does not support decoding as U8".into());
+    if !format.supported_precisions().contains(T::PRECISION) {
+        return Err(format!("Format does not support decoding as {:?}", T::PRECISION).into());
     }
 
-    let channels = to_png_compatible_channels(format.channels()).0;
+    let channels = select_channels(format);
     if !format.supported_channels().contains(channels) {
         // can't read in a way PNG likes
         return Err("Unsupported channels".into());
     }
 
-    let mut image_data = vec![0_u8; size.pixels() as usize * channels.count() as usize];
-    format.decode_u8(&mut file, size, channels, &mut image_data)?;
+    let mut image_data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
+    let image_data_bytes: &mut [u8] = bytemuck::cast_slice_mut(&mut image_data);
+    format.decode(
+        &mut file,
+        size,
+        ColorFormat::new(channels, T::PRECISION),
+        image_data_bytes,
+    )?;
 
     let image = Image {
         data: image_data,
@@ -49,10 +87,16 @@ pub fn read_dds_as_u8(
     Ok((image, decoder))
 }
 
+pub fn read_dds_png_compatible(
+    dds_path: &PathBuf,
+) -> Result<(Image<u8>, DdsDecoder), Box<dyn std::error::Error>> {
+    read_dds_with_channels_select(dds_path, |f| to_png_compatible_channels(f.channels()).0)
+}
+
 pub fn read_dds_rect_as_u8(
     dds_path: &PathBuf,
     rect: Rect,
-) -> Result<(Image, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<u8>, DdsDecoder), Box<dyn std::error::Error>> {
     // read dds
     let mut file = File::open(dds_path)?;
 
@@ -100,7 +144,7 @@ pub fn to_png_compatible_channels(channels: Channels) -> (Channels, png::ColorTy
 
 pub fn compare_snapshot_png_u8(
     png_path: &PathBuf,
-    image: &Image,
+    image: &Image<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (channels, color) = to_png_compatible_channels(image.channels);
     assert!(channels == image.channels);
