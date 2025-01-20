@@ -72,14 +72,6 @@ impl<T> TinySet<T> {
             _phantom: std::marker::PhantomData,
         }
     }
-
-    pub const fn iter(self) -> TinySetIter<T> {
-        TinySetIter {
-            data: self,
-            index: 0,
-            _phantom: std::marker::PhantomData,
-        }
-    }
 }
 
 impl<T> TinySet<T>
@@ -101,6 +93,19 @@ where
         let old = self.data;
         self.data &= !mask;
         old != self.data
+    }
+}
+
+impl<T: TinyEnum> IntoIterator for TinySet<T> {
+    type Item = T;
+    type IntoIter = TinySetIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        TinySetIter {
+            data: self,
+            index: 0,
+            _phantom: std::marker::PhantomData,
+        }
     }
 }
 
