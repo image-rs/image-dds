@@ -168,6 +168,22 @@ impl PixelFormat {
             a_bit_mask: buffer[7],
         })
     }
+
+    /// Creates a new pixel format with the given four-character code.
+    ///
+    /// This is a convenience function for creating a pixel format with the
+    /// [`PixelFormatFlags::FOURCC`] flag set.
+    pub fn new_four_cc(four_cc: FourCC) -> Self {
+        Self {
+            flags: PixelFormatFlags::FOURCC,
+            four_cc: Some(four_cc),
+            rgb_bit_count: 0,
+            r_bit_mask: 0,
+            g_bit_mask: 0,
+            b_bit_mask: 0,
+            a_bit_mask: 0,
+        }
+    }
 }
 
 /// DDS header extension to handle resource arrays, DXGI pixel formats that don't map to the legacy Microsoft DirectDraw pixel format structures, and additional metadata.

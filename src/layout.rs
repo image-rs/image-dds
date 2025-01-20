@@ -104,6 +104,19 @@ impl VolumeDescriptor {
         Size::new(self.width, self.height)
     }
 
+    pub fn get_depth_slice(&self, depth: u32) -> Option<SurfaceDescriptor> {
+        if depth < self.depth {
+            Some(SurfaceDescriptor {
+                width: self.width,
+                height: self.height,
+                offset: self.offset + depth as u64 * self.slice_len,
+                len: self.slice_len,
+            })
+        } else {
+            None
+        }
+    }
+
     /// Iterates over all depth slices of the volume.
     ///
     /// To get the depth value of a slice, use `.enumerate()`. Example:
@@ -207,10 +220,10 @@ impl Texture {
     pub fn mipmaps(&self) -> u8 {
         self.mipmaps
     }
-    pub fn get(&self, index: u8) -> Option<SurfaceDescriptor> {
-        self.iter_surfaces().nth(index as usize)
+    pub fn get(&self, level: u8) -> Option<SurfaceDescriptor> {
+        self.iter_levels().nth(level as usize)
     }
-    pub fn iter_surfaces(&self) -> impl Iterator<Item = SurfaceDescriptor> {
+    pub fn iter_levels(&self) -> impl Iterator<Item = SurfaceDescriptor> {
         let mut offset = self.main.data_offset();
         let width_0 = self.main.width();
         let height_0 = self.main.height();
@@ -307,10 +320,10 @@ impl Volume {
     pub fn mipmaps(&self) -> u8 {
         self.mipmaps
     }
-    pub fn get(&self, index: u8) -> Option<VolumeDescriptor> {
-        self.iter_volumes().nth(index as usize)
+    pub fn get(&self, level: u8) -> Option<VolumeDescriptor> {
+        self.iter_levels().nth(level as usize)
     }
-    pub fn iter_volumes(&self) -> impl Iterator<Item = VolumeDescriptor> {
+    pub fn iter_levels(&self) -> impl Iterator<Item = VolumeDescriptor> {
         let mut offset = self.main.data_offset();
         let width_0 = self.main.width();
         let height_0 = self.main.height();
@@ -410,9 +423,7 @@ impl TextureArray {
     pub fn len(&self) -> usize {
         self.array_len as usize
     }
-    pub fn first(&self) -> Texture {
-        self.first.clone()
-    }
+
     pub fn get(&self, index: usize) -> Option<Texture> {
         if index < self.array_len as usize {
             let mut texture = self.first.clone();
@@ -423,7 +434,7 @@ impl TextureArray {
             None
         }
     }
-    pub fn iter_textures(&self) -> impl Iterator<Item = Texture> {
+    pub fn iter(&self) -> impl Iterator<Item = Texture> {
         let mut texture = self.first.clone();
         let texture_len = texture.data_len();
         (0..self.array_len).map(move |i| {

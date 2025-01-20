@@ -110,7 +110,7 @@ fn full_layout_snapshot() {
         match layout {
             DataLayout::Texture(texture) => {
                 output.push_str(&format!("Texture ({} bytes)\n", texture.data_len()));
-                for (i, surface) in texture.iter_surfaces().enumerate() {
+                for (i, surface) in texture.iter_levels().enumerate() {
                     output.push_str(&format!(
                         "    Surface[{i}] {}x{} ({} bytes)\n",
                         surface.width(),
@@ -121,7 +121,7 @@ fn full_layout_snapshot() {
             }
             DataLayout::Volume(volume) => {
                 output.push_str(&format!("Volume ({} bytes)\n", volume.data_len()));
-                for (i, volume) in volume.iter_volumes().enumerate() {
+                for (i, volume) in volume.iter_levels().enumerate() {
                     output.push_str(&format!(
                         "    Volume[{i}] {}x{}x{} ({} bytes)\n",
                         volume.width(),
@@ -146,12 +146,12 @@ fn full_layout_snapshot() {
                     texture_array.kind(),
                     texture_array.data_len()
                 ));
-                for (i, texture) in texture_array.iter_textures().enumerate() {
+                for (i, texture) in texture_array.iter().enumerate() {
                     output.push_str(&format!(
                         "    Texture[{i}] ({} bytes)\n",
                         texture.data_len()
                     ));
-                    for (i, surface) in texture.iter_surfaces().enumerate() {
+                    for (i, surface) in texture.iter_levels().enumerate() {
                         output.push_str(&format!(
                             "        Surface[{i}] {}x{} ({} bytes)\n",
                             surface.width(),
@@ -222,4 +222,119 @@ fn full_layout_snapshot() {
     } else {
         panic!("Layout snapshot differs from expected.");
     }
+}
+
+#[test]
+fn iter_and_get_volume() {
+    let header_volume = Header {
+        flags: DdsFlags::REQUIRED | DdsFlags::MIPMAP_COUNT | DdsFlags::DEPTH,
+        height: 128,
+        width: 256,
+        depth: Some(4),
+        mipmap_count: Some(5),
+        pixel_format: PixelFormat::new_four_cc(FourCC::DX10),
+        caps: DdsCaps::REQUIRED | DdsCaps::COMPLEX,
+        caps2: DdsCaps2::empty(),
+        dxt10: Some(HeaderDxt10 {
+            dxgi_format: DxgiFormat::R8G8B8A8_UNORM,
+            resource_dimension: ResourceDimension::Texture3D,
+            misc_flag: MiscFlags::empty(),
+            array_size: 1,
+            misc_flags2: MiscFlags2::empty(),
+        }),
+    };
+
+    let layout = DataLayout::from_header(&header_volume).unwrap();
+    assert!(matches!(layout, DataLayout::Volume(_)));
+    assert!(layout.texture().is_none());
+    assert!(layout.texture_array().is_none());
+
+    let volume = layout.volume().unwrap();
+
+    let from_iter: Vec<VolumeDescriptor> = volume.iter_levels().collect();
+    let from_get: Vec<VolumeDescriptor> = (0..u8::MAX).map_while(|i| volume.get(i)).collect();
+    assert_eq!(from_iter, from_get);
+
+    assert_eq!(volume.main(), volume.get(0).unwrap());
+
+    for volume in volume.iter_levels() {
+        let from_iter: Vec<SurfaceDescriptor> = volume.iter_depth_slices().collect();
+        let from_get: Vec<SurfaceDescriptor> = (0..u32::MAX)
+            .map_while(|i| volume.get_depth_slice(i))
+            .collect();
+        assert_eq!(from_iter, from_get);
+    }
+}
+
+#[test]
+fn iter_and_get_texture_array() {
+    let header_texture_array = Header {
+        flags: DdsFlags::REQUIRED | DdsFlags::MIPMAP_COUNT,
+        height: 128,
+        width: 256,
+        depth: None,
+        mipmap_count: Some(5),
+        pixel_format: PixelFormat::new_four_cc(FourCC::DX10),
+        caps: DdsCaps::REQUIRED,
+        caps2: DdsCaps2::empty(),
+        dxt10: Some(HeaderDxt10 {
+            dxgi_format: DxgiFormat::R8G8B8A8_UNORM,
+            resource_dimension: ResourceDimension::Texture2D,
+            misc_flag: MiscFlags::empty(),
+            array_size: 4,
+            misc_flags2: MiscFlags2::empty(),
+        }),
+    };
+
+    let layout = DataLayout::from_header(&header_texture_array).unwrap();
+    assert!(matches!(layout, DataLayout::TextureArray(_)));
+    assert!(layout.texture().is_none());
+    assert!(layout.volume().is_none());
+
+    let array = layout.texture_array().unwrap();
+    assert!(array.len() == 4);
+    assert!(!array.is_empty());
+
+    let from_iter: Vec<Texture> = array.iter().collect();
+    let from_get: Vec<Texture> = (0..usize::MAX).map_while(|i| array.get(i)).collect();
+    assert_eq!(from_iter, from_get);
+
+    for texture in array.iter() {
+        let from_iter: Vec<SurfaceDescriptor> = texture.iter_levels().collect();
+        let from_get: Vec<SurfaceDescriptor> = (0..u8::MAX).map_while(|i| texture.get(i)).collect();
+        assert_eq!(from_iter, from_get);
+
+        assert_eq!(texture.main(), texture.get(0).unwrap());
+    }
+}
+
+#[test]
+fn empty_array() {
+    #![allow(clippy::len_zero)]
+
+    let header_texture_array = Header {
+        flags: DdsFlags::REQUIRED | DdsFlags::MIPMAP_COUNT,
+        height: 128,
+        width: 256,
+        depth: None,
+        mipmap_count: Some(5),
+        pixel_format: PixelFormat::new_four_cc(FourCC::DX10),
+        caps: DdsCaps::REQUIRED,
+        caps2: DdsCaps2::empty(),
+        dxt10: Some(HeaderDxt10 {
+            dxgi_format: DxgiFormat::R8G8B8A8_UNORM,
+            resource_dimension: ResourceDimension::Texture2D,
+            misc_flag: MiscFlags::empty(),
+            array_size: 0, // empty
+            misc_flags2: MiscFlags2::empty(),
+        }),
+    };
+
+    let layout = DataLayout::from_header(&header_texture_array).unwrap();
+    let array = layout.texture_array().unwrap();
+
+    assert!(array.len() == 0);
+    assert!(array.is_empty());
+    assert!(array.iter().next().is_none());
+    assert!(array.data_len() == 0);
 }
