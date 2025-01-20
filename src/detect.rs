@@ -101,8 +101,6 @@ const fn four_cc_to_dxgi(four_cc: FourCC) -> Option<DxgiFormat> {
         FourCC::GRGB => Some(DxgiFormat::G8R8_G8B8_UNORM),
 
         FourCC::YUY2 => Some(DxgiFormat::YUY2),
-        // TODO: Support later
-        FourCC::UYVY => None,
 
         // Some old encoders use the FOURCC field to store D3DFORMAT constants:
         // https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dformat
@@ -125,10 +123,19 @@ const fn four_cc_to_dxgi(four_cc: FourCC) -> Option<DxgiFormat> {
 }
 
 pub(crate) const fn four_cc_to_supported(four_cc: FourCC) -> Option<SupportedFormat> {
+    // quick and easy, convert to DXGI first
     if let Some(dxgi_format) = four_cc_to_dxgi(four_cc) {
-        dxgi_format_to_supported(dxgi_format)
-    } else {
-        None
+        return dxgi_format_to_supported(dxgi_format);
+    }
+
+    // now everything that doesn't have a DXGI format equivalent
+    match four_cc {
+        FourCC::RXGB => Some(SupportedFormat::BC3_UNORM_RXGB),
+
+        // TODO: Support later
+        FourCC::UYVY => None,
+
+        _ => None,
     }
 }
 
@@ -159,6 +166,10 @@ impl PFPattern {
             && pf.g_bit_mask == self.g_bit_mask
             && pf.b_bit_mask == self.b_bit_mask
             && pf.a_bit_mask == self.a_bit_mask
+    }
+    const fn with_flags(mut self, flags: PixelFormatFlags) -> Self {
+        self.flags = flags;
+        self
     }
 }
 const KNOWN_PIXEL_FORMATS: &[(PFPattern, SupportedFormat)] = {
@@ -210,7 +221,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, SupportedFormat)] = {
         a_mask: u32,
     ) -> PFPattern {
         PFPattern {
-            flags: PixelFormatFlags::SNORM,
+            flags: PixelFormatFlags::BUMP_DUDV,
             rgb_bit_count: bit_count,
             r_bit_mask: r_mask,
             g_bit_mask: g_mask,
@@ -219,6 +230,8 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, SupportedFormat)] = {
         }
     }
 
+    let rgb_luminance = PixelFormatFlags::RGB.union(PixelFormatFlags::LUMINANCE);
+
     use SupportedFormat::*;
 
     &[
@@ -226,6 +239,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, SupportedFormat)] = {
         (alpha_only(8, 0xFF), A8_UNORM),
         // grayscale
         (grayscale(8, 0xFF), R8_UNORM),
+        (grayscale(8, 0xFF).with_flags(rgb_luminance), R8_UNORM),
         (grayscale(16, 0xFFFF), R16_UNORM),
         // rgb
         (rgb(16, 0xF800, 0x07E0, 0x001F), B5G6R5_UNORM),

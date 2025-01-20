@@ -54,6 +54,8 @@ pub(crate) const BC2_UNORM: DecoderSet = DecoderSet::new(&[rgba!(u8, blocks::bc2
 
 pub(crate) const BC3_UNORM: DecoderSet = DecoderSet::new(&[rgba!(u8, blocks::bc3_u8_rgba)]);
 
+pub(crate) const BC3_UNORM_RXGB: DecoderSet = DecoderSet::new(&[rgb!(u8, blocks::bc3_rxgb_u8_rgb)]);
+
 pub(crate) const BC4_UNORM: DecoderSet = DecoderSet::new(&[gray!(u8, blocks::bc4u_u8_gray)]);
 
 pub(crate) const BC4_SNORM: DecoderSet = DecoderSet::new(&[gray!(u8, blocks::bc4s_u8_gray)]);
@@ -155,6 +157,9 @@ mod blocks {
         }
 
         pixels
+    }
+    pub(crate) fn bc3_rxgb_u8_rgb(block_bytes: [u8; 16]) -> [[u8; 3]; 16] {
+        bc3_u8_rgba(block_bytes).map(|[_, g, b, r]| [r, g, b])
     }
 
     /// Decodes a BC4 UNORM block of into 16 grayscale pixels.

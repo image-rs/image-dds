@@ -144,6 +144,12 @@ pub enum SupportedFormat {
     BC1_UNORM,
     BC2_UNORM,
     BC3_UNORM,
+    /// This is just [`BC3_UNORM`], but with the A and R channels swapped.
+    ///
+    /// This is a trick to improve the precision of the R channel at the cost
+    /// of losing the A channel completely. This format does not have an A
+    /// channel when decoded.
+    BC3_UNORM_RXGB,
     BC4_UNORM,
     BC4_SNORM,
     BC5_UNORM,
@@ -522,6 +528,7 @@ mod decoders {
             SupportedFormat::BC1_UNORM => decode::BC1_UNORM,
             SupportedFormat::BC2_UNORM => decode::BC2_UNORM,
             SupportedFormat::BC3_UNORM => decode::BC3_UNORM,
+            SupportedFormat::BC3_UNORM_RXGB => decode::BC3_UNORM_RXGB,
             SupportedFormat::BC4_UNORM => decode::BC4_UNORM,
             SupportedFormat::BC4_SNORM => decode::BC4_SNORM,
             SupportedFormat::BC5_UNORM => decode::BC5_UNORM,

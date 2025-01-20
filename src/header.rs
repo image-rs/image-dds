@@ -317,6 +317,7 @@ bitflags! {
         const ALPHA = 0x2;
         /// Texture contains compressed RGB data; dwFourCC contains valid data.
         const FOURCC = 0x4;
+        const PAL8 = 0x20;
         /// Texture contains uncompressed RGB data; dwRGBBitCount and the RGB masks (dwRBitMask, dwGBitMask, dwBBitMask) contain valid data.
         const RGB = 0x40;
         const RGBA = Self::RGB.bits() | Self::ALPHAPIXELS.bits();
@@ -325,9 +326,9 @@ bitflags! {
         /// Used in some older DDS files for single channel color uncompressed data (dwRGBBitCount contains the luminance channel bit count; dwRBitMask contains the channel mask). Can be combined with DDPF_ALPHAPIXELS for a two channel DDS file.
         const LUMINANCE = 0x20000;
         const LUMINANCE_ALPHA = Self::LUMINANCE.bits() | Self::ALPHAPIXELS.bits();
-        const PAL8 = 0x20;
+        const BUMP_LUMINANCE = 0x40000;
         /// While DirectXTex calls this flag `BUMPDUDV` (bumpmap dUdV), this just says that the texture contains SNORM data. Which channels the texture contains depends on which bit masks are non-zero. All dw*BitMask fields contain valid data.
-        const SNORM = 0x80000;
+        const BUMP_DUDV = 0x80000;
     }
 
     /// Identifies other, less common options for resources.
@@ -389,6 +390,7 @@ impl FourCC {
     pub const DXT3: Self = FourCC(u32::from_le_bytes(*b"DXT3"));
     pub const DXT4: Self = FourCC(u32::from_le_bytes(*b"DXT4"));
     pub const DXT5: Self = FourCC(u32::from_le_bytes(*b"DXT5"));
+    pub const RXGB: Self = FourCC(u32::from_le_bytes(*b"RXGB"));
 
     pub const DX10: Self = FourCC(u32::from_le_bytes(*b"DX10"));
 
