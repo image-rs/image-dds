@@ -19,19 +19,11 @@ pub struct Header {
     pub depth: Option<u32>,
     /// Number of mipmap levels.
     pub mipmap_count: Option<u32>,
-    // /// Unused.
-    // pub reserved1: [u32; 11],
     pub pixel_format: PixelFormat,
     /// Specifies the complexity of the surfaces stored.
     pub caps: DdsCaps,
     /// Additional detail about the surfaces stored.
     pub caps2: DdsCaps2,
-    // /// Unused.
-    // pub caps3: u32,
-    // /// Unused.
-    // pub caps4: u32,
-    // /// Unused.
-    // pub reserved2: u32,
     /// Optional DX10 extension header.
     pub dxt10: Option<HeaderDxt10>,
 }
@@ -44,7 +36,7 @@ impl Header {
     pub const MAGIC: [u8; 4] = *b"DDS ";
 
     /// The magic bytes `'DDS '` are at the start of every DDS file. This
-    /// function reads the magic bytes and checks if they are correct.
+    /// function reads the magic bytes and returns `Ok` if they are correct.
     ///
     /// See [`Header::MAGIC`] for the expected magic bytes.
     pub fn read_magic<R: Read>(reader: &mut R) -> Result<(), HeaderError> {
