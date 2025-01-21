@@ -908,6 +908,564 @@ images/cube/SYSTEX_ENVLIGHT.dds
 
 
 
+images/nvtt/16.16f RG.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x70)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R16G16_FLOAT
+        pixel_info: Fixed(4 bytes per pixel)
+
+    Layout: Texture (45236 bytes)
+        Surface[0] 129x66 (34056 bytes)
+        Surface[1] 64x33 (8448 bytes)
+        Surface[2] 32x16 (2048 bytes)
+        Surface[3] 16x8 (512 bytes)
+        Surface[4] 8x4 (128 bytes)
+        Surface[5] 4x2 (32 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (4 bytes)
+
+
+
+images/nvtt/16f R.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x6f)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R16_FLOAT
+        pixel_info: Fixed(2 bytes per pixel)
+
+    Layout: Texture (22618 bytes)
+        Surface[0] 129x66 (17028 bytes)
+        Surface[1] 64x33 (4224 bytes)
+        Surface[2] 32x16 (1024 bytes)
+        Surface[3] 16x8 (256 bytes)
+        Surface[4] 8x4 (64 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (4 bytes)
+        Surface[7] 1x1 (2 bytes)
+
+
+
+images/nvtt/16x4f RGBA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x71)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R16G16B16A16_FLOAT
+        pixel_info: Fixed(8 bytes per pixel)
+
+    Layout: Texture (90472 bytes)
+        Surface[0] 129x66 (68112 bytes)
+        Surface[1] 64x33 (16896 bytes)
+        Surface[2] 32x16 (4096 bytes)
+        Surface[3] 16x8 (1024 bytes)
+        Surface[4] 8x4 (256 bytes)
+        Surface[5] 4x2 (64 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (8 bytes)
+
+
+
+images/nvtt/32.32f RG.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x73)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R32G32_FLOAT
+        pixel_info: Fixed(8 bytes per pixel)
+
+    Layout: Texture (90472 bytes)
+        Surface[0] 129x66 (68112 bytes)
+        Surface[1] 64x33 (16896 bytes)
+        Surface[2] 32x16 (4096 bytes)
+        Surface[3] 16x8 (1024 bytes)
+        Surface[4] 8x4 (256 bytes)
+        Surface[5] 4x2 (64 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (8 bytes)
+
+
+
+images/nvtt/32f R.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x72)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R32_FLOAT
+        pixel_info: Fixed(4 bytes per pixel)
+
+    Layout: Texture (45236 bytes)
+        Surface[0] 129x66 (34056 bytes)
+        Surface[1] 64x33 (8448 bytes)
+        Surface[2] 32x16 (2048 bytes)
+        Surface[3] 16x8 (512 bytes)
+        Surface[4] 8x4 (128 bytes)
+        Surface[5] 4x2 (32 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (4 bytes)
+
+
+
+images/nvtt/32x4f RGBA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x74)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R32G32B32A32_FLOAT
+        pixel_info: Fixed(16 bytes per pixel)
+
+    Layout: Texture (180944 bytes)
+        Surface[0] 129x66 (136224 bytes)
+        Surface[1] 64x33 (33792 bytes)
+        Surface[2] 32x16 (8192 bytes)
+        Surface[3] 16x8 (2048 bytes)
+        Surface[4] 8x4 (512 bytes)
+        Surface[5] 4x2 (128 bytes)
+        Surface[6] 2x1 (32 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/nvtt/8 A.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format:
+            flags: PixelFormatFlags(ALPHA)
+            rgb_bit_count: 8
+            bit_mask: r:0x0 g:0x0 b:0x0 a:0xff
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: A8_UNORM
+        pixel_info: Fixed(1 bytes per pixel)
+
+    Layout: Texture (11309 bytes)
+        Surface[0] 129x66 (8514 bytes)
+        Surface[1] 64x33 (2112 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (8 bytes)
+        Surface[6] 2x1 (2 bytes)
+        Surface[7] 1x1 (1 bytes)
+
+
+
+images/nvtt/8 L.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format:
+            flags: PixelFormatFlags(RGB | LUMINANCE)
+            rgb_bit_count: 8
+            bit_mask: r:0xff g:0x0 b:0x0 a:0x0
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R8_UNORM
+        pixel_info: Fixed(1 bytes per pixel)
+
+    Layout: Texture (11309 bytes)
+        Surface[0] 129x66 (8514 bytes)
+        Surface[1] 64x33 (2112 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (8 bytes)
+        Surface[6] 2x1 (2 bytes)
+        Surface[7] 1x1 (1 bytes)
+
+
+
+images/nvtt/8.8.8 BGR.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format:
+            flags: PixelFormatFlags(RGB)
+            rgb_bit_count: 24
+            bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: B8G8R8_UNORM
+        pixel_info: Fixed(3 bytes per pixel)
+
+    Layout: Texture (33927 bytes)
+        Surface[0] 129x66 (25542 bytes)
+        Surface[1] 64x33 (6336 bytes)
+        Surface[2] 32x16 (1536 bytes)
+        Surface[3] 16x8 (384 bytes)
+        Surface[4] 8x4 (96 bytes)
+        Surface[5] 4x2 (24 bytes)
+        Surface[6] 2x1 (6 bytes)
+        Surface[7] 1x1 (3 bytes)
+
+
+
+images/nvtt/8.8.8 RGB.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format:
+            flags: PixelFormatFlags(RGB)
+            rgb_bit_count: 24
+            bit_mask: r:0xff g:0xff00 b:0xff0000 a:0x0
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: R8G8B8_UNORM
+        pixel_info: Fixed(3 bytes per pixel)
+
+    Layout: Texture (33927 bytes)
+        Surface[0] 129x66 (25542 bytes)
+        Surface[1] 64x33 (6336 bytes)
+        Surface[2] 32x16 (1536 bytes)
+        Surface[3] 16x8 (384 bytes)
+        Surface[4] 8x4 (96 bytes)
+        Surface[5] 4x2 (24 bytes)
+        Surface[6] 2x1 (6 bytes)
+        Surface[7] 1x1 (3 bytes)
+
+
+
+images/nvtt/8.8.8.8 BGRA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format:
+            flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+            rgb_bit_count: 32
+            bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: B8G8R8A8_UNORM
+        pixel_info: Fixed(4 bytes per pixel)
+
+    Layout: Texture (45236 bytes)
+        Surface[0] 129x66 (34056 bytes)
+        Surface[1] 64x33 (8448 bytes)
+        Surface[2] 32x16 (2048 bytes)
+        Surface[3] 16x8 (512 bytes)
+        Surface[4] 8x4 (128 bytes)
+        Surface[5] 4x2 (32 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (4 bytes)
+
+
+
+images/nvtt/8.8.8.X BGRX.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format:
+            flags: PixelFormatFlags(RGB)
+            rgb_bit_count: 32
+            bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: B8G8R8X8_UNORM
+        pixel_info: Fixed(4 bytes per pixel)
+
+    Layout: Texture (45236 bytes)
+        Surface[0] 129x66 (34056 bytes)
+        Surface[1] 64x33 (8448 bytes)
+        Surface[2] 32x16 (2048 bytes)
+        Surface[3] 16x8 (512 bytes)
+        Surface[4] 8x4 (128 bytes)
+        Surface[5] 4x2 (32 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (4 bytes)
+
+
+
+images/nvtt/BC1 RGB.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x31545844; DXT1)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC1_UNORM
+        pixel_info: Block(8 bytes per 4x4 block)
+
+    Layout: Texture (6000 bytes)
+        Surface[0] 129x66 (4488 bytes)
+        Surface[1] 64x33 (1152 bytes)
+        Surface[2] 32x16 (256 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (8 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (8 bytes)
+
+
+
+images/nvtt/BC1a RGBA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x31545844; DXT1)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC1_UNORM
+        pixel_info: Block(8 bytes per 4x4 block)
+
+    Layout: Texture (6000 bytes)
+        Surface[0] 129x66 (4488 bytes)
+        Surface[1] 64x33 (1152 bytes)
+        Surface[2] 32x16 (256 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (8 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (8 bytes)
+
+
+
+images/nvtt/BC2 RGBA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x33545844; DXT3)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC2_UNORM
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (12000 bytes)
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/nvtt/BC3 RGBA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x35545844; DXT5)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC3_UNORM
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (12000 bytes)
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/nvtt/BC3n AGBR.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x42475852; RXGB)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC3_UNORM_RXGB
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (12000 bytes)
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/nvtt/BC3n Normals.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x30315844; DX10)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+        dxt10:
+            dxgi_format: BC3_UNORM (77)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+
+    Pixel Format:
+        format: BC3_UNORM
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (12000 bytes)
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/nvtt/BC4u R.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x30315844; DX10)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+        dxt10:
+            dxgi_format: BC4_UNORM (80)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+
+    Pixel Format:
+        format: BC4_UNORM
+        pixel_info: Block(8 bytes per 4x4 block)
+
+    Layout: Texture (6000 bytes)
+        Surface[0] 129x66 (4488 bytes)
+        Surface[1] 64x33 (1152 bytes)
+        Surface[2] 32x16 (256 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (8 bytes)
+        Surface[6] 2x1 (8 bytes)
+        Surface[7] 1x1 (8 bytes)
+
+
+
+images/nvtt/BC5u RG.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x55354342; BC5U)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC5_UNORM
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (12000 bytes)
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/nvtt/BC7 RGBA.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66
+        mipmap_count: Some(8)
+        pixel_format: FourCC(0x30315844; DX10)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+        dxt10:
+            dxgi_format: BC7_UNORM (98)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+
+    Pixel Format:
+        format: BC7_UNORM
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (12000 bytes)
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
 images/other/24-bit-uncompressed-odd.dds
     Header:
         flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT)
@@ -1020,6 +1578,30 @@ images/other/BC1_UNORM_SRGB-47.dds
         Surface[6] 4x4 (8 bytes)
         Surface[7] 2x2 (8 bytes)
         Surface[8] 1x1 (8 bytes)
+
+
+
+images/other/RXGB (no alpha).dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 64 x 64
+        mipmap_count: Some(7)
+        pixel_format: FourCC(0x42475852; RXGB)
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: BC3_UNORM_RXGB
+        pixel_info: Block(16 bytes per 4x4 block)
+
+    Layout: Texture (5488 bytes)
+        Surface[0] 64x64 (4096 bytes)
+        Surface[1] 32x32 (1024 bytes)
+        Surface[2] 16x16 (256 bytes)
+        Surface[3] 8x8 (64 bytes)
+        Surface[4] 4x4 (16 bytes)
+        Surface[5] 2x2 (16 bytes)
+        Surface[6] 1x1 (16 bytes)
 
 
 
@@ -1216,6 +1798,29 @@ images/other/dxt5-simple-odd.dds
 
     Layout: Texture (96 bytes)
         Surface[0] 5x9 (96 bytes)
+
+
+
+images/other/non-standard header flag.dds
+    Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT | 0x20000000)
+        w/h: 4 x 4
+        mipmap_count: Some(3)
+        pixel_format:
+            flags: PixelFormatFlags(RGB)
+            rgb_bit_count: 24
+            bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: DdsCaps2(0x0)
+
+    Pixel Format:
+        format: B8G8R8_UNORM
+        pixel_info: Fixed(3 bytes per pixel)
+
+    Layout: Texture (63 bytes)
+        Surface[0] 4x4 (48 bytes)
+        Surface[1] 2x2 (12 bytes)
+        Surface[2] 1x1 (3 bytes)
 
 
 
@@ -2619,7 +3224,7 @@ images/uncompressed/DX9 R16G16_SNORM.dds
         w/h: 129 x 66
         mipmap_count: Some(8)
         pixel_format:
-            flags: PixelFormatFlags(SNORM)
+            flags: PixelFormatFlags(BUMP_DUDV)
             rgb_bit_count: 32
             bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
@@ -2803,7 +3408,7 @@ images/uncompressed/DX9 R8G8B8A8_SNORM.dds
         w/h: 129 x 66
         mipmap_count: Some(8)
         pixel_format:
-            flags: PixelFormatFlags(SNORM)
+            flags: PixelFormatFlags(BUMP_DUDV)
             rgb_bit_count: 32
             bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
@@ -2859,7 +3464,7 @@ images/uncompressed/DX9 R8G8_SNORM.dds
         w/h: 129 x 66
         mipmap_count: Some(8)
         pixel_format:
-            flags: PixelFormatFlags(SNORM)
+            flags: PixelFormatFlags(BUMP_DUDV)
             rgb_bit_count: 16
             bit_mask: r:0xff g:0xff00 b:0x0 a:0x0
         caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
