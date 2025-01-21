@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 /// A trait for tiny enums with ≤8 variants where the discriminant of each
 /// variant is <8.
 pub trait TinyEnum: Sized + Copy + 'static {
@@ -12,7 +14,7 @@ pub trait TinyEnum: Sized + Copy + 'static {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct TinySet<T> {
     data: u8,
-    _phantom: std::marker::PhantomData<T>,
+    _phantom: PhantomData<T>,
 }
 
 impl<T> TinySet<T> {
@@ -20,14 +22,14 @@ impl<T> TinySet<T> {
     pub const fn new() -> Self {
         Self {
             data: 0,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
 
     pub(crate) const fn from_raw_unchecked(data: u8) -> Self {
         Self {
             data,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
 
@@ -51,25 +53,25 @@ impl<T> TinySet<T> {
     pub const fn union(self, other: Self) -> Self {
         Self {
             data: self.data | other.data,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
     pub const fn intersection(self, other: Self) -> Self {
         Self {
             data: self.data & other.data,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
     pub const fn difference(self, other: Self) -> Self {
         Self {
             data: self.data & !other.data,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
     pub const fn symmetric_difference(self, other: Self) -> Self {
         Self {
             data: self.data ^ other.data,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -104,7 +106,7 @@ impl<T: TinyEnum> IntoIterator for TinySet<T> {
         TinySetIter {
             data: self,
             index: 0,
-            _phantom: std::marker::PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -112,7 +114,7 @@ impl<T: TinyEnum> IntoIterator for TinySet<T> {
 pub struct TinySetIter<T> {
     data: TinySet<T>,
     index: u8,
-    _phantom: std::marker::PhantomData<T>,
+    _phantom: PhantomData<T>,
 }
 impl<T: TinyEnum> Iterator for TinySetIter<T> {
     type Item = T;

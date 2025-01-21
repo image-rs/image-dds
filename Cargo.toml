@@ -14,7 +14,6 @@ rust-version = "1.61"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bcdec_rs = "0.1.2"
 bitflags = "2.4.0"
 bytemuck = "1.20.0"
 
