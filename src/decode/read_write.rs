@@ -9,107 +9,119 @@ use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
 use super::ReadSeek;
 
 /// Helper method for decoding UNCOMPRESSED formats.
-#[inline(always)]
-pub(crate) fn for_each_pixel<const N: usize, InChannel, OutPixel>(
+pub(crate) fn for_each_pixel_untyped<InPixel, OutPixel>(
     r: &mut dyn Read,
     buf: &mut [u8],
-    process_pixel: impl Fn([InChannel; N]) -> OutPixel,
-) -> Result<(), DecodeError>
-where
-    InChannel: FromLe,
-    [InChannel::Raw; N]: cast::Castable + Default,
-    OutPixel: cast::Castable + Default,
-{
-    let out_pixel_size = size_of::<OutPixel>();
-    assert!(buf.len() % out_pixel_size == 0);
-    let pixels = buf.len() / out_pixel_size;
+    process_pixels: fn(&[u8], &mut [u8]),
+) -> Result<(), DecodeError> {
+    fn inner(
+        r: &mut dyn Read,
+        buf: &mut [u8],
+        size_of_in: usize,
+        size_of_out: usize,
+        process_pixels: fn(&[u8], &mut [u8]),
+    ) -> Result<(), DecodeError> {
+        assert!(buf.len() % size_of_out == 0);
+        let pixels = buf.len() / size_of_out;
 
-    // TODO: If buf is aligned for BOTH `[InChannel::Raw; N]` and `OutPixel`, then:
-    //       - if `size_of([InChannel::Raw; N]) == size_of(OutPixel)`:
-    //         we can read the entire encoded surface into the output buffer
-    //         and decode it in place.
-    //       - if `size_of([InChannel::Raw; N]) < size_of(OutPixel)`:
-    //         we can read the entire encoded surface into the front of the
-    //         output buffer and decode it in place back to front.
-
-    let mut read_buffer: PixelBuffer<[InChannel::Raw; N]> = PixelBuffer::new(pixels);
-    let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
-    for buf in buf.chunks_mut(read_buffer.buffered_pixels * write_aligned.element_size()) {
-        let row = read_buffer.read(r)?;
-
-        write_aligned.write(buf, |buf| {
-            for (pixel, out) in row.iter().zip(buf) {
-                *out = process_pixel(pixel.map(FromLe::from_le));
-            }
-        });
+        let mut read_buffer = UntypedPixelBuffer::new(pixels, size_of_in);
+        for buf in buf.chunks_mut(read_buffer.buffered_pixels() * size_of_out) {
+            let row = read_buffer.read(r)?;
+            debug_assert!(row.len() % size_of_in == 0);
+            debug_assert!(buf.len() % size_of_out == 0);
+            debug_assert_eq!(row.len() / size_of_in, buf.len() / size_of_out);
+            process_pixels(row, buf);
+        }
+        Ok(())
     }
-    Ok(())
+
+    inner(
+        r,
+        buf,
+        size_of::<InPixel>(),
+        size_of::<OutPixel>(),
+        process_pixels,
+    )
 }
 
 /// Helper method for decoding UNCOMPRESSED formats.
-#[inline(always)]
-pub(crate) fn for_each_pixel_rect<const N: usize, InChannel, OutPixel>(
+pub(crate) fn for_each_pixel_rect_untyped<InPixel, OutPixel>(
     r: &mut dyn ReadSeek,
     buf: &mut [u8],
     row_pitch: usize,
     size: Size,
     rect: Rect,
-    process_pixel: impl Fn([InChannel; N]) -> OutPixel,
-) -> Result<(), DecodeError>
-where
-    InChannel: FromLe,
-    [InChannel::Raw; N]: cast::Castable + Default,
-    OutPixel: cast::Castable + Default,
-{
-    let encoded_bytes_per_pixel = size_of::<[InChannel::Raw; N]>();
-    // assert that no overflow will occur for byte positions in the encoded image/reader
-    assert!(size
-        .pixels()
-        .checked_mul(encoded_bytes_per_pixel as u64)
-        .map(|bytes| bytes <= i64::MAX as u64)
-        .unwrap_or(false));
+    process_pixels: fn(&[u8], &mut [u8]),
+) -> Result<(), DecodeError> {
+    #[allow(clippy::too_many_arguments)]
+    fn inner(
+        r: &mut dyn ReadSeek,
+        buf: &mut [u8],
+        row_pitch: usize,
+        size: Size,
+        rect: Rect,
+        size_of_in: usize,
+        size_of_out: usize,
+        process_pixels: fn(&[u8], &mut [u8]),
+    ) -> Result<(), DecodeError> {
+        // assert that no overflow will occur for byte positions in the encoded image/reader
+        assert!(size
+            .pixels()
+            .checked_mul(size_of_in as u64)
+            .map(|bytes| bytes <= i64::MAX as u64)
+            .unwrap_or(false));
 
-    let encoded_bytes_per_row = size.width as i64 * encoded_bytes_per_pixel as i64;
-    let encoded_bytes_before_rect = rect.x as i64 * encoded_bytes_per_pixel as i64;
-    let encoded_bytes_after_rect =
-        (size.width - rect.x - rect.width) as i64 * encoded_bytes_per_pixel as i64;
+        let encoded_bytes_per_row = size.width as i64 * size_of_in as i64;
+        let encoded_bytes_before_rect = rect.x as i64 * size_of_in as i64;
+        let encoded_bytes_after_rect =
+            (size.width - rect.x - rect.width) as i64 * size_of_in as i64;
 
-    // jump to the first pixel
-    seek_relative(
-        r,
-        encoded_bytes_per_row * rect.y as i64 + encoded_bytes_before_rect,
-    )?;
+        // jump to the first pixel
+        seek_relative(
+            r,
+            encoded_bytes_per_row * rect.y as i64 + encoded_bytes_before_rect,
+        )?;
 
-    let pixels_per_line = rect.width as usize;
-    let mut row: Box<[[InChannel::Raw; N]]> =
-        vec![Default::default(); pixels_per_line].into_boxed_slice();
-    let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
-    for y in 0..rect.height {
-        if y > 0 {
-            // jump to the first pixel in the next row
-            // (this has already been done for the first row; see above)
-            seek_relative(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
+        let pixels_per_line = rect.width as usize;
+        let mut row: Box<[u8]> =
+            vec![Default::default(); pixels_per_line * size_of_in].into_boxed_slice();
+        for y in 0..rect.height {
+            if y > 0 {
+                // jump to the first pixel in the next row
+                // (this has already been done for the first row; see above)
+                seek_relative(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
+            }
+
+            // read next line
+            r.read_exact(&mut row)?;
+
+            let buf_start = y as usize * row_pitch;
+            let buf_len = pixels_per_line * size_of_out;
+            let buf = &mut buf[buf_start..(buf_start + buf_len)];
+            debug_assert_eq!(row.len() / size_of_in, buf.len() / size_of_out);
+            process_pixels(&row, buf);
         }
 
-        r.read_exact(cast::as_bytes_mut(&mut row))?;
+        // jump to the end of the surface to put the reader into a known position
+        seek_relative(
+            r,
+            encoded_bytes_after_rect
+                + (size.height - rect.y - rect.height) as i64 * encoded_bytes_per_row,
+        )?;
 
-        let buf_start = y as usize * row_pitch;
-        let buf_len = pixels_per_line * size_of::<OutPixel>();
-        write_aligned.write(&mut buf[buf_start..(buf_start + buf_len)], |buf| {
-            for (pixel, out) in row.iter().zip(buf) {
-                *out = process_pixel(pixel.map(FromLe::from_le));
-            }
-        });
+        Ok(())
     }
 
-    // jump to the end of the surface to put the reader into a known position
-    seek_relative(
+    inner(
         r,
-        encoded_bytes_after_rect
-            + (size.height - rect.y - rect.height) as i64 * encoded_bytes_per_row,
-    )?;
-
-    Ok(())
+        buf,
+        row_pitch,
+        size,
+        rect,
+        size_of::<InPixel>(),
+        size_of::<OutPixel>(),
+        process_pixels,
+    )
 }
 
 fn seek_relative(r: &mut dyn ReadSeek, offset: i64) -> std::io::Result<()> {
@@ -254,74 +266,37 @@ where
     Ok(())
 }
 
-pub(crate) trait FromLe {
-    type Raw;
-
-    fn from_le(raw: Self::Raw) -> Self;
-}
-impl FromLe for u8 {
-    type Raw = u8;
-
-    fn from_le(raw: Self::Raw) -> Self {
-        raw
-    }
-}
-impl FromLe for u16 {
-    type Raw = u16;
-
-    fn from_le(raw: Self::Raw) -> Self {
-        u16::from_le(raw)
-    }
-}
-impl FromLe for u32 {
-    type Raw = u32;
-
-    fn from_le(raw: Self::Raw) -> Self {
-        u32::from_le(raw)
-    }
-}
-impl FromLe for f32 {
-    type Raw = u32;
-
-    fn from_le(raw: Self::Raw) -> Self {
-        f32::from_bits(u32::from_le(raw))
-    }
-}
-
 /// A buffer holding raw encoded pixels straight from the reader.
-struct PixelBuffer<T> {
-    buf: Vec<T>,
-    buffered_pixels: usize,
-    pixels_left: usize,
+struct UntypedPixelBuffer {
+    buf: Vec<u8>,
+    bytes_per_pixel: usize,
+    bytes_left: usize,
 }
-impl<T> PixelBuffer<T> {
+impl UntypedPixelBuffer {
     /// The target buffer size is in bytes. Currently 64 KiB.
     const TARGET: usize = 64 * 1024;
 
-    fn new(pixels: usize) -> Self
-    where
-        T: Default + Clone,
-    {
-        let bytes_per_pixel = size_of::<T>();
-        let buf_pixels = (Self::TARGET / bytes_per_pixel).min(pixels);
-        let buf = vec![T::default(); buf_pixels];
+    fn new(pixels: usize, bytes_per_pixel: usize) -> Self {
+        let buf_bytes = (Self::TARGET / bytes_per_pixel).min(pixels) * bytes_per_pixel;
+        let buf = vec![0; buf_bytes];
         Self {
             buf,
-            buffered_pixels: buf_pixels,
-            pixels_left: pixels,
+            bytes_per_pixel,
+            bytes_left: pixels * bytes_per_pixel,
         }
     }
 
-    fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[T], DecodeError>
-    where
-        T: cast::Castable,
-    {
-        let pixels_to_read = self.buffered_pixels.min(self.pixels_left);
-        assert!(pixels_to_read > 0);
-        self.pixels_left -= pixels_to_read;
+    fn buffered_pixels(&self) -> usize {
+        self.buf.len() / self.bytes_per_pixel
+    }
 
-        let buf = &mut self.buf[..pixels_to_read];
-        r.read_exact(cast::as_bytes_mut(buf))?;
+    fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[u8], DecodeError> {
+        let bytes_to_read = self.buf.len().min(self.bytes_left);
+        assert!(bytes_to_read > 0);
+        self.bytes_left -= bytes_to_read;
+
+        let buf = &mut self.buf[..bytes_to_read];
+        r.read_exact(buf)?;
         Ok(buf)
     }
 }
@@ -422,7 +397,8 @@ impl<T> AlignedWriter<T> {
         T: cast::Castable + Default + Copy,
     {
         // The whole method is structured around calling `write` at one place.
-        // This is done to
+        // This is done to promote inlining the `write` closure, while also
+        // reducing code size.
 
         enum Aligned<'a, 'b, T> {
             Slice(&'a mut [T]),
