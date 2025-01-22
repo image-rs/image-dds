@@ -1,7 +1,30 @@
 use ddsd::*;
+use std::{fs::File, path::PathBuf};
+use zerocopy::{FromBytes, Immutable, IntoBytes, Ref};
 use Precision::*;
 
-use std::{fs::File, path::PathBuf};
+pub trait Castable: FromBytes + IntoBytes + Immutable {}
+impl<T: FromBytes + IntoBytes + Immutable> Castable for T {}
+pub fn from_bytes<T: Castable>(bytes: &[u8]) -> Option<&[T]> {
+    Ref::from_bytes(bytes).ok().map(Ref::into_ref)
+}
+pub fn from_bytes_mut<T: Castable>(bytes: &mut [u8]) -> Option<&mut [T]> {
+    Ref::from_bytes(bytes).ok().map(Ref::into_mut)
+}
+pub fn as_bytes_mut<T: Castable>(buffer: &mut [T]) -> &mut [u8] {
+    buffer.as_mut_bytes()
+}
+pub fn as_bytes<T: Castable>(buffer: &[T]) -> &[u8] {
+    buffer.as_bytes()
+}
+pub fn cast_slice<T: Castable, U: Castable>(data: &[T]) -> &[U] {
+    let data_bytes = as_bytes(data);
+    from_bytes(data_bytes).unwrap()
+}
+pub fn cast_slice_mut<T: Castable, U: Castable>(data: &mut [T]) -> &mut [U] {
+    let data_bytes = as_bytes_mut(data);
+    from_bytes_mut(data_bytes).unwrap()
+}
 
 pub fn is_ci() -> bool {
     std::env::var("CI").is_ok()
@@ -49,18 +72,18 @@ impl WithPrecision for f32 {
     const PRECISION: Precision = F32;
 }
 
-pub fn read_dds<T: WithPrecision + Default + Copy + bytemuck::Pod>(
+pub fn read_dds<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &PathBuf,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     read_dds_with_channels_select(dds_path, |f| f.channels())
 }
-pub fn read_dds_with_channels<T: WithPrecision + Default + Copy + bytemuck::Pod>(
+pub fn read_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &PathBuf,
     channels: Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     read_dds_with_channels_select(dds_path, |_| channels)
 }
-pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + bytemuck::Pod>(
+pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &PathBuf,
     select_channels: impl FnOnce(SupportedFormat) -> Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
@@ -80,7 +103,7 @@ pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + bytemuc
     }
 
     let mut image_data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
-    let image_data_bytes: &mut [u8] = bytemuck::cast_slice_mut(&mut image_data);
+    let image_data_bytes: &mut [u8] = as_bytes_mut(&mut image_data);
     format.decode(
         &mut file,
         size,

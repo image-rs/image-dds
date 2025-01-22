@@ -146,7 +146,7 @@ pub(crate) fn for_each_pair<OutPixel>(
     process_pixel2: impl Fn([u8; 4]) -> OutPixel,
 ) -> Result<(), DecodeError>
 where
-    OutPixel: cast::Castable + Default,
+    OutPixel: cast::Castable + Default + Copy,
 {
     // The basic idea here is to decode the image line by line. A line is a
     // sequence of encoded pixels pairs that together describe a single row of
@@ -199,7 +199,7 @@ pub(crate) fn for_each_block_4x4<const BYTES_PER_BLOCK: usize, OutPixel>(
 ) -> Result<(), DecodeError>
 where
     [u8; BYTES_PER_BLOCK]: cast::Castable + Default,
-    OutPixel: cast::Castable + Default,
+    OutPixel: cast::Castable + Default + Copy,
 {
     // The basic idea here is to decode the image line by line. A line is a
     // sequence of encoded pixels pairs that together describe a single row of
@@ -413,7 +413,7 @@ impl<T> AlignedWriter<T> {
             }
         }
 
-        let mut write_to: Aligned<T> = if let Ok(buf) = bytemuck::try_cast_slice_mut(buf) {
+        let mut write_to: Aligned<T> = if let Some(buf) = cast::from_bytes_mut(buf) {
             // the buffer is aligned already
             Aligned::Slice(buf)
         } else {

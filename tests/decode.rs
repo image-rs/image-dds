@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use ddsd::*;
+use util::Castable;
 use Precision::*;
 
 mod util;
@@ -97,10 +98,7 @@ fn decode_all_color_formats() {
 
     fn convert_channels<T>(data: &[T], from: Channels, to: Channels) -> Vec<T>
     where
-        T: Copy + Default + bytemuck::Pod + NormMax,
-        [T; 1]: bytemuck::Pod,
-        [T; 3]: bytemuck::Pod,
-        [T; 4]: bytemuck::Pod,
+        T: Copy + Default + Castable + NormMax,
     {
         if from == to {
             return data.to_vec();
@@ -111,15 +109,13 @@ fn decode_all_color_formats() {
             f: impl Fn([T; N]) -> [T; M],
         ) -> Vec<T>
         where
-            T: Copy + Default + bytemuck::Pod,
-            [T; N]: bytemuck::Pod,
-            [T; M]: bytemuck::Pod,
+            T: Copy + Default + Castable,
         {
             let pixels = data.len() / N;
             let mut result: Vec<T> = vec![Default::default(); pixels * M];
 
-            let data_n: &[[T; N]] = bytemuck::cast_slice(data);
-            let result_m: &mut [[T; M]] = bytemuck::cast_slice_mut(&mut result);
+            let data_n: &[[T; N]] = util::cast_slice(data);
+            let result_m: &mut [[T; M]] = util::cast_slice_mut(&mut result);
 
             for (i, o) in data_n.iter().zip(result_m.iter_mut()) {
                 *o = f(*i);

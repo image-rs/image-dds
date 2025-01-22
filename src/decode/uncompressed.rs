@@ -13,14 +13,15 @@ use crate::Channels::*;
 
 /// A helper function used to generate the pixel processing function for the decoders.
 #[inline(always)]
-fn process_pixels_bytes<InPixel: cast::FromLeBytes, OutPixel: cast::IntoNeBytes>(
+fn process_pixels_impl<InPixel: cast::FromLeBytes, OutPixel: cast::IntoNeBytes>(
     encoded: &[u8],
     decoded: &mut [u8],
     f: impl Fn(InPixel) -> OutPixel,
 ) {
     // group bytes into chunks
-    let encoded: &[InPixel::Bytes] = bytemuck::cast_slice(encoded);
-    let decoded: &mut [OutPixel::Bytes] = bytemuck::cast_slice_mut(decoded);
+    let encoded: &[InPixel::Bytes] = cast::from_bytes(encoded).expect("Invalid input buffer");
+    let decoded: &mut [OutPixel::Bytes] =
+        cast::from_bytes_mut(decoded).expect("Invalid output buffer");
 
     for (encoded, decoded) in encoded.iter().zip(decoded.iter_mut()) {
         let input: InPixel = cast::FromLeBytes::from_le_bytes(*encoded);
@@ -35,7 +36,7 @@ macro_rules! underlying {
         type OutPixel = [$out; OUT_COUNT];
 
         fn process_pixels(encoded: &[u8], decoded: &mut [u8]) {
-            process_pixels_bytes::<InPixel, OutPixel>(encoded, decoded, $f);
+            process_pixels_impl::<InPixel, OutPixel>(encoded, decoded, $f);
         }
 
         Decoder::new(

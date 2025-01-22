@@ -528,13 +528,6 @@ pub(crate) fn f10_to_f32(half: u16) -> f32 {
     val
 }
 
-pub(crate) fn float3_to_bytes(floats: [f32; 3]) -> [u8; 12] {
-    bytemuck::cast(floats)
-}
-pub(crate) fn float4_to_bytes(floats: [f32; 4]) -> [u8; 16] {
-    bytemuck::cast(floats)
-}
-
 pub(crate) trait ToRgba {
     type Channel;
     fn to_rgba(self) -> [Self::Channel; 4];

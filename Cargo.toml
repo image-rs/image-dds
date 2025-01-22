@@ -15,7 +15,6 @@ rust-version = "1.61"
 
 [dependencies]
 bitflags = "2.4.0"
-bytemuck = "1.20.0"
 zerocopy = "0.8.14"
 
 [dev-dependencies]
