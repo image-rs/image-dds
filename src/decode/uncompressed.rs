@@ -11,38 +11,37 @@ use crate::Channels::*;
 
 // helpers
 
+/// A helper function used to generate the pixel processing function for the decoders.
 #[inline(always)]
-fn apply<A, B>(a: A, f: impl Fn(A) -> B) -> B {
-    f(a)
+fn process_pixels_bytes<InPixel: cast::FromLeBytes, OutPixel: cast::IntoNeBytes>(
+    encoded: &[u8],
+    decoded: &mut [u8],
+    f: impl Fn(InPixel) -> OutPixel,
+) {
+    // group bytes into chunks
+    let encoded: &[InPixel::Bytes] = bytemuck::cast_slice(encoded);
+    let decoded: &mut [OutPixel::Bytes] = bytemuck::cast_slice_mut(decoded);
+
+    for (encoded, decoded) in encoded.iter().zip(decoded.iter_mut()) {
+        let input: InPixel = cast::FromLeBytes::from_le_bytes(*encoded);
+        *decoded = cast::IntoNeBytes::into_ne_bytes(f(input));
+    }
 }
 
 macro_rules! underlying {
-    ($channels:expr, $out:ty, $in_ty:ty, $in_count:literal, $f:expr) => {{
+    ($channels:expr, $out:ty, $in_pixel:ty, $f:expr) => {{
         const OUT_COUNT: usize = $channels.count() as usize;
-
-        type InPixel = [$in_ty; $in_count];
+        type InPixel = $in_pixel;
         type OutPixel = [$out; OUT_COUNT];
 
-        const IN_SIZE: usize = std::mem::size_of::<InPixel>();
-        const OUT_SIZE: usize = std::mem::size_of::<OutPixel>();
-
-        fn process_pixels_bytes(encoded: &[u8], decoded: &mut [u8]) {
-            // group bytes into chunks
-            let encoded: &[[u8; IN_SIZE]] = bytemuck::cast_slice(encoded);
-            let decoded: &mut [[u8; OUT_SIZE]] = bytemuck::cast_slice_mut(decoded);
-
-            for (encoded, decoded) in encoded.iter().zip(decoded.iter_mut()) {
-                let input: InPixel = cast::FromLeBytes::from_le_bytes(*encoded);
-                *decoded = cast::IntoNeBytes::into_ne_bytes(apply(input, $f));
-            }
+        fn process_pixels(encoded: &[u8], decoded: &mut [u8]) {
+            process_pixels_bytes::<InPixel, OutPixel>(encoded, decoded, $f);
         }
 
         Decoder::new(
             $channels,
             <$out as WithPrecision>::PRECISION,
-            |Args(r, out, _)| {
-                for_each_pixel_untyped::<InPixel, OutPixel>(r, out, process_pixels_bytes)
-            },
+            |Args(r, out, _)| for_each_pixel_untyped::<InPixel, OutPixel>(r, out, process_pixels),
             |RArgs(r, out, row_pitch, rect, context)| {
                 for_each_pixel_rect_untyped::<InPixel, OutPixel>(
                     r,
@@ -50,30 +49,30 @@ macro_rules! underlying {
                     row_pitch,
                     context.size,
                     rect,
-                    process_pixels_bytes,
+                    process_pixels,
                 )
             },
         )
     }};
 }
 macro_rules! gray {
-    ($out:ty, [$in_ty:ty; $in_count:literal], $f:expr) => {
-        underlying!(Grayscale, $out, $in_ty, $in_count, $f)
+    ($out:ty, $in_pixel:ty, $f:expr) => {
+        underlying!(Grayscale, $out, $in_pixel, $f)
     };
 }
 macro_rules! alpha {
-    ($out:ty, [$in_ty:ty; $in_count:literal], $f:expr) => {
-        underlying!(Alpha, $out, $in_ty, $in_count, $f)
+    ($out:ty, $in_pixel:ty, $f:expr) => {
+        underlying!(Alpha, $out, $in_pixel, $f)
     };
 }
 macro_rules! rgb {
-    ($out:ty, [$in_ty:ty; $in_count:literal], $f:expr) => {
-        underlying!(Rgb, $out, $in_ty, $in_count, $f)
+    ($out:ty, $in_pixel:ty, $f:expr) => {
+        underlying!(Rgb, $out, $in_pixel, $f)
     };
 }
 macro_rules! rgba {
-    ($out:ty, [$in_ty:ty; $in_count:literal], $f:expr) => {
-        underlying!(Rgba, $out, $in_ty, $in_count, $f)
+    ($out:ty, $in_pixel:ty, $f:expr) => {
+        underlying!(Rgba, $out, $in_pixel, $f)
     };
 }
 
