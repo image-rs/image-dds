@@ -8,18 +8,96 @@ use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
 
 use super::ReadSeek;
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PixelSize {
+    /// The size of an encoded pixel in bytes.
+    pub encoded_size: u8,
+    /// The size of a decoded pixel in bytes.
+    pub decoded_size: u8,
+}
+
+/// A function that processes a row of pixels.
+///
+/// The first argument is a byte slice of encoded pixels. The slice is
+/// guaranteed te have a length that is a multiple of `size_of::<InPixel>()`.
+///
+/// The second argument is a byte slice of decoded pixels. The slice is
+/// guaranteed te have a length that is a multiple of `size_of::<OutputPixel>()`.
+///
+/// Both slices are guaranteed to have the same number of pixels.
+pub(crate) type ProcessPixelsFn = fn(encoded_decoded: PixelArgs);
+// Another hack to work around that mutable references aren't allowed in const
+// environments on MSRV.
+pub(crate) struct PixelArgs<'a, 'b>(pub &'a [u8], pub &'b mut [u8]);
+
+/// A helper function for implementing [`ProcessPixelsFn`]s.
+#[inline]
+pub(crate) fn process_pixels_helper<InPixel: cast::FromLeBytes, OutPixel: cast::IntoNeBytes>(
+    encoded: &[u8],
+    decoded: &mut [u8],
+    f: impl Fn(InPixel) -> OutPixel,
+) {
+    // group bytes into chunks
+    let encoded: &[InPixel::Bytes] = cast::from_bytes(encoded).expect("Invalid input buffer");
+    let decoded: &mut [OutPixel::Bytes] =
+        cast::from_bytes_mut(decoded).expect("Invalid output buffer");
+
+    for (encoded, decoded) in encoded.iter().zip(decoded.iter_mut()) {
+        let input: InPixel = cast::FromLeBytes::from_le_bytes(*encoded);
+        *decoded = cast::IntoNeBytes::into_ne_bytes(f(input));
+    }
+}
+#[inline]
+pub(crate) fn process_pixels_helper_unroll<const UNROLL: usize, InPixel, OutPixel, F>(
+    encoded: &[u8],
+    decoded: &mut [u8],
+    f: F,
+) where
+    InPixel: cast::FromLeBytes,
+    OutPixel: cast::IntoNeBytes,
+    [InPixel; UNROLL]: cast::FromLeBytes,
+    [OutPixel; UNROLL]: cast::IntoNeBytes,
+    F: Copy + Fn(InPixel) -> OutPixel,
+{
+    let pixels = encoded.len() / size_of::<InPixel>();
+    let rolled_chunks = pixels / UNROLL;
+
+    let encoded_chunks_bytes = rolled_chunks * size_of::<[InPixel; UNROLL]>();
+    let decoded_chunks_bytes = rolled_chunks * size_of::<[OutPixel; UNROLL]>();
+
+    // process unrolled chunks
+    process_pixels_helper(
+        &encoded[..encoded_chunks_bytes],
+        &mut decoded[..decoded_chunks_bytes],
+        move |input: [InPixel; UNROLL]| input.map(f),
+    );
+
+    // process the rest
+    let encoded: &[InPixel::Bytes] =
+        cast::from_bytes(&encoded[encoded_chunks_bytes..]).expect("Invalid input buffer");
+    let decoded: &mut [OutPixel::Bytes] =
+        cast::from_bytes_mut(&mut decoded[decoded_chunks_bytes..]).expect("Invalid output buffer");
+    debug_assert!(encoded.len() == decoded.len());
+
+    for (encoded, decoded) in encoded.iter().zip(decoded.iter_mut()) {
+        let input: InPixel = cast::FromLeBytes::from_le_bytes(*encoded);
+        *decoded = cast::IntoNeBytes::into_ne_bytes(f(input));
+    }
+}
+
 /// Helper method for decoding UNCOMPRESSED formats.
-pub(crate) fn for_each_pixel_untyped<InPixel, OutPixel>(
+pub(crate) fn for_each_pixel_untyped(
     r: &mut dyn Read,
     buf: &mut [u8],
-    process_pixels: fn(&[u8], &mut [u8]),
+    pixel_size: PixelSize,
+    process_pixels: impl Fn(&[u8], &mut [u8]),
 ) -> Result<(), DecodeError> {
     fn inner(
         r: &mut dyn Read,
         buf: &mut [u8],
         size_of_in: usize,
         size_of_out: usize,
-        process_pixels: fn(&[u8], &mut [u8]),
+        process_pixels: impl Fn(&[u8], &mut [u8]),
     ) -> Result<(), DecodeError> {
         assert!(buf.len() % size_of_out == 0);
         let pixels = buf.len() / size_of_out;
@@ -38,20 +116,23 @@ pub(crate) fn for_each_pixel_untyped<InPixel, OutPixel>(
     inner(
         r,
         buf,
-        size_of::<InPixel>(),
-        size_of::<OutPixel>(),
+        pixel_size.encoded_size as usize,
+        pixel_size.decoded_size as usize,
         process_pixels,
     )
 }
 
 /// Helper method for decoding UNCOMPRESSED formats.
-pub(crate) fn for_each_pixel_rect_untyped<InPixel, OutPixel>(
+///
+/// `process_pixels` has the same semantics as in `for_each_pixel_untyped`.
+pub(crate) fn for_each_pixel_rect_untyped(
     r: &mut dyn ReadSeek,
     buf: &mut [u8],
     row_pitch: usize,
     size: Size,
     rect: Rect,
-    process_pixels: fn(&[u8], &mut [u8]),
+    pixel_size: PixelSize,
+    process_pixels: impl Fn(&[u8], &mut [u8]),
 ) -> Result<(), DecodeError> {
     #[allow(clippy::too_many_arguments)]
     fn inner(
@@ -62,7 +143,7 @@ pub(crate) fn for_each_pixel_rect_untyped<InPixel, OutPixel>(
         rect: Rect,
         size_of_in: usize,
         size_of_out: usize,
-        process_pixels: fn(&[u8], &mut [u8]),
+        process_pixels: impl Fn(&[u8], &mut [u8]),
     ) -> Result<(), DecodeError> {
         // assert that no overflow will occur for byte positions in the encoded image/reader
         assert!(size
@@ -118,8 +199,8 @@ pub(crate) fn for_each_pixel_rect_untyped<InPixel, OutPixel>(
         row_pitch,
         size,
         rect,
-        size_of::<InPixel>(),
-        size_of::<OutPixel>(),
+        pixel_size.encoded_size as usize,
+        pixel_size.decoded_size as usize,
         process_pixels,
     )
 }
@@ -131,139 +212,470 @@ fn seek_relative(r: &mut dyn ReadSeek, offset: i64) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Utility method for sub-sampled formats.
+/// A function that processes a row of blocks.
 ///
-/// Since there currently are only 2 sub-sampled format, this method isn't any
-/// more generic than it has to be. Both formats:
+/// Arguments:
 ///
-/// 1. Encode pairs of pixels as 4 bytes.
-/// 2. Ignore the last encoded pixel if the width is odd.
-pub(crate) fn for_each_pair<OutPixel>(
-    r: &mut dyn Read,
-    out: &mut [u8],
-    size: Size,
-    process_pixel1: impl Fn([u8; 4]) -> OutPixel,
-    process_pixel2: impl Fn([u8; 4]) -> OutPixel,
-) -> Result<(), DecodeError>
-where
-    OutPixel: cast::Castable + Default + Copy,
-{
-    // The basic idea here is to decode the image line by line. A line is a
-    // sequence of encoded pixels pairs that together describe a single row of
-    // pixels in the final image.
-    //
-    // Since reading a bunch of small lines from disk is slow, we allocate one
-    // large buffer to hold N lines at a time. The we process the lines in the
-    // buffer and refill as needed.
-
-    assert!(!size.is_empty());
-
-    let line_len = div_ceil(size.width, 2) as usize;
-    let mut line_buffer: LineBuffer<[u8; 4]> = LineBuffer::new(line_len, size.height as usize);
-    let mut write_aligned: AlignedWriter<[OutPixel; 2]> = AlignedWriter::new();
-
-    let out_line_len = size.width as usize * size_of::<OutPixel>();
-    let mut y = 0;
-    while let Some(line) = line_buffer.next_line(r)? {
-        let out_line = out[y * out_line_len..(y + 1) * out_line_len].as_mut();
-
-        // write all whole pairs of pixels
-        let whole_pairs = size.width as usize / 2;
-        let whole_pairs_len = whole_pairs * 2 * size_of::<OutPixel>();
-        write_aligned.write(&mut out_line[..whole_pairs_len], |out_line| {
-            for (out, pixel) in out_line.iter_mut().zip(line) {
-                out[0] = process_pixel1(*pixel);
-                out[1] = process_pixel2(*pixel);
-            }
-        });
-
-        // write the sole last pixel if the width is odd
-        if size.width % 2 == 1 {
-            let pixel = process_pixel1(line[line.len() - 1]);
-            let pixel_array = [pixel];
-            // Using memcpy here is pretty inefficient, but idc
-            out_line[whole_pairs_len..].copy_from_slice(cast::as_bytes(&pixel_array));
-        }
-
-        y += 1;
-    }
-    Ok(())
+/// `encoded_blocks` is a byte slice of blocks. The slice is
+/// guaranteed te have a length that is a multiple of `BYTES_PER_BLOCK`.
+///
+/// `decoded` is a byte slice of decoded pixels.
+///
+/// `stride` is the number of bytes between the start of two consecutive rows
+/// in `decoded`.
+pub(crate) type ProcessBlocksFn =
+    fn(encoded_blocks: &[u8], decoded: &mut [u8], stride: usize, range: PixelRange);
+#[derive(Debug, Clone)]
+pub(crate) struct PixelRange {
+    /// The number of pixels in a row. This might *not* be a multiple of `BLOCK_SIZE_X`
+    pub width: u32,
+    /// The number of pixels in the first block that should be skipped.
+    ///
+    /// This is at most `BLOCK_SIZE_X - 1`.
+    pub width_offset: u8,
+    /// A non-empty range of the rows to decode. `rows.end` is at most `BLOCK_SIZE_Y`.
+    pub rows: core::ops::Range<u8>,
 }
 
-/// Utility method for 4x4 block-compressed formats.
-pub(crate) fn for_each_block_4x4<const BYTES_PER_BLOCK: usize, OutPixel>(
-    r: &mut dyn Read,
-    out: &mut [u8],
-    size: Size,
-    process_block: impl Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; 16],
-) -> Result<(), DecodeError>
-where
-    [u8; BYTES_PER_BLOCK]: cast::Castable + Default,
-    OutPixel: cast::Castable + Default + Copy,
-{
-    // The basic idea here is to decode the image line by line. A line is a
-    // sequence of encoded pixels pairs that together describe a single row of
-    // pixels in the final image.
-    //
-    // Since reading a bunch of small lines from disk is slow, we allocate one
-    // large buffer to hold N lines at a time. The we process the lines in the
-    // buffer and refill as needed.
+/// A helper function for implementing [`ProcessBlocksFn`]s.
+#[inline]
+pub(crate) fn process_2x1_blocks_helper<
+    const BYTES_PER_BLOCK: usize,
+    OutPixel: cast::IntoNeBytes,
+>(
+    encoded_blocks: &[u8],
+    decoded: &mut [u8],
+    range: PixelRange,
+    process_block: impl Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; 2],
+) {
+    // group bytes into chunks
+    let mut encoded_blocks: &[[u8; BYTES_PER_BLOCK]] =
+        cast::from_bytes(encoded_blocks).expect("Invalid block buffer");
 
-    assert!(!size.is_empty());
+    let mut width = range.width as usize;
+    let mut decoded: &mut [OutPixel::Bytes] =
+        cast::from_bytes_mut(&mut decoded[..width * size_of::<OutPixel>()])
+            .expect("Invalid output buffer");
+    debug_assert!(decoded.len() == width);
 
-    let width_blocks = div_ceil(size.width, 4) as usize;
-    let height_blocks = div_ceil(size.height, 4) as usize;
+    let width_offset = range.width_offset;
+    if width_offset == 1 {
+        // skip the first pixel in the first block
+        debug_assert!(width > 0);
 
-    let mut line_buffer: LineBuffer<[u8; BYTES_PER_BLOCK]> =
-        LineBuffer::new(width_blocks, height_blocks);
-    let mut write_aligned: AlignedWriter<OutPixel> = AlignedWriter::new();
+        let [_, p1] = process_block(encoded_blocks[0]);
+        decoded[0] = cast::IntoNeBytes::into_ne_bytes(p1);
 
-    let mut block_y = 0;
-    while let Some(block_line) = line_buffer.next_line(r)? {
-        // how many rows of pixels we'll decode
-        // this is usually 4, but might be less for the last block
-        let pixel_rows = 4.min(size.height - block_y * 4) as usize;
-        let pixel_row_bytes = size.width as usize * size_of::<OutPixel>();
-        let start_pixel_y = block_y as usize * 4;
-        let out_pixel_rows = out
-            [(start_pixel_y * pixel_row_bytes)..(start_pixel_y + pixel_rows) * pixel_row_bytes]
-            .as_mut();
+        // adjust the width and blocks
+        width -= 1;
+        encoded_blocks = &encoded_blocks[1..];
+        decoded = &mut decoded[1..];
+    }
 
-        write_aligned.write(out_pixel_rows, |out| {
-            if size.width % 4 == 0 && pixel_rows == 4 {
-                // This is the easy case where we can always write the entire
-                // 4x4 block out without needing to do bounds checking.
-                assert!(out.len() == 4 * size.width as usize);
+    let width_half = width / 2;
 
-                for (block_index, block) in block_line.iter().enumerate() {
-                    let pixels = process_block(*block);
-                    for y in 0..4 {
-                        let row_start = block_index * 4 + y * size.width as usize;
-                        let row = &mut out[row_start..row_start + 4];
-                        for x in 0..4 {
-                            row[x] = pixels[y * 4 + x];
-                        }
-                    }
-                }
-            } else {
-                let block_h = pixel_rows;
-                for (block_index, block) in block_line.iter().enumerate() {
-                    let block_w = 4.min(size.width as usize - block_index * 4);
-                    let pixels = process_block(*block);
-                    for y in 0..block_h {
-                        let row_start = block_index * 4 + y * size.width as usize;
-                        let row = &mut out[row_start..row_start + block_w];
-                        for x in 0..block_w {
-                            row[x] = pixels[y * 4 + x];
-                        }
+    // do full pairs first
+    let decoded_pairs: &mut [[OutPixel::Bytes; 2]] =
+        cast::as_array_chunks_mut(&mut decoded[..(width_half * 2)]).unwrap();
+    for (encoded, decoded) in encoded_blocks.iter().zip(decoded_pairs.iter_mut()) {
+        let [p0, p1] = process_block(*encoded);
+        decoded[0] = cast::IntoNeBytes::into_ne_bytes(p0);
+        decoded[1] = cast::IntoNeBytes::into_ne_bytes(p1);
+    }
+
+    // last lone pixel (if any)
+    if width % 2 == 1 {
+        let encoded = encoded_blocks.last().unwrap();
+        let [p0, _] = process_block(*encoded);
+        decoded[width - 1] = cast::IntoNeBytes::into_ne_bytes(p0);
+    }
+}
+
+/// A helper function for implementing [`ProcessBlocksFn`]s.
+#[inline]
+pub(crate) fn process_8x1_blocks_helper<
+    OutPixel: cast::IntoNeBytes + Copy,
+    F: Fn(u8) -> [OutPixel; 8],
+>(
+    encoded_blocks: &[u8],
+    decoded: &mut [u8],
+    stride: usize,
+    range: PixelRange,
+    process_block: F,
+) {
+    general_process_blocks::<8, 1, 8, 1, OutPixel, _>(
+        encoded_blocks,
+        decoded,
+        stride,
+        range,
+        |block| process_block(block[0]),
+    );
+}
+/// A helper function for implementing [`ProcessBlocksFn`]s.
+#[inline]
+pub(crate) fn process_4x4_blocks_helper<
+    const BYTES_PER_BLOCK: usize,
+    OutPixel: cast::IntoNeBytes + cast::Castable + Copy,
+>(
+    mut encoded_blocks: &[u8],
+    mut decoded: &mut [u8],
+    stride: usize,
+    mut range: PixelRange,
+    process_block: impl Copy + Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; 16],
+) {
+    debug_assert!(range.rows.len() <= 4);
+
+    if range.width_offset != 0 {
+        // handle offset separately
+        let skip = handle_width_offset::<4, 4, 16, BYTES_PER_BLOCK, OutPixel, _>(
+            &mut encoded_blocks,
+            decoded,
+            stride,
+            &mut range,
+            process_block,
+        );
+        decoded = &mut decoded[skip..];
+    }
+
+    // optimized code path for 4x4 blocks
+    if range.rows.len() == 4 && stride % size_of::<OutPixel>() == 0 {
+        if let Some(decoded) = cast::from_bytes_mut::<OutPixel>(decoded) {
+            let encoded_blocks: &[[u8; BYTES_PER_BLOCK]] =
+                cast::from_bytes(encoded_blocks).expect("Invalid block buffer");
+
+            let stride = stride / size_of::<OutPixel>();
+            let full_blocks = range.width as usize / 4;
+
+            for (block_index, block) in encoded_blocks[..full_blocks].iter().enumerate() {
+                let pixel_index = block_index * 4;
+
+                let block = process_block(*block);
+
+                for y in 0..4 {
+                    let row_start = stride * y + pixel_index;
+                    let row = &mut decoded[row_start..row_start + 4];
+                    for x in 0..4 {
+                        row[x] = block[y * 4 + x];
                     }
                 }
             }
-        });
 
-        block_y += 1;
+            if range.width % 4 != 0 {
+                let block = encoded_blocks[full_blocks];
+                let pixel_index = full_blocks * 4;
+                let block_w = range.width as usize - pixel_index;
+
+                let block = process_block(block);
+
+                for y in 0..4 {
+                    let row_start = stride * y + pixel_index;
+                    let row = &mut decoded[row_start..row_start + block_w];
+                    for x in 0..block_w {
+                        row[x] = block[y * 4 + x];
+                    }
+                }
+            }
+
+            return;
+        }
     }
-    Ok(())
+
+    // General implementation. Slower.
+    general_process_blocks::<4, 4, 16, BYTES_PER_BLOCK, OutPixel, _>(
+        encoded_blocks,
+        decoded,
+        stride,
+        range,
+        process_block,
+    );
+}
+/// Handles `range.width_offset` and returns how many bytes in `decoded` need to
+/// be skipped after this method.
+///
+/// After this method returns, `range.width_offset` is guaranteed to be 0.
+fn handle_width_offset<
+    const BLOCK_SIZE_X: usize,
+    const BLOCK_SIZE_Y: usize,
+    const BLOCK_PIXELS: usize,
+    const BYTES_PER_BLOCK: usize,
+    OutPixel: cast::IntoNeBytes + Copy,
+    F: Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; BLOCK_PIXELS],
+>(
+    encoded_blocks: &mut &[u8],
+    decoded: &mut [u8],
+    stride: usize,
+    range: &mut PixelRange,
+    process_block: F,
+) -> usize {
+    let offset = range.width_offset as u32;
+    debug_assert!(offset < BLOCK_SIZE_X as u32);
+    let pixel_w = u32::min(BLOCK_SIZE_X as u32 - offset, range.width);
+    if pixel_w == 0 {
+        return 0;
+    }
+
+    general_process_blocks::<BLOCK_SIZE_X, BLOCK_SIZE_Y, BLOCK_PIXELS, BYTES_PER_BLOCK, OutPixel, _>(
+        &encoded_blocks[..BYTES_PER_BLOCK],
+        decoded,
+        stride,
+        PixelRange {
+            width: pixel_w,
+            width_offset: range.width_offset,
+            rows: range.rows.clone(),
+        },
+        process_block,
+    );
+
+    // adjust range
+    range.width -= pixel_w;
+    range.width_offset = 0;
+    // skip first block that has now been processed
+    *encoded_blocks = &encoded_blocks[BYTES_PER_BLOCK..];
+    // skip first offset pixels
+    pixel_w as usize * size_of::<OutPixel>()
+}
+/// A helper function for implementing [`ProcessBlocksFn`]s.
+///
+/// This is a *general* implementation. It will work with any block size, but
+/// it's a lot slower than the specialized versions. Don't use this directly.
+/// Instead, use it as the starting point for a specialized implementation.
+pub(crate) fn general_process_blocks<
+    const BLOCK_SIZE_X: usize,
+    const BLOCK_SIZE_Y: usize,
+    const BLOCK_PIXELS: usize,
+    const BYTES_PER_BLOCK: usize,
+    OutPixel: cast::IntoNeBytes + Copy,
+    F: Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; BLOCK_PIXELS],
+>(
+    encoded_blocks: &[u8],
+    decoded: &mut [u8],
+    stride: usize,
+    range: PixelRange,
+    process_block: F,
+) {
+    debug_assert_eq!(BLOCK_SIZE_X * BLOCK_SIZE_Y, BLOCK_PIXELS);
+    debug_assert!((range.width_offset as usize) < BLOCK_SIZE_X);
+
+    // group bytes into chunks
+    let encoded_blocks: &[[u8; BYTES_PER_BLOCK]] =
+        cast::from_bytes(encoded_blocks).expect("Invalid block buffer");
+
+    let mut pixel_x = 0;
+    for (block_index, block) in encoded_blocks.iter().enumerate() {
+        let pixel_offset_x = if block_index == 0 {
+            range.width_offset as usize
+        } else {
+            0
+        };
+        let block_w = (BLOCK_SIZE_X - pixel_offset_x)
+            .min(range.width as usize)
+            .min(range.width as usize + range.width_offset as usize - block_index * BLOCK_SIZE_X);
+
+        // This whole method is structured to call this function exactly once.
+        // This is done to reduce code size.
+        let block = process_block(*block);
+
+        for y in range.rows.clone() {
+            let row_start =
+                (y - range.rows.start) as usize * stride + pixel_x * size_of::<OutPixel>();
+            let row = &mut decoded[row_start..(row_start + block_w * size_of::<OutPixel>())];
+            let row: &mut [OutPixel::Bytes] =
+                cast::from_bytes_mut(row).expect("Invalid output buffer");
+            debug_assert!(row.len() == block_w);
+
+            for x in 0..block_w {
+                row[x] = cast::IntoNeBytes::into_ne_bytes(
+                    block[y as usize * BLOCK_SIZE_X + x + pixel_offset_x],
+                );
+            }
+        }
+
+        pixel_x += block_w;
+    }
+}
+
+pub(crate) fn for_each_block_untyped<
+    const BLOCK_SIZE_X: usize,
+    const BLOCK_SIZE_Y: usize,
+    const BYTES_PER_BLOCK: usize,
+    OutPixel,
+>(
+    r: &mut dyn Read,
+    buf: &mut [u8],
+    size: Size,
+    process_pixels: ProcessBlocksFn,
+) -> Result<(), DecodeError> {
+    fn inner(
+        r: &mut dyn Read,
+        buf: &mut [u8],
+        size: Size,
+        block_size: (usize, usize),
+        bytes_per_block: usize,
+        size_of_out: usize,
+        process_pixels: ProcessBlocksFn,
+    ) -> Result<(), DecodeError> {
+        // The basic idea here is to decode the image line by line. A line is a
+        // sequence of encoded blocks that together describe BLOCK_SIZE_Y rows of
+        // pixels in the final image.
+        //
+        // Since reading a bunch of small lines from disk is slow, we allocate one
+        // large buffer to hold N lines at a time. The we process the lines in the
+        // buffer and refill as needed.
+
+        assert!(!size.is_empty());
+
+        let (block_size_x, block_size_y) = block_size;
+        let width_blocks = div_ceil(size.width, block_size_x as u32) as usize;
+        let height_blocks = div_ceil(size.height, block_size_y as u32) as usize;
+
+        let mut line_buffer = UntypedLineBuffer::new(width_blocks * bytes_per_block, height_blocks);
+
+        let mut block_y = 0;
+        while let Some(block_line) = line_buffer.next_line(r)? {
+            // how many rows of pixels we'll decode
+            // this is usually BLOCK_SIZE_Y, but might be less for the last block
+            let pixel_rows = block_size_y.min(size.height as usize - block_y * block_size_y);
+            let pixel_row_bytes = size.width as usize * size_of_out;
+            debug_assert!(buf.len() % pixel_row_bytes == 0);
+
+            let start_pixel_y = block_y * block_size_y;
+            let buf = &mut buf
+                [start_pixel_y * pixel_row_bytes..(start_pixel_y + pixel_rows) * pixel_row_bytes];
+
+            let range = PixelRange {
+                width: size.width,
+                width_offset: 0,
+                rows: 0..pixel_rows as u8,
+            };
+
+            process_pixels(block_line, buf, pixel_row_bytes, range);
+
+            block_y += 1;
+        }
+        Ok(())
+    }
+
+    inner(
+        r,
+        buf,
+        size,
+        (BLOCK_SIZE_X, BLOCK_SIZE_Y),
+        BYTES_PER_BLOCK,
+        size_of::<OutPixel>(),
+        process_pixels,
+    )
+}
+
+pub(crate) fn for_each_block_rect_untyped<
+    const BLOCK_SIZE_X: usize,
+    const BLOCK_SIZE_Y: usize,
+    const BYTES_PER_BLOCK: usize,
+>(
+    r: &mut dyn ReadSeek,
+    buf: &mut [u8],
+    row_pitch: usize,
+    size: Size,
+    rect: Rect,
+    process_pixels: ProcessBlocksFn,
+) -> Result<(), DecodeError> {
+    #[allow(clippy::too_many_arguments)]
+    fn inner(
+        r: &mut dyn ReadSeek,
+        buf: &mut [u8],
+        row_pitch: usize,
+        size: Size,
+        rect: Rect,
+        block_size: (usize, usize),
+        bytes_per_block: usize,
+        process_blocks: ProcessBlocksFn,
+    ) -> Result<(), DecodeError> {
+        // To make this algorithm easier to implement, we'll always read full
+        // lines of blocks.
+
+        let (block_size_x, block_size_y) = block_size;
+        let blocks_per_line = div_ceil(size.width, block_size_x as u32) as usize;
+
+        // blocks before the block lines we want to read.
+        let skip_block_lines_before = rect.y as usize / block_size_y;
+        // blocks of the lines we want to read
+        let block_lines_to_read =
+            div_ceil(rect.height + rect.y, block_size_y as u32) as usize - skip_block_lines_before;
+        // blocks after the block lines we want to read
+        let skip_block_lines_after = div_ceil(size.height, block_size_y as u32) as usize
+            - skip_block_lines_before
+            - block_lines_to_read;
+
+        // jump to the first line of blocks
+        seek_relative(
+            r,
+            (blocks_per_line * skip_block_lines_before * bytes_per_block) as i64,
+        )?;
+
+        let mut line_buffer =
+            UntypedLineBuffer::new(blocks_per_line * bytes_per_block, block_lines_to_read);
+
+        // the range of blocks within a block line
+        let block_range_start = rect.x as usize / block_size_x;
+        let block_range_end = div_ceil(rect.x + rect.width, block_size_x as u32) as usize;
+        let block_range =
+            (block_range_start * bytes_per_block)..(block_range_end * bytes_per_block);
+
+        // re-calculated parts of the pixel range
+        let width = rect.width;
+        let width_offset = (rect.x % block_size_x as u32) as u8;
+
+        let mut block_line_y = skip_block_lines_before;
+        let mut pixel_row = 0;
+        while let Some(block_line) = line_buffer.next_line(r)? {
+            // ignore blocks not part of the rect
+            let block_line = &block_line[block_range.clone()];
+
+            let rel_row_start = rect.y as isize - (block_line_y * block_size_y) as isize;
+            let rel_row_end =
+                (rect.y + rect.height) as isize - (block_line_y * block_size_y) as isize;
+            debug_assert!(rel_row_start < block_size_y as isize);
+            debug_assert!(rel_row_end > 0);
+
+            let row_start = rel_row_start.clamp(0, block_size_y as isize) as u8;
+            let row_end = rel_row_end.clamp(0, block_size_y as isize) as u8;
+            let rows = row_start..row_end;
+
+            let range = PixelRange {
+                width,
+                width_offset,
+                rows: rows.clone(),
+            };
+
+            process_blocks(
+                block_line,
+                &mut buf[pixel_row * row_pitch..],
+                row_pitch,
+                range,
+            );
+
+            block_line_y += 1;
+            pixel_row += rows.len();
+        }
+
+        // jump to the end of the surface to put the reader into a known position
+        seek_relative(
+            r,
+            (blocks_per_line * skip_block_lines_after * bytes_per_block) as i64,
+        )?;
+
+        Ok(())
+    }
+
+    inner(
+        r,
+        buf,
+        row_pitch,
+        size,
+        rect,
+        (BLOCK_SIZE_X, BLOCK_SIZE_Y),
+        BYTES_PER_BLOCK,
+        process_pixels,
+    )
 }
 
 /// A buffer holding raw encoded pixels straight from the reader.
@@ -302,130 +714,53 @@ impl UntypedPixelBuffer {
 }
 
 /// A buffer holding raw encoded lines of pixels straight from the reader.
-struct LineBuffer<T> {
-    /// Number of `T`s in a line.
-    width: usize,
-    /// How many lines are still to read from disk
-    lines_left_to_read: usize,
-    /// The index at which the next line starts in the buffer.
+struct UntypedLineBuffer {
+    buf: Vec<u8>,
+    bytes_per_line: usize,
+    /// How many lines are still left to read from disk
+    lines_on_disk: usize,
+    /// The index at which the current line starts in the buffer.
     ///
-    /// If >= buffer.len(), the buffer is empty and needs to be refilled.
-    next_line_start: usize,
-    buffer: Vec<T>,
+    /// If `>= buffer.len()`, the buffer is empty and needs to be refilled.
+    current_line_start: usize,
 }
-impl<T> LineBuffer<T> {
-    fn new(width: usize, height: usize) -> Self
-    where
-        T: Default + Clone,
-    {
+impl UntypedLineBuffer {
+    fn new(bytes_per_line: usize, height: usize) -> Self {
         const TARGET_BUFFER_SIZE: usize = 64 * 1024; // 64 KB
 
-        let lines_in_buffer = (TARGET_BUFFER_SIZE / (width * size_of::<T>())).clamp(1, height);
+        let lines_in_buffer = (TARGET_BUFFER_SIZE / bytes_per_line).clamp(1, height);
+        let buf_len = lines_in_buffer * bytes_per_line;
         // TODO: protect against allocating very large buffers (> 1 MB)
-        let buffer = vec![T::default(); width * lines_in_buffer];
+        let buf = vec![0_u8; buf_len];
 
         Self {
-            width,
-            lines_left_to_read: height,
-            next_line_start: buffer.len(),
-            buffer,
+            buf,
+            bytes_per_line,
+            lines_on_disk: height,
+            current_line_start: buf_len,
         }
     }
 
-    fn next_line(&mut self, r: &mut dyn Read) -> Result<Option<&[T]>, DecodeError>
-    where
-        T: cast::Castable,
-    {
-        if self.next_line_start >= self.buffer.len() {
-            if self.lines_left_to_read == 0 {
+    // CURSE YOU, lack of trait up-casting
+    fn next_line<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<Option<&[u8]>, DecodeError> {
+        if self.current_line_start >= self.buf.len() {
+            if self.lines_on_disk == 0 {
                 // all lines have been read
                 return Ok(None);
             }
 
             // refill the buffer
-            let lines_to_read = (self.buffer.len() / self.width).min(self.lines_left_to_read);
-            self.lines_left_to_read -= lines_to_read;
-            self.buffer.truncate(lines_to_read * self.width);
-            r.read_exact(cast::as_bytes_mut(&mut self.buffer))?;
-            self.next_line_start = 0;
+            let lines_to_read = (self.buf.len() / self.bytes_per_line).min(self.lines_on_disk);
+            self.lines_on_disk -= lines_to_read;
+            self.buf.truncate(lines_to_read * self.bytes_per_line);
+            r.read_exact(&mut self.buf)?;
+            self.current_line_start = 0;
         }
 
         // get a line from the buffer
-        let line_end = self.next_line_start + self.width;
-        let line = &self.buffer[self.next_line_start..line_end];
-        self.next_line_start = line_end;
+        let line_end = self.current_line_start + self.bytes_per_line;
+        let line = &self.buf[self.current_line_start..line_end];
+        self.current_line_start = line_end;
         Ok(Some(line))
-    }
-}
-
-/// A helper to write `T` into a `[u8]` buffer.
-struct AlignedWriter<T> {
-    temp_buf: Option<Vec<T>>,
-}
-impl<T> AlignedWriter<T> {
-    fn new() -> Self {
-        Self { temp_buf: None }
-    }
-
-    fn element_size(&self) -> usize {
-        size_of::<T>()
-    }
-
-    // Don't inline this method for code size reasons.
-    #[inline(never)]
-    fn get_temp(&mut self, buf_len: usize) -> &mut [T]
-    where
-        T: Default + Copy,
-    {
-        let size = self.element_size();
-        assert_eq!(buf_len % size, 0);
-        let len = buf_len / size;
-
-        // create a buffer if it doesn't exist
-        if self.temp_buf.is_none() {
-            self.temp_buf = Some(vec![T::default(); len]);
-        }
-
-        // NOTE: This unwrap cannot fail
-        let temp = self.temp_buf.as_deref_mut().unwrap();
-        assert!(temp.len() >= len);
-        &mut temp[..len]
-    }
-
-    fn write(&mut self, buf: &mut [u8], write: impl FnOnce(&mut [T]))
-    where
-        T: cast::Castable + Default + Copy,
-    {
-        // The whole method is structured around calling `write` at one place.
-        // This is done to promote inlining the `write` closure, while also
-        // reducing code size.
-
-        enum Aligned<'a, 'b, T> {
-            Slice(&'a mut [T]),
-            Temp(&'b mut [T]),
-        }
-        impl<T> Aligned<'_, '_, T> {
-            fn as_mut(&mut self) -> &mut [T] {
-                match self {
-                    Self::Slice(buf) => buf,
-                    Self::Temp(buf) => buf,
-                }
-            }
-        }
-
-        let mut write_to: Aligned<T> = if let Some(buf) = cast::from_bytes_mut(buf) {
-            // the buffer is aligned already
-            Aligned::Slice(buf)
-        } else {
-            // use a temporary buffer and copy over the result later
-            Aligned::Temp(self.get_temp(buf.len()))
-        };
-
-        write(write_to.as_mut());
-
-        if let Aligned::Temp(temp) = write_to {
-            // copy the result to the output buffer
-            buf.copy_from_slice(cast::as_bytes(temp));
-        }
     }
 }

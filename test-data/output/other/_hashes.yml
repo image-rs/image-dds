@@ -1,0 +1,39 @@
+24-bit-uncompressed-odd.png: >
+    aa6550705dca3c498b32ee858faae3dcb23657ee414588db19bd3ef9308f6017
+
+32-bit-uncompressed-odd.png: >
+    eee557ecd5ef9f6c723145ffba4d1943b25177743eeaf2d61916dc463c6cd077
+
+32-bit-uncompressed.png: >
+    7bbfa1971189ed521da3592a0c0d68b0764d3b9c3211e3eac32516801413944b
+
+BC1_UNORM_SRGB-47.png: >
+    16bc5cdbb1d00ac3248867dc04902dbaa656d024eb96b45379123b58acef5817
+
+RXGB (no alpha).png: >
+    0f41c51d1c165cc75c23d3583dcd38a036ac8ef2f493c7332bdf0a3e4927c06f
+
+ati2-custom-flags.png: >
+    0dcc6436a4bf562f8138a10b468eca5eef1cfc552320ee39cd0b5b6991c5dc31
+
+bc6h-simple.png: >
+    86ab5669c7ffaed6e4d2d6dd3e0595bd5eeaff0c8d66a4b1e22df9a1b22fd093
+
+bc7-simple.png: >
+    42df857d5871992b37c6b80bd216f724b00aa84e575faf7c81223bfcbe770395
+
+both-dx10-and-pixel-format.png: >
+    9c72d42c319bc6a86359b53ab905ef3427a8c741c468ddd8c0ff027273b614ef
+
+dxt5-simple-1x1.png: >
+    96643f7971e8beeb1a6b81f1eed3373188bafa3f09f063a6d31301eed6b37299
+
+dxt5-simple-odd.png: >
+    c5ad0e4cda2449fa83bcf696dddf03d3263154db7293d8a2a0a6e12c4fa3a879
+
+non-standard header flag.png: >
+    17b0761f87b081d5cf10757ccc89f12be355c70e2e29df288b65b30710dcbcd1
+
+restricted-header.png: >
+    4b907bddd691883fcf633c80f1d1b0d1f1b7af6473f22e5d45143e749eb36176
+

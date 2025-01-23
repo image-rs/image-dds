@@ -1,0 +1,23 @@
+BC4_UNORM
+    default: EncodeOptions { dither: None }
+    dither: EncodeOptions { dither: All }
+
+                                 ↑PSNR    ↑PSNR blur  ↓Region error
+    
+    base.png         default  L  40.9007  53.5509     0.09556
+                     dither   L  40.2748  54.8627     0.08047
+    
+    color-twirl.png  default  L  57.0444  68.3564     0.05327
+                     dither   L  55.9328  71.4270     0.02403
+    
+    clovers-r.png    default  L  39.6725  53.1162     0.14922
+                     dither   L  38.9453  53.7982     0.15514
+    
+    stone-h.png      default  L  48.2864  61.0011     0.11904
+                     dither   L  47.4700  62.1952     0.07799
+    
+    random color     default  L  77.5573  80.2664     0.02777
+                     dither   L  73.2562  91.5346     0.00424
+
+
+

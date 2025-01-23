@@ -1,0 +1,36 @@
+BC1 Pretoria Gardens DX10 - array_size=6 issue4.png: >
+    0f7284db39d815f1a25bb770e2634a374ef7db2ac6466da46c2cea0e56ac5b2b
+
+array_size 0.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+dds header_size 24.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+dds pixel_format size 0.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+dds pixel_format size 24.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+no pixel_format flags.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+wrong mipmap count 1.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+wrong mipmap count 2.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+wrong mipmap count 3.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+wrong mipmap count 4.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+wrong mipmap count 5.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+
+wrong mipmap count 6.png: >
+    bc2d6d99b96caa33f75eac4be4c004709e8dde5f26f2a46829cfa2e6750f0b20
+

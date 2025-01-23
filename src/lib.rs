@@ -1,24 +1,26 @@
 #![forbid(unsafe_code)]
 
 mod cast;
+mod color;
 mod decode;
 mod detect;
+mod encode;
 mod error;
 mod format;
 mod header;
 mod layout;
 mod pixel;
-mod tiny_set;
 mod util;
 
 use std::io::Read;
 
+pub use color::*;
+pub use encode::{DitheredChannels, EncodeError, EncodeFormat, EncodeOptions};
 pub use error::*;
 pub use format::*;
 pub use header::*;
 pub use layout::*;
 pub use pixel::*;
-pub use tiny_set::*;
 
 /// Additional options for the DDS decoder specifying how to read and interpret
 /// the header.
@@ -53,19 +55,65 @@ pub struct Options {
     ///
     /// Defaults to `4096`.
     pub max_array_size: u32,
+
+    /// Whether to allow certain invalid DDS files to be read.
+    ///
+    /// Certain older software may generate DDS files that do not strictly
+    /// adhere to the DDS specification and may contain invalid values in the
+    /// header. By default, the decoder will reject such files.
+    ///
+    /// If this option is set to `true`, the decoder will (1) ignore invalid
+    /// header values that would otherwise cause the decoder to reject the file
+    /// and (2) attempt to fix the header to read the file correctly. To fix the
+    /// header, [`Options::file_len`] must be provided.
+    ///
+    /// Defaults to `false`.
+    pub permissive: bool,
+
+    /// The length of the file in bytes.
+    ///
+    /// This length includes the magic bytes, header, and data section. Even if
+    /// [`Options::skip_magic_bytes`] is set to `true`, the length must include
+    /// the magic bytes.
+    ///
+    /// The purpose of this option is to provide more information, which enables
+    /// the decoder to read certain invalid DDS files if [`Options::permissive`]
+    /// is set to `true`. If [`Options::permissive`] is set to `false`, this
+    /// option will be ignored.
+    ///
+    /// If this option is set incorrectly (i.e. this length is not equal to the
+    /// actual length of the file), the decoder may misinterpret certain valid
+    /// and invalid DDS files.
+    ///
+    /// Defaults to `None`.
+    ///
+    /// ### Usage
+    ///
+    /// The most common way to set this option is to use the file metadata:
+    ///
+    /// ```no_run
+    /// let mut file = std::fs::File::open("example.dds").unwrap();
+    ///
+    /// let mut options = ddsd::Options::default();
+    /// options.permissive = true;
+    /// options.file_len = file.metadata().ok().map(|m| m.len());
+    /// ```
+    pub file_len: Option<u64>,
 }
 impl Default for Options {
     fn default() -> Self {
         Self {
             skip_magic_bytes: false,
             max_array_size: 4096,
+            permissive: false,
+            file_len: None,
         }
     }
 }
 
 pub struct DdsDecoder {
     header: Header,
-    format: SupportedFormat,
+    format: DecodeFormat,
     layout: DataLayout,
 }
 
@@ -75,37 +123,29 @@ impl DdsDecoder {
     /// This is equivalent to calling `Decoder::new_with(r, Options::default())`.
     /// See [`Self::new_with`] for more details.
     pub fn new<R: Read>(r: &mut R) -> Result<Self, DecodeError> {
-        Self::new_with(r, Options::default())
+        Self::new_with(r, &Options::default())
     }
     /// Creates a new decoder with the given options by reading the header from the given reader.
     ///
     /// If this operations succeeds, the given reader will be positioned at the start of the data
     /// section. All offsets in [`DataLayout`] are relative to this position.
-    pub fn new_with<R: Read>(r: &mut R, options: Options) -> Result<Self, DecodeError> {
-        // magic bytes
-        if !options.skip_magic_bytes {
-            Header::read_magic(r)?;
-        }
-
-        // header
-        let header = Header::read(r)?;
-
-        Self::from_header_with(header, options)
+    pub fn new_with<R: Read>(r: &mut R, options: &Options) -> Result<Self, DecodeError> {
+        Self::from_header_with(Header::read(r, options)?, options)
     }
 
     pub fn from_header(header: Header) -> Result<Self, DecodeError> {
-        Self::from_header_with(header, Options::default())
+        Self::from_header_with(header, &Options::default())
     }
-    pub fn from_header_with(header: Header, options: Options) -> Result<Self, DecodeError> {
+    pub fn from_header_with(header: Header, options: &Options) -> Result<Self, DecodeError> {
         // enforce `array_size` limit
-        if let Some(dxt10) = &header.dxt10 {
+        if let Some(dxt10) = header.dx10() {
             if dxt10.array_size > options.max_array_size {
                 return Err(DecodeError::ArraySizeTooBig(dxt10.array_size));
             }
         }
 
         // detect format
-        let format = SupportedFormat::from_header(&header)?;
+        let format = DecodeFormat::from_header(&header)?;
 
         // data layout
         let layout = DataLayout::from_header_with(&header, format.into())?;
@@ -120,7 +160,7 @@ impl DdsDecoder {
     pub fn header(&self) -> &Header {
         &self.header
     }
-    pub fn format(&self) -> SupportedFormat {
+    pub fn format(&self) -> DecodeFormat {
         self.format
     }
     pub fn layout(&self) -> &DataLayout {
@@ -132,10 +172,66 @@ impl DdsDecoder {
     /// This can only be `true` for DX10+ DDS files. Legacy (DX9) formats cannot
     /// specify the color space and are assumed to be linear.
     pub fn is_srgb(&self) -> bool {
-        if let Some(dx10) = &self.header.dxt10 {
+        if let Some(dx10) = self.header.dx10() {
             dx10.dxgi_format.is_srgb()
         } else {
             false
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Size {
+    pub width: u32,
+    pub height: u32,
+}
+impl Size {
+    pub const fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+    pub const fn is_empty(&self) -> bool {
+        self.width == 0 || self.height == 0
+    }
+    pub const fn pixels(&self) -> u64 {
+        self.width as u64 * self.height as u64
+    }
+}
+impl From<(u32, u32)> for Size {
+    fn from((width, height): (u32, u32)) -> Self {
+        Self { width, height }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Rect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+impl Rect {
+    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    pub const fn size(&self) -> Size {
+        Size::new(self.width, self.height)
+    }
+
+    /// Returns `true` if this rectangle is completely within the bounds of the
+    /// given size.
+    ///
+    /// This means that `self.x + self.width <= size.width` and
+    /// `self.y + self.height <= size.height`.
+    pub(crate) fn is_within_bounds(&self, size: Size) -> bool {
+        // use u64 to prevent overflow
+        let end_x = self.x as u64 + self.width as u64;
+        let end_y = self.y as u64 + self.height as u64;
+        end_x <= size.width as u64 && end_y <= size.height as u64
     }
 }

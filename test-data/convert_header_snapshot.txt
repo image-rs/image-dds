@@ -1,0 +1,2216 @@
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x24)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_UNORM (11)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x6e)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_SNORM (13)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x6f)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_FLOAT (54)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x70)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_FLOAT (34)
+
+
+
+Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(0x71)
+
+into_dx10 Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_FLOAT (10)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x71)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_FLOAT (10)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x72)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32_FLOAT (41)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x73)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32_FLOAT (16)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x74)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32B32A32_FLOAT (2)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(ATI1)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC4_UNORM (80)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC4U)
+
+
+
+Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 32 x 32
+    mipmap_count: 6
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 32 x 32
+    mipmap_count: 6
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 128 x 64
+    mipmap_count: 8
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 128 x 64
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 128 x 128
+    mipmap_count: 8
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 128 x 128
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(ATI2)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_UNORM (83)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC5U)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT2)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+        alpha_mode: Premultiplied
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(YUY2)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: YUY2 (107)
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    format: FourCC(DXT3)
+
+into_dx10 Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+
+
+
+Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    format: FourCC(DXT3)
+
+into_dx10 Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT3)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT4)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+        alpha_mode: Premultiplied
+
+
+
+Header:
+    w/h: 1 x 1
+    mipmap_count: 1
+    format: FourCC(DXT5)
+
+into_dx10 Header:
+    w/h: 1 x 1
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 5 x 9
+    mipmap_count: 1
+    format: FourCC(DXT5)
+
+into_dx10 Header:
+    w/h: 5 x 9
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    format: FourCC(DXT5)
+
+into_dx10 Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    format: FourCC(DXT5)
+
+into_dx10 Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT5)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(GRGB)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: G8R8_G8B8_UNORM (69)
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 7
+    format: FourCC(RXGB)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(RXGB)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(RGBG)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8_B8G8_UNORM (68)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC4S)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC4_SNORM (81)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC5S)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_SNORM (84)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC5U)
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_UNORM (83)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(UYVY)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHA)
+        rgb_bit_count: 8
+        bit_mask: r:0x0 g:0x0 b:0x0 a:0xff
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: A8_UNORM (65)
+
+
+
+Header:
+    w/h: 128 x 128
+    mipmap_count: 1
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
+
+into_dx10 Header:
+    w/h: 128 x 128
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B5G6R5_UNORM (85)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B5G6R5_UNORM (85)
+
+
+
+Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
+
+into_dx10 Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B5G6R5_UNORM (85)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 24
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0x0
+
+Can't be converted
+
+
+
+Header:
+    w/h: 1 x 3
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 24
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+Can't be converted
+
+
+
+Header:
+    w/h: 4 x 4
+    mipmap_count: 3
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 24
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 24
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+Can't be converted
+
+
+
+Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 24
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_UNORM (35)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8X8_UNORM (88)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B4G4R4A4_UNORM (115)
+
+
+
+Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
+
+into_dx10 Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B4G4R4A4_UNORM (115)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B5G5R5A1_UNORM (86)
+
+
+
+Header:
+    w/h: 200 x 286
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
+
+into_dx10 Header:
+    w/h: 200 x 286
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B5G5R5A1_UNORM (86)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_UNORM (28)
+
+
+
+Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
+
+into_dx10 Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_UNORM (28)
+
+
+
+Header:
+    w/h: 5 x 9
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+into_dx10 Header:
+    w/h: 5 x 9
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+into_dx10 Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 1
+    caps2: DdsCaps2(VOLUME)
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+into_dx10 Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+into_dx10 Header:
+    w/h: 120 x 120
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0x3ff00000 g:0xffc00 b:0x3ff a:0xc0000000
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R10G10B10A2_UNORM (24)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(LUMINANCE)
+        rgb_bit_count: 8
+        bit_mask: r:0xff g:0x0 b:0x0 a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(LUMINANCE)
+        rgb_bit_count: 16
+        bit_mask: r:0xffff g:0x0 b:0x0 a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_UNORM (56)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | LUMINANCE)
+        rgb_bit_count: 16
+        bit_mask: r:0xff g:0x0 b:0x0 a:0xff00
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8_UNORM (49)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xff g:0xff00 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB | LUMINANCE)
+        rgb_bit_count: 8
+        bit_mask: r:0xff g:0x0 b:0x0 a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(LUMINANCE)
+        rgb_bit_count: 8
+        bit_mask: r:0xff g:0x0 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(BUMP_DUDV)
+        rgb_bit_count: 16
+        bit_mask: r:0xff g:0xff00 b:0x0 a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8_SNORM (51)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(BUMP_DUDV)
+        rgb_bit_count: 32
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_SNORM (31)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(BUMP_DUDV)
+        rgb_bit_count: 32
+        bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
+
+into_dx10 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_SNORM (37)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32B32A32_FLOAT (2)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x74)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32B32A32_FLOAT (2)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32B32_FLOAT (6)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_FLOAT (10)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x71)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_FLOAT (10)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_UNORM (11)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x24)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_UNORM (11)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_SNORM (13)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x6e)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16B16A16_SNORM (13)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32_FLOAT (16)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x73)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32_FLOAT (16)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x73)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32G32_FLOAT (16)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R10G10B10A2_UNORM (24)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0x3ff00000 g:0xffc00 b:0x3ff a:0xc0000000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R10G10B10A2_UNORM (24)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R11G11B10_FLOAT (26)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_UNORM (28)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_UNORM (28)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_UNORM_SRGB (29)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_UNORM (28)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_SNORM (31)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(BUMP_DUDV)
+        rgb_bit_count: 32
+        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8B8A8_SNORM (31)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_FLOAT (34)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x70)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_FLOAT (34)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x70)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_FLOAT (34)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_UNORM (35)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16G16_SNORM (37)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(BUMP_DUDV)
+        rgb_bit_count: 32
+        bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32_FLOAT (41)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x72)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32_FLOAT (41)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x72)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R32_FLOAT (41)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8_UNORM (49)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xff g:0xff00 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8_SNORM (51)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(BUMP_DUDV)
+        rgb_bit_count: 16
+        bit_mask: r:0xff g:0xff00 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_FLOAT (54)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x6f)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_FLOAT (54)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(0x6f)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_FLOAT (54)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_UNORM (56)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(LUMINANCE)
+        rgb_bit_count: 16
+        bit_mask: r:0xffff g:0x0 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R16_SNORM (58)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(LUMINANCE)
+        rgb_bit_count: 8
+        bit_mask: r:0xff g:0x0 b:0x0 a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(LUMINANCE)
+        rgb_bit_count: 8
+        bit_mask: r:0xff g:0x0 b:0x0 a:0x0
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8_SNORM (63)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: A8_UNORM (65)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHA)
+        rgb_bit_count: 8
+        bit_mask: r:0x0 g:0x0 b:0x0 a:0xff
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: A8_UNORM (65)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHA)
+        rgb_bit_count: 8
+        bit_mask: r:0x0 g:0x0 b:0x0 a:0xff
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: A8_UNORM (65)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: R1_UNORM (66)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R9G9B9E5_SHAREDEXP (67)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R8G8_B8G8_UNORM (68)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(RGBG)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: G8R8_G8B8_UNORM (69)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(GRGB)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+
+into_dx9 Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 32 x 32
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 256 x 256
+    mipmap_count: 9
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+
+into_dx9 Header:
+    w/h: 256 x 256
+    mipmap_count: 9
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 256 x 256
+    mipmap_count: 9
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT3)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM_SRGB (75)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT3)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC2_UNORM (74)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT5)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM_SRGB (78)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(DXT5)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC3_UNORM (77)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC4_UNORM (80)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC4U)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC4_UNORM (80)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC4U)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC4_UNORM (80)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC4_SNORM (81)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC4S)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_UNORM (83)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC5U)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_UNORM (83)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC5U)
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_UNORM (83)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC5_SNORM (84)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: FourCC(BC5S)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B5G6R5_UNORM (85)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B5G5R5A1_UNORM (86)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B5G5R5A1_UNORM (86)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8X8_UNORM (88)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8X8_UNORM (88)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8X8_UNORM (88)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: R10G10B10_XR_BIAS_A2_UNORM (89)
+        alpha_mode: Straight
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM_SRGB (91)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8A8_UNORM (87)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8X8_UNORM_SRGB (93)
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 32
+        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B8G8R8X8_UNORM (88)
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC6H_UF16 (95)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC6H_UF16 (95)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 256 x 128
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC6H_UF16 (95)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC6H_SF16 (96)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 256 x 128
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC6H_SF16 (96)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+        alpha_mode: Straight
+
+Can't be converted
+
+
+
+Header:
+    w/h: 256 x 256
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 512 x 256
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 1024 x 16
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 1024 x 32
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 1024 x 64
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM (98)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC7_UNORM_SRGB (99)
+        alpha_mode: Straight
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: AYUV (100)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: Y410 (101)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: Y416 (102)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: Y210 (108)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: Y216 (109)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B4G4R4A4_UNORM (115)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    format: masked
+        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
+
+Changed when converted back Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: B4G4R4A4_UNORM (115)
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: A4B4G4R4_UNORM (191)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 128 x 128
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 128 x 128
+    mipmap_count: 8
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 128 x 128
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+
+
+Header:
+    w/h: 128 x 128
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: B5G6R5_UNORM (85)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+into_dx9 Header:
+    w/h: 128 x 128
+    mipmap_count: 1
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: masked
+        flags: PixelFormatFlags(RGB)
+        rgb_bit_count: 16
+        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
+
+
+
+Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 7
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 7
+    caps2: DdsCaps2(VOLUME)
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 7
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+
+
+

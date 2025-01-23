@@ -1,14 +1,14 @@
 use crate::cast;
 
-pub(crate) fn read_u32_le_array<const N: usize>(
+pub(crate) fn read_u32_le_array(
     reader: &mut impl std::io::Read,
-) -> std::io::Result<[u32; N]> {
-    let mut buffer = [0; N];
-    reader.read_exact(cast::as_bytes_mut(&mut buffer))?;
+    buffer: &mut [u32],
+) -> std::io::Result<()> {
+    reader.read_exact(cast::as_bytes_mut(buffer))?;
     for i in buffer.iter_mut() {
         *i = u32::from_le(*i);
     }
-    Ok(buffer)
+    Ok(())
 }
 
 pub(crate) fn le_to_native_endian_16(buf: &mut [u8]) {
@@ -56,23 +56,33 @@ where
     }
 }
 
-/// Computes `(a as f64 / b as f64).round() as T`.
-///
-/// Results are NOT correct if `a + b/2` overflows `T`.
-#[inline(always)]
-pub(crate) fn div_round_fast<T>(a: T, b: T) -> T
-where
-    T: Copy + From<u8> + std::ops::Add<T, Output = T> + std::ops::Div<T, Output = T> + Unsigned,
-{
-    (a + b / 2.into()) / b
-}
-
 pub(crate) trait Unsigned {}
 impl Unsigned for u8 {}
 impl Unsigned for u16 {}
 impl Unsigned for u32 {}
 impl Unsigned for u64 {}
 impl Unsigned for usize {}
+
+/// Computes `2^exponent` as a float.
+#[inline(always)]
+pub(crate) fn two_powi(exponent: i8) -> f32 {
+    // Ensure the exponent is within the range for f32
+    // Exponent range for f32: -126 to 127 (since 2^127 is the max positive finite power of 2)
+    debug_assert!(-126 <= exponent, "Exponent out of range for f32");
+
+    let bits = (((exponent as i32) + 127) as u32) << 23;
+    f32::from_bits(bits)
+}
+
+/// This is a hack to explicitly annotate the types of the closures.
+pub(crate) fn closure_types<A, B, F: Fn(A) -> B>(f: F) -> F {
+    f
+}
+
+/// This can be used to hint to the compiler that a branch is unlikely to be taken.
+#[cold]
+#[inline]
+pub(crate) fn unlikely_branch() {}
 
 #[cfg(test)]
 mod test {
@@ -86,12 +96,11 @@ mod test {
         }
     }
     #[test]
-    fn div_round_fast() {
-        for a in 0..32 {
-            for b in 1..32 {
-                let expected = (a as f64 / b as f64).round() as u8;
-                assert_eq!(super::div_round_fast(a, b), expected, "a={}, b={}", a, b);
-            }
+    fn two_powi() {
+        for i in -126..=127 {
+            let expected = 2.0f32.powi(i as i32);
+            let actual = super::two_powi(i);
+            assert_eq!(actual, expected, "i={}", i);
         }
     }
 }

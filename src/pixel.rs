@@ -1,4 +1,4 @@
-use crate::{util::div_ceil, DecodeError, DxgiFormat, Header, Size, SupportedFormat};
+use crate::{util::div_ceil, DecodeError, DecodeFormat, Dx9PixelFormat, DxgiFormat, Header, Size};
 
 /// This describes the number of bits per pixel and the layout of pixels within
 /// a surface.
@@ -17,8 +17,8 @@ use crate::{util::div_ceil, DecodeError, DxgiFormat, Header, Size, SupportedForm
 ///
 /// ## Unsupported pixel formats
 ///
-/// Note that [`PixelInfo`] can even describe pixel formats `ddsd` does not
-/// support. This is by design to allow users to get the data layout for DDS
+/// Note that [`PixelInfo`] can describe pixel formats are **not** supported for
+/// decoding. This is by design to allow users to get the data layout for DDS
 /// files this library doesn't fully support.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PixelInfo {
@@ -76,21 +76,24 @@ impl PixelInfo {
     }
 
     pub fn from_header(header: &Header) -> Result<Self, DecodeError> {
-        if let Some(dx10) = &header.dxt10 {
-            dx10.dxgi_format
+        match header {
+            Header::Dx9(dx9) => match &dx9.pixel_format {
+                Dx9PixelFormat::FourCC(four_cc) => DecodeFormat::from_four_cc(*four_cc)
+                    .map(Into::into)
+                    .ok_or(DecodeError::UnsupportedFourCC(*four_cc)),
+                Dx9PixelFormat::Mask(pixel_format) => {
+                    let bit_count = pixel_format.rgb_bit_count;
+                    if bit_count > 0 && bit_count <= 32 && bit_count % 8 == 0 {
+                        Ok(PixelInfo::fixed((bit_count / 8) as u8))
+                    } else {
+                        Err(DecodeError::UnsupportedPixelFormat)
+                    }
+                }
+            },
+            Header::Dx10(dx10) => dx10
+                .dxgi_format
                 .try_into()
-                .map_err(|_| DecodeError::UnsupportedDxgiFormat(dx10.dxgi_format))
-        } else if let Some(four_cc) = header.pixel_format.four_cc {
-            SupportedFormat::from_four_cc(four_cc)
-                .map(Into::into)
-                .ok_or(DecodeError::UnsupportedFourCC(four_cc))
-        } else {
-            let bit_count = header.pixel_format.rgb_bit_count;
-            if bit_count > 0 && bit_count <= 32 && bit_count % 8 == 0 {
-                Ok(PixelInfo::fixed((bit_count / 8) as u8))
-            } else {
-                Err(DecodeError::UnsupportedPixelFormat)
-            }
+                .map_err(|_| DecodeError::UnsupportedDxgiFormat(dx10.dxgi_format)),
         }
     }
 
@@ -180,9 +183,9 @@ impl std::fmt::Debug for PixelInfo {
     }
 }
 
-impl From<SupportedFormat> for PixelInfo {
-    fn from(value: SupportedFormat) -> Self {
-        use SupportedFormat as F;
+impl From<DecodeFormat> for PixelInfo {
+    fn from(value: DecodeFormat) -> Self {
+        use DecodeFormat as F;
 
         match value {
             // 1 bytes per pixel
@@ -191,6 +194,7 @@ impl From<SupportedFormat> for PixelInfo {
             F::B5G6R5_UNORM
             | F::B5G5R5A1_UNORM
             | F::B4G4R4A4_UNORM
+            | F::A4B4G4R4_UNORM
             | F::R8G8_UNORM
             | F::R8G8_SNORM
             | F::R16_UNORM
@@ -210,12 +214,15 @@ impl From<SupportedFormat> for PixelInfo {
             | F::R9G9B9E5_SHAREDEXP
             | F::R16G16_FLOAT
             | F::R32_FLOAT
-            | F::R10G10B10_XR_BIAS_A2_UNORM => Self::fixed(4),
+            | F::R10G10B10_XR_BIAS_A2_UNORM
+            | F::AYUV
+            | F::Y410 => Self::fixed(4),
             // 8 bytes per pixel
             F::R16G16B16A16_UNORM
             | F::R16G16B16A16_SNORM
             | F::R16G16B16A16_FLOAT
-            | F::R32G32_FLOAT => Self::fixed(8),
+            | F::R32G32_FLOAT
+            | F::Y416 => Self::fixed(8),
             // 12 bytes per pixel
             F::R32G32B32_FLOAT => Self::fixed(12),
             // 16 bytes per pixel
@@ -223,14 +230,20 @@ impl From<SupportedFormat> for PixelInfo {
 
             // sub-sampled formats
             // 4 bytes per one 2x1 block
-            F::R8G8_B8G8_UNORM | F::G8R8_G8B8_UNORM => Self::block(4, (2, 1)),
+            F::R8G8_B8G8_UNORM | F::G8R8_G8B8_UNORM | F::UYVY | F::YUY2 => Self::block(4, (2, 1)),
+            // 8 bytes per one 2x1 block
+            F::Y210 | F::Y216 => Self::block(8, (2, 1)),
+            // 1 byte per one 8x1 block
+            F::R1_UNORM => Self::block(1, (8, 1)),
 
             // block compression formats
             // 8 bytes per one 4x4 block
             F::BC1_UNORM | F::BC4_UNORM | F::BC4_SNORM => Self::block(8, (4, 4)),
             // 16 bytes per one 4x4 block
             F::BC2_UNORM
+            | F::BC2_UNORM_PREMULTIPLIED_ALPHA
             | F::BC3_UNORM
+            | F::BC3_UNORM_PREMULTIPLIED_ALPHA
             | F::BC3_UNORM_RXGB
             | F::BC5_UNORM
             | F::BC5_SNORM
@@ -269,7 +282,8 @@ impl TryFrom<DxgiFormat> for PixelInfo {
             | F::R16_SINT
             | F::B5G6R5_UNORM
             | F::B5G5R5A1_UNORM
-            | F::B4G4R4A4_UNORM => Ok(Self::fixed(2)),
+            | F::B4G4R4A4_UNORM
+            | F::A4B4G4R4_UNORM => Ok(Self::fixed(2)),
             // 4 bytes per pixel
             F::R10G10B10A2_TYPELESS
             | F::R10G10B10A2_UNORM
@@ -333,15 +347,6 @@ impl TryFrom<DxgiFormat> for PixelInfo {
             | F::R32G32B32A32_UINT
             | F::R32G32B32A32_SINT => Ok(Self::fixed(16)),
 
-            // Special:
-            // R1_UNORM is technically a fixed bits-per-pixel format, but since
-            // it's only 1 bit per pixel, it effectively behaves like a 8x1
-            // block format with 1 byte per block.
-            // Note: I couldn't find any official documentation on this format,
-            // and guessed the memory layout based on vibes.
-            // TODO: Verify this.
-            F::R1_UNORM => Ok(Self::block(1, (8, 1))),
-
             // Sub-sampled 2x1
             F::R8G8_B8G8_UNORM | F::G8R8_G8B8_UNORM => Ok(Self::block(4, (2, 1))),
             // YUV 4:2:2 formats
@@ -349,6 +354,7 @@ impl TryFrom<DxgiFormat> for PixelInfo {
             // https://learn.microsoft.com/en-us/windows/win32/medfound/10-bit-and-16-bit-yuv-video-formats#y216-and-y210
             F::YUY2 => Ok(Self::block(4, (2, 1))),
             F::Y210 | F::Y216 => Ok(Self::block(8, (2, 1))),
+            F::R1_UNORM => Ok(Self::block(1, (8, 1))),
 
             // Block compression formats
             // 8 bytes per 4x4 block
@@ -405,11 +411,8 @@ mod test {
         // using `surface_bytes` as the reference implementation. This is a
         // reasonable reference, since `surface_bytes` is foundational to this
         // library and tested implicitly in all tests reading DDS files.
-        for i in 0..256_u32 {
-            if let Some(pixel) = DxgiFormat::try_from(i)
-                .ok()
-                .and_then(|f| PixelInfo::try_from(f).ok())
-            {
+        for dxgi in DxgiFormat::all() {
+            if let Ok(pixel) = PixelInfo::try_from(dxgi) {
                 let size = 2 * 3 * 4 * 5 * 6;
                 let size = Size::new(size, size);
                 let bits_per_pixel_from_size =
@@ -428,14 +431,26 @@ mod test {
     #[test]
     fn from_dxgi() {
         // if it's a valid DXGI_FORMAT, it should be a valid PixelSize
-        for i in 0..256_u32 {
-            if let Ok(format) = DxgiFormat::try_from(i) {
-                if matches!(format, DxgiFormat::UNKNOWN | DxgiFormat::V208) {
-                    continue;
-                }
+        for dxgi in DxgiFormat::all() {
+            if matches!(dxgi, DxgiFormat::UNKNOWN | DxgiFormat::V208) {
+                continue;
+            }
 
-                let result = PixelInfo::try_from(format);
-                assert!(result.is_ok(), "Failed for {:?}", format);
+            let result = PixelInfo::try_from(dxgi);
+            assert!(result.is_ok(), "Failed for {:?}", dxgi);
+        }
+    }
+
+    #[test]
+    fn dxgi_supported() {
+        // This test verifies that equivalent DxgiFormat and SupportFormat
+        // have the same PixelInfo.
+        for dxgi in DxgiFormat::all() {
+            if let Some(format) = DecodeFormat::from_dxgi(dxgi) {
+                let dxgi_info = PixelInfo::try_from(dxgi).unwrap();
+                let format_info = PixelInfo::from(format);
+
+                assert_eq!(dxgi_info, format_info, "Failed for {:?}", dxgi);
             }
         }
     }
