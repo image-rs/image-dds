@@ -85,17 +85,14 @@ mod blocks {
 
         let mut pixels: [[u8; 4]; 16] = Default::default();
 
-        fn to_rgba(rgb: [u8; 3]) -> [u8; 4] {
-            [rgb[0], rgb[1], rgb[2], 255]
-        }
         let (c2, c3) = if color0_u16 > color1_u16 {
             (
-                to_rgba(c0_bgr.one_third_color_rgb8(c1_bgr)),
-                to_rgba(c0_bgr.two_third_color_rgb8(c1_bgr)),
+                c0_bgr.one_third_color_rgb8(c1_bgr).to_rgba(),
+                c0_bgr.two_third_color_rgb8(c1_bgr).to_rgba(),
             )
         } else {
             (
-                to_rgba(c0_bgr.mid_color_rgb8(c1_bgr)),
+                c0_bgr.mid_color_rgb8(c1_bgr).to_rgba(),
                 [0, 0, 0, 0], // transparent
             )
         };
@@ -115,12 +112,47 @@ mod blocks {
         pixels
     }
 
+    fn bc1_no_default_u8_rgba(block_bytes: [u8; 8]) -> [[u8; 4]; 16] {
+        // https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc1
+        let color0_u16 = u16::from_le_bytes([block_bytes[0], block_bytes[1]]);
+        let color1_u16 = u16::from_le_bytes([block_bytes[2], block_bytes[3]]);
+
+        let c0_bgr = B5G6R5::from_u16(color0_u16);
+        let c1_bgr = B5G6R5::from_u16(color1_u16);
+
+        let c0 = c0_bgr.to_n8().to_rgba();
+        let c1 = c1_bgr.to_n8().to_rgba();
+        let c2 = c0_bgr.one_third_color_rgb8(c1_bgr).to_rgba();
+        let c3 = c0_bgr.two_third_color_rgb8(c1_bgr).to_rgba();
+
+        let mut pixels: [[u8; 4]; 16] = Default::default();
+
+        let lut = [c0, c1, c2, c3];
+        let indexes = u32::from_le_bytes([
+            block_bytes[4],
+            block_bytes[5],
+            block_bytes[6],
+            block_bytes[7],
+        ]);
+        for (i, pixel) in pixels.iter_mut().enumerate() {
+            let index = (indexes >> (i * 2)) & 0b11;
+            *pixel = lut[index as usize];
+        }
+
+        pixels
+    }
+
+    fn split_16(x: [u8; 16]) -> ([u8; 8], [u8; 8]) {
+        let lower = [x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]];
+        let upper = [x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]];
+        (lower, upper)
+    }
+
     /// Decodes a BC2 block into 16 RGBA pixels.
     pub(crate) fn bc2_u8_rgba(block_bytes: [u8; 16]) -> [[u8; 4]; 16] {
         // https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc2
-        let alpha_bytes: [u8; 8] = block_bytes[0..8].try_into().unwrap();
-        let bc1_bytes: [u8; 8] = block_bytes[8..16].try_into().unwrap();
-        let mut pixels = bc1_u8_rgba(bc1_bytes);
+        let (alpha_bytes, bc1_bytes) = split_16(block_bytes);
+        let mut pixels = bc1_no_default_u8_rgba(bc1_bytes);
 
         for i in 0..4 {
             let alpha_byte_high = alpha_bytes[i * 2];
@@ -144,8 +176,7 @@ mod blocks {
     /// Decodes a BC3 block into 16 RGBA pixels.
     pub(crate) fn bc3_u8_rgba(block_bytes: [u8; 16]) -> [[u8; 4]; 16] {
         // https://learn.microsoft.com/en-us/windows/win32/direct3d10/d3d10-graphics-programming-guide-resources-block-compression#bc3
-        let alpha_bytes: [u8; 8] = block_bytes[0..8].try_into().unwrap();
-        let bc1_bytes: [u8; 8] = block_bytes[8..16].try_into().unwrap();
+        let (alpha_bytes, bc1_bytes) = split_16(block_bytes);
 
         let mut pixels = bc1_u8_rgba(bc1_bytes);
         let alpha = bc4u_u8_gray(alpha_bytes);
