@@ -6,9 +6,17 @@
 ///
 /// and returns:
 /// - the closest value in the palette
-pub(crate) fn block_dither(block: &[f32; 16], mut get_closest: impl FnMut(usize, f32) -> f32) {
+pub(crate) fn block_dither<T>(block: &[T; 16], mut get_closest: impl FnMut(usize, T) -> T)
+where
+    T: Copy
+        + Default
+        + std::ops::Add<Output = T>
+        + std::ops::AddAssign
+        + std::ops::Sub<Output = T>
+        + std::ops::Mul<f32, Output = T>,
+{
     // This implements a modified version of the Floyd-Steinberg dithering
-    let mut error_map = [0_f32; 16];
+    let mut error_map: [T; 16] = Default::default();
     for y in 0..4 {
         for x in 0..4 {
             let pixel_index = y * 4 + x;

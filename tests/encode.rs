@@ -252,6 +252,8 @@ fn encode_measure_quality() {
     let clovers_r = &TestImage::from_file("clovers-r.png");
     let stone_d = &TestImage::from_file("stone-d.png");
     let stone_h = &TestImage::from_file("stone-h.png");
+    let grass = &TestImage::from_file("grass.png");
+    let leaves = &TestImage::from_file("leaves.png");
     let random = &TestImage::new("random color", create_random_color_blocks());
 
     #[derive(Clone)]
@@ -309,6 +311,8 @@ fn encode_measure_quality() {
                 clovers_d,
                 clovers_r,
                 stone_d,
+                grass,
+                leaves,
                 random,
             ],
         },

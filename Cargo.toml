@@ -28,3 +28,8 @@ sha2 = "0.10.8"
 [[bench]]
 name = "decode"
 harness = false
+
+[profile.test]
+# enable some optimizations for tests
+# image de/encoding without optimizations is extremely slow
+opt-level = 1

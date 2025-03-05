@@ -1,5 +1,7 @@
 use crate::{n5, n6};
 
+use super::bcn_util;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Bc1Options {
     pub dither: bool,
@@ -17,6 +19,17 @@ impl Default for Bc1Options {
     }
 }
 
+/// This is a completely transparent BC1 block in P3 default mode.
+///
+/// While the last 4 bytes have to be 0xFF, we can chose any u16 values for the
+/// endpoints such that c0 < c1. While choosing c0 == c1 is also valid, there
+/// are BC1 decoders that do NOT handle c0 == c1 correctly, so this must be
+/// avoided.
+///
+/// I selected c0 = 0 and c1 = 0xFFFF to hopefully make those block easier to
+/// compress for gzip and co.
+const TRANSPARENT_BLOCK: [u8; 8] = [0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+
 pub(crate) fn compress_bc1_block(mut block: [[f32; 4]; 16], options: Bc1Options) -> [u8; 8] {
     // clamp 0 to 1
     for pixel in block.iter_mut() {
@@ -29,17 +42,15 @@ pub(crate) fn compress_bc1_block(mut block: [[f32; 4]; 16], options: Bc1Options)
     let colors: [Color3; 16] = block.map(|p| p.into());
     let alpha_map = get_alpha_map(&block, options.alpha_threshold);
 
-    // TODO: Only for testing
-    return compress_p4(colors, options).0;
-
     // Don't use the default color mode in BC2 and BC3
     if options.no_default {
         return compress_p4(colors, options).0;
     }
 
     if alpha_map == AlphaMap::ALL_TRANSPARENT {
-        // TODO: optimize 100% transparent block
+        return TRANSPARENT_BLOCK;
     }
+
     if alpha_map != AlphaMap::ALL_OPAQUE {
         return compress_p3_default(colors, alpha_map, options).0;
     }
@@ -53,13 +64,8 @@ pub(crate) fn compress_bc1_block(mut block: [[f32; 4]; 16], options: Bc1Options)
         p3
     }
 }
-fn compress_p4(mut block: [Color3; 16], options: Bc1Options) -> ([u8; 8], f32) {
-    let mut min = block[0];
-    let mut max = block[0];
-    for pixel in block.iter().skip(1) {
-        min = min.min(*pixel);
-        max = max.max(*pixel);
-    }
+fn compress_p4(block: [Color3; 16], options: Bc1Options) -> ([u8; 8], f32) {
+    let (min, max) = get_initial_endpoints(&block);
 
     let endpoints = EndPoints::new_p4(min.into(), max.into());
     let palette = P4Palette::new(endpoints.c0_f, endpoints.c1_f, Uniform);
@@ -73,11 +79,50 @@ fn compress_p4(mut block: [Color3; 16], options: Bc1Options) -> ([u8; 8], f32) {
     (endpoints.with_indexes(indexes), error)
 }
 fn compress_p3_default(
-    mut block: [Color3; 16],
+    block: [Color3; 16],
     alpha_map: AlphaMap,
     options: Bc1Options,
 ) -> ([u8; 8], f32) {
-    todo!()
+    let (mut color_buffer, color_count) = get_opaque_colors(&block, alpha_map);
+    if color_count == 0 {
+        return (TRANSPARENT_BLOCK, 0.0);
+    }
+    let colors = &mut color_buffer[..color_count];
+
+    let (min, max) = get_initial_endpoints(colors);
+
+    let endpoints = EndPoints::new_p3_default(min.into(), max.into());
+    let palette = P3Palette::new(endpoints.c0_f, endpoints.c1_f, Uniform);
+
+    let (indexes, error) = if options.dither {
+        palette.block_dither(&block, alpha_map)
+    } else {
+        palette.block_closest(&block, alpha_map)
+    };
+
+    (endpoints.with_indexes(indexes), error)
+}
+
+fn get_opaque_colors(block: &[Color3; 16], alpha_map: AlphaMap) -> ([Color3; 16], usize) {
+    let mut opaque_colors = [Color3::ZERO; 16];
+    let mut count = 0;
+    for (i, &pixel) in block.iter().enumerate() {
+        if alpha_map.is_opaque(i) {
+            opaque_colors[count] = pixel;
+            count += 1;
+        }
+    }
+    (opaque_colors, count)
+}
+
+fn get_initial_endpoints(colors: &[Color3]) -> (Color3, Color3) {
+    let mut min = colors[0];
+    let mut max = colors[0];
+    for pixel in colors.iter().skip(1) {
+        min = min.min(*pixel);
+        max = max.max(*pixel);
+    }
+    (min, max)
 }
 
 fn get_alpha_map(block: &[[f32; 4]], alpha_threshold: f32) -> AlphaMap {
@@ -126,7 +171,7 @@ impl EndPoints {
             std::mem::swap(&mut c0, &mut c1);
         }
 
-        debug_assert!(c0.to_u16() > c1.to_u16());
+        debug_assert!(c0.to_u16() <= c1.to_u16());
 
         let c0_f = c0.to_color();
         let c1_f = c1.to_color();
@@ -223,6 +268,11 @@ impl Color3 {
 impl From<[f32; 4]> for Color3 {
     fn from([r, g, b, _]: [f32; 4]) -> Self {
         Self::new(r, g, b)
+    }
+}
+impl Default for Color3 {
+    fn default() -> Self {
+        Self::ZERO
     }
 }
 impl std::ops::Add<Color3> for Color3 {
@@ -340,6 +390,82 @@ impl<E: ErrorMetric> Palette for P4Palette<E> {
             min = min.min(e);
         }
         min
+    }
+}
+
+struct P3Palette<E> {
+    colors: [Color3; 3],
+    error_metric: E,
+}
+impl<E: ErrorMetric> P3Palette<E> {
+    const DEFAULT: u8 = 3;
+
+    fn new(c0: Color3, c1: Color3, error_metric: E) -> Self {
+        let colors = [c0, c1, (c0 + c1) * 0.5];
+        Self {
+            colors,
+            error_metric,
+        }
+    }
+
+    fn closest(&self, color: Color3) -> (u8, Color3, f32) {
+        let mut best_index = 0;
+        let mut min_error = self.error_metric.error_sq(color, self.colors[0]);
+        for i in 1..3 {
+            let error = self.error_metric.error_sq(color, self.colors[i]);
+            if error < min_error {
+                best_index = i as u8;
+                min_error = error;
+            }
+        }
+
+        (best_index, self.colors[best_index as usize], min_error)
+    }
+
+    /// Returns the index list of the colors in the palette that together
+    /// minimize the MSE.
+    ///
+    /// Returns:
+    /// 0: The index list
+    /// 1: The total MSE of the block
+    ///
+    /// Note that the MSE is **NOT** normalized. In other words, the result is
+    /// 16x the actual MSE.
+    fn block_closest(&self, block: &[Color3; 16], alpha_map: AlphaMap) -> (IndexList, f32) {
+        let mut total_error = 0.0;
+        let mut index_list = IndexList::new_empty();
+        for (pixel_index, pixel) in block.iter().copied().enumerate() {
+            if alpha_map.is_opaque(pixel_index) {
+                let (index_value, _, error) = self.closest(pixel);
+
+                index_list.set(pixel_index, index_value);
+                total_error += error * error;
+            } else {
+                index_list.set(pixel_index, Self::DEFAULT);
+            }
+        }
+
+        (index_list, total_error)
+    }
+
+    fn block_dither(&self, block: &[Color3; 16], alpha_map: AlphaMap) -> (IndexList, f32) {
+        let mut index_list = IndexList::new_empty();
+        let mut total_error = 0.0;
+
+        // This implements a modified version of the Floyd-Steinberg dithering
+        bcn_util::block_dither(block, |pixel_index, pixel| {
+            if alpha_map.is_opaque(pixel_index) {
+                let (index_value, closest, error) = self.closest(pixel);
+                index_list.set(pixel_index, index_value);
+                total_error += error * error;
+                closest
+            } else {
+                index_list.set(pixel_index, Self::DEFAULT);
+                block[pixel_index]
+            }
+        });
+
+        (index_list, total_error)
     }
 }
 

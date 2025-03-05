@@ -137,11 +137,21 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
 }
 pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
     color_formats: ColorFormatSet::ALL,
-    flags: Flags::DITHER_COLOR,
+    flags: Flags::DITHER_ALL,
     encode: |args| {
         block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
             let bc1_options = get_bc1_options(options);
-            let block = get_4x4_rgba(data, row_pitch);
+            let mut block = get_4x4_rgba(data, row_pitch);
+
+            if options.dither.alpha() {
+                let alpha = get_alpha(&block);
+                bcn_util::block_dither(&alpha, |i, pixel| {
+                    let alpha = if pixel >= 0.5 { 1.0 } else { 0.0 };
+                    block[i][3] = alpha;
+                    alpha
+                });
+            }
+
             *out = bc1::compress_bc1_block(block, bc1_options);
         })
     },

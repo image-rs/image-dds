@@ -101,6 +101,9 @@ fn single_color(value: f32, options: Bc4Options) -> [u8; 8] {
     // It certainly is for dithering. However, the inter4 palette might just
     // happen to contain a color closer to the input value, so we check both
     // if dithering is disabled.
+    //
+    // This approach is optimal for the non-dithering case. I verified this
+    // with the reference brute-force implementation.
 
     let endpoints6 = EndPoints::new_inter6(value, value, options.snorm);
     let palette6 = Inter6Palette::from_endpoints(&endpoints6);
