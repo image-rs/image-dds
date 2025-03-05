@@ -25,6 +25,11 @@ pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [
     }
     let diff = max - min;
 
+    // reference for testing
+    // if !options.dither && !options.snorm {
+    //     return reference_brute_force(block);
+    // }
+
     // single color
     if diff < BC4_EPSILON {
         let value = (min + max) * 0.5;
@@ -47,6 +52,39 @@ pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [
     } else {
         inter4
     }
+}
+
+/// Brute-forces the best BC4 encoding (lowest MSE/highest) for a block.
+/// Only UNORM without dithering is supported.
+///
+/// This is intended for testing purposes only. It's EXTREMELY slow. If you do
+/// use it, make sure to enable optimizations.
+#[allow(unused)]
+fn reference_brute_force(block: [f32; 16]) -> [u8; 8] {
+    let mut best = [0_u8; 8];
+    let mut best_error = f32::INFINITY;
+
+    for min in 0..255 {
+        for max in (min + 1)..=255 {
+            let endpoints6 = EndPoints::new_inter6_unorm(max, min);
+            let palette6 = Inter6Palette::from_endpoints(&endpoints6);
+            let (indexes6, error6) = palette6.block_closest(&block);
+            if error6 * error6 < best_error {
+                best = endpoints6.with_indexes(indexes6);
+                best_error = error6 * error6;
+            }
+
+            let endpoints4 = endpoints6.inter6_to_inter4();
+            let palette4 = Inter4Palette::from_endpoints(&endpoints4);
+            let (indexes4, error4) = palette4.block_closest(&block);
+            if error4 * error4 < best_error {
+                best = endpoints4.with_indexes(indexes4);
+                best_error = error4 * error4;
+            }
+        }
+    }
+
+    best
 }
 
 fn single_color(value: f32, options: Bc4Options) -> [u8; 8] {
@@ -223,6 +261,8 @@ struct EndPoints {
 impl EndPoints {
     /// Creates a new endpoint pair for a BC4 block.
     /// C0 will be the value closest to the given value and C1_f will be 0.
+    ///
+    /// The endpoints are **NOT** guaranteed to be in Inter6 mode.
     fn new_closest(value: f32, snorm: bool) -> Self {
         if snorm {
             let closest_s8_norm = (254.0 * value + 0.5) as u8;
@@ -302,10 +342,23 @@ impl EndPoints {
         }
     }
     fn new_inter4(e0: f32, e1: f32, snorm: bool) -> Self {
-        let mut inter6 = Self::new_inter6(e0, e1, snorm);
-        std::mem::swap(&mut inter6.c0, &mut inter6.c1);
-        std::mem::swap(&mut inter6.c0_f, &mut inter6.c1_f);
-        inter6
+        Self::new_inter6(e0, e1, snorm).inter6_to_inter4()
+    }
+
+    fn new_inter6_unorm(c0: u8, c1: u8) -> Self {
+        assert!(c0 > c1);
+        let c0_f = n8::f32(c0);
+        let c1_f = n8::f32(c1);
+        Self { c0, c1, c0_f, c1_f }
+    }
+
+    fn inter6_to_inter4(&self) -> Self {
+        Self {
+            c0: self.c1,
+            c1: self.c0,
+            c0_f: self.c1_f,
+            c1_f: self.c0_f,
+        }
     }
 
     fn with_indexes(&self, indexes: IndexList) -> [u8; 8] {
