@@ -1,9 +1,9 @@
 // helpers
 
-use crate::{cast, ch, convert_to_rgba_f32, util, ColorFormatSet};
+use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet};
 
 use super::{
-    bc4,
+    bc1, bc4, bcn_util,
     write::{BaseEncoder, Flags},
     Args, DecodedArgs, EncodeError, EncodeOptions,
 };
@@ -80,6 +80,15 @@ fn block_universal<
     Ok(())
 }
 
+fn get_4x4_rgba(data: &[[f32; 4]], row_pitch: usize) -> [[f32; 4]; 16] {
+    let mut block: [[f32; 4]; 16] = [[0.0; 4]; 16];
+    for i in 0..4 {
+        for j in 0..4 {
+            block[i * 4 + j] = data[i * row_pitch + j];
+        }
+    }
+    block
+}
 fn get_4x4_grayscale(data: &[[f32; 4]], row_pitch: usize) -> [f32; 16] {
     let mut block = [0.0; 16];
     for i in 0..4 {
@@ -89,7 +98,6 @@ fn get_4x4_grayscale(data: &[[f32; 4]], row_pitch: usize) -> [f32; 16] {
     }
     block
 }
-
 fn get_4x4_select_channel<const CHANNEL: usize>(data: &[[f32; 4]], row_pitch: usize) -> [f32; 16] {
     let mut block = [0.0; 16];
     for i in 0..4 {
@@ -100,11 +108,154 @@ fn get_4x4_select_channel<const CHANNEL: usize>(data: &[[f32; 4]], row_pitch: us
     block
 }
 
+fn get_alpha(data: &[[f32; 4]; 16]) -> [f32; 16] {
+    data.map(|x| x[3])
+}
+fn pre_multiply_alpha(data: &mut [[f32; 4]]) {
+    for pixel in data.iter_mut() {
+        let [r, g, b, a] = pixel.map(|x| x.clamp(0.0, 1.0));
+        pixel[0] = r * a;
+        pixel[1] = g * a;
+        pixel[2] = b * a;
+        pixel[3] = a;
+    }
+}
+
+fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
+    let mut out = [0; 16];
+    out[0..8].copy_from_slice(&left);
+    out[8..].copy_from_slice(&right);
+    out
+}
+
 // encoders
+
+fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
+    let mut o = bc1::Bc1Options::default();
+    o.dither = options.dither.color();
+    o
+}
+pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
+    color_formats: ColorFormatSet::ALL,
+    flags: Flags::DITHER_COLOR,
+    encode: |args| {
+        block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
+            let bc1_options = get_bc1_options(options);
+            let block = get_4x4_rgba(data, row_pitch);
+            *out = bc1::compress_bc1_block(block, bc1_options);
+        })
+    },
+}];
+
+fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
+    let mut indexes: u64 = 0;
+    let mut set_value = |i: usize, value: u8| {
+        debug_assert!(value < 16);
+        indexes |= (value as u64) << (i * 4);
+    };
+
+    if options.dither.alpha() {
+        bcn_util::block_dither(&alpha, |i, pixel| {
+            let value = n4::from_f32(pixel);
+            set_value(i, value);
+            n4::f32(value)
+        });
+    } else {
+        for (i, pixel) in alpha.into_iter().enumerate() {
+            let value = n4::from_f32(pixel);
+            set_value(i, value);
+        }
+    }
+
+    indexes.to_le_bytes()
+}
+
+pub const BC2_UNORM: &[BaseEncoder] = &[BaseEncoder {
+    color_formats: ColorFormatSet::ALL,
+    flags: Flags::DITHER_ALL,
+    encode: |args| {
+        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+            let (bc1_options, _) = get_bc3_options(options);
+
+            let block = get_4x4_rgba(data, row_pitch);
+
+            let alpha_block = bc2_alpha(get_alpha(&block), options);
+            let bc1_block = bc1::compress_bc1_block(block, bc1_options);
+
+            *out = concat_blocks(alpha_block, bc1_block);
+        })
+    },
+}];
+pub const BC2_UNORM_PREMULTIPLIED_ALPHA: &[BaseEncoder] = &[BaseEncoder {
+    color_formats: ColorFormatSet::ALL,
+    flags: Flags::DITHER_ALL,
+    encode: |args| {
+        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+            let (bc1_options, _) = get_bc3_options(options);
+
+            let mut block = get_4x4_rgba(data, row_pitch);
+            pre_multiply_alpha(&mut block);
+
+            let alpha_block = bc2_alpha(get_alpha(&block), options);
+            let bc1_block = bc1::compress_bc1_block(block, bc1_options);
+
+            *out = concat_blocks(alpha_block, bc1_block);
+        })
+    },
+}];
+
+fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options) {
+    let mut bc1_options = get_bc1_options(options);
+    bc1_options.no_default = true;
+
+    let mut bc4_options = get_bc4_options(options);
+    bc4_options.snorm = false;
+
+    (bc1_options, bc4_options)
+}
+pub const BC3_UNORM: &[BaseEncoder] = &[BaseEncoder {
+    color_formats: ColorFormatSet::ALL,
+    flags: Flags::DITHER_ALL,
+    encode: |args| {
+        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+            let (bc1_options, bc4_options) = get_bc3_options(options);
+
+            let block = get_4x4_rgba(data, row_pitch);
+
+            let bc4_block = bc4::compress_bc4_block(get_alpha(&block), bc4_options);
+            let bc1_block = bc1::compress_bc1_block(block, bc1_options);
+
+            *out = concat_blocks(bc4_block, bc1_block);
+        })
+    },
+}];
+pub const BC3_UNORM_PREMULTIPLIED_ALPHA: &[BaseEncoder] = &[BaseEncoder {
+    color_formats: ColorFormatSet::ALL,
+    flags: Flags::DITHER_ALL,
+    encode: |args| {
+        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+            let (bc1_options, bc4_options) = get_bc3_options(options);
+
+            let mut block = get_4x4_rgba(data, row_pitch);
+            pre_multiply_alpha(&mut block);
+
+            let bc4_block = bc4::compress_bc4_block(get_alpha(&block), bc4_options);
+            let bc1_block = bc1::compress_bc1_block(block, bc1_options);
+
+            *out = concat_blocks(bc4_block, bc1_block);
+        })
+    },
+}];
 
 fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 8] {
     let block = get_4x4_grayscale(data, row_pitch);
     bc4::compress_bc4_block(block, options)
+}
+fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
+    bc4::Bc4Options {
+        dither: options.dither.color(),
+        snorm: false,
+    }
 }
 
 pub const BC4_UNORM: &[BaseEncoder] = &[BaseEncoder {
@@ -112,10 +263,8 @@ pub const BC4_UNORM: &[BaseEncoder] = &[BaseEncoder {
     flags: Flags::DITHER_COLOR,
     encode: |args| {
         block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
-            let options = bc4::Bc4Options {
-                dither: options.dither.color(),
-                snorm: false,
-            };
+            let mut options = get_bc4_options(options);
+            options.snorm = false;
             *out = handle_bc4(data, row_pitch, options);
         })
     },
@@ -126,10 +275,8 @@ pub const BC4_SNORM: &[BaseEncoder] = &[BaseEncoder {
     flags: Flags::DITHER_COLOR,
     encode: |args| {
         block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
-            let options = bc4::Bc4Options {
-                dither: options.dither.color(),
-                snorm: true,
-            };
+            let mut options = get_bc4_options(options);
+            options.snorm = true;
             *out = handle_bc4(data, row_pitch, options);
         })
     },
@@ -142,10 +289,7 @@ fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> 
     let red = bc4::compress_bc4_block(red_block, options);
     let green = bc4::compress_bc4_block(green_block, options);
 
-    let mut out = [0; 16];
-    out[0..8].copy_from_slice(&red);
-    out[8..].copy_from_slice(&green);
-    out
+    concat_blocks(red, green)
 }
 
 pub const BC5_UNORM: &[BaseEncoder] = &[BaseEncoder {
@@ -153,10 +297,8 @@ pub const BC5_UNORM: &[BaseEncoder] = &[BaseEncoder {
     flags: Flags::DITHER_COLOR,
     encode: |args| {
         block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
-            let options = bc4::Bc4Options {
-                dither: options.dither.color(),
-                snorm: false,
-            };
+            let mut options = get_bc4_options(options);
+            options.snorm = false;
             *out = handle_bc5(data, row_pitch, options);
         })
     },
@@ -167,10 +309,8 @@ pub const BC5_SNORM: &[BaseEncoder] = &[BaseEncoder {
     flags: Flags::DITHER_COLOR,
     encode: |args| {
         block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
-            let options = bc4::Bc4Options {
-                dither: options.dither.color(),
-                snorm: true,
-            };
+            let mut options = get_bc4_options(options);
+            options.snorm = true;
             *out = handle_bc5(data, row_pitch, options);
         })
     },

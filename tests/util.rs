@@ -923,9 +923,35 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
                 x[2] as f64
             });
 
-            vec![r, g, b]
+            vec![l, r, g, b]
         }
-        Channels::Rgba => todo!(),
+        Channels::Rgba => {
+            let org: &[[f32; 4]] = cast_slice(&org.data);
+            let compressed: &[[f32; 4]] = cast_slice(&compressed.data);
+
+            let l = calculate_metrics(
+                org,
+                compressed,
+                width,
+                height,
+                MetricChannel::L,
+                |[r, g, b, a]| ((r * 0.25 + g * 0.6 + b * 0.15) * a) as f64,
+            );
+            let r = calculate_metrics(org, compressed, width, height, MetricChannel::R, |x| {
+                x[0] as f64
+            });
+            let g = calculate_metrics(org, compressed, width, height, MetricChannel::G, |x| {
+                x[1] as f64
+            });
+            let b = calculate_metrics(org, compressed, width, height, MetricChannel::B, |x| {
+                x[2] as f64
+            });
+            let a = calculate_metrics(org, compressed, width, height, MetricChannel::A, |x| {
+                x[3] as f64
+            });
+
+            vec![l, r, g, b, a]
+        }
     }
 }
 

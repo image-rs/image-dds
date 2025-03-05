@@ -1,5 +1,7 @@
 use crate::{n8, s8};
 
+use super::bcn_util;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Bc4Options {
     pub dither: bool,
@@ -475,56 +477,13 @@ trait Palette {
         let mut index_list = IndexList::new_empty();
         let mut total_error = 0.0;
 
-        // This implements a modified version of the Floyd-Steinberg dithering
-        let mut error_map = [0_f32; 16];
-        for y in 0..4 {
-            for x in 0..4 {
-                let pixel_index = y * 4 + x;
-                let pixel = block[pixel_index] + error_map[pixel_index];
-                let (index_value, _, error) = self.closest(pixel);
-                index_list.set(pixel_index, index_value);
-                total_error += error * error;
+        bcn_util::block_dither(block, |pixel_index, pixel| {
+            let (index_value, closest, error) = self.closest(pixel);
+            index_list.set(pixel_index, index_value);
+            total_error += error * error;
 
-                // diffuse the error
-                let mut weight_right = 7. / 16.;
-                let mut weight_next_left = 3. / 16.;
-                let mut weight_next_middle = 5. / 16.;
-                let mut weight_next_right = 1. / 16.;
-                // adjust the weights, so we lose as little of the error as possible
-                if x == 0 {
-                    weight_next_left = 0.0;
-                    weight_next_middle = 6. / 16.;
-                    weight_next_right = 2. / 16.;
-                }
-                if x == 3 {
-                    // we lose 25% of the error, per pixel in the last column
-                    weight_right = 0.0;
-                    weight_next_left = 5. / 16.;
-                    weight_next_middle = 7. / 16.;
-                    weight_next_right = 0.0;
-                }
-                if y == 3 {
-                    // we lose 50% of the error, per pixel in the last row
-                    weight_right = 8. / 16.;
-                    weight_next_left = 0.0;
-                    weight_next_middle = 0.0;
-                    weight_next_right = 0.0;
-                }
-
-                if x < 3 {
-                    error_map[pixel_index + 1] += error * weight_right;
-                }
-                if y < 3 {
-                    if x > 0 {
-                        error_map[pixel_index + 4 - 1] += error * weight_next_left;
-                    }
-                    error_map[pixel_index + 4] += error * weight_next_middle;
-                    if x < 3 {
-                        error_map[pixel_index + 4 + 1] += error * weight_next_right;
-                    }
-                }
-            }
-        }
+            closest
+        });
 
         (index_list, total_error)
     }

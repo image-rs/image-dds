@@ -246,7 +246,11 @@ fn encode_dither() {
 fn encode_measure_quality() {
     let base = &TestImage::from_file("base.png");
     let color_twirl = &TestImage::from_file("color-twirl.png");
+    let bricks_d = &TestImage::from_file("bricks-d.png");
+    let bricks_n = &TestImage::from_file("bricks-n.png");
+    let clovers_d = &TestImage::from_file("clovers-d.png");
     let clovers_r = &TestImage::from_file("clovers-r.png");
+    let stone_d = &TestImage::from_file("stone-d.png");
     let stone_h = &TestImage::from_file("stone-h.png");
     let random = &TestImage::new("random color", create_random_color_blocks());
 
@@ -285,19 +289,43 @@ fn encode_measure_quality() {
         options
     }
 
-    let cases = [TestCase {
-        format: EncodeFormat::BC4_UNORM,
-        options: vec![
-            ("default", EncodeOptions::default()),
-            (
-                "dither",
-                new_options(|options| {
-                    options.dither = DitheredChannels::All;
-                }),
-            ),
-        ],
-        images: &[base, color_twirl, clovers_r, stone_h, random],
-    }];
+    let cases = [
+        TestCase {
+            format: EncodeFormat::BC1_UNORM,
+            options: vec![
+                ("default", EncodeOptions::default()),
+                (
+                    "dither",
+                    new_options(|options| {
+                        options.dither = DitheredChannels::All;
+                    }),
+                ),
+            ],
+            images: &[
+                base,
+                color_twirl,
+                bricks_d,
+                bricks_n,
+                clovers_d,
+                clovers_r,
+                stone_d,
+                random,
+            ],
+        },
+        TestCase {
+            format: EncodeFormat::BC4_UNORM,
+            options: vec![
+                ("default", EncodeOptions::default()),
+                (
+                    "dither",
+                    new_options(|options| {
+                        options.dither = DitheredChannels::All;
+                    }),
+                ),
+            ],
+            images: &[base, color_twirl, clovers_r, stone_h, random],
+        },
+    ];
 
     let collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
         let mut output = String::new();
@@ -320,6 +348,8 @@ fn encode_measure_quality() {
             PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR blur", "↓Region error"]);
 
         for image in case.images {
+            let hash_alpha = matches!(image.image.channels, Channels::Rgba | Channels::Alpha);
+
             table.add_empty_row();
 
             let name = &image.name;
@@ -328,20 +358,29 @@ fn encode_measure_quality() {
             for (opt_name, options) in &options {
                 let encoded = encode_decode(case.format, options, &image);
                 let metrics = util::measure_compression_quality(&image, &encoded);
+                let mut opt_mentioned = false;
                 for m in metrics {
+                    if m.channel == util::MetricChannel::A && !hash_alpha {
+                        continue;
+                    }
                     table.add_row(&[
                         if name_mentioned {
                             String::new()
                         } else {
                             name.to_string()
                         },
-                        opt_name.to_string(),
+                        if opt_mentioned {
+                            String::new()
+                        } else {
+                            opt_name.to_string()
+                        },
                         format!("{:?}", m.channel),
                         format!("{:.4}", m.psnr),
                         format!("{:.4}", m.psnr_blur),
                         format!("{:.5}", m.region_error * 255.),
                     ]);
                     name_mentioned = true;
+                    opt_mentioned = true;
                 }
             }
         }
@@ -359,11 +398,11 @@ fn encode_measure_quality() {
             Err(e) => format!("Error: {}", e),
         };
 
-        for line in info.lines() {
+        for line in info.lines().map(|l| l.trim_end()) {
             if line.is_empty() {
                 output.push('\n');
             } else {
-                output.push_str(&format!("    {}\n", line.trim_ascii_end()));
+                output.push_str(&format!("    {}\n", line));
             }
         }
 
@@ -372,7 +411,8 @@ fn encode_measure_quality() {
         output.push('\n');
     }
 
-    util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.txt"), &output).unwrap();
+    util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.txt"), &output)
+        .unwrap();
 }
 
 struct PrettyTable {
