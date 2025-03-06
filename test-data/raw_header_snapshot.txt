@@ -660,28 +660,6 @@ Raw Header:
 
 
 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
-
-Raw Header:
-    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
-    w/h: 256 x 256 (x 1)
-    pitch: 512
-    mipmap_count: 1
-    pixel_format:
-        flags: PixelFormatFlags(RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -770,28 +748,6 @@ Raw Header:
 
 
 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(RGB)
-        rgb_bit_count: 24
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-
-Raw Header:
-    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
-    w/h: 256 x 256 (x 1)
-    pitch: 768
-    mipmap_count: 1
-    pixel_format:
-        flags: PixelFormatFlags(RGB)
-        rgb_bit_count: 24
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -858,28 +814,6 @@ Raw Header:
 
 
 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
-
-Raw Header:
-    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
-    w/h: 256 x 256 (x 1)
-    pitch: 512
-    mipmap_count: 1
-    pixel_format:
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -902,28 +836,6 @@ Raw Header:
 
 
 Header:
-    w/h: 200 x 286
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
-
-Raw Header:
-    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
-    w/h: 200 x 286 (x 1)
-    pitch: 400
-    mipmap_count: 1
-    pixel_format:
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -941,28 +853,6 @@ Raw Header:
         rgb_bit_count: 32
         bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
     caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-    caps2: DdsCaps2(0x0)
-
-
-
-Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
-
-Raw Header:
-    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
-    w/h: 256 x 256 (x 1)
-    pitch: 1024
-    mipmap_count: 1
-    pixel_format:
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
-    caps: DdsCaps(TEXTURE)
     caps2: DdsCaps2(0x0)
 
 
@@ -1031,28 +921,6 @@ Raw Header:
         bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
     caps: DdsCaps(TEXTURE)
     caps2: DdsCaps2(VOLUME)
-
-
-
-Header:
-    w/h: 120 x 120
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-
-Raw Header:
-    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PITCH | PIXEL_FORMAT | MIPMAP_COUNT)
-    w/h: 120 x 120 (x 1)
-    pitch: 480
-    mipmap_count: 1
-    pixel_format:
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
 
 
 

@@ -534,22 +534,6 @@ into_dx10 Header:
 
 
 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
-
-into_dx10 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    DX10: Texture2D
-        dxgi_format: B5G6R5_UNORM (85)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -588,18 +572,6 @@ Can't be converted
 Header:
     w/h: 129 x 66
     mipmap_count: 8
-    format: masked
-        flags: PixelFormatFlags(RGB)
-        rgb_bit_count: 24
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-
-Can't be converted
-
-
-
-Header:
-    w/h: 256 x 256
-    mipmap_count: 1
     format: masked
         flags: PixelFormatFlags(RGB)
         rgb_bit_count: 24
@@ -658,22 +630,6 @@ into_dx10 Header:
 
 
 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
-
-into_dx10 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    DX10: Texture2D
-        dxgi_format: B4G4R4A4_UNORM (115)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -690,22 +646,6 @@ into_dx10 Header:
 
 
 Header:
-    w/h: 200 x 286
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 16
-        bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
-
-into_dx10 Header:
-    w/h: 200 x 286
-    mipmap_count: 1
-    DX10: Texture2D
-        dxgi_format: B5G5R5A1_UNORM (86)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
@@ -716,22 +656,6 @@ Header:
 into_dx10 Header:
     w/h: 129 x 66
     mipmap_count: 8
-    DX10: Texture2D
-        dxgi_format: R8G8B8A8_UNORM (28)
-
-
-
-Header:
-    w/h: 256 x 256
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
-
-into_dx10 Header:
-    w/h: 256 x 256
-    mipmap_count: 1
     DX10: Texture2D
         dxgi_format: R8G8B8A8_UNORM (28)
 
@@ -782,22 +706,6 @@ into_dx10 Header:
     w/h/d: 64 x 64 x 64
     mipmap_count: 1
     DX10: Texture3D
-        dxgi_format: B8G8R8A8_UNORM (87)
-
-
-
-Header:
-    w/h: 120 x 120
-    mipmap_count: 1
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-
-into_dx10 Header:
-    w/h: 120 x 120
-    mipmap_count: 1
-    DX10: Texture2D
         dxgi_format: B8G8R8A8_UNORM (87)
 
 
