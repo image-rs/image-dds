@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use ddsd::*;
 use rand::Rng;
 use util::{test_data_dir, Image, WithPrecision};
@@ -147,47 +149,54 @@ fn encode_base() {
     let base_u16 = base_u8.to_u16();
     let base_f32 = base_u8.to_f32();
 
-    let test = |format: EncodeFormat| -> Result<(), Box<dyn std::error::Error>> {
-        let mut output = write_dds_header(base_u8.size, format);
-
-        let options = EncodeOptions::default();
-
-        // and now the image data
-        if format.precision() == Precision::U16 {
-            encode_image(&base_u16, format, &mut output, &options)?;
-        } else if format.precision() == Precision::F32 {
-            encode_image(&base_f32, format, &mut output, &options)?;
-        } else {
-            encode_image(&base_u8, format, &mut output, &options)?;
-        }
-
-        // write to disk
+    fn get_output_path(format: EncodeFormat) -> PathBuf {
         let name = format!("{:?}.dds", format);
-        let path = test_data_dir().join("output-encode/base").join(&name);
-        std::fs::create_dir_all(path.parent().unwrap())?;
-        std::fs::write(&path, &output)?;
+        test_data_dir().join("output-encode/base").join(&name)
+    }
+    let test =
+        |format: EncodeFormat, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
+            let mut output = write_dds_header(base_u8.size, format);
 
-        Ok(())
-    };
+            let options = EncodeOptions::default();
 
-    let mut failed_count = 0;
+            // and now the image data
+            if format.precision() == Precision::U16 {
+                encode_image(&base_u16, format, &mut output, &options)?;
+            } else if format.precision() == Precision::F32 {
+                encode_image(&base_f32, format, &mut output, &options)?;
+            } else {
+                encode_image(&base_u8, format, &mut output, &options)?;
+            }
+
+            // write to disk
+            std::fs::create_dir_all(dds_path.parent().unwrap())?;
+            std::fs::write(dds_path, &output)?;
+
+            let hex = util::hash_hex(&output);
+            Ok(hex)
+        };
+
+    let mut summaries = util::OutputSummaries::new("_hashes");
+
     for format in FORMATS.iter().copied() {
-        if let Err(e) = test(format) {
-            eprintln!("Failed to encode {:?}: {}", format, e);
-            failed_count += 1;
-        }
+        let dds_path = get_output_path(format);
+        summaries.add_output_file_result(&dds_path, test(format, &dds_path));
     }
-    if failed_count > 0 {
-        panic!("{} tests failed", failed_count);
-    }
+
+    summaries.snapshot_or_fail();
 }
 
 #[test]
 fn encode_dither() {
-    let test = |format: EncodeFormat,
-                image: &Image<f32>,
-                name: &str|
-     -> Result<(), Box<dyn std::error::Error>> {
+    fn get_output_dds(format: EncodeFormat, name: &str) -> PathBuf {
+        let name = format!("{:?} {}.dds", format, name);
+        test_data_dir().join("output-encode/dither").join(&name)
+    }
+    fn test(
+        format: EncodeFormat,
+        image: &Image<f32>,
+        dds_path: &Path,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = write_dds_header(image.size, format);
 
         let mut options = EncodeOptions::default();
@@ -195,13 +204,12 @@ fn encode_dither() {
         encode_image(image, format, &mut output, &options)?;
 
         // write to disk
-        let name = format!("{:?} {}.dds", format, name);
-        let path = test_data_dir().join("output-encode/dither").join(&name);
-        std::fs::create_dir_all(path.parent().unwrap())?;
-        std::fs::write(&path, &output)?;
+        std::fs::create_dir_all(dds_path.parent().unwrap())?;
+        std::fs::write(dds_path, &output)?;
 
-        Ok(())
-    };
+        let hex = util::hash_hex(&output);
+        Ok(hex)
+    }
 
     let base = util::read_png_u8(&util::test_data_dir().join("base.png"))
         .unwrap()
@@ -216,30 +224,27 @@ fn encode_dither() {
         EncodeFormat::BC5_SNORM,
     ];
 
-    let mut failed_count = 0;
+    let mut summaries = util::OutputSummaries::new("_hashes");
+
     for format in FORMATS
         .iter()
         .copied()
         .filter(|f| f.supports_dither() != DitheredChannels::None)
         .filter(|f| !ignore.contains(f))
     {
-        let dither = format.supports_dither();
+        let mut test_and_summarize = |image, name| {
+            let output_path = get_output_dds(format, name);
+            summaries.add_output_file_result(&output_path, test(format, image, &output_path));
+        };
 
-        if let Err(e) = test(format, &base, "base") {
-            eprintln!("Failed to encode {:?}: {}", format, e);
-            failed_count += 1;
-        }
+        test_and_summarize(&base, "base");
 
-        if dither != DitheredChannels::AlphaOnly {
-            if let Err(e) = test(format, &twirl, "twirl") {
-                eprintln!("Failed to encode {:?}: {}", format, e);
-                failed_count += 1;
-            }
+        if format.supports_dither() != DitheredChannels::AlphaOnly {
+            test_and_summarize(&twirl, "twirl");
         }
     }
-    if failed_count > 0 {
-        panic!("{} tests failed", failed_count);
-    }
+
+    summaries.snapshot_or_fail()
 }
 
 #[test]

@@ -983,6 +983,26 @@ impl OutputSummaries {
 
         self.by_folder.entry(folder).or_default().push_str(&lines);
     }
+    pub fn add_output_file_error<E: std::error::Error + ?Sized>(
+        &mut self,
+        file_path: &Path,
+        error: &E,
+    ) {
+        eprintln!("Failed for: {:?}", file_path);
+        eprintln!("Error: {}", error);
+
+        self.add_output_file(file_path, &format!("Error: {}", error));
+    }
+    pub fn add_output_file_result(
+        &mut self,
+        file_path: &Path,
+        result: Result<String, Box<dyn std::error::Error>>,
+    ) {
+        match result {
+            Ok(info) => self.add_output_file(file_path, &info),
+            Err(e) => self.add_output_file_error(file_path, &*e),
+        }
+    }
 
     pub fn snapshot(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut result = Ok(());
@@ -994,5 +1014,11 @@ impl OutputSummaries {
             }
         }
         result
+    }
+    #[track_caller]
+    pub fn snapshot_or_fail(&self) {
+        if let Err(e) = self.snapshot() {
+            panic!("Some tests failed: {}", e);
+        }
     }
 }

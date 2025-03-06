@@ -52,9 +52,7 @@ fn decode_all_dds_files() {
         summaries.add_output_file(&png_path, &file_output);
     }
 
-    if let Err(e) = summaries.snapshot() {
-        panic!("Some tests failed: {}", e);
-    }
+    summaries.snapshot_or_fail()
 }
 
 #[test]
@@ -94,13 +92,11 @@ fn decode_bc6_fuzz_hdr() {
         match test(&dds_path, &output_dds_path) {
             Ok(None) => {} // ignore
             Ok(Some(hex)) => summaries.add_output_file(&output_dds_path, &hex),
-            Err(e) => summaries.add_output_file(&output_dds_path, &format!("Error: {}", e)),
+            Err(e) => summaries.add_output_file_error(&output_dds_path, &*e),
         }
     }
 
-    if let Err(e) = summaries.snapshot() {
-        panic!("Some tests failed: {}", e);
-    }
+    summaries.snapshot_or_fail()
 }
 
 #[test]
