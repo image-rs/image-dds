@@ -20,6 +20,7 @@ zerocopy = "0.8.14"
 [dev-dependencies]
 criterion = "0.5"
 glob = "0.3.1"
+miniz_oxide = "0.8.5"
 png = "0.17"
 rand = "0.8.5"
 rand_chacha = "0.3.1"

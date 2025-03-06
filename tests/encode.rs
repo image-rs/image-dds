@@ -92,7 +92,11 @@ fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
 ) -> Result<(), EncodeError> {
     format.encode(writer, image.size, image.color(), image.as_bytes(), options)
 }
-fn encode_decode(format: EncodeFormat, options: &EncodeOptions, image: &Image<f32>) -> Image<f32> {
+fn encode_decode(
+    format: EncodeFormat,
+    options: &EncodeOptions,
+    image: &Image<f32>,
+) -> (Vec<u8>, Image<f32>) {
     // encode
     let mut encoded = Vec::new();
     encode_image(image, format, &mut encoded, options).unwrap();
@@ -110,11 +114,13 @@ fn encode_decode(format: EncodeFormat, options: &EncodeOptions, image: &Image<f3
         )
         .unwrap();
 
-    Image {
+    let image = Image {
         size: image.size,
         channels: image.channels,
         data: output,
-    }
+    };
+
+    (encoded, image)
 }
 fn create_random_color_blocks() -> Image<f32> {
     let mut rng = util::create_rng();
@@ -140,6 +146,10 @@ fn create_random_color_blocks() -> Image<f32> {
         channels: Channels::Rgb,
         data,
     }
+}
+fn compression_ratio(data: &[u8]) -> f64 {
+    let compressed = miniz_oxide::deflate::compress_to_vec(data, 6);
+    compressed.len() as f64 / data.len() as f64
 }
 
 #[test]
@@ -365,8 +375,10 @@ fn encode_measure_quality() {
             let image = image.image.to_channels(case.format.channels());
             let mut name_mentioned = false;
             for (opt_name, options) in &options {
-                let encoded = encode_decode(case.format, options, &image);
-                let metrics = util::measure_compression_quality(&image, &encoded);
+                let (encoded_bytes, encoded_image) = encode_decode(case.format, options, &image);
+                let compression = compression_ratio(&encoded_bytes);
+
+                let metrics = util::measure_compression_quality(&image, &encoded_image);
                 let mut opt_mentioned = false;
                 for m in metrics {
                     if m.channel == util::MetricChannel::A && !hash_alpha {
@@ -391,6 +403,15 @@ fn encode_measure_quality() {
                     name_mentioned = true;
                     opt_mentioned = true;
                 }
+
+                table.add_row(&[
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    String::new(),
+                    "compressed".to_string(),
+                    format!("{:.2}%", compression * 100.),
+                ]);
             }
         }
 
