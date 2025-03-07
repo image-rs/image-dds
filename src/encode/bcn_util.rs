@@ -6,7 +6,7 @@
 ///
 /// and returns:
 /// - the closest value in the palette
-pub(crate) fn block_dither<T>(block: &[T; 16], mut get_closest: impl FnMut(usize, T) -> T)
+pub(crate) fn block_dither<T>(block: impl Block4x4<T>, mut get_closest: impl FnMut(usize, T) -> T)
 where
     T: Copy
         + Default
@@ -20,7 +20,7 @@ where
     for y in 0..4 {
         for x in 0..4 {
             let pixel_index = y * 4 + x;
-            let pixel = block[pixel_index] + error_map[pixel_index];
+            let pixel = block.get_pixel_at(pixel_index) + error_map[pixel_index];
             let closest = get_closest(pixel_index, pixel);
             let error = pixel - closest;
 
@@ -63,5 +63,24 @@ where
                 }
             }
         }
+    }
+}
+
+pub(crate) trait Block4x4<T> {
+    /// Returns the pixel at the given index.
+    ///
+    /// The index must be in the range `0..16`.
+    fn get_pixel_at(&self, index: usize) -> T;
+}
+impl<T: Copy> Block4x4<T> for &[T; 16] {
+    #[inline(always)]
+    fn get_pixel_at(&self, index: usize) -> T {
+        self[index]
+    }
+}
+impl<T: Copy> Block4x4<T> for T {
+    #[inline(always)]
+    fn get_pixel_at(&self, _index: usize) -> T {
+        *self
     }
 }

@@ -1,6 +1,6 @@
 use crate::{n8, s8};
 
-use super::bcn_util;
+use super::bcn_util::{self, Block4x4};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bc4Options {
@@ -109,7 +109,7 @@ fn single_color(value: f32, options: Bc4Options) -> [u8; 8] {
     let palette6 = Inter6Palette::from_endpoints(&endpoints6);
 
     if options.dither {
-        let (indexes, _) = palette6.block_dither(&[value; 16]);
+        let (indexes, _) = palette6.block_dither(value);
         endpoints6.with_indexes(indexes)
     } else {
         // pick the best palette
@@ -476,7 +476,7 @@ trait Palette {
             .sum()
     }
 
-    fn block_dither(&self, block: &[f32; 16]) -> (IndexList, f32) {
+    fn block_dither(&self, block: impl Block4x4<f32>) -> (IndexList, f32) {
         let mut index_list = IndexList::new_empty();
         let mut total_error = 0.0;
 
