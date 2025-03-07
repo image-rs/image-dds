@@ -85,7 +85,7 @@ fn compress_p4(
         R5G6B5Color::from_color_round(min),
         R5G6B5Color::from_color_round(max),
     );
-    let palette = P4Palette::new(endpoints.c0_f, endpoints.c1_f, error_metric);
+    let palette = P4Palette::from(&endpoints, error_metric);
 
     let (indexes, error) = if options.dither {
         palette.block_dither(&block)
@@ -119,7 +119,7 @@ fn compress_p3_default(
         R5G6B5Color::from_color_round(min),
         R5G6B5Color::from_color_round(max),
     );
-    let palette = P3Palette::new(endpoints.c0_f, endpoints.c1_f, error_metric);
+    let palette = P3Palette::from(&endpoints, error_metric);
 
     let (indexes, error) = if options.dither {
         palette.block_dither(&block, alpha_map)
@@ -219,10 +219,14 @@ fn find_optimal_single_color_endpoints(color: Color3, weight: f32) -> (R5G6B5Col
 
         let w0 = weight / max as f32;
         let w1 = (1.0 - weight) / max as f32;
+        let error_weight = 0.03 / max as f32;
         let get_error = |c0: u8, c1: u8| {
-            // TODO: Account for 3% error allowed by the specification
-            let interpolation = c0 as f32 * w0 + c1 as f32 * w1;
-            (interpolation - color).abs()
+            // The spec affords BC1 a +-3% * |c0 - c1| error margin
+            let error = (c1 as f32 - c0 as f32) * error_weight;
+            let reference = c0 as f32 * w0 + c1 as f32 * w1;
+            let i0 = reference - error;
+            let i1 = reference + error;
+            f32::max((i0 - color).abs(), (i1 - color).abs())
         };
 
         let mut best_c0: u8 = 0;
