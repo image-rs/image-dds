@@ -1,6 +1,6 @@
 #![allow(clippy::needless_range_loop)]
 
-use glam::Vec3A;
+use glam::{Vec3A, Vec4};
 
 use crate::{n5, n6};
 
@@ -292,13 +292,19 @@ fn get_opaque_colors<'a>(
 fn get_initial_endpoints(colors: &[Vec3A]) -> (Vec3A, Vec3A) {
     debug_assert!(colors.len() <= 16);
 
-    let mut min = colors[0];
-    let mut max = colors[0];
-    for pixel in colors.iter().skip(1) {
-        min = min.min(*pixel);
-        max = max.max(*pixel);
+    // find the best line through the colors
+    let line = ColorLine::new(colors);
+
+    // sort all colors along the line
+    let mut sorted_colors = [Vec4::ZERO; 16];
+    for (i, &color) in colors.iter().enumerate() {
+        let t = line.project(color);
+        sorted_colors[i] = Vec4::new(color.x, color.y, color.z, t);
     }
-    (min, max)
+    let sorted_colors = &mut sorted_colors[..colors.len()];
+    sorted_colors.sort_unstable_by(|a, b| a.w.partial_cmp(&b.w).unwrap());
+
+    (sorted_colors[0].into(), sorted_colors[sorted_colors.len() - 1].into())
 }
 
 fn get_alpha_map(block: &[[f32; 4]], alpha_threshold: f32) -> AlphaMap {
@@ -309,6 +315,75 @@ fn get_alpha_map(block: &[[f32; 4]], alpha_threshold: f32) -> AlphaMap {
         }
     }
     alpha_map
+}
+
+fn mean(colors: &[Vec3A]) -> Vec3A {
+    let mut mean = Vec3A::ZERO;
+    for color in colors {
+        mean += *color;
+    }
+    mean * (1. / colors.len() as f32)
+}
+fn covariance_matrix(colors: &[Vec3A], centroid: Vec3A) -> [Vec3A; 3] {
+    let mut cov = [Vec3A::ZERO; 3];
+
+    for p in colors {
+        let d = *p - centroid;
+        cov[0] += d * d.x;
+        cov[1] += d * d.y;
+        cov[2] += d * d.z;
+    }
+
+    let n = colors.len() as f32;
+    let n_r = 1.0 / n;
+    for i in 0..3 {
+        cov[i] *= n_r;
+    }
+
+    cov
+}
+fn largest_eigenvector(matrix: [Vec3A; 3]) -> Vec3A {
+    // A simple power iteration method to approximate the dominant eigenvector
+    let mut v = Vec3A::ONE;
+    for _ in 0..10 {
+        let r = matrix[0].dot(v);
+        let g = matrix[1].dot(v);
+        let b = matrix[2].dot(v);
+        v = Vec3A::new(r, g, b).normalize_or_zero();
+    }
+    v
+}
+
+struct ColorLine {
+    /// The centroid of the colors
+    centroid: Vec3A,
+    /// The normalized direction of the line
+    d: Vec3A,
+}
+impl ColorLine {
+    fn new(colors: &[Vec3A]) -> Self {
+        debug_assert!(!colors.is_empty());
+
+        let centroid = mean(colors);
+        let covariance = covariance_matrix(colors, centroid);
+        let eigenvector = largest_eigenvector(covariance);
+
+        Self {
+            centroid,
+            d: eigenvector,
+        }
+    }
+
+    fn at(&self, t: f32) -> Vec3A {
+        self.centroid + self.d * t
+    }
+
+    /// Projects the color onto the line and returns the distance from the
+    /// centroid.
+    fn project(&self, color: Vec3A) -> f32 {
+        let diff = color - self.centroid;
+        diff.dot(self.d)
+    }
 }
 
 struct CandidateList<E> {
