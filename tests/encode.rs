@@ -463,6 +463,66 @@ fn encode_measure_quality() {
         .unwrap();
 }
 
+#[test]
+fn block_dither() {
+    fn append_quantized(image: &mut Image<u8>) {
+        assert!(image.channels == Channels::Grayscale);
+
+        // use BC1 alpha for binary block dithering
+        let mut options = EncodeOptions::default();
+        options.dither = DitheredChannels::AlphaOnly;
+        let mut temp_image = image.to_f32();
+        temp_image.channels = Channels::Alpha;
+        let (_, encoded) = encode_decode(
+            EncodeFormat::BC1_UNORM,
+            &options,
+            &temp_image.to_channels(Channels::Rgba),
+        );
+
+        image.size.height *= 2;
+        for pixel in encoded.data.chunks_exact(4) {
+            let alpha = pixel[3];
+            image.data.push((alpha * 255.) as u8);
+        }
+    }
+
+    let size = Size::new(17 * 8, 8);
+    let mut image = Image {
+        size,
+        channels: Channels::Grayscale,
+        data: (0..size.pixels() as usize)
+            .map(|i| {
+                let x = i % size.width as usize;
+                // let y = i / size.width as usize;
+                let x_quantized = x / 8;
+                (x_quantized * 255 / 16) as u8
+            })
+            .collect(),
+    };
+    append_quantized(&mut image);
+
+    let mut image_smooth = Image {
+        size,
+        channels: Channels::Grayscale,
+        data: (0..size.pixels() as usize)
+            .map(|i| {
+                let x = i % size.width as usize;
+                (x * 255 / (size.width as usize - 1)) as u8
+            })
+            .collect(),
+    };
+    append_quantized(&mut image_smooth);
+
+    image.size.height *= 2;
+    image.data.extend_from_slice(&image_smooth.data);
+
+    util::compare_snapshot_png_u8(
+        &util::test_data_dir().join("output-encode/dither.png"),
+        &image,
+    )
+    .unwrap();
+}
+
 struct PrettyTable {
     cells: Vec<String>,
     width: usize,
