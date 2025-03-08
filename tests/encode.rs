@@ -98,7 +98,8 @@ fn encode_decode(
     image: &Image<f32>,
 ) -> (Vec<u8>, Image<f32>) {
     // encode
-    let mut encoded = Vec::new();
+    let mut encoded = write_dds_header(image.size, format);
+    let data_section_offset = encoded.len();
     encode_image(image, format, &mut encoded, options).unwrap();
 
     // decode
@@ -107,7 +108,7 @@ fn encode_decode(
     let mut output = vec![0_f32; image.size.pixels() as usize * image.channels.count() as usize];
     decode_format
         .decode_f32(
-            &mut encoded.as_slice(),
+            &mut &encoded[data_section_offset..],
             image.size,
             image.channels,
             &mut output,
@@ -346,7 +347,8 @@ fn encode_measure_quality() {
         },
     ];
 
-    let collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
+    let mut output_summaries = util::OutputSummaries::new("_hashes");
+    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
         let mut output = String::new();
 
         let mut options = case.options.clone();
@@ -375,7 +377,22 @@ fn encode_measure_quality() {
             let image = image.image.to_channels(case.format.channels());
             let mut name_mentioned = false;
             for (opt_name, options) in &options {
+                let output_file = test_data_dir()
+                    .join("output-encode/compression")
+                    .join(format!(
+                        "{:?} {} {}.dds",
+                        case.format,
+                        opt_name,
+                        name.trim_end_matches(".png")
+                    ));
                 let (encoded_bytes, encoded_image) = encode_decode(case.format, options, &image);
+
+                // write file
+                std::fs::create_dir_all(output_file.parent().unwrap())?;
+                std::fs::write(&output_file, &encoded_bytes)?;
+                let hash = util::hash_hex(&encoded_bytes);
+                output_summaries.add_output_file(&output_file, &hash);
+
                 let compression = compression_ratio(&encoded_bytes);
 
                 let metrics = util::measure_compression_quality(&image, &encoded_image);
@@ -441,6 +458,7 @@ fn encode_measure_quality() {
         output.push('\n');
     }
 
+    _ = output_summaries.snapshot();
     util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.txt"), &output)
         .unwrap();
 }
