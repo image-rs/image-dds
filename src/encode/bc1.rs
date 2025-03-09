@@ -83,10 +83,7 @@ fn compress_p4(
 
     let (min, max) = get_initial_endpoints(&block);
 
-    let endpoints = EndPoints::new_p4(
-        R5G6B5Color::from_color_round(min),
-        R5G6B5Color::from_color_round(max),
-    );
+    let endpoints = pick_best_quantization_p4(min, max, &block, error_metric);
     let palette = P4Palette::from(&endpoints, error_metric);
 
     let (indexes, error) = if options.dither {
@@ -117,10 +114,7 @@ fn compress_p3_default(
     // general case
     let (min, max) = get_initial_endpoints(colors);
 
-    let endpoints = EndPoints::new_p3_default(
-        R5G6B5Color::from_color_round(min),
-        R5G6B5Color::from_color_round(max),
-    );
+    let endpoints = pick_best_quantization_p3(min, max, &block, alpha_map, error_metric);
     let palette = P3Palette::from(&endpoints, error_metric);
 
     let (indexes, error) = if options.dither {
@@ -289,6 +283,70 @@ fn get_opaque_colors<'a>(
     &buffer[..count]
 }
 
+fn pick_best_quantization_p4(
+    c0: Vec3A,
+    c1: Vec3A,
+    block: impl Block4x4<Vec3A> + Copy,
+    error_metric: impl ErrorMetric,
+) -> EndPoints {
+    let (c0, c1) = pick_best_quantization(c0, c1, move |c0, c1| {
+        let endpoints = EndPoints::new_p4(c0, c1);
+        let palette = P4Palette::from(&endpoints, error_metric);
+        palette.block_closest_error(block)
+    });
+    EndPoints::new_p4(c0, c1)
+}
+fn pick_best_quantization_p3(
+    c0: Vec3A,
+    c1: Vec3A,
+    block: impl Block4x4<Vec3A> + Copy,
+    alpha_map: AlphaMap,
+    error_metric: impl ErrorMetric,
+) -> EndPoints {
+    let (c0, c1) = pick_best_quantization(c0, c1, move |c0, c1| {
+        let endpoints = EndPoints::new_p3_default(c0, c1);
+        let palette = P3Palette::from(&endpoints, error_metric);
+        palette.block_closest(block, alpha_map).1
+    });
+    EndPoints::new_p3_default(c0, c1)
+}
+fn pick_best_quantization(
+    c0: Vec3A,
+    c1: Vec3A,
+    mut f: impl FnMut(R5G6B5Color, R5G6B5Color) -> f32,
+) -> (R5G6B5Color, R5G6B5Color) {
+    let c0_min = R5G6B5Color::from_color_floor(c0);
+    let c0_max = R5G6B5Color::from_color_ceil(c0);
+    let c1_min = R5G6B5Color::from_color_floor(c1);
+    let c1_max = R5G6B5Color::from_color_ceil(c1);
+
+    let mut best: (R5G6B5Color, R5G6B5Color) = (c0_min, c1_min);
+    let mut best_error = f(c0_min, c1_min);
+
+    // TODO: This is a brute force search. We can do better.
+    for r0 in c0_min.r..=c0_max.r {
+        for g0 in c0_min.g..=c0_max.g {
+            for b0 in c0_min.b..=c0_max.b {
+                for r1 in c1_min.r..=c1_max.r {
+                    for g1 in c1_min.g..=c1_max.g {
+                        for b1 in c1_min.b..=c1_max.b {
+                            let c0 = R5G6B5Color::new(r0, g0, b0);
+                            let c1 = R5G6B5Color::new(r1, g1, b1);
+                            let error = f(c0, c1);
+                            if error < best_error {
+                                best = (c0, c1);
+                                best_error = error;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    best
+}
+
 fn get_initial_endpoints(colors: &[Vec3A]) -> (Vec3A, Vec3A) {
     debug_assert!(colors.len() <= 16);
 
@@ -304,7 +362,10 @@ fn get_initial_endpoints(colors: &[Vec3A]) -> (Vec3A, Vec3A) {
     let sorted_colors = &mut sorted_colors[..colors.len()];
     sorted_colors.sort_unstable_by(|a, b| a.w.partial_cmp(&b.w).unwrap());
 
-    (sorted_colors[0].into(), sorted_colors[sorted_colors.len() - 1].into())
+    // select initial points along the line
+    let min_t = sorted_colors[0].w;
+    let max_t = sorted_colors[sorted_colors.len() - 1].w;
+    (line.at(min_t), line.at(max_t))
 }
 
 fn get_alpha_map(block: &[[f32; 4]], alpha_threshold: f32) -> AlphaMap {

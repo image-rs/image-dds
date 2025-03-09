@@ -130,44 +130,20 @@ fn single_color(value: f32, options: Bc4Options) -> [u8; 8] {
 fn refine_endpoints(
     mut min: f32,
     mut max: f32,
-    mut compute_error: impl FnMut((f32, f32)) -> f32,
+    mut compute_error: impl Copy + FnMut((f32, f32)) -> f32,
     mut quantize: impl FnMut((f32, f32)) -> (f32, f32),
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
-    const STEP_DECAY: f32 = 0.5;
-    const MIN_STEP: f32 = 1. / 255. / 2.;
-    const INITIAL_PORTION: f32 = 0.15;
-    const _ITERATIONS: u32 = {
-        let mut count: u32 = 0;
-        let mut step = INITIAL_PORTION;
-        while step > MIN_STEP {
-            count += 1;
-            step *= STEP_DECAY;
-        }
-        count
-    };
-
-    let mut step = INITIAL_PORTION * (max - min);
-    let mut error = compute_error((min, max));
-    while step > MIN_STEP {
-        for (delta_min, delta_max) in [(step, 0.0), (0.0, step), (-step, 0.0), (0.0, -step)] {
-            let new_min = (min + delta_min).clamp(0.0, 1.0);
-            let new_max = (max + delta_max).clamp(0.0, 1.0);
-            if new_min < new_max {
-                let new_error = compute_error((new_min, new_max));
-                if new_error < error {
-                    error = new_error;
-                    min = new_min;
-                    max = new_max;
-                }
-            }
-        }
-        step *= STEP_DECAY;
-    }
+    (min, max) = bcn_util::refine_endpoints(
+        min,
+        max,
+        bcn_util::RefinementOptions::new_bc4(min, max),
+        compute_error,
+    );
 
     // Step 2: Quantize the endpoints and select the best
     const QUANT_STEP: f32 = 1. / 254. + 0.0001;
-    error = compute_error(quantize((min, max)));
+    let mut error = compute_error(quantize((min, max)));
     for pair in [
         (min + QUANT_STEP, max),
         (min, max - QUANT_STEP),
@@ -187,7 +163,7 @@ fn refine_endpoints(
 fn refinement_error_metric<P: Palette>(
     block: &[f32; 16],
     _options: Bc4Options,
-) -> impl Fn((f32, f32)) -> f32 + '_ {
+) -> impl Copy + Fn((f32, f32)) -> f32 + '_ {
     move |(min, max)| {
         let palette = P::new(min, max);
         // TODO: find a better error metric for dithered blocks

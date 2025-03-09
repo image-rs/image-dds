@@ -84,3 +84,49 @@ impl<T: Copy> Block4x4<T> for T {
         *self
     }
 }
+
+#[derive(Debug, Clone)]
+pub(crate) struct RefinementOptions {
+    /// The initial step size,
+    pub step_initial: f32,
+    /// The step size will be multiplied by this value after each iteration.
+    pub step_decay: f32,
+    /// The minimum step size. The process is over when the step size is
+    /// smaller than this value.
+    pub step_min: f32,
+}
+impl RefinementOptions {
+    pub const fn new_bc4(min: f32, max: f32) -> Self {
+        Self {
+            step_initial: 0.15 * (max - min),
+            step_decay: 0.5,
+            step_min: 1. / 255. / 2.,
+        }
+    }
+}
+pub(crate) fn refine_endpoints(
+    mut min: f32,
+    mut max: f32,
+    options: RefinementOptions,
+    mut compute_error: impl FnMut((f32, f32)) -> f32,
+) -> (f32, f32) {
+    let mut step = options.step_initial;
+    let mut error = compute_error((min, max));
+    while step > options.step_min {
+        for (delta_min, delta_max) in [(step, 0.0), (0.0, step), (-step, 0.0), (0.0, -step)] {
+            let new_min = (min + delta_min).clamp(0.0, 1.0);
+            let new_max = (max + delta_max).clamp(0.0, 1.0);
+            if new_min < new_max {
+                let new_error = compute_error((new_min, new_max));
+                if new_error < error {
+                    error = new_error;
+                    min = new_min;
+                    max = new_max;
+                }
+            }
+        }
+        step *= options.step_decay;
+    }
+
+    (min, max)
+}
