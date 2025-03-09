@@ -15,7 +15,9 @@ mod util;
 use std::io::Read;
 
 pub use color::*;
-pub use encode::{DitheredChannels, EncodeError, EncodeFormat, EncodeOptions};
+pub use encode::{
+    CompressionQuality, Dithering, EncodeError, EncodeFormat, EncodeOptions, ErrorMetric,
+};
 pub use error::*;
 pub use format::*;
 pub use header::*;

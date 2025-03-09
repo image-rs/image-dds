@@ -220,11 +220,9 @@ impl EncodeFormat {
         }
     }
 
-    pub fn supports_dither(self) -> DitheredChannels {
+    pub fn supports_dither(self) -> Dithering {
         self.get_encoder()
-            .map_or(DitheredChannels::None, |encoder| {
-                encoder.supports_dithering()
-            })
+            .map_or(Dithering::None, |encoder| encoder.supports_dithering())
     }
 
     const fn get_encoder(self) -> Option<&'static dyn Encoder> {
@@ -444,7 +442,7 @@ trait Encoder {
     /// [`Encoder::encode`].
     fn supported_color_formats(&self) -> ColorFormatSet;
 
-    fn supports_dithering(&self) -> DitheredChannels;
+    fn supports_dithering(&self) -> Dithering;
 
     /// Encodes the given image.
     fn encode(
@@ -457,52 +455,124 @@ trait Encoder {
     ) -> Result<(), EncodeError>;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct EncodeOptions {
-    pub dither: DitheredChannels,
+    /// Whether to enable dithering for specific channels.
+    ///
+    /// The dithering algorithm depends on the format. Uncompressed formats use
+    /// Floyd-Steinberg dithering, while block-compressed formats use a modified
+    /// version of the algorithm to dithering within a block.
+    ///
+    /// Notes:
+    /// 1. Dithering is not supported for high-precision uncompressed formats
+    ///    (>= 16 bits per pixel). This option will be ignored for those formats.
+    /// 2. YUV formats are not supported.
+    ///
+    /// Default: [`Dithering::None`]
+    pub dithering: Dithering,
+    /// The error metric for block compression formats.
+    ///
+    /// Default: [`ErrorMetric::Uniform`]
+    pub error_metric: ErrorMetric,
+    /// The compression quality.
+    ///
+    /// This option is naturally ignored for uncompressed formats.
+    ///
+    /// Default: [`CompressionQuality::Normal`]
+    pub quality: CompressionQuality,
 }
 impl Default for EncodeOptions {
     fn default() -> Self {
         Self {
-            dither: DitheredChannels::None,
+            dithering: Dithering::None,
+            error_metric: ErrorMetric::Uniform,
+            quality: CompressionQuality::Normal,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DitheredChannels {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Dithering {
     /// Dithering is disabled for all channels.
-    None,
+    #[default]
+    None = 0b00,
     /// Dithering is enabled for all channels (RGBA).
-    All,
+    ColorAndAlpha = 0b11,
     /// Dithering is enabled only for color channels (RGB).
-    ColorOnly,
+    Color = 0b01,
     /// Dithering is enabled only for the alpha channel.
-    AlphaOnly,
+    Alpha = 0b10,
 }
-impl DitheredChannels {
+impl Dithering {
+    pub const fn new(color: bool, alpha: bool) -> Self {
+        match (color, alpha) {
+            (true, true) => Dithering::ColorAndAlpha,
+            (true, false) => Dithering::Color,
+            (false, true) => Dithering::Alpha,
+            (false, false) => Dithering::None,
+        }
+    }
+
+    pub const fn color(self) -> bool {
+        matches!(self, Dithering::ColorAndAlpha | Dithering::Color)
+    }
+    pub const fn alpha(self) -> bool {
+        matches!(self, Dithering::ColorAndAlpha | Dithering::Alpha)
+    }
+
     pub(crate) fn intersect(self, other: Self) -> Self {
         match (self, other) {
-            (DitheredChannels::None, _) | (_, DitheredChannels::None) => DitheredChannels::None,
-            (DitheredChannels::All, other) | (other, DitheredChannels::All) => other,
-            (DitheredChannels::ColorOnly, DitheredChannels::AlphaOnly)
-            | (DitheredChannels::AlphaOnly, DitheredChannels::ColorOnly) => DitheredChannels::None,
-            (DitheredChannels::ColorOnly, DitheredChannels::ColorOnly) => {
-                DitheredChannels::ColorOnly
+            (Dithering::None, _) | (_, Dithering::None) => Dithering::None,
+            (Dithering::ColorAndAlpha, other) | (other, Dithering::ColorAndAlpha) => other,
+            (Dithering::Color, Dithering::Alpha) | (Dithering::Alpha, Dithering::Color) => {
+                Dithering::None
             }
-            (DitheredChannels::AlphaOnly, DitheredChannels::AlphaOnly) => {
-                DitheredChannels::AlphaOnly
-            }
+            (Dithering::Color, Dithering::Color) => Dithering::Color,
+            (Dithering::Alpha, Dithering::Alpha) => Dithering::Alpha,
         }
     }
+}
 
-    pub(crate) fn color(self) -> bool {
-        matches!(self, DitheredChannels::All | DitheredChannels::ColorOnly)
-    }
-    pub(crate) fn alpha(self) -> bool {
-        matches!(self, DitheredChannels::All | DitheredChannels::AlphaOnly)
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum ErrorMetric {
+    #[default]
+    Uniform,
+    Perceptual,
+}
+
+/// The level of trade-off between compression quality and speed.
+///
+/// - `Fast`: Fast compression speed.
+/// - `Normal`: Balanced compression speed and quality.
+/// - `High`: Production-level quality.
+/// - `Unreasonable`: Reference-level quality. The encoder will try to
+///   brute-force the best possible encoding for the image. This may take 100x
+///   longer than `High` while only producing marginally better results. This
+///   mode should only be used to create reference images.
+///
+/// Note that `Fast`, `Normal`, and `High` are not guaranteed to produce the
+/// same results across different versions of this crate. They try to produce
+/// the best possible quality within a certain time frame. As such, the results
+/// will improve over time as the encoder is optimized.
+///
+/// Currently, the rough time budget for each quality level meant for encoding
+/// 1024x1024 RGBA 8-bit image data on a single thread is:
+///
+/// - `Fast`: 100ms
+/// - `Normal`: 500ms
+/// - `High`: 5s
+///
+/// Since encoding is trivially parallelizable, and scales linearly with the
+/// number of threads for large image, you can expect wall-clock time to be
+/// roughly 5-10x faster for normal consumer hardware.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum CompressionQuality {
+    Fast,
+    #[default]
+    Normal,
+    High,
+    Unreasonable,
 }
 
 pub(crate) struct Args<'a, 'b>(&'a [u8], u32, ColorFormat, &'b mut dyn Write, EncodeOptions);

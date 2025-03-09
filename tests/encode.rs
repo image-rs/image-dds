@@ -211,7 +211,7 @@ fn encode_dither() {
         let mut output = write_dds_header(image.size, format);
 
         let mut options = EncodeOptions::default();
-        options.dither = DitheredChannels::All;
+        options.dithering = Dithering::ColorAndAlpha;
         encode_image(image, format, &mut output, &options)?;
 
         // write to disk
@@ -240,7 +240,7 @@ fn encode_dither() {
     for format in FORMATS
         .iter()
         .copied()
-        .filter(|f| f.supports_dither() != DitheredChannels::None)
+        .filter(|f| f.supports_dither() != Dithering::None)
         .filter(|f| !ignore.contains(f))
     {
         let mut test_and_summarize = |image, name| {
@@ -250,7 +250,7 @@ fn encode_dither() {
 
         test_and_summarize(&base, "base");
 
-        if format.supports_dither() != DitheredChannels::AlphaOnly {
+        if format.supports_dither() != Dithering::Alpha {
             test_and_summarize(&twirl, "twirl");
         }
     }
@@ -315,7 +315,7 @@ fn encode_measure_quality() {
                 (
                     "dither",
                     new_options(|options| {
-                        options.dither = DitheredChannels::All;
+                        options.dithering = Dithering::ColorAndAlpha;
                     }),
                 ),
             ],
@@ -339,7 +339,7 @@ fn encode_measure_quality() {
                 (
                     "dither",
                     new_options(|options| {
-                        options.dither = DitheredChannels::All;
+                        options.dithering = Dithering::ColorAndAlpha;
                     }),
                 ),
             ],
@@ -470,7 +470,7 @@ fn block_dither() {
 
         // use BC1 alpha for binary block dithering
         let mut options = EncodeOptions::default();
-        options.dither = DitheredChannels::AlphaOnly;
+        options.dithering = Dithering::Alpha;
         let mut temp_image = image.to_f32();
         temp_image.channels = Channels::Alpha;
         let (_, encoded) = encode_decode(

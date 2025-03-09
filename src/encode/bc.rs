@@ -132,7 +132,7 @@ fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
 
 fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
     let mut o = bc1::Bc1Options::default();
-    o.dither = options.dither.color();
+    o.dither = options.dithering.color();
     o
 }
 pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
@@ -143,7 +143,7 @@ pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
             let bc1_options = get_bc1_options(options);
             let mut block = get_4x4_rgba(data, row_pitch);
 
-            if options.dither.alpha() {
+            if options.dithering.alpha() {
                 let alpha = get_alpha(&block);
                 bcn_util::block_dither(&alpha, |i, pixel| {
                     let alpha = if pixel >= 0.5 { 1.0 } else { 0.0 };
@@ -164,7 +164,7 @@ fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
         indexes |= (value as u64) << (i * 4);
     };
 
-    if options.dither.alpha() {
+    if options.dithering.alpha() {
         bcn_util::block_dither(&alpha, |i, pixel| {
             let value = n4::from_f32(pixel);
             set_value(i, value);
@@ -263,7 +263,7 @@ fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> 
 }
 fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
     bc4::Bc4Options {
-        dither: options.dither.color(),
+        dither: options.dithering.color(),
         snorm: false,
     }
 }

@@ -6,7 +6,7 @@ use crate::{
 
 use super::{
     write::{convert_to_le, BaseEncoder, Flags},
-    Args, DecodedArgs, DitheredChannels, EncodeError,
+    Args, DecodedArgs, Dithering, EncodeError,
 };
 
 // helpers
@@ -85,11 +85,11 @@ where
     let mut error_buffer = vec![[0_f32; 4]; 2 * (width + error_padding * 2)];
     let (mut current_error, mut next_error) = error_buffer.split_at_mut(width + error_padding * 2);
 
-    let error_mask = match options.dither {
-        DitheredChannels::None => [0.0; 4],
-        DitheredChannels::All => [1.0; 4],
-        DitheredChannels::ColorOnly => [1.0, 1.0, 1.0, 0.0],
-        DitheredChannels::AlphaOnly => [0.0, 0.0, 0.0, 1.0],
+    let error_mask = match options.dithering {
+        Dithering::None => [0.0; 4],
+        Dithering::ColorAndAlpha => [1.0; 4],
+        Dithering::Color => [1.0, 1.0, 1.0, 0.0],
+        Dithering::Alpha => [0.0, 0.0, 0.0, 1.0],
     };
 
     const BUFFER_PIXELS: usize = 512;

@@ -4,7 +4,7 @@ use bitflags::bitflags;
 
 use crate::{cast, util, ColorFormat, ColorFormatSet, Precision};
 
-use super::{Args, DecodedArgs, DitheredChannels, EncodeError, EncodeOptions, Encoder};
+use super::{Args, DecodedArgs, Dithering, EncodeError, EncodeOptions, Encoder};
 
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,14 +69,14 @@ impl Encoder for BaseEncoder {
         self.color_formats
     }
 
-    fn supports_dithering(&self) -> DitheredChannels {
+    fn supports_dithering(&self) -> Dithering {
         let color = self.flags.contains(Flags::DITHER_COLOR);
         let alpha = self.flags.contains(Flags::DITHER_ALPHA);
         match (color, alpha) {
-            (true, true) => DitheredChannels::All,
-            (true, false) => DitheredChannels::ColorOnly,
-            (false, true) => DitheredChannels::AlphaOnly,
-            (false, false) => DitheredChannels::None,
+            (true, true) => Dithering::ColorAndAlpha,
+            (true, false) => Dithering::Color,
+            (false, true) => Dithering::Alpha,
+            (false, false) => Dithering::None,
         }
     }
 
@@ -104,18 +104,18 @@ impl Encoder for &[BaseEncoder] {
         set
     }
 
-    fn supports_dithering(&self) -> DitheredChannels {
+    fn supports_dithering(&self) -> Dithering {
         self.iter()
             .filter_map(|e| {
                 let d = e.supports_dithering();
-                if d != DitheredChannels::None {
+                if d != Dithering::None {
                     Some(d)
                 } else {
                     None
                 }
             })
             .next()
-            .unwrap_or(DitheredChannels::None)
+            .unwrap_or(Dithering::None)
     }
 
     fn encode(
@@ -140,7 +140,7 @@ impl Encoder for &[BaseEncoder] {
         // Secondly, search for encoders that perform the requested dithering.
         for encoder in *self {
             if encoder.supported_color_formats().contains(color)
-                && encoder.supports_dithering().intersect(options.dither) != DitheredChannels::None
+                && encoder.supports_dithering().intersect(options.dithering) != Dithering::None
             {
                 return encoder.encode(data, width, color, writer, options);
             }
