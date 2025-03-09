@@ -1,7 +1,7 @@
 use crate::cast;
 
-mod formats;
 pub(crate) mod ch;
+mod formats;
 
 pub(crate) use formats::*;
 
@@ -349,6 +349,20 @@ pub(crate) fn convert_channels_untyped<Precision>(
     }
 }
 
+pub(crate) fn as_rgba_f32<'a>(
+    from: ColorFormat,
+    from_buffer: &'a [u8],
+    to_buffer: &'a mut [[f32; 4]],
+) -> &'a [[f32; 4]] {
+    if from == ColorFormat::RGBA_F32 {
+        if let Some(slice) = cast::from_bytes(from_buffer) {
+            return slice;
+        }
+    }
+
+    convert_to_rgba_f32(from, from_buffer, to_buffer);
+    to_buffer
+}
 pub(crate) fn convert_to_rgba_f32(
     from: ColorFormat,
     from_buffer: &[u8],

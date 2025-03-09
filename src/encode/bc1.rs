@@ -725,6 +725,16 @@ impl<E: ErrorMetric> P4Palette<E> {
 
         (index_list, total_error)
     }
+
+    /// Same as `block_closest(block).1` but faster.
+    fn block_closest_error(&self, block: impl Block4x4<Vec3A>) -> f32 {
+        let mut total_error = 0.0;
+        for pixel_index in 0..16 {
+            let pixel = block.get_pixel_at(pixel_index);
+            total_error += self.closest_error_sq(pixel);
+        }
+        total_error
+    }
 }
 impl<E: ErrorMetric> Palette<4> for P4Palette<E> {
     type E = E;
@@ -868,8 +878,7 @@ trait ErrorMetric: Copy {
 struct Uniform;
 impl ErrorMetric for Uniform {
     fn error_sq(&self, a: Vec3A, b: Vec3A) -> f32 {
-        let diff = a - b;
-        diff.dot(diff) * (1. / 3.)
+        a.distance_squared(b)
     }
 }
 #[derive(Debug, Clone, Copy)]

@@ -1,5 +1,5 @@
 use crate::{
-    cast, ch, convert_to_rgba_f32, encode::DecodedArgs, n1, n8, util, yuv16, yuv8, ColorFormatSet,
+    as_rgba_f32, cast, ch, encode::DecodedArgs, n1, n8, util, yuv16, yuv8, ColorFormatSet,
 };
 
 use super::{
@@ -68,9 +68,7 @@ where
             let intermediate = &mut intermediate_buffer[..pixels];
             let encoded = &mut encoded_buffer[..util::div_ceil(pixels, block_width)];
 
-            convert_to_rgba_f32(color, chunk, intermediate);
-
-            process(intermediate, encoded);
+            process(as_rgba_f32(color, chunk, intermediate), encoded);
 
             ToLe::to_le(encoded);
 

@@ -1,6 +1,6 @@
 BC1_UNORM
-    default: EncodeOptions { dither: None }
-    dither: EncodeOptions { dither: All }
+    default: EncodeOptions { dithering: None, error_metric: Uniform, quality: Normal }
+    dither: EncodeOptions { dithering: ColorAndAlpha, error_metric: Uniform, quality: Normal }
 
                                  ↑PSNR    ↑PSNR blur  ↓Region error
 
@@ -17,14 +17,14 @@ BC1_UNORM
                               A  15.6539  32.5345     1.63246
                                           compressed  74.83%
 
-    color-twirl.png  default  L  49.5174  56.7150     0.30184
+    color-twirl.png  default  L  49.5175  56.7150     0.30184
                               R  45.7183  53.5379     0.43559
                               G  45.1858  52.3737     0.49819
                               B  45.7173  53.5373     0.43558
                                           compressed  48.11%
-                     dither   L  48.9922  57.0400     0.28739
+                     dither   L  48.9923  57.0399     0.28742
                               R  44.9738  54.0354     0.34441
-                              G  44.6569  52.6815     0.47427
+                              G  44.6569  52.6814     0.47434
                               B  44.9733  54.0385     0.34375
                                           compressed  57.72%
 
@@ -39,15 +39,15 @@ BC1_UNORM
                               B  29.9658  42.4319     0.97519
                                           compressed  88.43%
 
-    bricks-n.png     default  L  30.8190  41.7130     0.78736
-                              R  27.0403  37.9326     1.23105
-                              G  27.0789  37.9919     1.13286
-                              B  29.2359  38.7975     1.20328
+    bricks-n.png     default  L  30.8197  41.7151     0.78692
+                              R  27.0401  37.9331     1.23074
+                              G  27.0788  37.9944     1.13223
+                              B  29.2363  38.7977     1.20364
                                           compressed  93.38%
-                     dither   L  30.4582  42.4111     0.49482
-                              R  26.7477  38.4590     0.84328
-                              G  26.7012  38.6246     0.72945
-                              B  29.2130  39.0312     1.05820
+                     dither   L  30.4571  42.4086     0.49490
+                              R  26.7479  38.4587     0.84352
+                              G  26.7003  38.6222     0.72977
+                              B  29.2129  39.0296     1.05788
                                           compressed  93.82%
 
     clovers-d.png    default  L  34.3104  44.1782     0.94328
@@ -61,15 +61,15 @@ BC1_UNORM
                               B  34.7692  43.0631     1.08693
                                           compressed  88.19%
 
-    clovers-r.png    default  L  31.5920  42.5058     1.10190
-                              R  31.7232  42.7824     1.15889
-                              G  31.3068  41.5442     1.40915
-                              B  31.7225  42.7770     1.15915
+    clovers-r.png    default  L  31.5919  42.5046     1.10231
+                              R  31.7230  42.7798     1.15974
+                              G  31.3067  41.5429     1.40968
+                              B  31.7227  42.7796     1.15829
                                           compressed  77.37%
-                     dither   L  30.4664  45.9951     0.58462
-                              R  30.5657  45.8537     0.66538
-                              G  30.2484  44.5209     1.00836
-                              B  30.5657  45.8534     0.66576
+                     dither   L  30.4669  45.9954     0.58440
+                              R  30.5661  45.8530     0.66538
+                              G  30.2489  44.5213     1.00824
+                              B  30.5661  45.8527     0.66576
                                           compressed  78.26%
 
     stone-d.png      default  L  34.1018  44.8348     0.84630
@@ -113,7 +113,7 @@ BC1_UNORM
                               R  49.9598  52.6762     0.67119
                               G  53.9629  56.6769     0.41763
                               B  50.0214  52.6376     0.66509
-                                          compressed  64.96%
+                                          compressed  64.95%
                      dither   L  50.9285  60.4219     0.24376
                               R  46.5041  54.4573     0.50203
                               G  51.0011  57.0179     0.38633
@@ -123,35 +123,45 @@ BC1_UNORM
 
 
 BC4_UNORM
-    default: EncodeOptions { dither: None }
-    dither: EncodeOptions { dither: All }
+    default: EncodeOptions { dithering: None, error_metric: Uniform, quality: Normal }
+    dither: EncodeOptions { dithering: ColorAndAlpha, error_metric: Uniform, quality: Normal }
 
                                  ↑PSNR    ↑PSNR blur  ↓Region error
 
-    base.png         default  L  40.9007  53.5509     0.09556
-                                          compressed  51.86%
-                     dither   L  40.2104  54.9971     0.07513
-                                          compressed  52.85%
+    base.png         default  L  40.9007  53.5514     0.09543
+                                          compressed  51.90%
+                     dither   L  40.2104  54.9874     0.07513
+                                          compressed  52.89%
 
-    color-twirl.png  default  L  57.0444  68.3564     0.05327
-                                          compressed  62.56%
-                     dither   L  55.9232  71.5286     0.02397
-                                          compressed  66.88%
+    color-twirl.png  default  L  57.0444  68.4755     0.05212
+                                          compressed  62.74%
+                     dither   L  55.9237  71.5163     0.02402
+                                          compressed  66.89%
 
-    clovers-r.png    default  L  39.6725  53.1162     0.14922
+    clovers-r.png    default  L  39.6725  53.1144     0.14895
                                           compressed  98.99%
-                     dither   L  38.9370  53.9183     0.15303
+                     dither   L  38.9370  53.9211     0.15300
                                           compressed  99.02%
 
-    stone-h.png      default  L  48.2864  61.0011     0.11904
+    stone-h.png      default  L  48.2865  61.0154     0.11822
                                           compressed  95.06%
-                     dither   L  47.4700  62.1952     0.07799
-                                          compressed  95.81%
+                     dither   L  47.4682  62.1931     0.07800
+                                          compressed  95.82%
 
     random color     default  L  77.5573  80.2664     0.02777
-                                          compressed  36.67%
-                     dither   L  73.2562  91.5346     0.00424
-                                          compressed  54.14%
+                                          compressed  36.68%
+                     dither   L  73.2563  91.5317     0.00424
+                                          compressed  54.13%
+
+
+
+BC4_UNORM
+    ref: EncodeOptions { dithering: None, error_metric: Uniform, quality: Unreasonable }
+
+                      ↑PSNR    ↑PSNR blur  ↓Region error
+
+    base.png  ref  L  41.3204  53.9576     0.08679
+                               compressed  52.20%
 
 
 

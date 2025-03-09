@@ -345,6 +345,16 @@ fn encode_measure_quality() {
             ],
             images: &[base, color_twirl, clovers_r, stone_h, random],
         },
+        TestCase {
+            format: EncodeFormat::BC4_UNORM,
+            options: vec![(
+                "ref",
+                new_options(|options| {
+                    options.quality = CompressionQuality::Unreasonable;
+                }),
+            )],
+            images: &[base],
+        },
     ];
 
     let mut output_summaries = util::OutputSummaries::new("_hashes");

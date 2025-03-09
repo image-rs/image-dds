@@ -1,6 +1,8 @@
+use glam::Vec4;
+
 use crate::{
-    cast, ch, convert_channels_untyped, convert_to_rgba_f32, encode::write::ToLe, fp10, fp11, fp16,
-    n1, n10, n16, n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels,
+    as_rgba_f32, cast, ch, convert_channels_untyped, encode::write::ToLe, fp10, fp11, fp16, n1,
+    n10, n16, n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels,
     ColorFormat, ColorFormatSet, Precision,
 };
 
@@ -10,22 +12,6 @@ use super::{
 };
 
 // helpers
-
-fn f4_add(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]]
-}
-fn f4_sub(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]]
-}
-fn f4_mul(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
-    [a[0] * b[0], a[1] * b[1], a[2] * b[2], a[3] * b[3]]
-}
-fn f4_fma(a: &mut [f32; 4], b: [f32; 4], scale: f32) {
-    a[0] += b[0] * scale;
-    a[1] += b[1] * scale;
-    a[2] += b[2] * scale;
-    a[3] += b[3] * scale;
-}
 
 fn uncompressed_universal<EncodedPixel>(
     args: Args,
@@ -54,9 +40,7 @@ where
         let intermediate = &mut intermediate_buffer[..pixels];
         let encoded = &mut encoded_buffer[..pixels];
 
-        convert_to_rgba_f32(color, line, intermediate);
-
-        process(intermediate, encoded);
+        process(as_rgba_f32(color, line, intermediate), encoded);
 
         ToLe::to_le(encoded);
 
@@ -69,7 +53,7 @@ where
 fn uncompressed_universal_dither<EncodedPixel, F>(args: Args, f: F) -> Result<(), EncodeError>
 where
     EncodedPixel: Default + Copy + ToLe + cast::Castable,
-    F: Fn([f32; 4]) -> (EncodedPixel, [f32; 4]),
+    F: Fn(Vec4) -> (EncodedPixel, Vec4),
 {
     let DecodedArgs {
         data,
@@ -82,14 +66,15 @@ where
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     let error_padding = 2;
-    let mut error_buffer = vec![[0_f32; 4]; 2 * (width + error_padding * 2)];
-    let (mut current_error, mut next_error) = error_buffer.split_at_mut(width + error_padding * 2);
+    let mut error_buffer = vec![Vec4::ZERO; 2 * (width + error_padding * 2)];
+    let (mut current_line_error, mut next_line_error) =
+        error_buffer.split_at_mut(width + error_padding * 2);
 
     let error_mask = match options.dithering {
-        Dithering::None => [0.0; 4],
-        Dithering::ColorAndAlpha => [1.0; 4],
-        Dithering::Color => [1.0, 1.0, 1.0, 0.0],
-        Dithering::Alpha => [0.0, 0.0, 0.0, 1.0],
+        Dithering::None => Vec4::ZERO,
+        Dithering::ColorAndAlpha => Vec4::ONE,
+        Dithering::Color => Vec4::new(1.0, 1.0, 1.0, 0.0),
+        Dithering::Alpha => Vec4::new(0.0, 0.0, 0.0, 1.0),
     };
 
     const BUFFER_PIXELS: usize = 512;
@@ -100,9 +85,10 @@ where
         debug_assert!(row.len() == width * bytes_per_pixel);
 
         // prepare error buffers
-        std::mem::swap(&mut current_error, &mut next_error);
-        next_error.fill([0.0; 4]);
+        std::mem::swap(&mut current_line_error, &mut next_line_error);
+        next_line_error.fill(Vec4::ZERO);
         let mut error_offset = error_padding;
+        let mut next_error_add = Vec4::ZERO;
 
         let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
         for line in row.chunks(chunk_size) {
@@ -111,18 +97,18 @@ where
 
             let intermediate = &mut intermediate_buffer[..pixels];
             let encoded = &mut encoded_buffer[..pixels];
-            convert_to_rgba_f32(color, line, intermediate);
+            let intermediate = as_rgba_f32(color, line, intermediate);
 
             for (i, out) in intermediate.iter().zip(encoded.iter_mut()) {
-                let error = current_error[error_offset];
-                let (encoded_pixel, mut error) = f(f4_add(*i, error));
-                error = f4_mul(error, error_mask);
+                let error = current_line_error[error_offset] + next_error_add;
+                let (encoded_pixel, mut error) = f(Vec4::from(*i) + error);
 
                 // diffuse error with Floyd-Steinberg weights
-                f4_fma(&mut current_error[error_offset + 1], error, 7.0 / 16.0);
-                f4_fma(&mut next_error[error_offset - 1], error, 3.0 / 16.0);
-                f4_fma(&mut next_error[error_offset], error, 5.0 / 16.0);
-                f4_fma(&mut next_error[error_offset + 1], error, 1.0 / 16.0);
+                error *= error_mask;
+                next_error_add = error * (7.0 / 16.0);
+                next_line_error[error_offset - 1] += error * (3.0 / 16.0);
+                next_line_error[error_offset] += error * (5.0 / 16.0);
+                next_line_error[error_offset + 1] += error * (1.0 / 16.0);
 
                 *out = encoded_pixel;
                 error_offset += 1;
@@ -152,7 +138,7 @@ fn uncompressed_untyped(
     let mut raw_buffer = [0_u32; 1024];
     let encoded_buffer = cast::as_bytes_mut(&mut raw_buffer);
 
-    let chuck_size = encoded_buffer.len() / bytes_per_pixel * bytes_per_pixel;
+    let chuck_size = encoded_buffer.len() / bytes_per_encoded_pixel * bytes_per_pixel;
     for line in data.chunks(chuck_size) {
         debug_assert!(line.len() % bytes_per_pixel == 0);
         let pixels = line.len() / bytes_per_pixel;
@@ -366,8 +352,8 @@ pub const B5G6R5_UNORM: &[BaseEncoder] = &[
         let g = n6::from_f32(pixel[1]) as u16;
         let b = n5::from_f32(pixel[2]) as u16;
 
-        let back = [n5::f32(r as u8), n6::f32(g as u8), n5::f32(b as u8), 1.0];
-        let error = f4_sub(pixel, back);
+        let back = Vec4::new(n5::f32(r as u8), n6::f32(g as u8), n5::f32(b as u8), 1.0);
+        let error = pixel - back;
 
         (b | (g << 5) | (r << 11), error)
     })
@@ -388,23 +374,23 @@ pub const B5G5R5A1_UNORM: &[BaseEncoder] = &[
         let b = n5::from_f32(pixel[2]) as u16;
         let a = n1::from_f32(pixel[3]) as u16;
 
-        let back = [
+        let back = Vec4::new(
             n5::f32(r as u8),
             n5::f32(g as u8),
             n5::f32(b as u8),
             n1::f32(a as u8),
-        ];
-        let error = f4_sub(pixel, back);
+        );
+        let error = pixel - back;
 
         (b | (g << 5) | (r << 10) | (a << 15), error)
     })
     .add_flags(Flags::DITHER_ALL),
 ];
 
-fn rgba4_encode_with_error(pixel: [f32; 4]) -> ([u8; 4], [f32; 4]) {
-    let encoded = pixel.map(n4::from_f32);
-    let back = encoded.map(n4::f32);
-    let error = f4_sub(pixel, back);
+fn rgba4_encode_with_error(pixel: Vec4) -> ([u8; 4], Vec4) {
+    let encoded = pixel.to_array().map(n4::from_f32);
+    let back = Vec4::from(encoded.map(n4::f32));
+    let error = pixel - back;
     (encoded, error)
 }
 
@@ -500,19 +486,19 @@ pub const R10G10B10A2_UNORM: &[BaseEncoder] = &[
         (a << 30) | (b << 20) | (g << 10) | r
     }),
     universal_dither!(u32, |pixel| {
-        let [r, g, b, a] = pixel;
+        let [r, g, b, a] = pixel.to_array();
         let r = n10::from_f32(r) as u32;
         let g = n10::from_f32(g) as u32;
         let b = n10::from_f32(b) as u32;
         let a = n2::from_f32(a) as u32;
 
-        let back = [
+        let back = Vec4::new(
             n10::f32(r as u16),
             n10::f32(g as u16),
             n10::f32(b as u16),
             n2::f32(a as u8),
-        ];
-        let error = f4_sub(pixel, back);
+        );
+        let error = pixel - back;
 
         ((a << 30) | (b << 20) | (g << 10) | r, error)
     })
@@ -531,13 +517,13 @@ pub const R11G11B10_FLOAT: &[BaseEncoder] = &[
         let g11 = fp11::from_f32(pixel[1]) as u32;
         let b10 = fp10::from_f32(pixel[2]) as u32;
 
-        let back = [
+        let back = Vec4::new(
             fp11::f32(r11 as u16),
             fp11::f32(g11 as u16),
             fp10::f32(b10 as u16),
             1.0,
-        ];
-        let error = f4_sub(pixel, back);
+        );
+        let error = pixel - back;
 
         ((b10 << 22) | (g11 << 11) | r11, error)
     })
@@ -589,19 +575,19 @@ pub const R10G10B10_XR_BIAS_A2_UNORM: &[BaseEncoder] = &[
         (a << 30) | (b << 20) | (g << 10) | r
     }),
     universal_dither!(u32, |pixel| {
-        let [r, g, b, a] = pixel;
+        let [r, g, b, a] = pixel.to_array();
         let r = xr10::from_f32(r) as u32;
         let g = xr10::from_f32(g) as u32;
         let b = xr10::from_f32(b) as u32;
         let a = n2::from_f32(a) as u32;
 
-        let back = [
+        let back = Vec4::new(
             xr10::f32(r as u16),
             xr10::f32(g as u16),
             xr10::f32(b as u16),
             n2::f32(a as u8),
-        ];
-        let error = f4_sub(pixel, back);
+        );
+        let error = pixel - back;
 
         ((a << 30) | (b << 20) | (g << 10) | r, error)
     })
@@ -620,12 +606,13 @@ pub const Y410: &[BaseEncoder] = &[
         let a = n2::from_f32(a) as u32;
         (a << 30) | ((v as u32) << 20) | ((y as u32) << 10) | (u as u32)
     }),
-    universal_dither!(u32, |[r, g, b, a_f32]| {
+    universal_dither!(u32, |pixel| {
+        let [r, g, b, a_f32] = pixel.to_array();
         let [y, u, v] = yuv10::from_rgb_f32([r, g, b]);
         let a = n2::from_f32(a_f32) as u32;
 
         let a_back = n2::f32(a as u8);
-        let error = [0.0, 0.0, 0.0, a_f32 - a_back];
+        let error = Vec4::new(0.0, 0.0, 0.0, a_f32 - a_back);
 
         (
             (a << 30) | ((v as u32) << 20) | ((y as u32) << 10) | (u as u32),

@@ -1,4 +1,6 @@
-use crate::{n8, s8};
+use glam::Vec4;
+
+use crate::{n8, s8, util};
 
 use super::bcn_util::{self, Block4x4};
 
@@ -6,6 +8,7 @@ use super::bcn_util::{self, Block4x4};
 pub struct Bc4Options {
     pub dither: bool,
     pub snorm: bool,
+    pub brute_force: bool,
 }
 
 /// The smallest non-zero value that can be represented in a BC4 block.
@@ -28,9 +31,9 @@ pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [
     let diff = max - min;
 
     // reference for testing
-    // if !options.dither && !options.snorm {
-    //     return reference_brute_force(block);
-    // }
+    if options.brute_force && !options.dither && !options.snorm {
+        return reference_brute_force(block);
+    }
 
     // single color
     if diff < BC4_EPSILON {
@@ -61,27 +64,30 @@ pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [
 ///
 /// This is intended for testing purposes only. It's EXTREMELY slow. If you do
 /// use it, make sure to enable optimizations.
-#[allow(unused)]
 fn reference_brute_force(block: [f32; 16]) -> [u8; 8] {
+    let block_min = block.iter().copied().fold(f32::INFINITY, f32::min);
+    let block_max = block.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let min_max = (block_max * 255. + 2.) as u8;
+    let max_min = (block_min * 255. - 1.) as u8;
+
     let mut best = [0_u8; 8];
     let mut best_error = f32::INFINITY;
-
-    for min in 0..255 {
-        for max in (min + 1)..=255 {
+    for min in 0..min_max {
+        for max in max_min.max(min + 1)..=255 {
             let endpoints6 = EndPoints::new_inter6_unorm(max, min);
             let palette6 = Inter6Palette::from_endpoints(&endpoints6);
-            let (indexes6, error6) = palette6.block_closest(&block);
-            if error6 * error6 < best_error {
-                best = endpoints6.with_indexes(indexes6);
-                best_error = error6 * error6;
+            let error6 = palette6.block_closest_error_sq(&block);
+            if error6 < best_error {
+                best = endpoints6.with_indexes(palette6.block_closest(&block).0);
+                best_error = error6;
             }
 
             let endpoints4 = endpoints6.inter6_to_inter4();
             let palette4 = Inter4Palette::from_endpoints(&endpoints4);
-            let (indexes4, error4) = palette4.block_closest(&block);
-            if error4 * error4 < best_error {
-                best = endpoints4.with_indexes(indexes4);
-                best_error = error4 * error4;
+            let error4 = palette4.block_closest_error_sq(&block);
+            if error4 < best_error {
+                best = endpoints4.with_indexes(palette4.block_closest(&block).0);
+                best_error = error4;
             }
         }
     }
@@ -167,7 +173,7 @@ fn refinement_error_metric<P: Palette>(
     move |(min, max)| {
         let palette = P::new(min, max);
         // TODO: find a better error metric for dithered blocks
-        palette.block_closest_mse(block)
+        palette.block_closest_error_sq(block)
     }
 }
 
@@ -444,7 +450,7 @@ trait Palette {
     /// the palette.
     ///
     /// Same as `self.block_closest(block).1`.
-    fn block_closest_mse(&self, block: &[f32; 16]) -> f32 {
+    fn block_closest_error_sq(&self, block: &[f32; 16]) -> f32 {
         block
             .iter()
             .copied()
@@ -469,29 +475,49 @@ trait Palette {
 }
 
 struct Inter6Palette {
-    c0: f32,
+    // c0: f32,
     c1: f32,
+    factor1: f32,
+    factor2: f32,
+    add1: f32,
 }
 impl Inter6Palette {
     const INDEX_MAP: [u8; 8] = [1, 7, 6, 5, 4, 3, 2, 0];
 }
 impl Palette for Inter6Palette {
     fn new(c0: f32, c1: f32) -> Self {
-        Self { c0, c1 }
+        debug_assert!(c0 != c1);
+
+        let factor1 = 7.0 / (c0 - c1);
+        let factor2 = (1.0 / 7.0) * (c0 - c1);
+        let add1 = 0.5 - c1 * factor1;
+
+        Self {
+            // c0,
+            c1,
+            factor1,
+            factor2,
+            add1,
+        }
     }
 
     fn closest(&self, pixel: f32) -> (u8, f32, f32) {
-        let blend = (pixel - self.c1) / (self.c0 - self.c1);
-        let blend7 = ((blend * 7.0 + 0.5) as u8).min(7);
+        let blend = pixel * self.factor1 + self.add1;
+        let blend7 = ((blend) as u8).min(7);
 
         let index_value = Self::INDEX_MAP[blend7 as usize];
-        let closest = blend7 as f32 * (1.0 / 7.0) * (self.c0 - self.c1) + self.c1;
+        let closest = blend7 as f32 * self.factor2 + self.c1;
         let error = pixel - closest;
 
         (index_value, closest, error)
     }
     fn closest_error_sq(&self, pixel: f32) -> f32 {
-        let (_, _, error) = self.closest(pixel);
+        let blend = pixel * self.factor1 + self.add1;
+        let blend7 = ((blend) as u8).min(7) as f32;
+
+        let closest = blend7 * self.factor2 + self.c1;
+        let error = pixel - closest;
+
         error * error
     }
 }
@@ -537,21 +563,22 @@ impl Palette for Inter4Palette {
     }
 
     fn closest_error_sq(&self, pixel: f32) -> f32 {
-        // this handles the case where pixel is 0 or 1
-        let zero_one_error = pixel.min(1.0 - pixel);
+        let p0 = Vec4::new(
+            self.colors[0],
+            self.colors[1],
+            self.colors[2],
+            self.colors[3],
+        );
+        let p1 = Vec4::new(
+            self.colors[4],
+            self.colors[5],
+            self.colors[6],
+            self.colors[7],
+        );
 
-        let mut min_sq_error = zero_one_error * zero_one_error;
-
-        // for the rest, check the palette
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..6 {
-            let mut error = pixel - self.colors[i];
-            error *= error;
-            if error < min_sq_error {
-                min_sq_error = error;
-            }
-        }
-
-        min_sq_error
+        let p0_error = (p0 - Vec4::splat(pixel)).abs().min_element();
+        let p1_error = (p1 - Vec4::splat(pixel)).abs().min_element();
+        let error = p0_error.min(p1_error);
+        error * error
     }
 }

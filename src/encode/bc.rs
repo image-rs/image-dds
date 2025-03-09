@@ -5,7 +5,7 @@ use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet};
 use super::{
     bc1, bc4, bcn_util,
     write::{BaseEncoder, Flags},
-    Args, DecodedArgs, EncodeError, EncodeOptions,
+    Args, CompressionQuality, DecodedArgs, EncodeError, EncodeOptions,
 };
 
 fn block_universal<
@@ -265,6 +265,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
     bc4::Bc4Options {
         dither: options.dithering.color(),
         snorm: false,
+        brute_force: options.quality == CompressionQuality::Unreasonable,
     }
 }
 
