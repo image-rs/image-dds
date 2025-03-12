@@ -1,6 +1,6 @@
 use glam::Vec4;
 
-use crate::{n8, s8, util};
+use crate::{n8, s8};
 
 use super::bcn_util::{self, Block4x4};
 

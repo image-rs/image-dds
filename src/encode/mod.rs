@@ -1,20 +1,20 @@
-use std::io::Write;
+use std::{io::Write, num::NonZeroU8};
 
 use crate::{
-    Channels, ColorFormat, ColorFormatSet, Dx9PixelFormat, DxgiFormat, FourCC, MaskPixelFormat,
-    PixelFormatFlags, Precision, Size,
+    Channels, ColorFormat, Dx9PixelFormat, DxgiFormat, FourCC, MaskPixelFormat, PixelFormatFlags,
+    Precision, Size,
 };
 
 mod bc;
 mod bc1;
 mod bc4;
 mod bcn_util;
-mod oklab;
+mod encoder;
 mod sub_sampled;
 mod uncompressed;
-mod write;
 
 use bc::*;
+use encoder::EncoderSet;
 use sub_sampled::*;
 use uncompressed::*;
 
@@ -78,9 +78,9 @@ pub enum EncodeFormat {
     BC4_SNORM,
     BC5_UNORM,
     BC5_SNORM,
-    BC6H_UF16,
-    BC6H_SF16,
-    BC7_UNORM,
+    // BC6H_UF16,
+    // BC6H_SF16,
+    // BC7_UNORM,
 }
 impl EncodeFormat {
     pub const fn channels(self) -> Channels {
@@ -120,8 +120,9 @@ impl EncodeFormat {
             | EncodeFormat::Y216
             | EncodeFormat::BC5_UNORM
             | EncodeFormat::BC5_SNORM
-            | EncodeFormat::BC6H_UF16
-            | EncodeFormat::BC6H_SF16 => Channels::Rgb,
+            // | EncodeFormat::BC6H_UF16
+            // | EncodeFormat::BC6H_SF16
+            => Channels::Rgb,
 
             EncodeFormat::R8G8B8A8_UNORM
             | EncodeFormat::R8G8B8A8_SNORM
@@ -141,7 +142,8 @@ impl EncodeFormat {
             | EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA
             | EncodeFormat::BC3_UNORM
             | EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC7_UNORM => Channels::Rgba,
+            // | EncodeFormat::BC7_UNORM
+            => Channels::Rgba,
         }
     }
     pub const fn precision(self) -> Precision {
@@ -176,7 +178,8 @@ impl EncodeFormat {
             | EncodeFormat::BC4_SNORM
             | EncodeFormat::BC5_UNORM
             | EncodeFormat::BC5_SNORM
-            | EncodeFormat::BC7_UNORM => Precision::U8,
+            // | EncodeFormat::BC7_UNORM
+            => Precision::U8,
 
             EncodeFormat::R16_UNORM
             | EncodeFormat::R16_SNORM
@@ -193,8 +196,8 @@ impl EncodeFormat {
             EncodeFormat::R16_FLOAT
             | EncodeFormat::R16G16_FLOAT
             | EncodeFormat::R16G16B16A16_FLOAT
-            | EncodeFormat::BC6H_UF16
-            | EncodeFormat::BC6H_SF16
+            // | EncodeFormat::BC6H_UF16
+            // | EncodeFormat::BC6H_SF16
             | EncodeFormat::R11G11B10_FLOAT
             | EncodeFormat::R9G9B9E5_SHAREDEXP
             | EncodeFormat::R10G10B10_XR_BIAS_A2_UNORM
@@ -202,6 +205,28 @@ impl EncodeFormat {
             | EncodeFormat::R32G32_FLOAT
             | EncodeFormat::R32G32B32_FLOAT
             | EncodeFormat::R32G32B32A32_FLOAT => Precision::F32,
+        }
+    }
+    pub const fn block_height(self) -> Option<NonZeroU8> {
+        const ONE: NonZeroU8 = NonZeroU8::new(1).unwrap();
+        const FOUR: NonZeroU8 = NonZeroU8::new(4).unwrap();
+
+        match self {
+            EncodeFormat::BC1_UNORM
+            | EncodeFormat::BC2_UNORM
+            | EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA
+            | EncodeFormat::BC3_UNORM
+            | EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA
+            | EncodeFormat::BC4_UNORM
+            | EncodeFormat::BC4_SNORM
+            | EncodeFormat::BC5_UNORM
+            | EncodeFormat::BC5_SNORM
+            // | EncodeFormat::BC6H_UF16
+            // | EncodeFormat::BC6H_SF16
+            // | EncodeFormat::BC7_UNORM
+            => Some(FOUR),
+
+            _ => Some(ONE),
         }
     }
 
@@ -213,21 +238,16 @@ impl EncodeFormat {
         data: &[u8],
         options: &EncodeOptions,
     ) -> Result<(), EncodeError> {
-        if let Some(encoder) = self.get_encoder() {
-            encoder.encode(data, size.width, color, writer, options)
-        } else {
-            // TODO:
-            Err(EncodeError::UnsupportedColorFormat(color))
-        }
-    }
-
-    pub fn supports_dither(self) -> Dithering {
         self.get_encoder()
-            .map_or(Dithering::None, |encoder| encoder.supports_dithering())
+            .encode(data, size.width, color, writer, options)
     }
 
-    const fn get_encoder(self) -> Option<&'static dyn Encoder> {
-        Some(match self {
+    pub const fn supported_dithering(self) -> Dithering {
+        self.get_encoder().supported_dithering
+    }
+
+    const fn get_encoder(self) -> &'static EncoderSet {
+        match self {
             EncodeFormat::R8G8B8_UNORM => &R8G8B8_UNORM,
             EncodeFormat::B8G8R8_UNORM => &B8G8R8_UNORM,
             EncodeFormat::R8G8B8A8_UNORM => &R8G8B8A8_UNORM,
@@ -284,8 +304,7 @@ impl EncodeFormat {
             // EncodeFormat::BC6H_UF16 => &BC6H_UF16,
             // EncodeFormat::BC6H_SF16 => &BC6H_SF16,
             // EncodeFormat::BC7_UNORM => &BC7_UNORM,
-            _ => return None,
-        })
+        }
     }
 }
 impl TryFrom<EncodeFormat> for DxgiFormat {
@@ -339,9 +358,9 @@ impl TryFrom<EncodeFormat> for DxgiFormat {
             EncodeFormat::BC4_SNORM => DxgiFormat::BC4_SNORM,
             EncodeFormat::BC5_UNORM => DxgiFormat::BC5_UNORM,
             EncodeFormat::BC5_SNORM => DxgiFormat::BC5_SNORM,
-            EncodeFormat::BC6H_UF16 => DxgiFormat::BC6H_UF16,
-            EncodeFormat::BC6H_SF16 => DxgiFormat::BC6H_SF16,
-            EncodeFormat::BC7_UNORM => DxgiFormat::BC7_UNORM,
+            // EncodeFormat::BC6H_UF16 => DxgiFormat::BC6H_UF16,
+            // EncodeFormat::BC6H_SF16 => DxgiFormat::BC6H_SF16,
+            // EncodeFormat::BC7_UNORM => DxgiFormat::BC7_UNORM,
             EncodeFormat::R8G8B8_UNORM
             | EncodeFormat::B8G8R8_UNORM
             | EncodeFormat::UYVY
@@ -407,7 +426,6 @@ impl TryFrom<EncodeFormat> for Dx9PixelFormat {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EncodeError {
-    UnsupportedColorFormat(ColorFormat),
     InvalidLines,
     Io(std::io::Error),
 }
@@ -420,9 +438,6 @@ impl From<std::io::Error> for EncodeError {
 impl std::fmt::Display for EncodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            EncodeError::UnsupportedColorFormat(color) => {
-                write!(f, "Unsupported color format: {:?}", color)
-            }
             EncodeError::InvalidLines => write!(f, "Invalid lines"),
             EncodeError::Io(err) => write!(f, "IO error: {}", err),
         }
@@ -435,25 +450,6 @@ impl std::error::Error for EncodeError {
             _ => None,
         }
     }
-}
-
-/// A line-based encoder.
-trait Encoder {
-    /// A non-empty list of all supported color formats for
-    /// [`Encoder::encode`].
-    fn supported_color_formats(&self) -> ColorFormatSet;
-
-    fn supports_dithering(&self) -> Dithering;
-
-    /// Encodes the given image.
-    fn encode(
-        &self,
-        data: &[u8],
-        width: u32,
-        color: ColorFormat,
-        writer: &mut dyn Write,
-        options: &EncodeOptions,
-    ) -> Result<(), EncodeError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -564,63 +560,13 @@ pub enum ErrorMetric {
 /// - `Normal`: 500ms
 /// - `High`: 5s
 ///
-/// Since encoding is trivially parallelizable, and scales linearly with the
-/// number of threads for large image, you can expect wall-clock time to be
-/// roughly 5-10x faster for normal consumer hardware.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+/// Encoding DDS images is embarrassingly parallel, so using multiple cores
+/// should make encoding roughly 4-10x faster on normal consumer hardware.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, PartialOrd, Ord)]
 pub enum CompressionQuality {
     Fast,
     #[default]
     Normal,
     High,
     Unreasonable,
-}
-
-pub(crate) struct Args<'a, 'b>(&'a [u8], u32, ColorFormat, &'b mut dyn Write, EncodeOptions);
-
-pub(crate) struct DecodedArgs<'a, 'b> {
-    data: &'a [u8],
-    width: usize,
-    height: usize,
-    color: ColorFormat,
-    writer: &'b mut dyn Write,
-    options: EncodeOptions,
-}
-impl<'a, 'b> DecodedArgs<'a, 'b> {
-    fn from(args: Args<'a, 'b>) -> Result<Self, EncodeError> {
-        let color = args.2;
-        let writer = args.3;
-        let options = args.4;
-
-        let data = args.0;
-        if data.is_empty() {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let bytes_per_pixel = color.bytes_per_pixel() as usize;
-        debug_assert!(bytes_per_pixel > 0);
-        if data.len() % bytes_per_pixel != 0 {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let width = args.1 as usize;
-        let stride = width * bytes_per_pixel;
-        if stride == 0 || data.len() % stride != 0 {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let height = data.len() / stride;
-        if stride * height != data.len() {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        Ok(Self {
-            data,
-            width,
-            height,
-            color,
-            writer,
-            options,
-        })
-    }
 }

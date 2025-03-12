@@ -2,8 +2,10 @@ use crate::cast;
 
 pub(crate) mod ch;
 mod formats;
+mod oklab;
 
 pub(crate) use formats::*;
+pub(crate) use oklab::*;
 
 /// The number and semantics of the color channels in a surface.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -120,9 +122,6 @@ pub(crate) struct ColorFormatSet {
     data: u16,
 }
 impl ColorFormatSet {
-    pub const EMPTY: Self = Self { data: 0 };
-    pub const ALL: Self = Self { data: u16::MAX };
-
     pub const U8: Self = Self::from_slice(&[
         ColorFormat::GRAYSCALE_U8,
         ColorFormat::ALPHA_U8,
@@ -141,6 +140,11 @@ impl ColorFormatSet {
         ColorFormat::RGB_F32,
         ColorFormat::RGBA_F32,
     ]);
+
+    pub const EMPTY: Self = Self { data: 0 };
+    pub const ALL: Self = Self {
+        data: Self::U8.data | Self::U16.data | Self::F32.data,
+    };
 
     pub const fn from_precision(precision: Precision) -> Self {
         match precision {
@@ -166,6 +170,9 @@ impl ColorFormatSet {
         Self { data }
     }
 
+    pub const fn is_all(self) -> bool {
+        self.data == Self::ALL.data
+    }
     pub const fn is_empty(self) -> bool {
         self.data == 0
     }

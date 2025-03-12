@@ -151,12 +151,3 @@ BC5_UNORM.dds: >
 BC5_SNORM.dds: >
     7d445004480a2cc5e8c085527071a52d4f114e6772de8007b9048e54fd4854b9
 
-BC6H_UF16.dds: >
-    Error: Unsupported color format: ColorFormat { channels: Rgba, precision: F32 }
-
-BC6H_SF16.dds: >
-    Error: Unsupported color format: ColorFormat { channels: Rgba, precision: F32 }
-
-BC7_UNORM.dds: >
-    Error: Unsupported color format: ColorFormat { channels: Rgba, precision: U8 }
-

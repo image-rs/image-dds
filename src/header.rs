@@ -180,7 +180,7 @@ impl RawHeader {
             &mut buffer[..31]
         };
         let bytes = cast::as_bytes_mut(selection);
-        util::le_to_native_endian_32(bytes);
+        cast::slice_ne_to_le_32(bytes);
         writer.write_all(bytes)?;
         Ok(())
     }

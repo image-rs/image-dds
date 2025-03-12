@@ -6,6 +6,8 @@
 
 use zerocopy::{FromBytes, Immutable, IntoBytes};
 
+use crate::Precision;
+
 pub(crate) trait Castable: FromBytes + IntoBytes + Immutable {}
 impl<T: FromBytes + IntoBytes + Immutable> Castable for T {}
 
@@ -163,3 +165,70 @@ transmute_array!(
     [u16; 1], [u16; 2], [u16; 3], [u16; 4], [u32; 1], [u32; 2], [u32; 3], [u32; 4], [f32; 1],
     [f32; 2], [f32; 3], [f32; 4]
 );
+
+pub(crate) fn slice_le_to_ne_16(buf: &mut [u8]) {
+    assert!(buf.len() % 2 == 0);
+
+    if cfg!(target_endian = "big") {
+        // TODO: optimize this for when the buffer is aligned to u16/u32/u64
+        for i in (0..buf.len()).step_by(2) {
+            buf.swap(i, i + 1);
+        }
+    }
+}
+pub(crate) fn slice_ne_to_le_16(buf: &mut [u8]) {
+    slice_le_to_ne_16(buf);
+}
+pub(crate) fn slice_le_to_ne_32(buf: &mut [u8]) {
+    assert!(buf.len() % 4 == 0);
+
+    if cfg!(target_endian = "big") {
+        // TODO: optimize this for when the buffer is aligned to u32/u64
+        for i in (0..buf.len()).step_by(4) {
+            buf.swap(i, i + 3);
+            buf.swap(i + 1, i + 2);
+        }
+    }
+}
+pub(crate) fn slice_ne_to_le_32(buf: &mut [u8]) {
+    slice_le_to_ne_32(buf);
+}
+
+pub(crate) fn slice_ne_to_le(precision: Precision, buffer: &mut [u8]) {
+    match precision {
+        Precision::U8 => {}
+        Precision::U16 => slice_ne_to_le_16(buffer),
+        Precision::F32 => slice_ne_to_le_32(buffer),
+    }
+}
+
+pub(crate) trait ToLe: Sized {
+    fn to_le(buffer: &mut [Self]);
+}
+impl ToLe for u8 {
+    fn to_le(_buffer: &mut [Self]) {}
+}
+impl ToLe for u16 {
+    fn to_le(buffer: &mut [Self]) {
+        slice_ne_to_le_16(as_bytes_mut(buffer));
+    }
+}
+impl ToLe for u32 {
+    fn to_le(buffer: &mut [Self]) {
+        slice_ne_to_le_32(as_bytes_mut(buffer));
+    }
+}
+impl ToLe for f32 {
+    fn to_le(buffer: &mut [Self]) {
+        slice_ne_to_le_32(as_bytes_mut(buffer));
+    }
+}
+impl<const N: usize, T> ToLe for [T; N]
+where
+    T: ToLe + Castable,
+{
+    fn to_le(buffer: &mut [Self]) {
+        let flat = as_flattened_mut(buffer);
+        T::to_le(flat);
+    }
+}

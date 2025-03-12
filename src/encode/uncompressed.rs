@@ -1,14 +1,14 @@
 use glam::Vec4;
 
 use crate::{
-    as_rgba_f32, cast, ch, convert_channels_untyped, encode::write::ToLe, fp10, fp11, fp16, n1,
-    n10, n16, n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels,
-    ColorFormat, ColorFormatSet, Precision,
+    as_rgba_f32, cast, ch, convert_channels_untyped, fp10, fp11, fp16, n1, n10, n16, n2, n4, n5,
+    n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat,
+    ColorFormatSet, Precision,
 };
 
 use super::{
-    write::{convert_to_le, BaseEncoder, Flags},
-    Args, DecodedArgs, Dithering, EncodeError,
+    encoder::{Args, Encoder, EncoderSet, Flags},
+    Dithering, EncodeError,
 };
 
 // helpers
@@ -18,14 +18,14 @@ fn uncompressed_universal<EncodedPixel>(
     process: fn(&[[f32; 4]], &mut [EncodedPixel]),
 ) -> Result<(), EncodeError>
 where
-    EncodedPixel: Default + Copy + ToLe + cast::Castable,
+    EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
 {
-    let DecodedArgs {
+    let Args {
         data,
         color,
         writer,
         ..
-    } = DecodedArgs::from(args)?;
+    } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     const BUFFER_PIXELS: usize = 512;
@@ -42,7 +42,7 @@ where
 
         process(as_rgba_f32(color, line, intermediate), encoded);
 
-        ToLe::to_le(encoded);
+        cast::ToLe::to_le(encoded);
 
         writer.write_all(cast::as_bytes(encoded))?;
     }
@@ -52,17 +52,17 @@ where
 
 fn uncompressed_universal_dither<EncodedPixel, F>(args: Args, f: F) -> Result<(), EncodeError>
 where
-    EncodedPixel: Default + Copy + ToLe + cast::Castable,
+    EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
     F: Fn(Vec4) -> (EncodedPixel, Vec4),
 {
-    let DecodedArgs {
+    let Args {
         data,
         color,
         writer,
         width,
         options,
         ..
-    } = DecodedArgs::from(args)?;
+    } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     let error_padding = 2;
@@ -114,7 +114,7 @@ where
                 error_offset += 1;
             }
 
-            ToLe::to_le(encoded);
+            cast::ToLe::to_le(encoded);
             writer.write_all(cast::as_bytes(encoded))?;
         }
     }
@@ -127,12 +127,12 @@ fn uncompressed_untyped(
     bytes_per_encoded_pixel: usize,
     f: impl Fn(&[u8], ColorFormat, &mut [u8]),
 ) -> Result<(), EncodeError> {
-    let DecodedArgs {
+    let Args {
         data,
         color,
         writer,
         ..
-    } = DecodedArgs::from(args)?;
+    } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     let mut raw_buffer = [0_u32; 1024];
@@ -186,13 +186,13 @@ fn simple_color_convert(
             }
         }
 
-        convert_to_le(target.precision, out);
+        cast::slice_ne_to_le(target.precision, out);
     }
 }
 
 macro_rules! color_convert {
     ($target:expr) => {
-        BaseEncoder {
+        Encoder {
             color_formats: ColorFormatSet::from_precision($target.precision),
             flags: Flags::exact_for($target.precision),
             encode: |args| {
@@ -205,7 +205,7 @@ macro_rules! color_convert {
         }
     };
     ($target:expr, SNORM) => {
-        BaseEncoder {
+        Encoder {
             color_formats: ColorFormatSet::from_precision($target.precision),
             flags: Flags::exact_for($target.precision),
             encode: |args| {
@@ -228,7 +228,7 @@ macro_rules! universal {
                 *o = f(*i);
             }
         }
-        BaseEncoder {
+        Encoder {
             color_formats: ColorFormatSet::ALL,
             flags: Flags::empty(),
             encode: |args| uncompressed_universal(args, process_line),
@@ -242,7 +242,7 @@ macro_rules! universal_grayscale {
 }
 macro_rules! universal_dither {
     ($out:ty, $f:expr) => {
-        BaseEncoder {
+        Encoder {
             color_formats: ColorFormatSet::ALL,
             flags: Flags::empty(),
             encode: |args| uncompressed_universal_dither::<$out, _>(args, $f),
@@ -252,14 +252,14 @@ macro_rules! universal_dither {
 
 // encoders
 
-pub const R8G8B8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::RGB_U8),
+pub const R8G8B8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::RGB_U8),
     color_convert!(ColorFormat::RGB_U8),
     universal!([u8; 3], |[r, g, b, _]| [r, g, b].map(n8::from_f32)),
-];
+]);
 
-pub const B8G8R8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder {
+pub const B8G8R8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder {
         color_formats: ColorFormatSet::U8,
         flags: Flags::EXACT_U8,
         encode: |args| {
@@ -277,21 +277,21 @@ pub const B8G8R8_UNORM: &[BaseEncoder] = &[
         },
     },
     universal!([u8; 3], |[r, g, b, _]| [b, g, r].map(n8::from_f32)),
-];
+]);
 
-pub const R8G8B8A8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::RGBA_U8),
+pub const R8G8B8A8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::RGBA_U8),
     color_convert!(ColorFormat::RGBA_U8),
     universal!([u8; 4], |rgba| rgba.map(n8::from_f32)),
-];
+]);
 
-pub const R8G8B8A8_SNORM: &[BaseEncoder] = &[
+pub const R8G8B8A8_SNORM: EncoderSet = EncoderSet::new(&[
     color_convert!(ColorFormat::RGBA_U8, SNORM),
     universal!([u8; 4], |rgba| rgba.map(s8::from_uf32)),
-];
+]);
 
-pub const B8G8R8A8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder {
+pub const B8G8R8A8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder {
         color_formats: ColorFormatSet::U8,
         flags: Flags::EXACT_U8,
         encode: |args| {
@@ -309,10 +309,10 @@ pub const B8G8R8A8_UNORM: &[BaseEncoder] = &[
         },
     },
     universal!([u8; 4], |[r, g, b, a]| [b, g, r, a].map(n8::from_f32)),
-];
+]);
 
-pub const B8G8R8X8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder {
+pub const B8G8R8X8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder {
         color_formats: ColorFormatSet::U8,
         flags: Flags::EXACT_U8,
         encode: |args| {
@@ -338,9 +338,9 @@ pub const B8G8R8X8_UNORM: &[BaseEncoder] = &[
         n8::from_f32(r),
         0xFF
     ]),
-];
+]);
 
-pub const B5G6R5_UNORM: &[BaseEncoder] = &[
+pub const B5G6R5_UNORM: EncoderSet = EncoderSet::new(&[
     universal!(u16, |[r, g, b, _]| {
         let r = n5::from_f32(r) as u16;
         let g = n6::from_f32(g) as u16;
@@ -358,9 +358,9 @@ pub const B5G6R5_UNORM: &[BaseEncoder] = &[
         (b | (g << 5) | (r << 11), error)
     })
     .add_flags(Flags::DITHER_COLOR),
-];
+]);
 
-pub const B5G5R5A1_UNORM: &[BaseEncoder] = &[
+pub const B5G5R5A1_UNORM: EncoderSet = EncoderSet::new(&[
     universal!(u16, |[r, g, b, a]| {
         let r = n5::from_f32(r) as u16;
         let g = n5::from_f32(g) as u16;
@@ -385,7 +385,7 @@ pub const B5G5R5A1_UNORM: &[BaseEncoder] = &[
         (b | (g << 5) | (r << 10) | (a << 15), error)
     })
     .add_flags(Flags::DITHER_ALL),
-];
+]);
 
 fn rgba4_encode_with_error(pixel: Vec4) -> ([u8; 4], Vec4) {
     let encoded = pixel.to_array().map(n4::from_f32);
@@ -394,7 +394,7 @@ fn rgba4_encode_with_error(pixel: Vec4) -> ([u8; 4], Vec4) {
     (encoded, error)
 }
 
-pub const B4G4R4A4_UNORM: &[BaseEncoder] = &[
+pub const B4G4R4A4_UNORM: EncoderSet = EncoderSet::new(&[
     universal!(u16, |[r, g, b, a]| {
         let r = n4::from_f32(r) as u16;
         let g = n4::from_f32(g) as u16;
@@ -408,9 +408,9 @@ pub const B4G4R4A4_UNORM: &[BaseEncoder] = &[
         (b | (g << 4) | (r << 8) | (a << 12), error)
     })
     .add_flags(Flags::DITHER_ALL),
-];
+]);
 
-pub const A4B4G4R4_UNORM: &[BaseEncoder] = &[
+pub const A4B4G4R4_UNORM: EncoderSet = EncoderSet::new(&[
     universal!(u16, |[r, g, b, a]| {
         let r = n4::from_f32(r) as u16;
         let g = n4::from_f32(g) as u16;
@@ -424,60 +424,66 @@ pub const A4B4G4R4_UNORM: &[BaseEncoder] = &[
         (a | (b << 4) | (g << 8) | (r << 12), error)
     })
     .add_flags(Flags::DITHER_ALL),
-];
+]);
 
-pub const R8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::GRAYSCALE_U8),
+pub const R8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::GRAYSCALE_U8),
     color_convert!(ColorFormat::GRAYSCALE_U8),
     universal_grayscale!(u8, n8::from_f32),
-];
+]);
 
-pub const R8_SNORM: &[BaseEncoder] = &[
+pub const R8_SNORM: EncoderSet = EncoderSet::new(&[
     color_convert!(ColorFormat::GRAYSCALE_U8, SNORM),
     universal_grayscale!(u8, s8::from_uf32),
-];
+]);
 
-pub const R8G8_UNORM: &[BaseEncoder] =
-    &[universal!([u8; 2], |[r, g, _, _]| [r, g].map(n8::from_f32)).add_flags(Flags::EXACT_U8)];
+pub const R8G8_UNORM: EncoderSet = EncoderSet::new(&[universal!([u8; 2], |[r, g, _, _]| [r, g]
+    .map(n8::from_f32))
+.add_flags(Flags::EXACT_U8)]);
 
-pub const R8G8_SNORM: &[BaseEncoder] =
-    &[universal!([u8; 2], |[r, g, _, _]| [r, g].map(s8::from_uf32)).add_flags(Flags::EXACT_U8)];
+pub const R8G8_SNORM: EncoderSet = EncoderSet::new(&[universal!([u8; 2], |[r, g, _, _]| [r, g]
+    .map(s8::from_uf32))
+.add_flags(Flags::EXACT_U8)]);
 
-pub const A8_UNORM: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::ALPHA_U8),
+pub const A8_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::ALPHA_U8),
     color_convert!(ColorFormat::ALPHA_U8),
     universal!(u8, |[_, _, _, a]| n8::from_f32(a)),
-];
+]);
 
-pub const R16_UNORM: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::GRAYSCALE_U16),
+pub const R16_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::GRAYSCALE_U16),
     color_convert!(ColorFormat::GRAYSCALE_U16),
     universal_grayscale!(u16, n16::from_f32),
-];
+]);
 
-pub const R16_SNORM: &[BaseEncoder] = &[
+pub const R16_SNORM: EncoderSet = EncoderSet::new(&[
     color_convert!(ColorFormat::GRAYSCALE_U16, SNORM),
     universal_grayscale!(u16, s16::from_uf32),
-];
+]);
 
-pub const R16G16_UNORM: &[BaseEncoder] =
-    &[universal!([u16; 2], |[r, g, _, _]| [r, g].map(n16::from_f32)).add_flags(Flags::EXACT_U16)];
+pub const R16G16_UNORM: EncoderSet =
+    EncoderSet::new(&[
+        universal!([u16; 2], |[r, g, _, _]| [r, g].map(n16::from_f32)).add_flags(Flags::EXACT_U16),
+    ]);
 
-pub const R16G16_SNORM: &[BaseEncoder] =
-    &[universal!([u16; 2], |[r, g, _, _]| [r, g].map(s16::from_uf32)).add_flags(Flags::EXACT_U16)];
+pub const R16G16_SNORM: EncoderSet =
+    EncoderSet::new(&[
+        universal!([u16; 2], |[r, g, _, _]| [r, g].map(s16::from_uf32)).add_flags(Flags::EXACT_U16),
+    ]);
 
-pub const R16G16B16A16_UNORM: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::RGBA_U16),
+pub const R16G16B16A16_UNORM: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::RGBA_U16),
     color_convert!(ColorFormat::RGBA_U16),
     universal!([u16; 4], |rgba| rgba.map(n16::from_f32)),
-];
+]);
 
-pub const R16G16B16A16_SNORM: &[BaseEncoder] = &[
+pub const R16G16B16A16_SNORM: EncoderSet = EncoderSet::new(&[
     color_convert!(ColorFormat::RGBA_U16, SNORM),
     universal!([u16; 4], |rgba| rgba.map(s16::from_uf32)),
-];
+]);
 
-pub const R10G10B10A2_UNORM: &[BaseEncoder] = &[
+pub const R10G10B10A2_UNORM: EncoderSet = EncoderSet::new(&[
     universal!(u32, |[r, g, b, a]| {
         let r = n10::from_f32(r) as u32;
         let g = n10::from_f32(g) as u32;
@@ -503,9 +509,9 @@ pub const R10G10B10A2_UNORM: &[BaseEncoder] = &[
         ((a << 30) | (b << 20) | (g << 10) | r, error)
     })
     .add_flags(Flags::DITHER_ALL),
-];
+]);
 
-pub const R11G11B10_FLOAT: &[BaseEncoder] = &[
+pub const R11G11B10_FLOAT: EncoderSet = EncoderSet::new(&[
     universal!(u32, |[r, g, b, _]| {
         let r11 = fp11::from_f32(r) as u32;
         let g11 = fp11::from_f32(g) as u32;
@@ -528,45 +534,48 @@ pub const R11G11B10_FLOAT: &[BaseEncoder] = &[
         ((b10 << 22) | (g11 << 11) | r11, error)
     })
     .add_flags(Flags::DITHER_COLOR),
-];
+]);
 
-pub const R9G9B9E5_SHAREDEXP: &[BaseEncoder] =
-    &[
+pub const R9G9B9E5_SHAREDEXP: EncoderSet =
+    EncoderSet::new(&[
         universal!(u32, |[r, g, b, _]| { rgb9995f::from_f32([r, g, b]) })
             .add_flags(Flags::EXACT_U8),
-    ];
+    ]);
 
-pub const R16_FLOAT: &[BaseEncoder] =
-    &[universal_grayscale!(u16, fp16::from_f32).add_flags(Flags::EXACT_U8)];
+pub const R16_FLOAT: EncoderSet =
+    EncoderSet::new(&[universal_grayscale!(u16, fp16::from_f32).add_flags(Flags::EXACT_U8)]);
 
-pub const R16G16_FLOAT: &[BaseEncoder] =
-    &[universal!([u16; 2], |[r, g, _, _]| [r, g].map(fp16::from_f32)).add_flags(Flags::EXACT_U8)];
+pub const R16G16_FLOAT: EncoderSet =
+    EncoderSet::new(&[
+        universal!([u16; 2], |[r, g, _, _]| [r, g].map(fp16::from_f32)).add_flags(Flags::EXACT_U8),
+    ]);
 
-pub const R16G16B16A16_FLOAT: &[BaseEncoder] =
-    &[universal!([u16; 4], |rgba| rgba.map(fp16::from_f32)).add_flags(Flags::EXACT_U8)];
+pub const R16G16B16A16_FLOAT: EncoderSet = EncoderSet::new(&[universal!([u16; 4], |rgba| rgba
+    .map(fp16::from_f32))
+.add_flags(Flags::EXACT_U8)]);
 
-pub const R32_FLOAT: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::GRAYSCALE_F32),
+pub const R32_FLOAT: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::GRAYSCALE_F32),
     color_convert!(ColorFormat::GRAYSCALE_F32),
     universal_grayscale!(f32, |r| r),
-];
+]);
 
-pub const R32G32_FLOAT: &[BaseEncoder] =
-    &[universal!([f32; 2], |[r, g, _, _]| [r, g]).add_flags(Flags::EXACT_F32)];
+pub const R32G32_FLOAT: EncoderSet =
+    EncoderSet::new(&[universal!([f32; 2], |[r, g, _, _]| [r, g]).add_flags(Flags::EXACT_F32)]);
 
-pub const R32G32B32_FLOAT: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::RGB_F32),
+pub const R32G32B32_FLOAT: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::RGB_F32),
     color_convert!(ColorFormat::RGB_F32),
     universal!([f32; 3], |[r, g, b, _]| [r, g, b]),
-];
+]);
 
-pub const R32G32B32A32_FLOAT: &[BaseEncoder] = &[
-    BaseEncoder::copy(ColorFormat::RGBA_F32),
+pub const R32G32B32A32_FLOAT: EncoderSet = EncoderSet::new(&[
+    Encoder::copy(ColorFormat::RGBA_F32),
     color_convert!(ColorFormat::RGBA_F32),
     universal!([f32; 4], |[r, g, b, a]| [r, g, b, a]),
-];
+]);
 
-pub const R10G10B10_XR_BIAS_A2_UNORM: &[BaseEncoder] = &[
+pub const R10G10B10_XR_BIAS_A2_UNORM: EncoderSet = EncoderSet::new(&[
     universal!(u32, |[r, g, b, a]| {
         let r = xr10::from_f32(r) as u32;
         let g = xr10::from_f32(g) as u32;
@@ -592,15 +601,15 @@ pub const R10G10B10_XR_BIAS_A2_UNORM: &[BaseEncoder] = &[
         ((a << 30) | (b << 20) | (g << 10) | r, error)
     })
     .add_flags(Flags::DITHER_ALL),
-];
+]);
 
-pub const AYUV: &[BaseEncoder] = &[universal!([u8; 4], |[r, g, b, a]| {
+pub const AYUV: EncoderSet = EncoderSet::new(&[universal!([u8; 4], |[r, g, b, a]| {
     let [y, u, v] = yuv8::from_rgb_f32([r, g, b]);
     let a = n8::from_f32(a);
     [v, u, y, a]
-})];
+})]);
 
-pub const Y410: &[BaseEncoder] = &[
+pub const Y410: EncoderSet = EncoderSet::new(&[
     universal!(u32, |[r, g, b, a]| {
         let [y, u, v] = yuv10::from_rgb_f32([r, g, b]);
         let a = n2::from_f32(a) as u32;
@@ -620,11 +629,11 @@ pub const Y410: &[BaseEncoder] = &[
         )
     })
     .add_flags(Flags::DITHER_ALPHA),
-];
+]);
 
-pub const Y416: &[BaseEncoder] = &[universal!([u16; 4], |[r, g, b, a]| {
+pub const Y416: EncoderSet = EncoderSet::new(&[universal!([u16; 4], |[r, g, b, a]| {
     let [y, u, v] = yuv16::from_rgb_f32([r, g, b]);
     let a = n16::from_f32(a);
     [u, y, v, a]
 })
-.add_flags(Flags::EXACT_U8)];
+.add_flags(Flags::EXACT_U8)]);

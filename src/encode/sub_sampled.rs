@@ -1,10 +1,8 @@
-use crate::{
-    as_rgba_f32, cast, ch, encode::DecodedArgs, n1, n8, util, yuv16, yuv8, ColorFormatSet,
-};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, ColorFormatSet};
 
 use super::{
-    write::{BaseEncoder, Flags, ToLe},
-    Args, EncodeError,
+    encoder::{Args, Encoder, EncoderSet, Flags},
+    EncodeError,
 };
 
 // helpers
@@ -40,15 +38,15 @@ fn uncompressed_universal_subsample<EncodedBlock>(
     process: fn(&[[f32; 4]], &mut [EncodedBlock]),
 ) -> Result<(), EncodeError>
 where
-    EncodedBlock: Default + Copy + ToLe + cast::Castable,
+    EncodedBlock: Default + Copy + cast::ToLe + cast::Castable,
 {
-    let DecodedArgs {
+    let Args {
         data,
         color,
         writer,
         width,
         ..
-    } = DecodedArgs::from(args)?;
+    } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     assert!(block_width >= 2);
@@ -70,7 +68,7 @@ where
 
             process(as_rgba_f32(color, chunk, intermediate), encoded);
 
-            ToLe::to_le(encoded);
+            cast::ToLe::to_le(encoded);
 
             writer.write_all(cast::as_bytes(encoded))?;
         }
@@ -84,7 +82,7 @@ macro_rules! universal_subsample {
         fn process_blocks(block: &[[f32; 4]], out: &mut [$out]) {
             process_subsample::<$block_width, $out, _>(block, out, $f);
         }
-        BaseEncoder {
+        Encoder {
             color_formats: ColorFormatSet::ALL,
             flags: Flags::empty(),
             encode: |args| uncompressed_universal_subsample(args, $block_width, process_blocks),
@@ -102,14 +100,15 @@ fn to_rgbg([p0, p1]: &[[f32; 4]; 2]) -> [u8; 4] {
     [r, g0, b, g1]
 }
 
-pub const R8G8_B8G8_UNORM: &[BaseEncoder] =
-    &[universal_subsample!(2, [u8; 4], to_rgbg).add_flags(Flags::EXACT_U8)];
+pub const R8G8_B8G8_UNORM: EncoderSet =
+    EncoderSet::new(&[universal_subsample!(2, [u8; 4], to_rgbg).add_flags(Flags::EXACT_U8)]);
 
-pub const G8R8_G8B8_UNORM: &[BaseEncoder] = &[universal_subsample!(2, [u8; 4], |pair| {
-    let [r, g0, b, g1] = to_rgbg(pair);
-    [g0, r, g1, b]
-})
-.add_flags(Flags::EXACT_U8)];
+pub const G8R8_G8B8_UNORM: EncoderSet =
+    EncoderSet::new(&[universal_subsample!(2, [u8; 4], |pair| {
+        let [r, g0, b, g1] = to_rgbg(pair);
+        [g0, r, g1, b]
+    })
+    .add_flags(Flags::EXACT_U8)]);
 
 fn to_yuy2([p0, p1]: &[[f32; 4]; 2]) -> [u8; 4] {
     let yuv1 = yuv8::from_rgb_f32([p0[0], p0[1], p0[2]]);
@@ -126,12 +125,12 @@ fn to_yuy2([p0, p1]: &[[f32; 4]; 2]) -> [u8; 4] {
     [y0, u, y1, v]
 }
 
-pub const YUY2: &[BaseEncoder] = &[universal_subsample!(2, [u8; 4], to_yuy2)];
+pub const YUY2: EncoderSet = EncoderSet::new(&[universal_subsample!(2, [u8; 4], to_yuy2)]);
 
-pub const UYVY: &[BaseEncoder] = &[universal_subsample!(2, [u8; 4], |pair| {
+pub const UYVY: EncoderSet = EncoderSet::new(&[universal_subsample!(2, [u8; 4], |pair| {
     let [y0, u, y1, v] = to_yuy2(pair);
     [u, y0, v, y1]
-})];
+})]);
 
 fn to_y216([p0, p1]: &[[f32; 4]; 2]) -> [u16; 4] {
     let yuv1 = yuv16::from_rgb_f32([p0[0], p0[1], p0[2]]);
@@ -148,17 +147,19 @@ fn to_y216([p0, p1]: &[[f32; 4]; 2]) -> [u16; 4] {
     [y0, u, y1, v]
 }
 
-pub const Y210: &[BaseEncoder] = &[universal_subsample!(2, [u16; 4], |pair| to_y216(pair)
-    .map(|c| c & 0xFFC0))
-.add_flags(Flags::EXACT_U8)];
+pub const Y210: EncoderSet =
+    EncoderSet::new(&[
+        universal_subsample!(2, [u16; 4], |pair| to_y216(pair).map(|c| c & 0xFFC0))
+            .add_flags(Flags::EXACT_U8),
+    ]);
 
-pub const Y216: &[BaseEncoder] =
-    &[universal_subsample!(2, [u16; 4], to_y216).add_flags(Flags::EXACT_U8)];
+pub const Y216: EncoderSet =
+    EncoderSet::new(&[universal_subsample!(2, [u16; 4], to_y216).add_flags(Flags::EXACT_U8)]);
 
-pub const R1_UNORM: &[BaseEncoder] = &[universal_subsample!(8, u8, |block| {
+pub const R1_UNORM: EncoderSet = EncoderSet::new(&[universal_subsample!(8, u8, |block| {
     let mut out = 0_u8;
     for (i, &p) in block.iter().enumerate() {
         out |= n1::from_f32(ch::rgba_to_grayscale(p)[0]) << (7 - i);
     }
     out
-})];
+})]);

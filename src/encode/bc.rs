@@ -4,8 +4,8 @@ use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet};
 
 use super::{
     bc1, bc4, bcn_util,
-    write::{BaseEncoder, Flags},
-    Args, CompressionQuality, DecodedArgs, EncodeError, EncodeOptions, ErrorMetric,
+    encoder::{Args, Encoder, EncoderSet, Flags},
+    CompressionQuality, EncodeError, EncodeOptions, ErrorMetric,
 };
 
 fn block_universal<
@@ -16,14 +16,14 @@ fn block_universal<
     args: Args,
     encode_block: fn(&[[f32; 4]], usize, &EncodeOptions, &mut [u8; BLOCK_BYTES]),
 ) -> Result<(), EncodeError> {
-    let DecodedArgs {
+    let Args {
         data,
         color,
         writer,
         width,
         options,
         ..
-    } = DecodedArgs::from(args)?;
+    } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     let mut intermediate_buffer = vec![[0_f32; 4]; width * BLOCK_HEIGHT];
@@ -136,7 +136,7 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
     o.perceptual = options.error_metric == ErrorMetric::Perceptual;
     o
 }
-pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC1_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -156,7 +156,7 @@ pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = bc1::compress_bc1_block(block, bc1_options);
         })
     },
-}];
+}]);
 
 fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
     let mut indexes: u64 = 0;
@@ -181,7 +181,7 @@ fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
     indexes.to_le_bytes()
 }
 
-pub const BC2_UNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC2_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -196,8 +196,8 @@ pub const BC2_UNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = concat_blocks(alpha_block, bc1_block);
         })
     },
-}];
-pub const BC2_UNORM_PREMULTIPLIED_ALPHA: &[BaseEncoder] = &[BaseEncoder {
+}]);
+pub const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -213,7 +213,7 @@ pub const BC2_UNORM_PREMULTIPLIED_ALPHA: &[BaseEncoder] = &[BaseEncoder {
             *out = concat_blocks(alpha_block, bc1_block);
         })
     },
-}];
+}]);
 
 fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options) {
     let mut bc1_options = get_bc1_options(options);
@@ -224,7 +224,7 @@ fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options
 
     (bc1_options, bc4_options)
 }
-pub const BC3_UNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC3_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -239,8 +239,8 @@ pub const BC3_UNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = concat_blocks(bc4_block, bc1_block);
         })
     },
-}];
-pub const BC3_UNORM_PREMULTIPLIED_ALPHA: &[BaseEncoder] = &[BaseEncoder {
+}]);
+pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -256,7 +256,7 @@ pub const BC3_UNORM_PREMULTIPLIED_ALPHA: &[BaseEncoder] = &[BaseEncoder {
             *out = concat_blocks(bc4_block, bc1_block);
         })
     },
-}];
+}]);
 
 fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 8] {
     let block = get_4x4_grayscale(data, row_pitch);
@@ -270,7 +270,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
     }
 }
 
-pub const BC4_UNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC4_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -280,9 +280,9 @@ pub const BC4_UNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = handle_bc4(data, row_pitch, options);
         })
     },
-}];
+}]);
 
-pub const BC4_SNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC4_SNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -292,7 +292,7 @@ pub const BC4_SNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = handle_bc4(data, row_pitch, options);
         })
     },
-}];
+}]);
 
 fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 16] {
     let red_block = get_4x4_select_channel::<0>(data, row_pitch);
@@ -304,7 +304,7 @@ fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> 
     concat_blocks(red, green)
 }
 
-pub const BC5_UNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC5_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -314,9 +314,9 @@ pub const BC5_UNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = handle_bc5(data, row_pitch, options);
         })
     },
-}];
+}]);
 
-pub const BC5_SNORM: &[BaseEncoder] = &[BaseEncoder {
+pub const BC5_SNORM: EncoderSet = EncoderSet::new(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -326,4 +326,4 @@ pub const BC5_SNORM: &[BaseEncoder] = &[BaseEncoder {
             *out = handle_bc5(data, row_pitch, options);
         })
     },
-}];
+}]);

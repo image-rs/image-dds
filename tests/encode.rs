@@ -61,9 +61,9 @@ const FORMATS: &[EncodeFormat] = &[
     EncodeFormat::BC4_SNORM,
     EncodeFormat::BC5_UNORM,
     EncodeFormat::BC5_SNORM,
-    EncodeFormat::BC6H_UF16,
-    EncodeFormat::BC6H_SF16,
-    EncodeFormat::BC7_UNORM,
+    // EncodeFormat::BC6H_UF16,
+    // EncodeFormat::BC6H_SF16,
+    // EncodeFormat::BC7_UNORM,
 ];
 
 fn create_header(size: Size, format: EncodeFormat) -> Header {
@@ -240,7 +240,7 @@ fn encode_dither() {
     for format in FORMATS
         .iter()
         .copied()
-        .filter(|f| f.supports_dither() != Dithering::None)
+        .filter(|f| f.supported_dithering() != Dithering::None)
         .filter(|f| !ignore.contains(f))
     {
         let mut test_and_summarize = |image, name| {
@@ -250,7 +250,7 @@ fn encode_dither() {
 
         test_and_summarize(&base, "base");
 
-        if format.supports_dither() != Dithering::Alpha {
+        if format.supported_dithering() != Dithering::Alpha {
             test_and_summarize(&twirl, "twirl");
         }
     }
@@ -546,6 +546,37 @@ fn block_dither() {
     .unwrap();
 }
 
+#[test]
+fn format_metadata() {
+    let mut table = PrettyTable::from_header(&["Format", "Channels", "Precision", "Block height"]);
+    table.add_empty_row();
+
+    let gaps_at = [EncodeFormat::R1_UNORM, EncodeFormat::BC1_UNORM];
+
+    for format in FORMATS.iter().copied() {
+        if gaps_at.contains(&format) {
+            table.add_empty_row();
+        }
+
+        table.add_row(&[
+            format!("{:?}", format),
+            format!("{:?}", format.channels()),
+            format!("{:?}", format.precision()),
+            if let Some(block_height) = format.block_height() {
+                format!("{:?}", block_height)
+            } else {
+                "None".to_string()
+            },
+        ]);
+    }
+
+    util::compare_snapshot_text(
+        &util::test_data_dir().join("encode_format_metadata.txt"),
+        &table.to_string(),
+    )
+    .unwrap();
+}
+
 struct PrettyTable {
     cells: Vec<String>,
     width: usize,
@@ -614,5 +645,12 @@ impl PrettyTable {
             }
             out.push('\n');
         }
+    }
+}
+impl std::fmt::Display for PrettyTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut out = String::new();
+        self.print(&mut out);
+        write!(f, "{}", out)
     }
 }

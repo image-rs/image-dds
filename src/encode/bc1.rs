@@ -2,12 +2,9 @@
 
 use glam::Vec3A;
 
-use crate::{n5, n6};
+use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
 
-use super::{
-    bcn_util::{self, Block4x4, ColorSpace},
-    oklab::{fast_oklab_to_srgb, fast_srgb_to_oklab},
-};
+use super::bcn_util::{self, Block4x4, ColorSpace};
 
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]

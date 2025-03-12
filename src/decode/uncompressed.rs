@@ -3,11 +3,11 @@ use super::read_write::{
 };
 use super::{Args, DecodeFn, DecoderSet, UncompressedDecoder};
 use crate::{
-    fp, fp10, fp11, fp16, n10, n16, n2, n4, n8, rgb9995f, s16, s8, xr10, yuv10, yuv16, yuv8, Norm,
-    SwapRB, ToRgba, WithPrecision, B5G5R5A1, B5G6R5,
+    cast, fp, fp10, fp11, fp16, n10, n16, n2, n4, n8, rgb9995f, s16, s8, xr10, yuv10, yuv16, yuv8,
+    Norm, SwapRB, ToRgba, WithPrecision, B5G5R5A1, B5G6R5,
 };
 
-use crate::util::{closure_types, le_to_native_endian_16, le_to_native_endian_32};
+use crate::util::closure_types;
 use crate::{Channels::*, ColorFormat, Precision::*};
 
 // helpers
@@ -84,12 +84,12 @@ const COPY_U8: DecodeFn = |Args(r, out, _)| {
 };
 const COPY_U16: DecodeFn = |Args(r, out, _)| {
     r.read_exact(out)?;
-    le_to_native_endian_16(out);
+    cast::slice_le_to_ne_16(out);
     Ok(())
 };
 const COPY_U32: DecodeFn = |Args(r, out, _)| {
     r.read_exact(out)?;
-    le_to_native_endian_32(out);
+    cast::slice_le_to_ne_32(out);
     Ok(())
 };
 const COPY_S8: DecodeFn = |Args(r, out, _)| {
