@@ -1,13 +1,12 @@
 #![allow(clippy::needless_range_loop)]
 
 use glam::Vec3A;
-use nalgebra::{Matrix2, Matrix3x2, Vector, Vector2, Vector3};
 
 use crate::{n5, n6};
 
 use super::{
     bcn_util::{self, Block4x4, ColorSpace},
-    oklab::{fast_oklab_to_srgb, fast_srgb_to_oklab, oklab_to_srgb, srgb_to_oklab},
+    oklab::{fast_oklab_to_srgb, fast_srgb_to_oklab},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -448,74 +447,6 @@ fn get_alpha_map(block: &[[f32; 4]], alpha_threshold: f32) -> AlphaMap {
     alpha_map
 }
 
-fn get_optimal_weighted_endpoints(colors: &[Vec3A], c0_weights: &[f32]) -> Option<(Vec3A, Vec3A)> {
-    debug_assert!(colors.len() == c0_weights.len());
-    debug_assert!(!colors.is_empty());
-
-    // https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
-    //
-    // The goal is to solve (A^T A) X = A^T B for X. C = (A^T A) is assumed to
-    // be invertible, which simplifies it to X = C^-1 A^T B.
-    // let c_inv: [Vec2; 2] = {
-    //     let c00: f32 = c0_weights.iter().map(|&w| w * w).sum();
-    //     let c11: f32 = c0_weights.iter().map(|&w| (1. - w) * (1. - w)).sum();
-    //     let c01_10: f32 = c0_weights.iter().map(|&w| w * (1. - w)).sum();
-    //     let det = c00 * c11 - c01_10 * c01_10;
-
-    //     if det.abs() < 1e-6 {
-    //         return None;
-    //     }
-
-    //     let c_inv00 = c11 / det;
-    //     let c_inv11 = c00 / det;
-    //     let c_inv01_10 = -c01_10 / det;
-
-    //     [
-    //         Vec2::new(c_inv00, c_inv01_10),
-    //         Vec2::new(c_inv01_10, c_inv11),
-    //     ]
-    // };
-
-    let n = colors.len();
-    // let a = nalgebra::DMatrix::from_fn(n, 2, |i, j| {
-    //     if j == 0 {
-    //         c0_weights[i]
-    //     } else {
-    //         1. - c0_weights[i]
-    //     }
-    // });
-    // let b = nalgebra::DMatrix::from_fn(n, 3, |i, j| colors[i][j]);
-
-    // let c = a.transpose() * a.clone();
-    // let c_inv = c.try_inverse()?;
-    // let x = c_inv * a.transpose() * b;
-
-    // Compute A^T * A (2x2 matrix)
-    let mut ata = Matrix2::zeros();
-    let mut atb = Matrix3x2::zeros();
-
-    for i in 0..n {
-        let w0 = c0_weights[i];
-        let color = colors[i];
-        let ai = Vector2::new(w0, 1. - w0);
-        let bi = Vector3::new(color.x, color.y, color.z);
-        ata += ai * ai.transpose();
-        atb += bi * ai.transpose();
-    }
-
-    // Solve for X: X = (A^T A)^(-1) * A^T B
-    let ata_inv = ata.try_inverse()?;
-    let x = ata_inv * atb.transpose();
-
-    let e0 = x.row(0).iter().cloned().collect::<Vec<f32>>();
-    let e1 = x.row(1).iter().cloned().collect::<Vec<f32>>();
-
-    Some((
-        Vec3A::new(e0[0], e0[1], e0[1]),
-        Vec3A::new(e1[0], e1[1], e1[1]),
-    ))
-}
-
 fn mean(colors: &[ColorSpace]) -> ColorSpace {
     let mut mean = Vec3A::ZERO;
     for color in colors {
@@ -708,7 +639,6 @@ struct R5G6B5Color {
 }
 impl R5G6B5Color {
     const BLACK: Self = Self::new(0, 0, 0);
-    const WHITE: Self = Self::new(31, 63, 31);
 
     const fn new(r: u8, g: u8, b: u8) -> Self {
         debug_assert!(r < 32);
@@ -741,13 +671,6 @@ impl R5G6B5Color {
         Vec3A::new(n5::f32(self.r), n6::f32(self.g), n5::f32(self.b))
     }
 
-    fn from_u16(q: u16) -> Self {
-        Self {
-            r: ((q >> 11) & 0b11111) as u8,
-            g: ((q >> 5) & 0b111111) as u8,
-            b: (q & 0b11111) as u8,
-        }
-    }
     fn to_u16(self) -> u16 {
         self.debug_check();
         (self.r as u16) << 11 | (self.g as u16) << 5 | self.b as u16
@@ -768,9 +691,6 @@ impl AlphaMap {
     const ALL_TRANSPARENT: Self = Self { data: 0 };
     const ALL_OPAQUE: Self = Self { data: u16::MAX };
 
-    fn set_transparent(&mut self, index: usize) {
-        self.data &= !(1 << index);
-    }
     fn set_opaque(&mut self, index: usize) {
         self.data |= 1 << index;
     }
@@ -780,10 +700,6 @@ impl AlphaMap {
     }
     fn is_opaque(&self, index: usize) -> bool {
         !self.is_transparent(index)
-    }
-
-    fn transparent_count(&self) -> u32 {
-        self.data.count_zeros()
     }
 }
 
@@ -873,16 +789,6 @@ impl<E: ErrorMetric> P4Palette<E> {
             total_error += self.closest_error_sq(pixel);
         }
         total_error
-    }
-
-    fn block_weights(&self, block: impl Block4x4<ColorSpace>) -> [f32; 16] {
-        const W0: [f32; 4] = [1.0, 0.0, 2. / 3., 1. / 3.];
-        let mut weights = [0.0; 16];
-        for pixel_index in 0..16 {
-            let pixel = block.get_pixel_at(pixel_index);
-            weights[pixel_index] = W0[self.closest(pixel).0 as usize];
-        }
-        weights
     }
 }
 impl<E: ErrorMetric> Palette<4> for P4Palette<E> {
