@@ -391,25 +391,40 @@ fn pick_best_quantization(
     let c1_min = R5G6B5Color::from_color_floor(c1);
     let c1_max = R5G6B5Color::from_color_ceil(c1);
 
-    let mut best: (R5G6B5Color, R5G6B5Color) = (c0_min, c1_min);
-    let mut best_error = f(c0_min, c1_min);
+    let mut best: (R5G6B5Color, R5G6B5Color) = (
+        R5G6B5Color::from_color_round(c0),
+        R5G6B5Color::from_color_round(c1),
+    );
+    let mut best_error = f(best.0, best.1);
 
-    // TODO: This is a brute force search. We can do better.
+    let already_checked = best.0;
     for r0 in c0_min.r..=c0_max.r {
         for g0 in c0_min.g..=c0_max.g {
             for b0 in c0_min.b..=c0_max.b {
-                for r1 in c1_min.r..=c1_max.r {
-                    for g1 in c1_min.g..=c1_max.g {
-                        for b1 in c1_min.b..=c1_max.b {
-                            let c0 = R5G6B5Color::new(r0, g0, b0);
-                            let c1 = R5G6B5Color::new(r1, g1, b1);
-                            let error = f(c0, c1);
-                            if error < best_error {
-                                best = (c0, c1);
-                                best_error = error;
-                            }
-                        }
-                    }
+                let c0 = R5G6B5Color::new(r0, g0, b0);
+                if c0 == already_checked {
+                    continue;
+                }
+                let error = f(c0, best.1);
+                if error < best_error {
+                    best.0 = c0;
+                    best_error = error;
+                }
+            }
+        }
+    }
+    let already_checked = best.1;
+    for r1 in c1_min.r..=c1_max.r {
+        for g1 in c1_min.g..=c1_max.g {
+            for b1 in c1_min.b..=c1_max.b {
+                let c1 = R5G6B5Color::new(r1, g1, b1);
+                if c1 == already_checked {
+                    continue;
+                }
+                let error = f(best.0, c1);
+                if error < best_error {
+                    best.1 = c1;
+                    best_error = error;
                 }
             }
         }
