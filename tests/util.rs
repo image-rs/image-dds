@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use ddsd::*;
 use rand::SeedableRng;
 use sha2::{Digest, Sha256};
@@ -184,7 +186,7 @@ pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Casta
     mut reader: impl std::io::Read,
     select_channels: impl FnOnce(DecodeFormat) -> Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
-    let decoder = DdsDecoder::new_with(&mut reader, &options)?;
+    let decoder = DdsDecoder::new_with(&mut reader, options)?;
     let size = decoder.header().size();
     let format = decoder.format();
     if !format.supports_precision(T::PRECISION) {

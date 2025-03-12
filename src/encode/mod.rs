@@ -9,6 +9,7 @@ mod bc;
 mod bc1;
 mod bc4;
 mod bcn_util;
+mod oklab;
 mod sub_sampled;
 mod uncompressed;
 mod write;

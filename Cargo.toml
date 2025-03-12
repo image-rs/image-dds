@@ -28,7 +28,13 @@ rand_chacha = "0.3.1"
 sha2 = "0.10.8"
 
 [[bench]]
+path = "benches/decode.rs"
 name = "decode"
+harness = false
+
+[[bench]]
+path = "benches/encode.rs"
+name = "encode"
 harness = false
 
 [profile.test]

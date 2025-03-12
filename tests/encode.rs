@@ -318,6 +318,19 @@ fn encode_measure_quality() {
                         options.dithering = Dithering::ColorAndAlpha;
                     }),
                 ),
+                (
+                    "perc",
+                    new_options(|options| {
+                        options.error_metric = ErrorMetric::Perceptual;
+                    }),
+                ),
+                (
+                    "perc d",
+                    new_options(|options| {
+                        options.dithering = Dithering::Color;
+                        options.error_metric = ErrorMetric::Perceptual;
+                    }),
+                ),
             ],
             images: &[
                 base,

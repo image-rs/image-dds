@@ -1,3 +1,33 @@
+use glam::Vec3A;
+
+/// Indicates the color is not in RGB/sRGB, but a different color space.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[repr(transparent)]
+pub(crate) struct ColorSpace(pub Vec3A);
+impl std::ops::Add for ColorSpace {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        ColorSpace(self.0 + rhs.0)
+    }
+}
+impl std::ops::AddAssign for ColorSpace {
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += rhs.0;
+    }
+}
+impl std::ops::Sub for ColorSpace {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        ColorSpace(self.0 - rhs.0)
+    }
+}
+impl std::ops::Mul<f32> for ColorSpace {
+    type Output = Self;
+    fn mul(self, rhs: f32) -> Self {
+        ColorSpace(self.0 * rhs)
+    }
+}
+
 /// This will dither within a 4x4 block.
 ///
 /// The input function `f` is called with:
@@ -103,30 +133,84 @@ impl RefinementOptions {
             step_min: 1. / 255. / 2.,
         }
     }
+    pub const fn new_bc1(dist: f32) -> Self {
+        Self {
+            step_initial: 0.5 * dist,
+            step_decay: 0.5,
+            step_min: 1. / 64.,
+        }
+    }
 }
-pub(crate) fn refine_endpoints(
-    mut min: f32,
-    mut max: f32,
+pub(crate) fn refine_endpoints<T: RefinementSteps>(
+    min: T,
+    max: T,
     options: RefinementOptions,
-    mut compute_error: impl FnMut((f32, f32)) -> f32,
-) -> (f32, f32) {
+    mut compute_error: impl FnMut((T, T)) -> f32,
+) -> (T, T) {
     let mut step = options.step_initial;
+    let mut best = (min, max);
     let mut error = compute_error((min, max));
     while step > options.step_min {
+        RefinementSteps::for_each_endpoint(best, step, |current| {
+            let new_error = compute_error(current);
+            if new_error < error {
+                error = new_error;
+                best = current;
+            }
+        });
+        step *= options.step_decay;
+    }
+
+    best
+}
+pub(crate) trait RefinementSteps
+where
+    Self: Copy + Sized,
+{
+    fn for_each_endpoint(start: (Self, Self), step: f32, f: impl FnMut((Self, Self)));
+}
+impl RefinementSteps for f32 {
+    fn for_each_endpoint((min, max): (f32, f32), step: f32, mut f: impl FnMut((f32, f32))) {
         for (delta_min, delta_max) in [(step, 0.0), (0.0, step), (-step, 0.0), (0.0, -step)] {
             let new_min = (min + delta_min).clamp(0.0, 1.0);
             let new_max = (max + delta_max).clamp(0.0, 1.0);
             if new_min < new_max {
-                let new_error = compute_error((new_min, new_max));
-                if new_error < error {
-                    error = new_error;
-                    min = new_min;
-                    max = new_max;
-                }
+                f((new_min, new_max));
             }
         }
-        step *= options.step_decay;
     }
+}
+impl RefinementSteps for Vec3A {
+    fn for_each_endpoint((min, max): (Vec3A, Vec3A), step: f32, mut f: impl FnMut((Vec3A, Vec3A))) {
+        let main_dir_1 = (min - max).try_normalize().unwrap_or(Vec3A::X);
+        let (main_dir_2, main_dir_3) = main_dir_1.any_orthonormal_pair();
 
-    (min, max)
+        let directions = [
+            main_dir_1 * step,
+            main_dir_2 * step,
+            main_dir_3 * step,
+            main_dir_1 * -step,
+            main_dir_2 * -step,
+            main_dir_3 * -step,
+        ];
+        for &dir in &directions {
+            let new_min = (min + dir).clamp(Vec3A::ZERO, Vec3A::ONE);
+            f((new_min, max));
+        }
+        for &dir in &directions {
+            let new_max = (max + dir).clamp(Vec3A::ZERO, Vec3A::ONE);
+            f((min, new_max));
+        }
+    }
+}
+impl RefinementSteps for ColorSpace {
+    fn for_each_endpoint(
+        (min, max): (ColorSpace, ColorSpace),
+        step: f32,
+        mut f: impl FnMut((ColorSpace, ColorSpace)),
+    ) {
+        Vec3A::for_each_endpoint((min.0, max.0), step, move |(min, max)| {
+            f((ColorSpace(min), ColorSpace(max)));
+        });
+    }
 }

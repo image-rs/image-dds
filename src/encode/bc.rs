@@ -5,7 +5,7 @@ use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet};
 use super::{
     bc1, bc4, bcn_util,
     write::{BaseEncoder, Flags},
-    Args, CompressionQuality, DecodedArgs, EncodeError, EncodeOptions,
+    Args, CompressionQuality, DecodedArgs, EncodeError, EncodeOptions, ErrorMetric,
 };
 
 fn block_universal<
@@ -133,6 +133,7 @@ fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
 fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
     let mut o = bc1::Bc1Options::default();
     o.dither = options.dithering.color();
+    o.perceptual = options.error_metric == ErrorMetric::Perceptual;
     o
 }
 pub const BC1_UNORM: &[BaseEncoder] = &[BaseEncoder {
