@@ -30,68 +30,28 @@ impl Operations for Reference {
 struct Fast;
 impl Operations for Fast {
     fn srgb_to_linear(c: f32) -> f32 {
-        // Fast approximation for c.powf(2.4)
-        fn fast_pow_2_4(x: f32) -> f32 {
-            debug_assert!(0.09 <= x);
-            // This uses 2 Taylor expansions at x=0.25 and x=0.75 with the
-            // coefficients adjusted to minimize the error.
-            // https://www.desmos.com/calculator/dvyeiw6hjq
-            if x > 0.398 {
-                let x_ = x - 0.75;
-                let x_2 = x_ * x_;
-                let x_3 = x_2 * x_;
-                let x_4 = x_3 * x_;
-                0.501357 + 1.60434 * x_ + 1.4974 * x_2 + 0.2681 * x_3 - 0.056 * x_4
-            } else {
-                let x_ = x - 0.25;
-                let x_2 = x_ * x_;
-                let x_3 = x_2 * x_;
-                let x_4 = x_3 * x_;
-                0.0358968 + 0.34461 * x_ + 0.96499 * x_2 + 0.519 * x_3 - 0.365 * x_4
-            }
-        }
-
         if c >= 0.04045 {
-            fast_pow_2_4((c + 0.055) * (1.0 / 1.055))
+            // This uses a Padé approximant for ((c + 0.055) / 1.055) ^ 2.4:
+            // (0.000857709 +0.0359438 x+0.524293 x^2+1.31193 x^3)/(1+0.992498 x-0.119725 x^2)
+            let c2 = c * c;
+            let c3 = c2 * c;
+            f32::min(
+                1.0,
+                (0.000857709 + 0.0359438 * c + 0.524293 * c2 + 1.31193 * c3)
+                    / (1.0 + 0.992498 * c - 0.119725 * c2),
+            )
         } else {
             c * (1.0 / 12.92)
         }
     }
     fn linear_to_srgb(c: f32) -> f32 {
-        // Fast approximation for c.powf(1 / 2.4)
-        fn fast_pow_1_over_2_4(x: f32) -> f32 {
-            // The idea here is as follows:
-            // - 1/2.4 = 5/12
-            // - x^(5/12) = cbrt(sqrt(sqrt(x^5)))
-            // - we can do these operations in any order
-            // So we first compute a=sqrt(x) and then approximate a^(5/6)
-
-            let x = x.sqrt();
-
-            // https://www.desmos.com/calculator/ejhirtjf0i
-            if x > 0.3973 {
-                let x_ = x - 0.75;
-                let x_2 = x_ * x_;
-                let x_3 = x_2 * x_;
-                let x_4 = x_3 * x_;
-                0.786836 + 0.87429 * x_ + -0.0974 * x_2 + 0.053 * x_3 + -0.039 * x_4
-            } else if x > 0.138 {
-                let x_ = x - 0.3;
-                let x_2 = x_ * x_;
-                let x_3 = x_2 * x_;
-                let x_4 = x_3 * x_;
-                0.366664 + 1.01851 * x_ + -0.282919 * x_2 + 0.357 * x_3 + -1.06 * x_4
-            } else {
-                let x_ = x - 0.1;
-                let x_2 = x_ * x_;
-                let x_3 = x_2 * x_;
-                let x_4 = x_3 * x_;
-                0.14678 + 1.22317 * x_ + -1.01931 * x_2 + 4.0 * x_3 + -29.35 * x_4
-            }
-        }
-
         if c > 0.0031308 {
-            1.055 * fast_pow_1_over_2_4(c) - 0.055
+            // This uses a Padé approximant for 1.055 c^(1/2.4) - 0.055:
+            // (-0.0117264+21.0897 x+949.46 x^2+2225.62 x^3)/(1+176.398 x+1983.15 x^2+1035.65 x^3)
+            let c2 = c * c;
+            let c3 = c2 * c;
+            (-0.0117264 + 21.0897 * c + 949.46 * c2 + 2225.62 * c3)
+                / (1.0 + 176.398 * c + 1983.15 * c2 + 1035.65 * c3)
         } else {
             12.92 * c
         }
@@ -228,7 +188,7 @@ mod tests {
                     let srgb = fast_oklab_to_srgb(fast_oklab);
 
                     assert!(
-                        (color - srgb).abs().max_element() < 1e-3,
+                        (color - srgb).abs().max_element() < 2.5e-3,
                         "{:?} -> {:?}",
                         color,
                         srgb
@@ -266,7 +226,9 @@ mod tests {
             let l = Fast::srgb_to_linear(c);
             let c2 = Fast::linear_to_srgb(l);
 
-            assert!((c - c2).abs() < 1e-3, "{} -> {}", c, c2);
+            assert!((c - c2).abs() < 2.5e-3, "{} -> {}", c, c2);
+            assert!((0.0..=1.0).contains(&l), "{} -> {}", c, l);
+            assert!((0.0..=1.0).contains(&c2), "{} -> {}", c, l);
         }
 
         assert_eq!(Reference::srgb_to_linear(0.0), 0.0);
@@ -279,14 +241,14 @@ mod tests {
     fn test_error_fast_srgb_to_linear() {
         assert_eq!(
             get_error_stats(Reference::srgb_to_linear, Fast::srgb_to_linear),
-            "Error: avg=0.00000416 max=0.00003344 for 0.365"
+            "Error: avg=0.00002514 max=0.00013047 for 0.999"
         );
     }
     #[test]
     fn test_error_fast_linear_to_srgb() {
         assert_eq!(
             get_error_stats(Reference::linear_to_srgb, Fast::linear_to_srgb),
-            "Error: avg=0.00000921 max=0.00005674 for 0.158"
+            "Error: avg=0.00105457 max=0.00236702 for 0.732"
         );
     }
 
