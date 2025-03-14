@@ -116,7 +116,7 @@ pub(crate) fn for_each_pixel_untyped(
             let pixels = row.len() / size_of_in;
             debug_assert_eq!(pixels, buf.len() / buf_bytes_per_pixel);
 
-            conversion_buffer.process_pixels(pixels, row, buf, process_pixels);
+            conversion_buffer.process_pixels(row, buf, process_pixels);
         }
         Ok(())
     }
@@ -137,6 +137,7 @@ pub(crate) fn for_each_pixel_untyped(
 /// Helper method for decoding UNCOMPRESSED formats.
 ///
 /// `process_pixels` has the same semantics as in `for_each_pixel_untyped`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn for_each_pixel_rect_untyped(
     r: &mut dyn ReadSeek,
     buf: &mut [u8],
@@ -199,7 +200,7 @@ pub(crate) fn for_each_pixel_rect_untyped(
             let buf = &mut buf[buf_start..(buf_start + buf_len)];
             debug_assert_eq!(row.len() / size_of_in, buf.len() / buffer_bytes_per_pixel);
 
-            conversion_buffer.process_pixels(pixels_per_line, &row, buf, process_pixels);
+            conversion_buffer.process_pixels(&row, buf, process_pixels);
         }
 
         // jump to the end of the surface to put the reader into a known position
@@ -347,6 +348,24 @@ pub(crate) fn process_4x4_blocks_helper<
     process_block: impl Copy + Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; 16],
 ) {
     debug_assert!(range.rows.len() <= 4);
+    debug_assert!(encoded_blocks.len() % BYTES_PER_BLOCK == 0);
+    debug_assert_eq!(
+        encoded_blocks.len() / BYTES_PER_BLOCK,
+        div_ceil(range.width_offset as u32 + range.width, 4) as usize
+    );
+    if decoded.len()
+        < stride * (range.rows.len() - 1) + range.width as usize * size_of::<OutPixel>()
+    {
+        println!("debugger");
+    }
+    debug_assert!(
+        decoded.len()
+            >= stride * (range.rows.len() - 1) + range.width as usize * size_of::<OutPixel>(),
+        "decoded.len() = {}, stride = {}, range = {:?}",
+        decoded.len(),
+        stride,
+        range
+    );
 
     if range.width_offset != 0 {
         // handle offset separately
@@ -526,16 +545,20 @@ pub(crate) fn for_each_block_untyped<
     r: &mut dyn Read,
     buf: &mut [u8],
     size: Size,
+    buf_channels: Channels,
+    native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodeError> {
+    #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn Read,
         buf: &mut [u8],
         size: Size,
         block_size: (usize, usize),
         bytes_per_block: usize,
-        size_of_out: usize,
-        process_pixels: ProcessBlocksFn,
+        buf_color: ColorFormat,
+        native_color: ColorFormat,
+        process_blocks: ProcessBlocksFn,
     ) -> Result<(), DecodeError> {
         // The basic idea here is to decode the image line by line. A line is a
         // sequence of encoded blocks that together describe BLOCK_SIZE_Y rows of
@@ -552,13 +575,14 @@ pub(crate) fn for_each_block_untyped<
         let height_blocks = div_ceil(size.height, block_size_y as u32) as usize;
 
         let mut line_buffer = UntypedLineBuffer::new(width_blocks * bytes_per_block, height_blocks);
+        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
 
         let mut block_y = 0;
         while let Some(block_line) = line_buffer.next_line(r)? {
             // how many rows of pixels we'll decode
             // this is usually BLOCK_SIZE_Y, but might be less for the last block
             let pixel_rows = block_size_y.min(size.height as usize - block_y * block_size_y);
-            let pixel_row_bytes = size.width as usize * size_of_out;
+            let pixel_row_bytes = size.width as usize * buf_color.bytes_per_pixel() as usize;
             debug_assert!(buf.len() % pixel_row_bytes == 0);
 
             let start_pixel_y = block_y * block_size_y;
@@ -571,12 +595,23 @@ pub(crate) fn for_each_block_untyped<
                 rows: 0..pixel_rows as u8,
             };
 
-            process_pixels(block_line, buf, pixel_row_bytes, range);
+            conversion_buffer.process_blocks(
+                bytes_per_block,
+                block_size_x as u32,
+                block_line,
+                buf,
+                pixel_row_bytes,
+                range,
+                process_blocks,
+            );
 
             block_y += 1;
         }
         Ok(())
     }
+
+    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(native_color.bytes_per_pixel(), size_of::<OutPixel>() as u8);
 
     inner(
         r,
@@ -584,11 +619,13 @@ pub(crate) fn for_each_block_untyped<
         size,
         (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
-        size_of::<OutPixel>(),
+        buf_color,
+        native_color,
         process_pixels,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn for_each_block_rect_untyped<
     const BLOCK_SIZE_X: usize,
     const BLOCK_SIZE_Y: usize,
@@ -599,6 +636,8 @@ pub(crate) fn for_each_block_rect_untyped<
     row_pitch: usize,
     size: Size,
     rect: Rect,
+    buf_channels: Channels,
+    native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodeError> {
     #[allow(clippy::too_many_arguments)]
@@ -610,6 +649,8 @@ pub(crate) fn for_each_block_rect_untyped<
         rect: Rect,
         block_size: (usize, usize),
         bytes_per_block: usize,
+        buf_color: ColorFormat,
+        native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
     ) -> Result<(), DecodeError> {
         // To make this algorithm easier to implement, we'll always read full
@@ -636,6 +677,7 @@ pub(crate) fn for_each_block_rect_untyped<
 
         let mut line_buffer =
             UntypedLineBuffer::new(blocks_per_line * bytes_per_block, block_lines_to_read);
+        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
 
         // the range of blocks within a block line
         let block_range_start = rect.x as usize / block_size_x;
@@ -669,11 +711,14 @@ pub(crate) fn for_each_block_rect_untyped<
                 rows: rows.clone(),
             };
 
-            process_blocks(
+            conversion_buffer.process_blocks(
+                bytes_per_block,
+                block_size_x as u32,
                 block_line,
                 &mut buf[pixel_row * row_pitch..],
                 row_pitch,
                 range,
+                process_blocks,
             );
 
             block_line_y += 1;
@@ -689,6 +734,8 @@ pub(crate) fn for_each_block_rect_untyped<
         Ok(())
     }
 
+    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+
     inner(
         r,
         buf,
@@ -697,6 +744,8 @@ pub(crate) fn for_each_block_rect_untyped<
         rect,
         (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
+        buf_color,
+        native_color,
         process_pixels,
     )
 }
@@ -716,21 +765,17 @@ impl ChannelConversionBuffer {
         }
     }
 
-    fn process_pixels(
-        &mut self,
-        pixels: usize,
-        encoded: &[u8],
-        out: &mut [u8],
-        f: ProcessPixelsFn,
-    ) {
+    fn process_pixels(&mut self, encoded: &[u8], out: &mut [u8], f: ProcessPixelsFn) {
         // fast path: no conversion needed
         if self.native_color.channels == self.target {
             f(PixelArgs(encoded, out));
             return;
         }
 
+        let out_bytes_per_pixel =
+            ColorFormat::new(self.target, self.native_color.precision).bytes_per_pixel() as usize;
+        let pixels = out.len() / out_bytes_per_pixel;
         let encoded_bytes_per_pixel = encoded.len() / pixels;
-        let out_bytes_per_pixel = out.len() / pixels;
         debug_assert!(out_bytes_per_pixel % self.target.count() as usize == 0);
         let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
         let buffer_pixels = Self::BUFFER_BYTES / buffer_bytes_per_pixel;
@@ -752,6 +797,135 @@ impl ChannelConversionBuffer {
 
             // convert the channels into the output buffer
             convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn process_blocks(
+        &mut self,
+        block_bytes: usize,
+        block_width: u32,
+        mut encoded_blocks: &[u8],
+        mut out: &mut [u8],
+        stride: usize,
+        mut range: PixelRange,
+        f: ProcessBlocksFn,
+    ) {
+        // fast path: no conversion needed
+        if self.native_color.channels == self.target {
+            f(encoded_blocks, out, stride, range);
+            return;
+        }
+
+        fn nice_multiple(width: u32) -> u32 {
+            // round down to a multiple of 4
+            width & !3
+        }
+
+        let size = Size::new(range.width, range.rows.len() as u32);
+        debug_assert!(size.height > 0);
+        let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
+        let buffer_size = Size::new(
+            nice_multiple(
+                (Self::BUFFER_BYTES / (buffer_bytes_per_pixel * size.height as usize)) as u32,
+            ),
+            size.height,
+        );
+        debug_assert!(buffer_size.width >= block_width);
+        let out_bytes_per_pixel =
+            ColorFormat::new(self.target, self.native_color.precision).bytes_per_pixel() as usize;
+
+        let buffer = cast::as_bytes_mut(&mut self.buffer);
+
+        // If the entire decoded line fits into the buffer, just do it in one go.
+        if size.width <= buffer_size.width {
+            let buffer_stride = size.width as usize * buffer_bytes_per_pixel;
+            let buffer = &mut buffer[..buffer_stride * size.height as usize];
+
+            // decode into the temporary buffer
+            f(encoded_blocks, buffer, buffer_stride, range);
+
+            // convert the channels into the output buffer
+            for y in 0..size.height as usize {
+                let buffer_row = &buffer[y * buffer_stride..(y + 1) * buffer_stride];
+                let out_row =
+                    &mut out[y * stride..y * stride + size.width as usize * out_bytes_per_pixel];
+                convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
+            }
+            return;
+        }
+
+        // To simplify the following code, start by handling the width offset, so that
+        // the general case can assume `range.width_offset == 0`.
+        if range.width_offset != 0 {
+            let offset_width = block_width - range.width_offset as u32;
+
+            let buffer_stride = offset_width as usize * buffer_bytes_per_pixel;
+            let buffer = &mut buffer[..buffer_stride * size.height as usize];
+
+            // decode into the temporary buffer
+            f(
+                &encoded_blocks[..block_bytes],
+                buffer,
+                buffer_stride,
+                PixelRange {
+                    width: offset_width,
+                    width_offset: range.width_offset,
+                    rows: range.rows.clone(),
+                },
+            );
+
+            // convert the channels into the output buffer
+            for y in 0..size.height as usize {
+                let buffer_row = &buffer[y * buffer_stride..(y + 1) * buffer_stride];
+                let out_row =
+                    &mut out[y * stride..y * stride + offset_width as usize * out_bytes_per_pixel];
+                convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
+            }
+
+            // adjust inputs
+            range.width_offset = 0;
+            range.width -= offset_width;
+            encoded_blocks = &encoded_blocks[block_bytes..];
+            out = &mut out[offset_width as usize * out_bytes_per_pixel..];
+        }
+
+        debug_assert!(range.width_offset == 0);
+        for chunk_start in
+            (0..size.width).step_by((buffer_size.width / block_width * block_width) as usize)
+        {
+            let chunk_end = (chunk_start + buffer_size.width).min(size.width);
+            let chunk_size = chunk_end - chunk_start;
+
+            let block_offset = (chunk_start / block_width) as usize;
+            let block_count = div_ceil(chunk_size, block_width) as usize;
+
+            let encoded_chunk = &encoded_blocks
+                [block_offset * block_bytes..(block_offset + block_count) * block_bytes];
+            let out_chunk = &mut out[chunk_start as usize * out_bytes_per_pixel..];
+
+            let buffer_stride = chunk_size as usize * buffer_bytes_per_pixel;
+            let buffer_chunk = &mut buffer[..buffer_stride * size.height as usize];
+
+            // decode into the temporary buffer
+            f(
+                encoded_chunk,
+                buffer_chunk,
+                buffer_stride,
+                PixelRange {
+                    width: chunk_size,
+                    width_offset: 0,
+                    rows: range.rows.clone(),
+                },
+            );
+
+            // convert the channels into the output buffer
+            for y in 0..size.height as usize {
+                let buffer_row = &buffer_chunk[y * buffer_stride..(y + 1) * buffer_stride];
+                let out_row = &mut out_chunk
+                    [y * stride..y * stride + chunk_size as usize * out_bytes_per_pixel];
+                convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
+            }
         }
     }
 }

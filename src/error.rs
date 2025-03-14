@@ -41,10 +41,6 @@ pub enum DecodeError {
     /// I.e. it is possible for the header to describe a texture that requires
     /// >2^64 bytes of memory.
     DataLayoutTooBig,
-    UnsupportedColorFormat {
-        format: Format,
-        color: ColorFormat,
-    },
     UnexpectedBufferSize {
         expected: usize,
     },
@@ -91,13 +87,6 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")
-            }
-            DecodeError::UnsupportedColorFormat { format, color } => {
-                write!(
-                    f,
-                    "Color format {} is not supported for format {:?}.",
-                    color, format,
-                )
             }
             DecodeError::UnexpectedBufferSize { expected } => {
                 write!(f, "Unexpected buffer size: expected {} bytes", expected)

@@ -154,37 +154,8 @@ impl Format {
         get_decoders(*self).native_color()
     }
 
-    /// Returns `true` if this format supports decoding as the given color
-    /// format.
-    ///
-    /// ## Channel and precision combinations
-    ///
-    /// All color formats that consist of a supported channels type and
-    /// supported precision are supported. This means that all combinations
-    /// of channel and precisions from [`Self::supports_channels`] and
-    /// [`Self::supports_precision`] respectively are supported color formats.
-    pub fn supports(&self, color: ColorFormat) -> bool {
-        self.supports_channels(color.channels) && self.supports_precision(color.precision)
-    }
-    /// Whether this format supports decoding with the given channels.
-    ///
-    /// `self.supports_channels(self.channels())` is always `true`.
-    pub fn supports_channels(&self, channels: Channels) -> bool {
-        get_decoders(*self).supports_channels(channels)
-    }
-    /// Whether this format supports decoding with the given precision.
-    ///
-    /// `self.supports_precision(self.precision())` is always `true`.
-    pub fn supports_precision(&self, precision: Precision) -> bool {
-        get_decoders(*self).supports_precision(precision)
-    }
-
     /// Decodes the image data of a surface from the given reader and writes it
     /// to the given output buffer.
-    ///
-    /// If this format does not support the given channels and precision, an
-    /// error is returned. Support can be checked ahead of time with
-    /// [`Self::supported_channels`] and [`Self::supported_precisions`].
     ///
     /// ## Output buffer
     ///
@@ -223,13 +194,6 @@ impl Format {
         color: ColorFormat,
         output: &mut [u8],
     ) -> Result<(), DecodeError> {
-        if !self.supports(color) {
-            return Err(DecodeError::UnsupportedColorFormat {
-                color,
-                format: *self,
-            });
-        }
-
         get_decoders(*self).decode(color, reader, size, output)
     }
 
@@ -288,10 +252,6 @@ impl Format {
     /// Decodes a rectangle of the image data of a surface from the given reader
     /// and writes it to the given output buffer.
     ///
-    /// If this format does not support the given channels and precision, an
-    /// error is returned. Support can be checked ahead of time with
-    /// [`Self::supported_channels`] and [`Self::supported_precisions`].
-    ///
     /// ## Row pitch and the output buffer
     ///
     /// The `row_pitch` parameter specifies the number of bytes between the start
@@ -326,13 +286,6 @@ impl Format {
         output: &mut [u8],
         row_pitch: usize,
     ) -> Result<(), DecodeError> {
-        if !self.supports(color) {
-            return Err(DecodeError::UnsupportedColorFormat {
-                color,
-                format: *self,
-            });
-        }
-
         let reader = reader as &mut dyn ReadSeek;
         let decoders = get_decoders(*self);
         decoders.decode_rect(color, reader, size, rect, output, row_pitch)

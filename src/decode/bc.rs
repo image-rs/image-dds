@@ -25,13 +25,18 @@ macro_rules! underlying {
             process_4x4_blocks_helper(encoded_blocks, decoded, stride, range, f)
         }
 
-        DirectDecoder::new(
-            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION),
+        const NATIVE_COLOR: ColorFormat =
+            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
+
+        DirectDecoder::new_with_all_channels(
+            NATIVE_COLOR,
             |Args(r, out, context)| {
                 for_each_block_untyped::<4, 4, BYTES_PER_BLOCK, OutPixel>(
                     r,
                     out,
                     context.size,
+                    context.color.channels,
+                    NATIVE_COLOR,
                     process_blocks,
                 )
             },
@@ -42,6 +47,8 @@ macro_rules! underlying {
                     row_pitch,
                     context.size,
                     rect,
+                    context.color.channels,
+                    NATIVE_COLOR,
                     process_blocks,
                 )
             },
@@ -65,27 +72,6 @@ macro_rules! rgba {
     };
 }
 
-fn gray_to_rgb<const N: usize, T: Copy>(
-    f: impl Copy + Fn([u8; N]) -> [[T; 1]; 16],
-) -> impl Copy + Fn([u8; N]) -> [[T; 3]; 16] {
-    move |block_bytes| f(block_bytes).map(ToRgb::to_rgb)
-}
-fn gray_to_rgba<const N: usize, T: Norm>(
-    f: impl Copy + Fn([u8; N]) -> [[T; 1]; 16],
-) -> impl Copy + Fn([u8; N]) -> [[T; 4]; 16] {
-    move |block_bytes| f(block_bytes).map(ToRgba::to_rgba)
-}
-fn rgb_to_rgba<const N: usize, T: Norm>(
-    f: impl Copy + Fn([u8; N]) -> [[T; 3]; 16],
-) -> impl Copy + Fn([u8; N]) -> [[T; 4]; 16] {
-    move |block_bytes| f(block_bytes).map(ToRgba::to_rgba)
-}
-fn rgba_to_rgb<const N: usize, T>(
-    f: impl Copy + Fn([u8; N]) -> [[T; 4]; 16],
-) -> impl Copy + Fn([u8; N]) -> [[T; 3]; 16] {
-    move |block_bytes| f(block_bytes).map(ToRgb::to_rgb)
-}
-
 fn with_precision<const N: usize, const C: usize, I, O>(
     f: impl Copy + Fn([u8; N]) -> [[I; C]; 16],
 ) -> impl Copy + Fn([u8; N]) -> [[O; C]; 16]
@@ -101,9 +87,6 @@ pub(crate) const BC1_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, 8, blocks::bc1_u8_rgba),
     rgba!(u16, 8, with_precision(blocks::bc1_u8_rgba)),
     rgba!(f32, 8, with_precision(blocks::bc1_u8_rgba)),
-    rgb!(u8, 8, rgba_to_rgb(blocks::bc1_u8_rgba)),
-    rgb!(u16, 8, with_precision(rgba_to_rgb(blocks::bc1_u8_rgba))),
-    rgb!(f32, 8, with_precision(rgba_to_rgb(blocks::bc1_u8_rgba))),
 ]);
 
 pub(crate) const BC2_UNORM: DecoderSet = DecoderSet::new(&[
@@ -126,17 +109,6 @@ pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: DecoderSet = DecoderSet::new(&[
         f32,
         16,
         with_precision(blocks::bc2_premultiplied_alpha_u8_rgba)
-    ),
-    rgb!(u8, 16, blocks::bc2_premultiplied_alpha_u8_rgb),
-    rgb!(
-        u16,
-        16,
-        with_precision(blocks::bc2_premultiplied_alpha_u8_rgb)
-    ),
-    rgb!(
-        f32,
-        16,
-        with_precision(blocks::bc2_premultiplied_alpha_u8_rgb)
     ),
 ]);
 
@@ -161,76 +133,36 @@ pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: DecoderSet = DecoderSet::new(&[
         16,
         with_precision(blocks::bc3_premultiplied_alpha_u8_rgba)
     ),
-    rgb!(u8, 16, blocks::bc3_premultiplied_alpha_u8_rgb),
-    rgb!(
-        u16,
-        16,
-        with_precision(blocks::bc3_premultiplied_alpha_u8_rgb)
-    ),
-    rgb!(
-        f32,
-        16,
-        with_precision(blocks::bc3_premultiplied_alpha_u8_rgb)
-    ),
 ]);
 
 pub(crate) const BC3_UNORM_RXGB: DecoderSet = DecoderSet::new(&[
     rgb!(u8, 16, blocks::bc3_rxgb_u8_rgb),
     rgb!(u16, 16, with_precision(blocks::bc3_rxgb_u8_rgb)),
     rgb!(f32, 16, with_precision(blocks::bc3_rxgb_u8_rgb)),
-    rgba!(u8, 16, rgb_to_rgba(blocks::bc3_rxgb_u8_rgb)),
-    rgba!(
-        u16,
-        16,
-        with_precision(rgb_to_rgba(blocks::bc3_rxgb_u8_rgb))
-    ),
-    rgba!(
-        f32,
-        16,
-        with_precision(rgb_to_rgba(blocks::bc3_rxgb_u8_rgb))
-    ),
 ]);
 
 pub(crate) const BC4_UNORM: DecoderSet = DecoderSet::new(&[
     gray!(u8, 8, blocks::bc4u_gray),
     gray!(u16, 8, blocks::bc4u_gray),
     gray!(f32, 8, blocks::bc4u_gray),
-    rgb!(u8, 8, gray_to_rgb(blocks::bc4u_gray)),
-    rgb!(u16, 8, gray_to_rgb(blocks::bc4u_gray)),
-    rgb!(f32, 8, gray_to_rgb(blocks::bc4u_gray)),
-    rgba!(u8, 8, gray_to_rgba(blocks::bc4u_gray)),
-    rgba!(u16, 8, gray_to_rgba(blocks::bc4u_gray)),
-    rgba!(f32, 8, gray_to_rgba(blocks::bc4u_gray)),
 ]);
 
 pub(crate) const BC4_SNORM: DecoderSet = DecoderSet::new(&[
     gray!(u8, 8, blocks::bc4s_gray),
     gray!(u16, 8, blocks::bc4s_gray),
     gray!(f32, 8, blocks::bc4s_gray),
-    rgb!(u8, 8, gray_to_rgb(blocks::bc4s_gray)),
-    rgb!(u16, 8, gray_to_rgb(blocks::bc4s_gray)),
-    rgb!(f32, 8, gray_to_rgb(blocks::bc4s_gray)),
-    rgba!(u8, 8, gray_to_rgba(blocks::bc4s_gray)),
-    rgba!(u16, 8, gray_to_rgba(blocks::bc4s_gray)),
-    rgba!(f32, 8, gray_to_rgba(blocks::bc4s_gray)),
 ]);
 
 pub(crate) const BC5_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, 16, blocks::bc5u_rgb),
     rgb!(u16, 16, blocks::bc5u_rgb),
     rgb!(f32, 16, blocks::bc5u_rgb),
-    rgba!(u8, 16, rgb_to_rgba(blocks::bc5u_rgb)),
-    rgba!(u16, 16, rgb_to_rgba(blocks::bc5u_rgb)),
-    rgba!(f32, 16, rgb_to_rgba(blocks::bc5u_rgb)),
 ]);
 
 pub(crate) const BC5_SNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, 16, blocks::bc5s_rgb),
     rgb!(u16, 16, blocks::bc5s_rgb),
     rgb!(f32, 16, blocks::bc5s_rgb),
-    rgba!(u8, 16, rgb_to_rgba(blocks::bc5s_rgb)),
-    rgba!(u16, 16, rgb_to_rgba(blocks::bc5s_rgb)),
-    rgba!(f32, 16, rgb_to_rgba(blocks::bc5s_rgb)),
 ]);
 
 pub(crate) const BC6H_UF16: DecoderSet = DecoderSet::new(&[
@@ -248,9 +180,6 @@ pub(crate) const BC7_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, 16, blocks::bc7_u8_rgba),
     rgba!(u16, 16, blocks::bc7_u16_rgba),
     rgba!(f32, 16, blocks::bc7_f32_rgba),
-    rgb!(u8, 16, rgba_to_rgb(blocks::bc7_u8_rgba)),
-    rgb!(u16, 16, rgba_to_rgb(blocks::bc7_u16_rgba)),
-    rgb!(f32, 16, rgba_to_rgb(blocks::bc7_f32_rgba)),
 ]);
 
 /// Internal module for the underlying logic of decoding BC1-7 blocks.
@@ -370,9 +299,6 @@ mod blocks {
         to_straight_alpha(&mut pixels);
         pixels
     }
-    pub(crate) fn bc2_premultiplied_alpha_u8_rgb(block_bytes: [u8; 16]) -> [[u8; 3]; 16] {
-        bc2_premultiplied_alpha_u8_rgba(block_bytes).map(|[r, g, b, _]| [r, g, b])
-    }
 
     fn to_straight_alpha(pixels: &mut [[u8; 4]; 16]) {
         for pixel in pixels.iter_mut() {
@@ -415,9 +341,6 @@ mod blocks {
         let mut pixels = bc3_u8_rgba(block_bytes);
         to_straight_alpha(&mut pixels);
         pixels
-    }
-    pub(crate) fn bc3_premultiplied_alpha_u8_rgb(block_bytes: [u8; 16]) -> [[u8; 3]; 16] {
-        bc3_premultiplied_alpha_u8_rgba(block_bytes).map(|[r, g, b, _]| [r, g, b])
     }
 
     pub(crate) trait BC4uOperations: Norm {

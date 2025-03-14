@@ -27,13 +27,18 @@ macro_rules! underlying {
             process_2x1_blocks_helper(encoded_blocks, decoded, range, f)
         }
 
-        DirectDecoder::new(
-            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION),
+        const NATIVE_COLOR: ColorFormat =
+            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
+
+        DirectDecoder::new_with_all_channels(
+            NATIVE_COLOR,
             |Args(r, out, context)| {
                 for_each_block_untyped::<2, 1, BYTES_PER_BLOCK, OutPixel>(
                     r,
                     out,
                     context.size,
+                    context.color.channels,
+                    NATIVE_COLOR,
                     process_blocks,
                 )
             },
@@ -44,6 +49,8 @@ macro_rules! underlying {
                     row_pitch,
                     context.size,
                     rect,
+                    context.color.channels,
+                    NATIVE_COLOR,
                     process_blocks,
                 )
             },
@@ -83,10 +90,20 @@ macro_rules! r1 {
             process_8x1_blocks_helper(encoded_blocks, decoded, stride, range, f)
         }
 
-        DirectDecoder::new(
-            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION),
+        const NATIVE_COLOR: ColorFormat =
+            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
+
+        DirectDecoder::new_with_all_channels(
+            NATIVE_COLOR,
             |Args(r, out, context)| {
-                for_each_block_untyped::<8, 1, 1, OutPixel>(r, out, context.size, process_blocks)
+                for_each_block_untyped::<8, 1, 1, OutPixel>(
+                    r,
+                    out,
+                    context.size,
+                    context.color.channels,
+                    NATIVE_COLOR,
+                    process_blocks,
+                )
             },
             |RArgs(r, out, row_pitch, rect, context)| {
                 for_each_block_rect_untyped::<8, 1, 1>(
@@ -95,6 +112,8 @@ macro_rules! r1 {
                     row_pitch,
                     context.size,
                     rect,
+                    context.color.channels,
+                    NATIVE_COLOR,
                     process_blocks,
                 )
             },
@@ -196,13 +215,4 @@ pub(crate) const R1_UNORM: DecoderSet = DecoderSet::new(&[
     r1!(Grayscale, f32, |block| r1_bits(block)
         .map(n1::f32)
         .map(|p| [p])),
-    r1!(Rgb, u8, |block| r1_bits(block)
-        .map(n1::n8)
-        .map(|p| [p, p, p])),
-    r1!(Rgb, u16, |block| r1_bits(block)
-        .map(n1::n16)
-        .map(|p| [p, p, p])),
-    r1!(Rgb, f32, |block| r1_bits(block)
-        .map(n1::f32)
-        .map(|p| [p, p, p])),
 ]);

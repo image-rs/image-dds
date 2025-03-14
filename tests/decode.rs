@@ -152,9 +152,6 @@ fn decode_rect() {
         let size = decoder.header().size();
         let format = decoder.format();
         let target_color = ColorFormat::new(Channels::Rgba, U8);
-        if !format.supports(target_color) {
-            return Err("Format does not support decoding as RGBA U8".into());
-        }
 
         // read in the whole DDS surface, because we need to read it multiple times
         let surface_byte_len = decoder.layout().texture().unwrap().main().data_len();
@@ -255,12 +252,8 @@ fn decode_all_color_formats() {
             Channels::Rgb,
             Channels::Rgba,
         ];
-        for channels in all_channels
-            .iter()
-            .copied()
-            .filter(|x| format.supports_channels(*x))
-        {
-            if format.supports_precision(U8) && channels != reference.channels {
+        for channels in all_channels.iter().copied() {
+            if channels != reference.channels {
                 let image = util::read_dds_with_channels::<u8>(dds_path, channels)?.0;
                 let reference =
                     util::convert_channels(&reference.data, reference.channels, channels);
@@ -271,7 +264,7 @@ fn decode_all_color_formats() {
                     dds_path
                 );
             }
-            if format.supports_precision(U16) {
+            {
                 let image = util::read_dds_with_channels::<u16>(dds_path, channels)?.0;
                 let reference =
                     util::convert_channels(&reference.data, reference.channels, channels);
@@ -282,7 +275,7 @@ fn decode_all_color_formats() {
                     dds_path
                 )
             }
-            if format.supports_precision(F32) {
+            {
                 let image = util::read_dds_with_channels::<f32>(dds_path, channels)?.0;
                 let reference =
                     util::convert_channels(&reference.data, reference.channels, channels);

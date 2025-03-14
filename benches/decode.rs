@@ -49,7 +49,6 @@ fn bench_decoder_with(
 
         let reader = DdsDecoder::from_header(header).unwrap();
         let format = reader.format();
-        assert!(format.supports(color));
 
         let surface = reader.layout().texture().unwrap().main();
         let mut bytes = random_bytes(surface.data_len() as usize).into_boxed_slice();

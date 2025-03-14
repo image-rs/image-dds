@@ -134,6 +134,18 @@ impl DirectDecoder {
             decode_rect_fn,
         }
     }
+    pub const fn new_with_all_channels(
+        color: ColorFormat,
+        decode_fn: DecodeFn,
+        decode_rect_fn: DecodeRectFn,
+    ) -> Self {
+        Self {
+            native_color: color,
+            supported_colors: ColorFormatSet::from_precision(color.precision),
+            decode_fn,
+            decode_rect_fn,
+        }
+    }
 }
 
 /// A decoder for uncompressed pixel formats. This contains only a single
@@ -161,8 +173,6 @@ impl UncompressedDecoder {
 
 struct DirectDecoderSet {
     decoders: &'static [DirectDecoder],
-    native_color: ColorFormat,
-    supported_colors: ColorFormatSet,
 }
 impl DirectDecoderSet {
     const fn new(decoders: &'static [DirectDecoder]) -> Self {
@@ -172,69 +182,26 @@ impl DirectDecoderSet {
         const_for!(decoder, decoders, {
             supported_colors = supported_colors.union(decoder.supported_colors);
         });
+        debug_assert!(supported_colors.is_all(), "All colors must be supported");
 
-        let value = Self {
-            decoders,
-            native_color: decoders[0].native_color,
-            supported_colors,
-        };
-
-        #[cfg(debug_assertions)]
-        value.verify();
-
-        value
+        Self { decoders }
     }
-    #[cfg(debug_assertions)]
-    const fn verify(&self) {
-        // 1. The list must be non-empty.
-        assert!(!self.decoders.is_empty());
 
-        // 2. Color formats must not overlap
-        let mut all_colors = ColorFormatSet::EMPTY;
-        {
-            const_for!(decoder, self.decoders, {
-                if all_colors.contains_any(decoder.supported_colors) {
-                    panic!("Repeated color channel-precision combination");
-                }
-                all_colors = all_colors.union(decoder.supported_colors)
-            });
-        }
-
-        // 3. Color channel-precision combination must be exhaustive.
-        {
-            // TODO: reenable sometimes later
-            // let channels_u8 = BitSet::from_channels_in(all_colors.intersection(ColorFormatSet::U8));
-            // let channels_u16 =
-            //     BitSet::from_channels_in(all_colors.intersection(ColorFormatSet::U16));
-            // let channels_f32 =
-            //     BitSet::from_channels_in(all_colors.intersection(ColorFormatSet::F32));
-
-            // // the expected number of decoders IF all combinations are present
-            // if channels_u8.0 == channels_u16.0  {
-            //     panic!("Missing color channel-precision combination");
-            // }
-        }
-
-        // 4. All precisions must be supported
-        {
-            let all_precisions_supported = all_colors.contains_any(ColorFormatSet::U8)
-                && all_colors.contains_any(ColorFormatSet::U16)
-                && all_colors.contains_any(ColorFormatSet::F32);
-            if !all_precisions_supported {
-                panic!("All precisions must be supported");
-            }
-        }
+    const fn native_color(&self) -> ColorFormat {
+        self.decoders[0].native_color
     }
 
     fn get_decoder(&self, color: ColorFormat) -> &DirectDecoder {
-        if let Some(decoder) = self
-            .decoders
-            .iter()
-            .find(|d| d.supported_colors.contains(color))
-        {
+        // try to find an exact match
+        if let Some(decoder) = self.decoders.iter().find(|d| d.native_color == color) {
             return decoder;
         }
-        unreachable!("Calling a decoder set with an unsupported color format is invalid and a bug in the implementation");
+
+        // get any decoders
+        self.decoders
+            .iter()
+            .find(|d| d.supported_colors.contains(color))
+            .expect("All color formats should be supported")
     }
 
     fn decode(&self, color: ColorFormat, args: Args) -> Result<(), DecodeError> {
@@ -386,21 +353,9 @@ impl DecoderSet {
 
     pub const fn native_color(&self) -> ColorFormat {
         match &self.decoders {
-            Inner::List(list) => list.native_color,
+            Inner::List(list) => list.native_color(),
             Inner::Uncompressed(list) => list.native_color(),
         }
-    }
-
-    pub const fn supports_channels(&self, channels: Channels) -> bool {
-        match &self.decoders {
-            Inner::List(list) => list
-                .supported_colors
-                .contains(ColorFormat::new(channels, Precision::U8)),
-            Inner::Uncompressed(_) => true,
-        }
-    }
-    pub const fn supports_precision(&self, _precision: Precision) -> bool {
-        true
     }
 
     pub fn decode(
