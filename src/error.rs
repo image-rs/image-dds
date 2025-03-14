@@ -1,4 +1,4 @@
-use crate::{ColorFormat, DxgiFormat, Format, FourCC, Header};
+use crate::{DxgiFormat, Format, FourCC, Header, SizeMultiple};
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -231,6 +231,7 @@ impl std::error::Error for HeaderError {
 #[non_exhaustive]
 pub enum EncodeError {
     UnsupportedFormat(Format),
+    InvalidSize(SizeMultiple),
     InvalidLines,
     Io(std::io::Error),
 }
@@ -240,6 +241,9 @@ impl std::fmt::Display for EncodeError {
         match self {
             EncodeError::UnsupportedFormat(format) => {
                 write!(f, "Unsupported format: {:?}", format)
+            }
+            EncodeError::InvalidSize(size) => {
+                write!(f, "Size is not a multiple of {:?}", size)
             }
             EncodeError::InvalidLines => write!(f, "Invalid lines"),
             EncodeError::Io(err) => write!(f, "IO error: {}", err),

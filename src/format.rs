@@ -10,7 +10,7 @@ use crate::{
     encode::get_encoders,
     Channels, ColorFormat, DecodeError, Dithering, Dx9PixelFormat, DxgiFormat, EncodeError,
     EncodeOptions, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags, Precision, Rect,
-    Size,
+    Size, SizeMultiple,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -62,6 +62,11 @@ pub enum Format {
     YUY2,
     Y210,
     Y216,
+
+    // bi-planar formats
+    NV12,
+    P010,
+    P016,
 
     // block compression formats
     BC1_UNORM,
@@ -306,6 +311,12 @@ impl Format {
         }
     }
 
+    const fn size_multiple(self) -> SizeMultiple {
+        match self {
+            Format::NV12 | Format::P010 | Format::P016 => SizeMultiple::M2_2,
+            _ => SizeMultiple::ONE,
+        }
+    }
     const fn block_height(self) -> Option<NonZeroU8> {
         const ONE: NonZeroU8 = NonZeroU8::new(1).unwrap();
         const FOUR: NonZeroU8 = NonZeroU8::new(4).unwrap();
@@ -320,10 +331,11 @@ impl Format {
             | Format::BC4_SNORM
             | Format::BC5_UNORM
             | Format::BC5_SNORM
-            // | EncodeFormat::BC6H_UF16
-            // | EncodeFormat::BC6H_SF16
-            // | EncodeFormat::BC7_UNORM
-            => Some(FOUR),
+            | Format::BC6H_UF16
+            | Format::BC6H_SF16
+            | Format::BC7_UNORM => Some(FOUR),
+
+            Format::NV12 | Format::P010 | Format::P016 => None,
 
             _ => Some(ONE),
         }
@@ -336,6 +348,7 @@ impl Format {
             Some(EncodingSupport {
                 dithering: encoders.supported_dithering,
                 block_height: self.block_height(),
+                size_multiple: self.size_multiple(),
             })
         } else {
             None
@@ -348,6 +361,7 @@ impl TryFrom<Format> for DxgiFormat {
 
     fn try_from(value: Format) -> Result<DxgiFormat, Self::Error> {
         Ok(match value {
+            // uncompressed
             Format::R8G8B8A8_UNORM => DxgiFormat::R8G8B8A8_UNORM,
             Format::R8G8B8A8_SNORM => DxgiFormat::R8G8B8A8_SNORM,
             Format::B8G8R8A8_UNORM => DxgiFormat::B8G8R8A8_UNORM,
@@ -381,12 +395,21 @@ impl TryFrom<Format> for DxgiFormat {
             Format::AYUV => DxgiFormat::AYUV,
             Format::Y410 => DxgiFormat::Y410,
             Format::Y416 => DxgiFormat::Y416,
+
+            // sub-sampled
             Format::R1_UNORM => DxgiFormat::R1_UNORM,
             Format::R8G8_B8G8_UNORM => DxgiFormat::R8G8_B8G8_UNORM,
             Format::G8R8_G8B8_UNORM => DxgiFormat::G8R8_G8B8_UNORM,
             Format::YUY2 => DxgiFormat::YUY2,
             Format::Y210 => DxgiFormat::Y210,
             Format::Y216 => DxgiFormat::Y216,
+
+            // bi-planar
+            Format::NV12 => DxgiFormat::NV12,
+            Format::P010 => DxgiFormat::P010,
+            Format::P016 => DxgiFormat::P016,
+
+            // block compression
             Format::BC1_UNORM => DxgiFormat::BC1_UNORM,
             Format::BC2_UNORM => DxgiFormat::BC2_UNORM,
             Format::BC3_UNORM => DxgiFormat::BC3_UNORM,
@@ -398,6 +421,7 @@ impl TryFrom<Format> for DxgiFormat {
             Format::BC6H_SF16 => DxgiFormat::BC6H_SF16,
             Format::BC7_UNORM => DxgiFormat::BC7_UNORM,
 
+            // cannot be represented by DXGI
             Format::R8G8B8_UNORM
             | Format::B8G8R8_UNORM
             | Format::UYVY
@@ -469,4 +493,5 @@ impl TryFrom<Format> for Dx9PixelFormat {
 pub struct EncodingSupport {
     pub dithering: Dithering,
     pub block_height: Option<NonZeroU8>,
+    pub size_multiple: SizeMultiple,
 }

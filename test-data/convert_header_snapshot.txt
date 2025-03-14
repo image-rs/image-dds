@@ -2008,6 +2008,36 @@ Can't be converted
 
 
 Header:
+    w/h: 128 x 66
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: NV12 (103)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 128 x 66
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: P010 (104)
+
+Can't be converted
+
+
+
+Header:
+    w/h: 128 x 66
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: P016 (105)
+
+Can't be converted
+
+
+
+Header:
     w/h: 129 x 66
     mipmap_count: 8
     DX10: Texture2D

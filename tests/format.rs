@@ -16,7 +16,12 @@ fn format_metadata() {
     let mut table = util::PrettyTable::from_header(&["Format", "C", "P", "Encoding"]);
     table.add_empty_row();
 
-    let gaps_at = [Format::R1_UNORM, Format::BC1_UNORM, Format::BC3_UNORM_RXGB];
+    let gaps_at = [
+        Format::R1_UNORM,
+        Format::NV12,
+        Format::BC1_UNORM,
+        Format::BC3_UNORM_RXGB,
+    ];
 
     for format in util::ALL_FORMATS.iter().copied() {
         if gaps_at.contains(&format) {
@@ -24,7 +29,22 @@ fn format_metadata() {
         }
 
         let encoding = if let Some(encoding) = format.encoding() {
-            format!("{:?}", encoding)
+            let mut out = "Supported: ".to_string();
+
+            if encoding.dithering != Dithering::None {
+                out.push_str(&format!("dithering={:?} ", encoding.dithering));
+            }
+            if let Some(block_height) = encoding.block_height {
+                out.push_str(&format!("block_h={:?} ", block_height));
+            }
+            if encoding.size_multiple != SizeMultiple::ONE {
+                out.push_str(&format!(
+                    "size_mul={}x{} ",
+                    encoding.size_multiple.width_multiple, encoding.size_multiple.height_multiple
+                ));
+            }
+
+            out.trim().to_string()
         } else {
             "Not supported".to_string()
         };

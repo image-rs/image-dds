@@ -9,6 +9,7 @@ mod sub_sampled;
 mod uncompressed;
 
 use bc::*;
+use bi_planar::*;
 pub(crate) use decoder::*;
 use sub_sampled::*;
 use uncompressed::*;
@@ -62,6 +63,11 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
         Format::YUY2 => YUY2,
         Format::Y210 => Y210,
         Format::Y216 => Y216,
+
+        // bi-planar formats
+        Format::NV12 => NV12,
+        Format::P010 => P010,
+        Format::P016 => P016,
 
         // block compression formats
         Format::BC1_UNORM => BC1_UNORM,

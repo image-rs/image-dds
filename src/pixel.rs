@@ -236,6 +236,10 @@ impl From<Format> for PixelInfo {
             // 1 byte per one 8x1 block
             F::R1_UNORM => Self::block(1, (8, 1)),
 
+            // bi-planar formats
+            F::NV12 => Self::chroma(1, (2, 2)),
+            F::P010 | F::P016 => Self::chroma(2, (2, 2)),
+
             // block compression formats
             // 8 bytes per one 4x4 block
             F::BC1_UNORM | F::BC4_UNORM | F::BC4_SNORM => Self::block(8, (4, 4)),

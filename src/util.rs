@@ -34,6 +34,13 @@ where
     }
 }
 
+pub(crate) fn round_down_to_multiple<T>(value: T, multiple: T) -> T
+where
+    T: Copy + std::ops::Sub<Output = T> + std::ops::Rem<Output = T> + Unsigned,
+{
+    value - (value % multiple)
+}
+
 pub(crate) trait Unsigned {}
 impl Unsigned for u8 {}
 impl Unsigned for u16 {}
@@ -54,6 +61,9 @@ pub(crate) fn two_powi(exponent: i8) -> f32 {
 
 /// This is a hack to explicitly annotate the types of the closures.
 pub(crate) fn closure_types<A, B, F: Fn(A) -> B>(f: F) -> F {
+    f
+}
+pub(crate) fn closure_types3<A1, A2, A3, B, F: Fn(A1, A2, A3) -> B>(f: F) -> F {
     f
 }
 

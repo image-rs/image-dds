@@ -4,6 +4,7 @@
 use std::io::{Read, SeekFrom};
 use std::mem::size_of;
 
+use crate::util::round_down_to_multiple;
 use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
 use crate::{convert_channels_untyped_for, util, Channels, ColorFormat};
 
@@ -817,19 +818,12 @@ impl ChannelConversionBuffer {
             return;
         }
 
-        fn nice_multiple(width: u32) -> u32 {
-            // round down to a multiple of 4
-            width & !3
-        }
-
-        let size = Size::new(range.width, range.rows.len() as u32);
-        debug_assert!(size.height > 0);
+        let height = range.rows.len();
+        debug_assert!(height > 0);
         let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
         let buffer_size = Size::new(
-            nice_multiple(
-                (Self::BUFFER_BYTES / (buffer_bytes_per_pixel * size.height as usize)) as u32,
-            ),
-            size.height,
+            (Self::BUFFER_BYTES / (buffer_bytes_per_pixel * height)) as u32,
+            height as u32,
         );
         debug_assert!(buffer_size.width >= block_width);
         let out_bytes_per_pixel =
@@ -837,31 +831,13 @@ impl ChannelConversionBuffer {
 
         let buffer = cast::as_bytes_mut(&mut self.buffer);
 
-        // If the entire decoded line fits into the buffer, just do it in one go.
-        if size.width <= buffer_size.width {
-            let buffer_stride = size.width as usize * buffer_bytes_per_pixel;
-            let buffer = &mut buffer[..buffer_stride * size.height as usize];
-
-            // decode into the temporary buffer
-            f(encoded_blocks, buffer, buffer_stride, range);
-
-            // convert the channels into the output buffer
-            for y in 0..size.height as usize {
-                let buffer_row = &buffer[y * buffer_stride..(y + 1) * buffer_stride];
-                let out_row =
-                    &mut out[y * stride..y * stride + size.width as usize * out_bytes_per_pixel];
-                convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
-            }
-            return;
-        }
-
         // To simplify the following code, start by handling the width offset, so that
         // the general case can assume `range.width_offset == 0`.
         if range.width_offset != 0 {
-            let offset_width = block_width - range.width_offset as u32;
+            let offset_width = (block_width - range.width_offset as u32).min(range.width);
 
             let buffer_stride = offset_width as usize * buffer_bytes_per_pixel;
-            let buffer = &mut buffer[..buffer_stride * size.height as usize];
+            let buffer = &mut buffer[..buffer_stride * height];
 
             // decode into the temporary buffer
             f(
@@ -876,7 +852,7 @@ impl ChannelConversionBuffer {
             );
 
             // convert the channels into the output buffer
-            for y in 0..size.height as usize {
+            for y in 0..height {
                 let buffer_row = &buffer[y * buffer_stride..(y + 1) * buffer_stride];
                 let out_row =
                     &mut out[y * stride..y * stride + offset_width as usize * out_bytes_per_pixel];
@@ -891,10 +867,9 @@ impl ChannelConversionBuffer {
         }
 
         debug_assert!(range.width_offset == 0);
-        for chunk_start in
-            (0..size.width).step_by((buffer_size.width / block_width * block_width) as usize)
-        {
-            let chunk_end = (chunk_start + buffer_size.width).min(size.width);
+        let preferred_chunk_size = round_down_to_multiple(buffer_size.width, block_width);
+        for chunk_start in (0..range.width).step_by(preferred_chunk_size as usize) {
+            let chunk_end = (chunk_start + preferred_chunk_size).min(range.width);
             let chunk_size = chunk_end - chunk_start;
 
             let block_offset = (chunk_start / block_width) as usize;
@@ -905,7 +880,7 @@ impl ChannelConversionBuffer {
             let out_chunk = &mut out[chunk_start as usize * out_bytes_per_pixel..];
 
             let buffer_stride = chunk_size as usize * buffer_bytes_per_pixel;
-            let buffer_chunk = &mut buffer[..buffer_stride * size.height as usize];
+            let buffer_chunk = &mut buffer[..buffer_stride * height];
 
             // decode into the temporary buffer
             f(
@@ -920,12 +895,112 @@ impl ChannelConversionBuffer {
             );
 
             // convert the channels into the output buffer
-            for y in 0..size.height as usize {
+            for y in 0..height {
                 let buffer_row = &buffer_chunk[y * buffer_stride..(y + 1) * buffer_stride];
                 let out_row = &mut out_chunk
                     [y * stride..y * stride + chunk_size as usize * out_bytes_per_pixel];
                 convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
             }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn process_bi_planar(
+        &mut self,
+        info: BiPlaneInfo,
+        mut plane1: &[u8],
+        mut plane2: &[u8],
+        mut out: &mut [u8],
+        mut range: PlaneRange,
+        f: ProcessBiPlanarFn,
+    ) {
+        // fast path: no conversion needed
+        if self.native_color.channels == self.target {
+            f(plane1, plane2, out, range);
+            return;
+        }
+
+        let out_bytes_per_pixel =
+            ColorFormat::new(self.target, self.native_color.precision).bytes_per_pixel() as usize;
+        let plane1_bytes_per_pixel = info.plane1_element_size as usize;
+
+        debug_assert_eq!(range.width as usize * out_bytes_per_pixel, out.len());
+        debug_assert_eq!(plane1.len(), range.width as usize * plane1_bytes_per_pixel);
+        debug_assert_eq!(
+            plane2.len(),
+            div_ceil(range.offset + range.width, info.sub_sampling.0 as u32) as usize
+                * info.plane2_element_size as usize
+        );
+
+        let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
+        let buffer_pixels = Self::BUFFER_BYTES / buffer_bytes_per_pixel;
+        let buffer = cast::as_bytes_mut(&mut self.buffer);
+
+        // To simplify the following code, start by handling the width offset, so that
+        // the general case can assume `range.offset == 0`.
+        if range.offset != 0 {
+            let offset_width = (info.sub_sampling.0 as u32 - range.offset).min(range.width);
+
+            let plane1_chunk = &plane1[..offset_width as usize * plane1_bytes_per_pixel];
+            let plane2_chunk = &plane2[..info.plane2_element_size as usize];
+            let buffer_chunk = &mut buffer[..offset_width as usize * buffer_bytes_per_pixel];
+            let out_chunk = &mut out[..offset_width as usize * out_bytes_per_pixel];
+
+            // decode into the temporary buffer
+            f(
+                plane1_chunk,
+                plane2_chunk,
+                buffer_chunk,
+                PlaneRange {
+                    offset: range.offset,
+                    width: offset_width,
+                    y: range.y,
+                },
+            );
+
+            // convert the channels into the output buffer
+            convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
+
+            // adjust inputs
+            range.offset = 0;
+            range.width -= offset_width;
+            plane1 = &plane1[offset_width as usize * plane1_bytes_per_pixel..];
+            plane2 = &plane2[info.plane2_element_size as usize..];
+            out = &mut out[offset_width as usize * out_bytes_per_pixel..];
+        }
+
+        debug_assert!(range.offset == 0);
+        let preferred_chunk_size =
+            round_down_to_multiple(buffer_pixels, info.sub_sampling.0 as usize);
+        for chunk_start in (0..range.width as usize).step_by(preferred_chunk_size) {
+            let chunk_end = (chunk_start + preferred_chunk_size).min(range.width as usize);
+            let chunk_size = chunk_end - chunk_start;
+
+            let plane2_start = chunk_start / info.sub_sampling.0 as usize;
+            let plane2_end = div_ceil(chunk_end, info.sub_sampling.0 as usize);
+
+            let plane1_chunk =
+                &plane1[chunk_start * plane1_bytes_per_pixel..chunk_end * plane1_bytes_per_pixel];
+            let plane2_chunk = &plane2[plane2_start * info.plane2_element_size as usize
+                ..plane2_end * info.plane2_element_size as usize];
+            let buffer_chunk = &mut buffer[..chunk_size * buffer_bytes_per_pixel];
+            let out_chunk =
+                &mut out[chunk_start * out_bytes_per_pixel..chunk_end * out_bytes_per_pixel];
+
+            // decode into the temporary buffer
+            f(
+                plane1_chunk,
+                plane2_chunk,
+                buffer_chunk,
+                PlaneRange {
+                    offset: 0,
+                    width: chunk_size as u32,
+                    y: range.y,
+                },
+            );
+
+            // convert the channels into the output buffer
+            convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
         }
     }
 }
@@ -1015,4 +1090,275 @@ impl UntypedLineBuffer {
         self.current_line_start = line_end;
         Ok(Some(line))
     }
+}
+
+pub(crate) struct PlaneRange {
+    pub offset: u32,
+    pub width: u32,
+    pub y: u8,
+}
+pub(crate) type ProcessBiPlanarFn =
+    fn(plane1: &[u8], plane2: &[u8], decoded: &mut [u8], range: PlaneRange);
+
+/// A helper function for implementing [`ProcessPixelsFn`]s.
+#[inline]
+pub(crate) fn process_bi_planar_helper<
+    const SUB_SAMPLING_X: usize,
+    Plane1: cast::FromLeBytes + Copy + Default,
+    Plane2: cast::FromLeBytes,
+    OutPixel: cast::IntoNeBytes + Copy,
+>(
+    plane1: &[u8],
+    plane2: &[u8],
+    decoded: &mut [u8],
+    mut range: PlaneRange,
+    f: impl Fn([Plane1; SUB_SAMPLING_X], Plane2, u8) -> [OutPixel; SUB_SAMPLING_X],
+) {
+    // group bytes into chunks
+    let mut plane1: &[Plane1::Bytes] = cast::from_bytes(plane1).expect("Invalid plane1 buffer");
+    let mut plane2: &[Plane2::Bytes] = cast::from_bytes(plane2).expect("Invalid plane2 buffer");
+    let mut decoded: &mut [OutPixel::Bytes] =
+        cast::from_bytes_mut(decoded).expect("Invalid output buffer");
+
+    // handle offset
+    if range.offset > 0 {
+        debug_assert!(range.offset < SUB_SAMPLING_X as u32);
+        let w = (SUB_SAMPLING_X - range.offset as usize).min(range.width as usize);
+
+        let mut plane1_items = [Plane1::default(); SUB_SAMPLING_X];
+        for x in 0..w {
+            plane1_items[x] = Plane1::from_le_bytes(plane1[x]);
+        }
+        let plane2_item = Plane2::from_le_bytes(plane2[0]);
+
+        let out = f(plane1_items, plane2_item, range.y);
+        for x in 0..w {
+            decoded[x] = cast::IntoNeBytes::into_ne_bytes(out[x]);
+        }
+
+        // adjust inputs
+        range.offset = 0;
+        range.width -= w as u32;
+        plane1 = &plane1[w..];
+        plane2 = &plane2[1..];
+        decoded = &mut decoded[w..];
+    }
+
+    // full macro pixels
+    let full = range.width as usize / SUB_SAMPLING_X;
+    let full_w = full * SUB_SAMPLING_X;
+    let plane1_full: &[[Plane1::Bytes; SUB_SAMPLING_X]] =
+        cast::as_array_chunks(&plane1[..full_w]).expect("Invalid plane1 buffer");
+    let plane2_full: &[Plane2::Bytes] = &plane2[..full];
+    let decoded_full: &mut [[OutPixel::Bytes; SUB_SAMPLING_X]] =
+        cast::as_array_chunks_mut(&mut decoded[..full * SUB_SAMPLING_X])
+            .expect("Invalid output buffer");
+
+    for x in 0..full {
+        let plane1_items = plane1_full[x].map(Plane1::from_le_bytes);
+        let plane2_item = Plane2::from_le_bytes(plane2_full[x]);
+        let out = f(plane1_items, plane2_item, range.y);
+        decoded_full[x] = out.map(cast::IntoNeBytes::into_ne_bytes);
+    }
+
+    // rest
+    let rest_w = range.width as usize - full * SUB_SAMPLING_X;
+    if rest_w > 0 {
+        let mut plane1_items = [Plane1::default(); SUB_SAMPLING_X];
+        for x in 0..rest_w {
+            plane1_items[x] = Plane1::from_le_bytes(plane1[full_w + x]);
+        }
+        let plane2_item = Plane2::from_le_bytes(plane2[full]);
+
+        let out = f(plane1_items, plane2_item, range.y);
+        for x in 0..rest_w {
+            decoded[full_w + x] = cast::IntoNeBytes::into_ne_bytes(out[x]);
+        }
+    }
+}
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BiPlaneInfo {
+    pub plane1_element_size: u8,
+    pub plane2_element_size: u8,
+    /// The sub-sampling of plane2.
+    pub sub_sampling: (u8, u8),
+}
+pub(crate) fn for_each_bi_planar(
+    r: &mut dyn Read,
+    buf: &mut [u8],
+    size: Size,
+    buf_channels: Channels,
+    native_color: ColorFormat,
+    info: BiPlaneInfo,
+    process_bi_planar: ProcessBiPlanarFn,
+) -> Result<(), DecodeError> {
+    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
+    assert_eq!(buf.len(), buf_bytes_per_pixel * size.pixels() as usize);
+    let buf_stride = size.width as usize * buf_bytes_per_pixel;
+
+    // Step 1: Read the entirety of plane 1
+    let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
+    let plane1_size = plain1_bytes_per_line * size.height as usize;
+    // TODO: Protect against huge allocations
+    // TODO: Allow the user to provide a buffer
+    let mut plane1 = Vec::new();
+    read_exact_into(r, &mut plane1, plane1_size)?;
+
+    // Step 2: Go through plane 2
+    let uv_width = div_ceil(size.width, info.sub_sampling.0 as u32) as usize;
+    let uv_lines = util::div_ceil(size.height, info.sub_sampling.1 as u32) as usize;
+    let uv_bytes_per_line = uv_width * info.plane2_element_size as usize;
+
+    let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines);
+    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+
+    let mut y: usize = 0;
+    while let Some(uv_line) = line_buffer.next_line(r)? {
+        debug_assert!(y < size.height as usize);
+
+        for y_offset in 0..info.sub_sampling.1 {
+            if y >= size.height as usize {
+                break;
+            }
+
+            let plane1_line = &plane1[y * plain1_bytes_per_line..(y + 1) * plain1_bytes_per_line];
+            let out_line = &mut buf[y * buf_stride..(y + 1) * buf_stride];
+
+            conversion_buffer.process_bi_planar(
+                info,
+                plane1_line,
+                uv_line,
+                out_line,
+                PlaneRange {
+                    offset: 0,
+                    width: size.width,
+                    y: y_offset,
+                },
+                process_bi_planar,
+            );
+
+            y += 1;
+        }
+    }
+
+    Ok(())
+}
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn for_each_bi_planar_rect(
+    r: &mut dyn ReadSeek,
+    buf: &mut [u8],
+    row_pitch: usize,
+    size: Size,
+    rect: Rect,
+    buf_channels: Channels,
+    native_color: ColorFormat,
+    info: BiPlaneInfo,
+    process_bi_planar: ProcessBiPlanarFn,
+) -> Result<(), DecodeError> {
+    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
+
+    // Step 1: Read the entirety of plane 1
+    let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
+    seek_relative(r, (plain1_bytes_per_line * rect.y as usize) as i64)?;
+    // TODO: Protect against huge allocations
+    // TODO: Allow the user to provide a buffer
+    let mut plane1 = Vec::new();
+    read_exact_into(r, &mut plane1, plain1_bytes_per_line * rect.height as usize)?;
+    seek_relative(
+        r,
+        (plain1_bytes_per_line * (size.height - rect.y - rect.height) as usize) as i64,
+    )?;
+
+    // Step 2: Go through plane 2
+    let uv_before = rect.y as usize / info.sub_sampling.1 as usize;
+    let uv_after = div_ceil(size.height as usize, info.sub_sampling.1 as usize)
+        - div_ceil(
+            (rect.y + rect.height) as usize,
+            info.sub_sampling.1 as usize,
+        );
+    let uv_width = div_ceil(size.width, info.sub_sampling.0 as u32) as usize;
+    let uv_lines =
+        util::div_ceil(size.height as usize, info.sub_sampling.1 as usize) - uv_before - uv_after;
+    let uv_bytes_per_line = uv_width * info.plane2_element_size as usize;
+
+    seek_relative(r, uv_before as i64 * uv_bytes_per_line as i64)?;
+
+    let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines);
+    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+
+    let mut y: usize = uv_before * info.sub_sampling.1 as usize;
+    while let Some(uv_line) = line_buffer.next_line(r)? {
+        debug_assert!(y < (rect.y + rect.height) as usize);
+
+        for y_offset in 0..info.sub_sampling.1 {
+            if y < rect.y as usize {
+                y += 1;
+                continue;
+            }
+            if y >= (rect.y + rect.height) as usize {
+                break;
+            }
+
+            let plane1_start = (y - rect.y as usize) * plain1_bytes_per_line
+                + rect.x as usize * info.plane1_element_size as usize;
+            let plane1_line = &plane1[plane1_start
+                ..plane1_start + rect.width as usize * info.plane1_element_size as usize];
+
+            let out_start = (y - rect.y as usize) * row_pitch;
+            let out_line =
+                &mut buf[out_start..out_start + rect.width as usize * buf_bytes_per_pixel];
+
+            let uv_start =
+                rect.x as usize / info.sub_sampling.0 as usize * info.plane2_element_size as usize;
+            let uv_end = div_ceil((rect.x + rect.width) as usize, info.sub_sampling.0 as usize)
+                * info.plane2_element_size as usize;
+            let uv_line = &uv_line[uv_start..uv_end];
+
+            let offset = rect.x % info.sub_sampling.0 as u32;
+
+            conversion_buffer.process_bi_planar(
+                info,
+                plane1_line,
+                uv_line,
+                out_line,
+                PlaneRange {
+                    offset,
+                    width: rect.width,
+                    y: y_offset,
+                },
+                process_bi_planar,
+            );
+
+            y += 1;
+        }
+    }
+
+    seek_relative(r, uv_after as i64 * uv_bytes_per_line as i64)?;
+
+    Ok(())
+}
+
+fn read_exact_into<R: Read + ?Sized>(
+    r: &mut R,
+    buf: &mut Vec<u8>,
+    mut count: usize,
+) -> Result<(), std::io::Error> {
+    buf.clear();
+    buf.reserve(count);
+
+    let mut temp = [0_u8; 1024];
+    while count >= temp.len() {
+        r.read_exact(&mut temp)?;
+        buf.extend_from_slice(&temp);
+        count -= temp.len();
+    }
+
+    if count > 0 {
+        r.read_exact(&mut temp[..count])?;
+        buf.extend_from_slice(&temp[..count]);
+    }
+
+    Ok(())
 }

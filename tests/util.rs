@@ -123,6 +123,10 @@ pub const ALL_FORMATS: &[Format] = &[
     Format::YUY2,
     Format::Y210,
     Format::Y216,
+    // bi-planar formats
+    Format::NV12,
+    Format::P010,
+    Format::P016,
     // block compression formats
     Format::BC1_UNORM,
     Format::BC2_UNORM,
@@ -179,6 +183,34 @@ impl<T> Image<T> {
             data: convert_channels(&self.data, self.channels, channels),
             channels,
             size: self.size,
+        }
+    }
+
+    pub fn cropped(&self, new_size: Size) -> Image<T>
+    where
+        T: Copy,
+    {
+        if new_size == self.size {
+            return self.clone();
+        }
+        assert!(new_size.width <= self.size.width);
+        assert!(new_size.height <= self.size.height);
+
+        let new_width = new_size.width as usize;
+        let new_height = new_size.height as usize;
+        let new_stride = new_width * self.channels.count() as usize;
+
+        let mut new_data = Vec::with_capacity(new_stride * new_height);
+        for y in 0..new_height {
+            let src_offset = y * self.size.width as usize * self.channels.count() as usize;
+            let dst_offset = y * new_stride;
+            new_data.extend_from_slice(&self.data[src_offset..src_offset + new_stride]);
+        }
+
+        Image {
+            data: new_data,
+            channels: self.channels,
+            size: new_size,
         }
     }
 }

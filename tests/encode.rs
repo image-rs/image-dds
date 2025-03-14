@@ -105,17 +105,22 @@ fn encode_base() {
         test_data_dir().join("output-encode/base").join(&name)
     }
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
-        let mut output = write_dds_header(base_u8.size, format);
+        let mut size = base_u8.size;
+        if let Some(encoding) = format.encoding() {
+            size = size.round_down_to_multiple(encoding.size_multiple);
+        };
+
+        let mut output = write_dds_header(size, format);
 
         let options = EncodeOptions::default();
 
         // and now the image data
         if format.precision() == Precision::U16 {
-            encode_image(&base_u16, format, &mut output, &options)?;
+            encode_image(&base_u16.cropped(size), format, &mut output, &options)?;
         } else if format.precision() == Precision::F32 {
-            encode_image(&base_f32, format, &mut output, &options)?;
+            encode_image(&base_f32.cropped(size), format, &mut output, &options)?;
         } else {
-            encode_image(&base_u8, format, &mut output, &options)?;
+            encode_image(&base_u8.cropped(size), format, &mut output, &options)?;
         }
 
         // write to disk

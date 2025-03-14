@@ -4,11 +4,13 @@ mod bc;
 mod bc1;
 mod bc4;
 mod bcn_util;
+mod bi_planar;
 mod encoder;
 mod sub_sampled;
 mod uncompressed;
 
 use bc::*;
+use bi_planar::*;
 pub(crate) use encoder::EncoderSet;
 use sub_sampled::*;
 use uncompressed::*;
@@ -60,6 +62,11 @@ pub(crate) const fn get_encoders(format: Format) -> Option<&'static EncoderSet> 
         Format::YUY2 => &YUY2,
         Format::Y210 => &Y210,
         Format::Y216 => &Y216,
+
+        // bi-planar formats
+        Format::NV12 => &NV12,
+        Format::P010 => &P010,
+        Format::P016 => &P016,
 
         // block compression formats
         Format::BC1_UNORM => &BC1_UNORM,

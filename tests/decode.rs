@@ -108,6 +108,8 @@ fn decode_rect() {
         "images/uncompressed/DX10 R8_UNORM.dds",
         // Sub-sampled formats
         "images/sub-sampled/DX9 R8G8_B8G8_UNORM.dds",
+        // Bi-planar formats
+        "images/bi-planar/DX10 NV12.dds",
         // Block-compressed formats
         "images/bc/DX10 BC7_UNORM.dds",
     ]
@@ -243,8 +245,7 @@ fn decode_all_color_formats() {
     }
 
     fn test_color_formats(dds_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let (reference, reader) = util::read_dds::<u8>(dds_path)?;
-        let format = reader.format();
+        let (reference, _) = util::read_dds::<u8>(dds_path)?;
 
         let all_channels = [
             Channels::Alpha,
