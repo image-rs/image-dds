@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ddsd::*;
-use rand::{seq::SliceRandom, Rng, RngCore};
+use rand::{Rng, RngCore};
 
 fn random_bytes(len: usize) -> Vec<u8> {
     let mut out = vec![0; len];
@@ -77,12 +77,8 @@ impl ImageAsBytes for Image<f32> {
     }
 }
 
-fn bench_encoder<T>(
-    c: &mut Criterion,
-    format: EncodeFormat,
-    options: &EncodeOptions,
-    image: &Image<T>,
-) where
+fn bench_encoder<T>(c: &mut Criterion, format: Format, options: &EncodeOptions, image: &Image<T>)
+where
     Image<T>: ImageAsBytes,
 {
     let color = image.color();
@@ -130,38 +126,38 @@ pub fn encode_uncompressed(c: &mut Criterion) {
     let dither = &dither;
 
     // uncompressed formats
-    bench_encoder(c, EncodeFormat::R8G8B8_UNORM, def, &random_gray_u8);
-    bench_encoder(c, EncodeFormat::R8G8B8_UNORM, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::R8G8B8_UNORM, def, &random_rgba_u16);
-    bench_encoder(c, EncodeFormat::R8G8B8_UNORM, def, &random_rgba_f32);
+    bench_encoder(c, Format::R8G8B8_UNORM, def, &random_gray_u8);
+    bench_encoder(c, Format::R8G8B8_UNORM, def, &random_rgba_u8);
+    bench_encoder(c, Format::R8G8B8_UNORM, def, &random_rgba_u16);
+    bench_encoder(c, Format::R8G8B8_UNORM, def, &random_rgba_f32);
 
-    bench_encoder(c, EncodeFormat::R8G8B8A8_UNORM, def, &random_gray_u8);
-    bench_encoder(c, EncodeFormat::R8G8B8A8_UNORM, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::R8G8B8A8_UNORM, def, &random_rgba_u16);
-    bench_encoder(c, EncodeFormat::R8G8B8A8_UNORM, def, &random_rgba_f32);
+    bench_encoder(c, Format::R8G8B8A8_UNORM, def, &random_gray_u8);
+    bench_encoder(c, Format::R8G8B8A8_UNORM, def, &random_rgba_u8);
+    bench_encoder(c, Format::R8G8B8A8_UNORM, def, &random_rgba_u16);
+    bench_encoder(c, Format::R8G8B8A8_UNORM, def, &random_rgba_f32);
 
-    bench_encoder(c, EncodeFormat::R8G8B8A8_SNORM, def, &random_gray_u8);
-    bench_encoder(c, EncodeFormat::R8G8B8A8_SNORM, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::R8G8B8A8_SNORM, def, &random_rgba_u16);
-    bench_encoder(c, EncodeFormat::R8G8B8A8_SNORM, def, &random_rgba_f32);
+    bench_encoder(c, Format::R8G8B8A8_SNORM, def, &random_gray_u8);
+    bench_encoder(c, Format::R8G8B8A8_SNORM, def, &random_rgba_u8);
+    bench_encoder(c, Format::R8G8B8A8_SNORM, def, &random_rgba_u16);
+    bench_encoder(c, Format::R8G8B8A8_SNORM, def, &random_rgba_f32);
 
-    bench_encoder(c, EncodeFormat::B4G4R4A4_UNORM, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::B4G4R4A4_UNORM, def, &random_rgba_f32);
-    bench_encoder(c, EncodeFormat::B4G4R4A4_UNORM, dither, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::B4G4R4A4_UNORM, dither, &random_rgba_f32);
+    bench_encoder(c, Format::B4G4R4A4_UNORM, def, &random_rgba_u8);
+    bench_encoder(c, Format::B4G4R4A4_UNORM, def, &random_rgba_f32);
+    bench_encoder(c, Format::B4G4R4A4_UNORM, dither, &random_rgba_u8);
+    bench_encoder(c, Format::B4G4R4A4_UNORM, dither, &random_rgba_f32);
 
     // sub-sampled formats
-    bench_encoder(c, EncodeFormat::R8G8_B8G8_UNORM, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::R8G8_B8G8_UNORM, def, &random_rgba_f32);
+    bench_encoder(c, Format::R8G8_B8G8_UNORM, def, &random_rgba_u8);
+    bench_encoder(c, Format::R8G8_B8G8_UNORM, def, &random_rgba_f32);
 
-    bench_encoder(c, EncodeFormat::YUY2, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::YUY2, def, &random_rgba_f32);
+    bench_encoder(c, Format::YUY2, def, &random_rgba_u8);
+    bench_encoder(c, Format::YUY2, def, &random_rgba_f32);
 
-    bench_encoder(c, EncodeFormat::Y216, def, &random_rgba_u8);
-    bench_encoder(c, EncodeFormat::Y216, def, &random_rgba_f32);
+    bench_encoder(c, Format::Y216, def, &random_rgba_u8);
+    bench_encoder(c, Format::Y216, def, &random_rgba_f32);
 
-    bench_encoder(c, EncodeFormat::R1_UNORM, def, &random_gray_u8);
-    bench_encoder(c, EncodeFormat::R1_UNORM, def, &random_gray_f32);
+    bench_encoder(c, Format::R1_UNORM, def, &random_gray_u8);
+    bench_encoder(c, Format::R1_UNORM, def, &random_gray_f32);
 }
 
 pub fn encode_compressed(c: &mut Criterion) {
@@ -187,13 +183,13 @@ pub fn encode_compressed(c: &mut Criterion) {
     let unreasonable = &unreasonable;
 
     // uncompressed formats
-    bench_encoder(c, EncodeFormat::BC1_UNORM, def, &random_rgb);
-    bench_encoder(c, EncodeFormat::BC1_UNORM, dither, &random_rgb);
-    bench_encoder(c, EncodeFormat::BC1_UNORM, perceptual, &random_rgb);
+    bench_encoder(c, Format::BC1_UNORM, def, &random_rgb);
+    bench_encoder(c, Format::BC1_UNORM, dither, &random_rgb);
+    bench_encoder(c, Format::BC1_UNORM, perceptual, &random_rgb);
 
-    bench_encoder(c, EncodeFormat::BC4_UNORM, def, &random_rgb);
-    bench_encoder(c, EncodeFormat::BC4_UNORM, dither, &random_rgb);
-    bench_encoder(c, EncodeFormat::BC4_UNORM, unreasonable, &random_tiny);
+    bench_encoder(c, Format::BC4_UNORM, def, &random_rgb);
+    bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
+    bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
 }
 
 criterion_group!(benches, encode_uncompressed, encode_compressed);

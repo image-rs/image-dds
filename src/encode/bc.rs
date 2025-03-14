@@ -1,11 +1,11 @@
 // helpers
 
-use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet};
+use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet, EncodeError};
 
 use super::{
     bc1, bc4, bcn_util,
     encoder::{Args, Encoder, EncoderSet, Flags},
-    CompressionQuality, EncodeError, EncodeOptions, ErrorMetric,
+    CompressionQuality, EncodeOptions, ErrorMetric,
 };
 
 fn block_universal<

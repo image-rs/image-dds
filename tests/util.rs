@@ -78,6 +78,68 @@ pub fn example_dds_files_in(parent_dir: &str) -> Vec<PathBuf> {
     .collect()
 }
 
+pub const ALL_FORMATS: &[Format] = &[
+    // uncompressed formats
+    Format::R8G8B8_UNORM,
+    Format::B8G8R8_UNORM,
+    Format::R8G8B8A8_UNORM,
+    Format::R8G8B8A8_SNORM,
+    Format::B8G8R8A8_UNORM,
+    Format::B8G8R8X8_UNORM,
+    Format::B5G6R5_UNORM,
+    Format::B5G5R5A1_UNORM,
+    Format::B4G4R4A4_UNORM,
+    Format::A4B4G4R4_UNORM,
+    Format::R8_SNORM,
+    Format::R8_UNORM,
+    Format::R8G8_UNORM,
+    Format::R8G8_SNORM,
+    Format::A8_UNORM,
+    Format::R16_UNORM,
+    Format::R16_SNORM,
+    Format::R16G16_UNORM,
+    Format::R16G16_SNORM,
+    Format::R16G16B16A16_UNORM,
+    Format::R16G16B16A16_SNORM,
+    Format::R10G10B10A2_UNORM,
+    Format::R11G11B10_FLOAT,
+    Format::R9G9B9E5_SHAREDEXP,
+    Format::R16_FLOAT,
+    Format::R16G16_FLOAT,
+    Format::R16G16B16A16_FLOAT,
+    Format::R32_FLOAT,
+    Format::R32G32_FLOAT,
+    Format::R32G32B32_FLOAT,
+    Format::R32G32B32A32_FLOAT,
+    Format::R10G10B10_XR_BIAS_A2_UNORM,
+    Format::AYUV,
+    Format::Y410,
+    Format::Y416,
+    // sub-sampled formats
+    Format::R1_UNORM,
+    Format::R8G8_B8G8_UNORM,
+    Format::G8R8_G8B8_UNORM,
+    Format::UYVY,
+    Format::YUY2,
+    Format::Y210,
+    Format::Y216,
+    // block compression formats
+    Format::BC1_UNORM,
+    Format::BC2_UNORM,
+    Format::BC2_UNORM_PREMULTIPLIED_ALPHA,
+    Format::BC3_UNORM,
+    Format::BC3_UNORM_PREMULTIPLIED_ALPHA,
+    Format::BC4_UNORM,
+    Format::BC4_SNORM,
+    Format::BC5_UNORM,
+    Format::BC5_SNORM,
+    Format::BC6H_UF16,
+    Format::BC6H_SF16,
+    Format::BC7_UNORM,
+    // non-standard formats
+    Format::BC3_UNORM_RXGB,
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Image<T> {
     pub data: Vec<T>,
@@ -163,7 +225,7 @@ pub fn read_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
 }
 pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
-    select_channels: impl FnOnce(DecodeFormat) -> Channels,
+    select_channels: impl FnOnce(Format) -> Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     let mut file = File::open(dds_path)?;
 
@@ -184,7 +246,7 @@ pub fn decode_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
 pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
     options: &Options,
     mut reader: impl std::io::Read,
-    select_channels: impl FnOnce(DecodeFormat) -> Channels,
+    select_channels: impl FnOnce(Format) -> Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     let decoder = DdsDecoder::new_with(&mut reader, options)?;
     let size = decoder.header().size();
@@ -1022,5 +1084,83 @@ impl OutputSummaries {
         if let Err(e) = self.snapshot() {
             panic!("Some tests failed: {}", e);
         }
+    }
+}
+
+pub struct PrettyTable {
+    cells: Vec<String>,
+    width: usize,
+    height: usize,
+}
+impl PrettyTable {
+    pub fn new_empty(width: usize, height: usize) -> Self {
+        Self {
+            cells: vec![String::new(); width * height],
+            width,
+            height,
+        }
+    }
+    pub fn from_header<S: AsRef<str>>(header: &[S]) -> Self {
+        let mut table = Self::new_empty(header.len(), 0);
+        table.add_row(header);
+        table
+    }
+
+    pub fn get(&self, x: usize, y: usize) -> &str {
+        &self.cells[y * self.width + x]
+    }
+    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut String {
+        &mut self.cells[y * self.width + x]
+    }
+
+    #[allow(unused)]
+    pub fn set(&mut self, x: usize, y: usize, value: impl Into<String>) {
+        *self.get_mut(x, y) = value.into();
+    }
+
+    #[track_caller]
+    pub fn add_row<S: AsRef<str>>(&mut self, row: &[S]) {
+        assert!(row.len() == self.width);
+        self.height += 1;
+        for cell in row {
+            self.cells.push(cell.as_ref().to_string());
+        }
+    }
+    pub fn add_empty_row(&mut self) {
+        self.height += 1;
+        for _ in 0..self.width {
+            self.cells.push(String::new());
+        }
+    }
+
+    pub fn print(&self, out: &mut String) {
+        let column_width: Vec<usize> = (0..self.width)
+            .map(|x| {
+                (0..self.height)
+                    .map(|y| self.get(x, y).chars().count())
+                    .max()
+                    .unwrap()
+            })
+            .collect();
+
+        for y in 0..self.height {
+            #[allow(clippy::needless_range_loop)]
+            for x in 0..self.width {
+                let cell = self.get(x, y);
+                out.push_str(cell);
+                for _ in 0..column_width[x] - cell.chars().count() {
+                    out.push(' ');
+                }
+                out.push_str("  ");
+            }
+            out.push('\n');
+        }
+    }
+}
+impl std::fmt::Display for PrettyTable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut out = String::new();
+        self.print(&mut out);
+        write!(f, "{}", out)
     }
 }

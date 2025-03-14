@@ -1,4 +1,4 @@
-use crate::{util::div_ceil, DecodeError, DecodeFormat, Dx9PixelFormat, DxgiFormat, Header, Size};
+use crate::{util::div_ceil, Dx9PixelFormat, DxgiFormat, Format, FormatError, Header, Size};
 
 /// This describes the number of bits per pixel and the layout of pixels within
 /// a surface.
@@ -75,25 +75,25 @@ impl PixelInfo {
         }
     }
 
-    pub fn from_header(header: &Header) -> Result<Self, DecodeError> {
+    pub fn from_header(header: &Header) -> Result<Self, FormatError> {
         match header {
             Header::Dx9(dx9) => match &dx9.pixel_format {
-                Dx9PixelFormat::FourCC(four_cc) => DecodeFormat::from_four_cc(*four_cc)
+                Dx9PixelFormat::FourCC(four_cc) => Format::from_four_cc(*four_cc)
                     .map(Into::into)
-                    .ok_or(DecodeError::UnsupportedFourCC(*four_cc)),
+                    .ok_or(FormatError::UnsupportedFourCC(*four_cc)),
                 Dx9PixelFormat::Mask(pixel_format) => {
                     let bit_count = pixel_format.rgb_bit_count;
                     if bit_count > 0 && bit_count <= 32 && bit_count % 8 == 0 {
                         Ok(PixelInfo::fixed((bit_count / 8) as u8))
                     } else {
-                        Err(DecodeError::UnsupportedPixelFormat)
+                        Err(FormatError::UnsupportedPixelFormat)
                     }
                 }
             },
             Header::Dx10(dx10) => dx10
                 .dxgi_format
                 .try_into()
-                .map_err(|_| DecodeError::UnsupportedDxgiFormat(dx10.dxgi_format)),
+                .map_err(|_| FormatError::UnsupportedDxgiFormat(dx10.dxgi_format)),
         }
     }
 
@@ -183,9 +183,9 @@ impl std::fmt::Debug for PixelInfo {
     }
 }
 
-impl From<DecodeFormat> for PixelInfo {
-    fn from(value: DecodeFormat) -> Self {
-        use DecodeFormat as F;
+impl From<Format> for PixelInfo {
+    fn from(value: Format) -> Self {
+        use Format as F;
 
         match value {
             // 1 bytes per pixel
@@ -446,7 +446,7 @@ mod test {
         // This test verifies that equivalent DxgiFormat and SupportFormat
         // have the same PixelInfo.
         for dxgi in DxgiFormat::all() {
-            if let Some(format) = DecodeFormat::from_dxgi(dxgi) {
+            if let Some(format) = Format::from_dxgi(dxgi) {
                 let dxgi_info = PixelInfo::try_from(dxgi).unwrap();
                 let format_info = PixelInfo::from(format);
 

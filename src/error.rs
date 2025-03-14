@@ -1,11 +1,32 @@
-use crate::{ColorFormat, DecodeFormat, DxgiFormat, FourCC, Header};
+use crate::{ColorFormat, DxgiFormat, Format, FourCC, Header};
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum FormatError {
+    UnsupportedDxgiFormat(DxgiFormat),
+    UnsupportedFourCC(FourCC),
+    UnsupportedPixelFormat,
+}
+impl std::fmt::Display for FormatError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FormatError::UnsupportedDxgiFormat(format) => {
+                write!(f, "DXGI format {:?} is not supported for decoding", format)
+            }
+            FormatError::UnsupportedFourCC(four_cc) => {
+                write!(f, "Unsupported {:?} in DX10 header extension", four_cc)
+            }
+            FormatError::UnsupportedPixelFormat => {
+                write!(f, "Unsupported pixel format in the DDS header")
+            }
+        }
+    }
+}
+impl std::error::Error for FormatError {}
 
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecodeError {
-    UnsupportedDxgiFormat(DxgiFormat),
-    UnsupportedFourCC(FourCC),
-    UnsupportedPixelFormat,
     TooManyMipMaps(u32),
     /// A volume/texture 3D without a depth.
     MissingDepth,
@@ -21,7 +42,7 @@ pub enum DecodeError {
     /// >2^64 bytes of memory.
     DataLayoutTooBig,
     UnsupportedColorFormat {
-        format: DecodeFormat,
+        format: Format,
         color: ColorFormat,
     },
     UnexpectedBufferSize {
@@ -44,6 +65,7 @@ pub enum DecodeError {
         required_minimum: usize,
     },
 
+    Format(FormatError),
     Header(HeaderError),
     Io(std::io::Error),
 }
@@ -51,15 +73,6 @@ pub enum DecodeError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DecodeError::UnsupportedDxgiFormat(format) => {
-                write!(f, "DXGI format {:?} is not supported for decoding", format)
-            }
-            DecodeError::UnsupportedFourCC(four_cc) => {
-                write!(f, "Unsupported {:?} in DX10 header extension", four_cc)
-            }
-            DecodeError::UnsupportedPixelFormat => {
-                write!(f, "Unsupported pixel format in the DDS header")
-            }
             DecodeError::TooManyMipMaps(mipmaps) => {
                 write!(
                     f,
@@ -108,12 +121,18 @@ impl std::fmt::Display for DecodeError {
                 )
             }
 
+            DecodeError::Format(error) => write!(f, "{}", error),
             DecodeError::Header(error) => write!(f, "Header error: {}", error),
             DecodeError::Io(error) => write!(f, "I/O error: {}", error),
         }
     }
 }
 
+impl From<FormatError> for DecodeError {
+    fn from(error: FormatError) -> Self {
+        DecodeError::Format(error)
+    }
+}
 impl From<HeaderError> for DecodeError {
     fn from(error: HeaderError) -> Self {
         DecodeError::Header(error)
@@ -128,6 +147,7 @@ impl From<std::io::Error> for DecodeError {
 impl std::error::Error for DecodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            DecodeError::Format(error) => Some(error),
             DecodeError::Header(error) => Some(error),
             DecodeError::Io(error) => Some(error),
             _ => None,
@@ -189,11 +209,7 @@ impl std::fmt::Display for HeaderError {
                 )
             }
             HeaderError::InvalidAlphaMode(mode) => {
-                write!(
-                    f,
-                    "Invalid alpha mode {} in DX10 header extension",
-                    mode
-                )
+                write!(f, "Invalid alpha mode {} in DX10 header extension", mode)
             }
             HeaderError::InvalidArraySizeForTexture3D(array_size) => {
                 write!(
@@ -213,12 +229,45 @@ impl From<std::io::Error> for HeaderError {
         HeaderError::Io(error)
     }
 }
-
 impl std::error::Error for HeaderError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             HeaderError::Io(error) => Some(error),
             _ => None,
         }
+    }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum EncodeError {
+    UnsupportedFormat(Format),
+    InvalidLines,
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            EncodeError::UnsupportedFormat(format) => {
+                write!(f, "Unsupported format: {:?}", format)
+            }
+            EncodeError::InvalidLines => write!(f, "Invalid lines"),
+            EncodeError::Io(err) => write!(f, "IO error: {}", err),
+        }
+    }
+}
+impl std::error::Error for EncodeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            EncodeError::Io(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl From<std::io::Error> for EncodeError {
+    fn from(err: std::io::Error) -> Self {
+        EncodeError::Io(err)
     }
 }

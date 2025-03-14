@@ -1,9 +1,4 @@
-use std::{io::Write, num::NonZeroU8};
-
-use crate::{
-    Channels, ColorFormat, Dx9PixelFormat, DxgiFormat, FourCC, MaskPixelFormat, PixelFormatFlags,
-    Precision, Size,
-};
+use crate::Format;
 
 mod bc;
 mod bc1;
@@ -14,442 +9,74 @@ mod sub_sampled;
 mod uncompressed;
 
 use bc::*;
-use encoder::EncoderSet;
+pub(crate) use encoder::EncoderSet;
 use sub_sampled::*;
 use uncompressed::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-#[allow(non_camel_case_types)]
-pub enum EncodeFormat {
-    // uncompressed formats
-    R8G8B8_UNORM,
-    B8G8R8_UNORM,
-    R8G8B8A8_UNORM,
-    R8G8B8A8_SNORM,
-    B8G8R8A8_UNORM,
-    B8G8R8X8_UNORM,
-    B5G6R5_UNORM,
-    B5G5R5A1_UNORM,
-    B4G4R4A4_UNORM,
-    A4B4G4R4_UNORM,
-    R8_SNORM,
-    R8_UNORM,
-    R8G8_UNORM,
-    R8G8_SNORM,
-    A8_UNORM,
-    R16_UNORM,
-    R16_SNORM,
-    R16G16_UNORM,
-    R16G16_SNORM,
-    R16G16B16A16_UNORM,
-    R16G16B16A16_SNORM,
-    R10G10B10A2_UNORM,
-    R11G11B10_FLOAT,
-    R9G9B9E5_SHAREDEXP,
-    R16_FLOAT,
-    R16G16_FLOAT,
-    R16G16B16A16_FLOAT,
-    R32_FLOAT,
-    R32G32_FLOAT,
-    R32G32B32_FLOAT,
-    R32G32B32A32_FLOAT,
-    R10G10B10_XR_BIAS_A2_UNORM,
-    AYUV,
-    Y410,
-    Y416,
+pub(crate) const fn get_encoders(format: Format) -> Option<&'static EncoderSet> {
+    Some(match format {
+        // uncompressed formats
+        Format::R8G8B8_UNORM => &R8G8B8_UNORM,
+        Format::B8G8R8_UNORM => &B8G8R8_UNORM,
+        Format::R8G8B8A8_UNORM => &R8G8B8A8_UNORM,
+        Format::R8G8B8A8_SNORM => &R8G8B8A8_SNORM,
+        Format::B8G8R8A8_UNORM => &B8G8R8A8_UNORM,
+        Format::B8G8R8X8_UNORM => &B8G8R8X8_UNORM,
+        Format::B5G6R5_UNORM => &B5G6R5_UNORM,
+        Format::B5G5R5A1_UNORM => &B5G5R5A1_UNORM,
+        Format::B4G4R4A4_UNORM => &B4G4R4A4_UNORM,
+        Format::A4B4G4R4_UNORM => &A4B4G4R4_UNORM,
+        Format::R8_SNORM => &R8_SNORM,
+        Format::R8_UNORM => &R8_UNORM,
+        Format::R8G8_UNORM => &R8G8_UNORM,
+        Format::R8G8_SNORM => &R8G8_SNORM,
+        Format::A8_UNORM => &A8_UNORM,
+        Format::R16_UNORM => &R16_UNORM,
+        Format::R16_SNORM => &R16_SNORM,
+        Format::R16G16_UNORM => &R16G16_UNORM,
+        Format::R16G16_SNORM => &R16G16_SNORM,
+        Format::R16G16B16A16_UNORM => &R16G16B16A16_UNORM,
+        Format::R16G16B16A16_SNORM => &R16G16B16A16_SNORM,
+        Format::R10G10B10A2_UNORM => &R10G10B10A2_UNORM,
+        Format::R11G11B10_FLOAT => &R11G11B10_FLOAT,
+        Format::R9G9B9E5_SHAREDEXP => &R9G9B9E5_SHAREDEXP,
+        Format::R16_FLOAT => &R16_FLOAT,
+        Format::R16G16_FLOAT => &R16G16_FLOAT,
+        Format::R16G16B16A16_FLOAT => &R16G16B16A16_FLOAT,
+        Format::R32_FLOAT => &R32_FLOAT,
+        Format::R32G32_FLOAT => &R32G32_FLOAT,
+        Format::R32G32B32_FLOAT => &R32G32B32_FLOAT,
+        Format::R32G32B32A32_FLOAT => &R32G32B32A32_FLOAT,
+        Format::R10G10B10_XR_BIAS_A2_UNORM => &R10G10B10_XR_BIAS_A2_UNORM,
+        Format::AYUV => &AYUV,
+        Format::Y410 => &Y410,
+        Format::Y416 => &Y416,
 
-    // sub-sampled formats
-    R1_UNORM,
-    R8G8_B8G8_UNORM,
-    G8R8_G8B8_UNORM,
-    UYVY,
-    YUY2,
-    Y210,
-    Y216,
+        // sub-sampled formats
+        Format::R1_UNORM => &R1_UNORM,
+        Format::R8G8_B8G8_UNORM => &R8G8_B8G8_UNORM,
+        Format::G8R8_G8B8_UNORM => &G8R8_G8B8_UNORM,
+        Format::UYVY => &UYVY,
+        Format::YUY2 => &YUY2,
+        Format::Y210 => &Y210,
+        Format::Y216 => &Y216,
 
-    // block compression formats
-    BC1_UNORM,
-    BC2_UNORM,
-    BC2_UNORM_PREMULTIPLIED_ALPHA,
-    BC3_UNORM,
-    BC3_UNORM_PREMULTIPLIED_ALPHA,
-    BC4_UNORM,
-    BC4_SNORM,
-    BC5_UNORM,
-    BC5_SNORM,
-    // BC6H_UF16,
-    // BC6H_SF16,
-    // BC7_UNORM,
-}
-impl EncodeFormat {
-    pub const fn channels(self) -> Channels {
-        match self {
-            EncodeFormat::R8_SNORM
-            | EncodeFormat::R8_UNORM
-            | EncodeFormat::R16_UNORM
-            | EncodeFormat::R16_SNORM
-            | EncodeFormat::R16_FLOAT
-            | EncodeFormat::R32_FLOAT
-            | EncodeFormat::R1_UNORM
-            | EncodeFormat::BC4_UNORM
-            | EncodeFormat::BC4_SNORM => Channels::Grayscale,
+        // block compression formats
+        Format::BC1_UNORM => &BC1_UNORM,
+        Format::BC2_UNORM => &BC2_UNORM,
+        Format::BC2_UNORM_PREMULTIPLIED_ALPHA => &BC2_UNORM_PREMULTIPLIED_ALPHA,
+        Format::BC3_UNORM => &BC3_UNORM,
+        Format::BC3_UNORM_PREMULTIPLIED_ALPHA => &BC3_UNORM_PREMULTIPLIED_ALPHA,
+        Format::BC4_UNORM => &BC4_UNORM,
+        Format::BC4_SNORM => &BC4_SNORM,
+        Format::BC5_UNORM => &BC5_UNORM,
+        Format::BC5_SNORM => &BC5_SNORM,
 
-            EncodeFormat::A8_UNORM => Channels::Alpha,
-
-            EncodeFormat::R8G8B8_UNORM
-            | EncodeFormat::B8G8R8_UNORM
-            | EncodeFormat::B8G8R8X8_UNORM
-            | EncodeFormat::B5G6R5_UNORM
-            | EncodeFormat::R8G8_UNORM
-            | EncodeFormat::R8G8_SNORM
-            | EncodeFormat::R16G16_UNORM
-            | EncodeFormat::R16G16_SNORM
-            | EncodeFormat::R11G11B10_FLOAT
-            | EncodeFormat::R9G9B9E5_SHAREDEXP
-            | EncodeFormat::R16G16_FLOAT
-            | EncodeFormat::R32G32_FLOAT
-            | EncodeFormat::R32G32B32_FLOAT
-            | EncodeFormat::Y410
-            | EncodeFormat::Y416
-            | EncodeFormat::R8G8_B8G8_UNORM
-            | EncodeFormat::G8R8_G8B8_UNORM
-            | EncodeFormat::UYVY
-            | EncodeFormat::YUY2
-            | EncodeFormat::Y210
-            | EncodeFormat::Y216
-            | EncodeFormat::BC5_UNORM
-            | EncodeFormat::BC5_SNORM
-            // | EncodeFormat::BC6H_UF16
-            // | EncodeFormat::BC6H_SF16
-            => Channels::Rgb,
-
-            EncodeFormat::R8G8B8A8_UNORM
-            | EncodeFormat::R8G8B8A8_SNORM
-            | EncodeFormat::B8G8R8A8_UNORM
-            | EncodeFormat::B5G5R5A1_UNORM
-            | EncodeFormat::B4G4R4A4_UNORM
-            | EncodeFormat::A4B4G4R4_UNORM
-            | EncodeFormat::R16G16B16A16_UNORM
-            | EncodeFormat::R16G16B16A16_SNORM
-            | EncodeFormat::R10G10B10A2_UNORM
-            | EncodeFormat::R16G16B16A16_FLOAT
-            | EncodeFormat::R32G32B32A32_FLOAT
-            | EncodeFormat::R10G10B10_XR_BIAS_A2_UNORM
-            | EncodeFormat::AYUV
-            | EncodeFormat::BC1_UNORM
-            | EncodeFormat::BC2_UNORM
-            | EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC3_UNORM
-            | EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA
-            // | EncodeFormat::BC7_UNORM
-            => Channels::Rgba,
+        // unsupported formats
+        Format::BC3_UNORM_RXGB | Format::BC6H_UF16 | Format::BC6H_SF16 | Format::BC7_UNORM => {
+            return None
         }
-    }
-    pub const fn precision(self) -> Precision {
-        match self {
-            EncodeFormat::R8G8B8_UNORM
-            | EncodeFormat::B8G8R8_UNORM
-            | EncodeFormat::R8G8B8A8_UNORM
-            | EncodeFormat::R8G8B8A8_SNORM
-            | EncodeFormat::B8G8R8A8_UNORM
-            | EncodeFormat::B8G8R8X8_UNORM
-            | EncodeFormat::B5G6R5_UNORM
-            | EncodeFormat::B5G5R5A1_UNORM
-            | EncodeFormat::B4G4R4A4_UNORM
-            | EncodeFormat::A4B4G4R4_UNORM
-            | EncodeFormat::R8_SNORM
-            | EncodeFormat::R8_UNORM
-            | EncodeFormat::R8G8_UNORM
-            | EncodeFormat::R8G8_SNORM
-            | EncodeFormat::A8_UNORM
-            | EncodeFormat::AYUV
-            | EncodeFormat::R1_UNORM
-            | EncodeFormat::R8G8_B8G8_UNORM
-            | EncodeFormat::G8R8_G8B8_UNORM
-            | EncodeFormat::UYVY
-            | EncodeFormat::YUY2
-            | EncodeFormat::BC1_UNORM
-            | EncodeFormat::BC2_UNORM
-            | EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC3_UNORM
-            | EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC4_UNORM
-            | EncodeFormat::BC4_SNORM
-            | EncodeFormat::BC5_UNORM
-            | EncodeFormat::BC5_SNORM
-            // | EncodeFormat::BC7_UNORM
-            => Precision::U8,
-
-            EncodeFormat::R16_UNORM
-            | EncodeFormat::R16_SNORM
-            | EncodeFormat::R16G16_UNORM
-            | EncodeFormat::R16G16_SNORM
-            | EncodeFormat::R16G16B16A16_UNORM
-            | EncodeFormat::R16G16B16A16_SNORM
-            | EncodeFormat::R10G10B10A2_UNORM
-            | EncodeFormat::Y410
-            | EncodeFormat::Y416
-            | EncodeFormat::Y210
-            | EncodeFormat::Y216 => Precision::U16,
-
-            EncodeFormat::R16_FLOAT
-            | EncodeFormat::R16G16_FLOAT
-            | EncodeFormat::R16G16B16A16_FLOAT
-            // | EncodeFormat::BC6H_UF16
-            // | EncodeFormat::BC6H_SF16
-            | EncodeFormat::R11G11B10_FLOAT
-            | EncodeFormat::R9G9B9E5_SHAREDEXP
-            | EncodeFormat::R10G10B10_XR_BIAS_A2_UNORM
-            | EncodeFormat::R32_FLOAT
-            | EncodeFormat::R32G32_FLOAT
-            | EncodeFormat::R32G32B32_FLOAT
-            | EncodeFormat::R32G32B32A32_FLOAT => Precision::F32,
-        }
-    }
-    pub const fn block_height(self) -> Option<NonZeroU8> {
-        const ONE: NonZeroU8 = NonZeroU8::new(1).unwrap();
-        const FOUR: NonZeroU8 = NonZeroU8::new(4).unwrap();
-
-        match self {
-            EncodeFormat::BC1_UNORM
-            | EncodeFormat::BC2_UNORM
-            | EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC3_UNORM
-            | EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC4_UNORM
-            | EncodeFormat::BC4_SNORM
-            | EncodeFormat::BC5_UNORM
-            | EncodeFormat::BC5_SNORM
-            // | EncodeFormat::BC6H_UF16
-            // | EncodeFormat::BC6H_SF16
-            // | EncodeFormat::BC7_UNORM
-            => Some(FOUR),
-
-            _ => Some(ONE),
-        }
-    }
-
-    pub fn encode<W: Write>(
-        &self,
-        writer: &mut W,
-        size: Size,
-        color: ColorFormat,
-        data: &[u8],
-        options: &EncodeOptions,
-    ) -> Result<(), EncodeError> {
-        self.get_encoder()
-            .encode(data, size.width, color, writer, options)
-    }
-
-    pub const fn supported_dithering(self) -> Dithering {
-        self.get_encoder().supported_dithering
-    }
-
-    const fn get_encoder(self) -> &'static EncoderSet {
-        match self {
-            EncodeFormat::R8G8B8_UNORM => &R8G8B8_UNORM,
-            EncodeFormat::B8G8R8_UNORM => &B8G8R8_UNORM,
-            EncodeFormat::R8G8B8A8_UNORM => &R8G8B8A8_UNORM,
-            EncodeFormat::R8G8B8A8_SNORM => &R8G8B8A8_SNORM,
-            EncodeFormat::B8G8R8A8_UNORM => &B8G8R8A8_UNORM,
-            EncodeFormat::B8G8R8X8_UNORM => &B8G8R8X8_UNORM,
-            EncodeFormat::B5G6R5_UNORM => &B5G6R5_UNORM,
-            EncodeFormat::B5G5R5A1_UNORM => &B5G5R5A1_UNORM,
-            EncodeFormat::B4G4R4A4_UNORM => &B4G4R4A4_UNORM,
-            EncodeFormat::A4B4G4R4_UNORM => &A4B4G4R4_UNORM,
-            EncodeFormat::R8_SNORM => &R8_SNORM,
-            EncodeFormat::R8_UNORM => &R8_UNORM,
-            EncodeFormat::R8G8_UNORM => &R8G8_UNORM,
-            EncodeFormat::R8G8_SNORM => &R8G8_SNORM,
-            EncodeFormat::A8_UNORM => &A8_UNORM,
-            EncodeFormat::R16_UNORM => &R16_UNORM,
-            EncodeFormat::R16_SNORM => &R16_SNORM,
-            EncodeFormat::R16G16_UNORM => &R16G16_UNORM,
-            EncodeFormat::R16G16_SNORM => &R16G16_SNORM,
-            EncodeFormat::R16G16B16A16_UNORM => &R16G16B16A16_UNORM,
-            EncodeFormat::R16G16B16A16_SNORM => &R16G16B16A16_SNORM,
-            EncodeFormat::R10G10B10A2_UNORM => &R10G10B10A2_UNORM,
-            EncodeFormat::R11G11B10_FLOAT => &R11G11B10_FLOAT,
-            EncodeFormat::R9G9B9E5_SHAREDEXP => &R9G9B9E5_SHAREDEXP,
-            EncodeFormat::R16_FLOAT => &R16_FLOAT,
-            EncodeFormat::R16G16_FLOAT => &R16G16_FLOAT,
-            EncodeFormat::R16G16B16A16_FLOAT => &R16G16B16A16_FLOAT,
-            EncodeFormat::R32_FLOAT => &R32_FLOAT,
-            EncodeFormat::R32G32_FLOAT => &R32G32_FLOAT,
-            EncodeFormat::R32G32B32_FLOAT => &R32G32B32_FLOAT,
-            EncodeFormat::R32G32B32A32_FLOAT => &R32G32B32A32_FLOAT,
-            EncodeFormat::R10G10B10_XR_BIAS_A2_UNORM => &R10G10B10_XR_BIAS_A2_UNORM,
-            EncodeFormat::AYUV => &AYUV,
-            EncodeFormat::Y410 => &Y410,
-            EncodeFormat::Y416 => &Y416,
-
-            EncodeFormat::R1_UNORM => &R1_UNORM,
-            EncodeFormat::R8G8_B8G8_UNORM => &R8G8_B8G8_UNORM,
-            EncodeFormat::G8R8_G8B8_UNORM => &G8R8_G8B8_UNORM,
-            EncodeFormat::UYVY => &UYVY,
-            EncodeFormat::YUY2 => &YUY2,
-            EncodeFormat::Y210 => &Y210,
-            EncodeFormat::Y216 => &Y216,
-
-            EncodeFormat::BC1_UNORM => &BC1_UNORM,
-            EncodeFormat::BC2_UNORM => &BC2_UNORM,
-            EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA => &BC2_UNORM_PREMULTIPLIED_ALPHA,
-            EncodeFormat::BC3_UNORM => &BC3_UNORM,
-            EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA => &BC3_UNORM_PREMULTIPLIED_ALPHA,
-            EncodeFormat::BC4_UNORM => &BC4_UNORM,
-            EncodeFormat::BC4_SNORM => &BC4_SNORM,
-            EncodeFormat::BC5_UNORM => &BC5_UNORM,
-            EncodeFormat::BC5_SNORM => &BC5_SNORM,
-            // EncodeFormat::BC6H_UF16 => &BC6H_UF16,
-            // EncodeFormat::BC6H_SF16 => &BC6H_SF16,
-            // EncodeFormat::BC7_UNORM => &BC7_UNORM,
-        }
-    }
-}
-impl TryFrom<EncodeFormat> for DxgiFormat {
-    type Error = ();
-
-    fn try_from(value: EncodeFormat) -> Result<DxgiFormat, Self::Error> {
-        Ok(match value {
-            EncodeFormat::R8G8B8A8_UNORM => DxgiFormat::R8G8B8A8_UNORM,
-            EncodeFormat::R8G8B8A8_SNORM => DxgiFormat::R8G8B8A8_SNORM,
-            EncodeFormat::B8G8R8A8_UNORM => DxgiFormat::B8G8R8A8_UNORM,
-            EncodeFormat::B8G8R8X8_UNORM => DxgiFormat::B8G8R8X8_UNORM,
-            EncodeFormat::B5G6R5_UNORM => DxgiFormat::B5G6R5_UNORM,
-            EncodeFormat::B5G5R5A1_UNORM => DxgiFormat::B5G5R5A1_UNORM,
-            EncodeFormat::B4G4R4A4_UNORM => DxgiFormat::B4G4R4A4_UNORM,
-            EncodeFormat::A4B4G4R4_UNORM => DxgiFormat::A4B4G4R4_UNORM,
-            EncodeFormat::R8_SNORM => DxgiFormat::R8_SNORM,
-            EncodeFormat::R8_UNORM => DxgiFormat::R8_UNORM,
-            EncodeFormat::R8G8_UNORM => DxgiFormat::R8G8_UNORM,
-            EncodeFormat::R8G8_SNORM => DxgiFormat::R8G8_SNORM,
-            EncodeFormat::A8_UNORM => DxgiFormat::A8_UNORM,
-            EncodeFormat::R16_UNORM => DxgiFormat::R16_UNORM,
-            EncodeFormat::R16_SNORM => DxgiFormat::R16_SNORM,
-            EncodeFormat::R16G16_UNORM => DxgiFormat::R16G16_UNORM,
-            EncodeFormat::R16G16_SNORM => DxgiFormat::R16G16_SNORM,
-            EncodeFormat::R16G16B16A16_UNORM => DxgiFormat::R16G16B16A16_UNORM,
-            EncodeFormat::R16G16B16A16_SNORM => DxgiFormat::R16G16B16A16_SNORM,
-            EncodeFormat::R10G10B10A2_UNORM => DxgiFormat::R10G10B10A2_UNORM,
-            EncodeFormat::R11G11B10_FLOAT => DxgiFormat::R11G11B10_FLOAT,
-            EncodeFormat::R9G9B9E5_SHAREDEXP => DxgiFormat::R9G9B9E5_SHAREDEXP,
-            EncodeFormat::R16_FLOAT => DxgiFormat::R16_FLOAT,
-            EncodeFormat::R16G16_FLOAT => DxgiFormat::R16G16_FLOAT,
-            EncodeFormat::R16G16B16A16_FLOAT => DxgiFormat::R16G16B16A16_FLOAT,
-            EncodeFormat::R32_FLOAT => DxgiFormat::R32_FLOAT,
-            EncodeFormat::R32G32_FLOAT => DxgiFormat::R32G32_FLOAT,
-            EncodeFormat::R32G32B32_FLOAT => DxgiFormat::R32G32B32_FLOAT,
-            EncodeFormat::R32G32B32A32_FLOAT => DxgiFormat::R32G32B32A32_FLOAT,
-            EncodeFormat::R10G10B10_XR_BIAS_A2_UNORM => DxgiFormat::R10G10B10_XR_BIAS_A2_UNORM,
-            EncodeFormat::AYUV => DxgiFormat::AYUV,
-            EncodeFormat::Y410 => DxgiFormat::Y410,
-            EncodeFormat::Y416 => DxgiFormat::Y416,
-            EncodeFormat::R1_UNORM => DxgiFormat::R1_UNORM,
-            EncodeFormat::R8G8_B8G8_UNORM => DxgiFormat::R8G8_B8G8_UNORM,
-            EncodeFormat::G8R8_G8B8_UNORM => DxgiFormat::G8R8_G8B8_UNORM,
-            EncodeFormat::YUY2 => DxgiFormat::YUY2,
-            EncodeFormat::Y210 => DxgiFormat::Y210,
-            EncodeFormat::Y216 => DxgiFormat::Y216,
-            EncodeFormat::BC1_UNORM => DxgiFormat::BC1_UNORM,
-            EncodeFormat::BC2_UNORM => DxgiFormat::BC2_UNORM,
-            EncodeFormat::BC3_UNORM => DxgiFormat::BC3_UNORM,
-            EncodeFormat::BC4_UNORM => DxgiFormat::BC4_UNORM,
-            EncodeFormat::BC4_SNORM => DxgiFormat::BC4_SNORM,
-            EncodeFormat::BC5_UNORM => DxgiFormat::BC5_UNORM,
-            EncodeFormat::BC5_SNORM => DxgiFormat::BC5_SNORM,
-            // EncodeFormat::BC6H_UF16 => DxgiFormat::BC6H_UF16,
-            // EncodeFormat::BC6H_SF16 => DxgiFormat::BC6H_SF16,
-            // EncodeFormat::BC7_UNORM => DxgiFormat::BC7_UNORM,
-            EncodeFormat::R8G8B8_UNORM
-            | EncodeFormat::B8G8R8_UNORM
-            | EncodeFormat::UYVY
-            | EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA
-            | EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA => return Err(()),
-        })
-    }
-}
-impl TryFrom<EncodeFormat> for FourCC {
-    type Error = ();
-
-    fn try_from(value: EncodeFormat) -> Result<Self, Self::Error> {
-        match value {
-            EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA => Ok(FourCC::DXT2),
-            EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA => Ok(FourCC::DXT4),
-            EncodeFormat::BC1_UNORM => Ok(FourCC::DXT1),
-            EncodeFormat::BC2_UNORM => Ok(FourCC::DXT3),
-            EncodeFormat::BC3_UNORM => Ok(FourCC::DXT5),
-            EncodeFormat::BC4_UNORM => Ok(FourCC::BC4U),
-            EncodeFormat::BC4_SNORM => Ok(FourCC::BC4S),
-            EncodeFormat::BC5_UNORM => Ok(FourCC::BC5U),
-            EncodeFormat::BC5_SNORM => Ok(FourCC::BC5S),
-
-            EncodeFormat::R8G8_B8G8_UNORM => Ok(FourCC::RGBG),
-            EncodeFormat::G8R8_G8B8_UNORM => Ok(FourCC::GRGB),
-            EncodeFormat::UYVY => Ok(FourCC::UYVY),
-            EncodeFormat::YUY2 => Ok(FourCC::YUY2),
-            _ => Err(()),
-        }
-    }
-}
-impl TryFrom<EncodeFormat> for Dx9PixelFormat {
-    type Error = ();
-
-    fn try_from(value: EncodeFormat) -> Result<Self, Self::Error> {
-        match value {
-            EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA => Ok(FourCC::DXT2.into()),
-            EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA => Ok(FourCC::DXT4.into()),
-            EncodeFormat::UYVY => Ok(FourCC::UYVY.into()),
-
-            EncodeFormat::B8G8R8_UNORM => Ok(Self::Mask(MaskPixelFormat {
-                flags: PixelFormatFlags::RGB,
-                rgb_bit_count: 24,
-                r_bit_mask: 0x00FF0000,
-                g_bit_mask: 0x0000FF00,
-                b_bit_mask: 0x000000FF,
-                a_bit_mask: 0,
-            })),
-            EncodeFormat::R8G8B8_UNORM => Ok(Self::Mask(MaskPixelFormat {
-                flags: PixelFormatFlags::RGB,
-                rgb_bit_count: 24,
-                r_bit_mask: 0x000000FF,
-                g_bit_mask: 0x0000FF00,
-                b_bit_mask: 0x00FF0000,
-                a_bit_mask: 0,
-            })),
-
-            _ => Err(()),
-        }
-    }
-}
-
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum EncodeError {
-    InvalidLines,
-    Io(std::io::Error),
-}
-impl From<std::io::Error> for EncodeError {
-    fn from(err: std::io::Error) -> Self {
-        EncodeError::Io(err)
-    }
-}
-
-impl std::fmt::Display for EncodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            EncodeError::InvalidLines => write!(f, "Invalid lines"),
-            EncodeError::Io(err) => write!(f, "IO error: {}", err),
-        }
-    }
-}
-impl std::error::Error for EncodeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            EncodeError::Io(err) => Some(err),
-            _ => None,
-        }
-    }
+    })
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

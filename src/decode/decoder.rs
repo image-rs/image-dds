@@ -15,6 +15,7 @@ pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodeError>;
 pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodeError>;
 
 pub(crate) struct DecodeContext {
+    pub color: ColorFormat,
     pub size: Size,
 }
 
@@ -35,7 +36,6 @@ impl<T: Read + Seek> ReadSeek for T {}
 pub(crate) struct Args<'a, 'b>(pub &'a mut dyn Read, pub &'b mut [u8], pub DecodeContext);
 impl<'a, 'b> Args<'a, 'b> {
     pub fn new(
-        color: ColorFormat,
         reader: &'a mut dyn Read,
         output: &'b mut [u8],
         context: DecodeContext,
@@ -43,7 +43,7 @@ impl<'a, 'b> Args<'a, 'b> {
         let required_bytes = context
             .size
             .pixels()
-            .saturating_mul(color.bytes_per_pixel() as u64)
+            .saturating_mul(context.color.bytes_per_pixel() as u64)
             .try_into()
             .unwrap_or(usize::MAX);
 
@@ -66,7 +66,6 @@ pub(crate) struct RArgs<'a, 'b>(
 );
 impl<'a, 'b> RArgs<'a, 'b> {
     pub fn new(
-        color: ColorFormat,
         reader: &'a mut dyn ReadSeek,
         output: &'b mut [u8],
         row_pitch: usize,
@@ -79,8 +78,10 @@ impl<'a, 'b> RArgs<'a, 'b> {
         }
 
         // Check row pitch
-        let min_row_pitch =
-            usize::saturating_mul(rect.width as usize, color.bytes_per_pixel() as usize);
+        let min_row_pitch = usize::saturating_mul(
+            rect.width as usize,
+            context.color.bytes_per_pixel() as usize,
+        );
         if row_pitch < min_row_pitch {
             return Err(DecodeError::RowPitchTooSmall {
                 required_minimum: min_row_pitch,
@@ -460,7 +461,7 @@ impl DecoderSet {
         size: Size,
         output: &mut [u8],
     ) -> Result<(), DecodeError> {
-        let args = Args::new(color, reader, output, DecodeContext { size })?;
+        let args = Args::new(reader, output, DecodeContext { color, size })?;
 
         // never decode empty images
         if size.is_empty() {
@@ -490,12 +491,11 @@ impl DecoderSet {
         row_pitch: usize,
     ) -> Result<(), DecodeError> {
         let args = RArgs::new(
-            color,
             reader,
             output,
             row_pitch,
             rect,
-            DecodeContext { size },
+            DecodeContext { color, size },
         )?;
 
         // never decode empty rects

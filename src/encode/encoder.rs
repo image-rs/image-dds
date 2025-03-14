@@ -2,9 +2,9 @@ use std::io::Write;
 
 use bitflags::bitflags;
 
-use crate::{cast, ColorFormat, ColorFormatSet, Precision};
+use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision};
 
-use super::{Dithering, EncodeError, EncodeOptions};
+use super::{Dithering, EncodeOptions};
 
 pub(crate) struct Args<'a, 'b> {
     pub data: &'a [u8],

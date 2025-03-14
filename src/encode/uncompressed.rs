@@ -3,12 +3,12 @@ use glam::Vec4;
 use crate::{
     as_rgba_f32, cast, ch, convert_channels_untyped, fp10, fp11, fp16, n1, n10, n16, n2, n4, n5,
     n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat,
-    ColorFormatSet, Precision,
+    ColorFormatSet, EncodeError, Precision,
 };
 
 use super::{
     encoder::{Args, Encoder, EncoderSet, Flags},
-    Dithering, EncodeError,
+    Dithering,
 };
 
 // helpers

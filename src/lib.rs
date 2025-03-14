@@ -15,9 +15,7 @@ mod util;
 use std::io::Read;
 
 pub use color::*;
-pub use encode::{
-    CompressionQuality, Dithering, EncodeError, EncodeFormat, EncodeOptions, ErrorMetric,
-};
+pub use encode::{CompressionQuality, Dithering, EncodeOptions, ErrorMetric};
 pub use error::*;
 pub use format::*;
 pub use header::*;
@@ -115,7 +113,7 @@ impl Default for Options {
 
 pub struct DdsDecoder {
     header: Header,
-    format: DecodeFormat,
+    format: Format,
     layout: DataLayout,
 }
 
@@ -147,7 +145,7 @@ impl DdsDecoder {
         }
 
         // detect format
-        let format = DecodeFormat::from_header(&header)?;
+        let format = Format::from_header(&header)?;
 
         // data layout
         let layout = DataLayout::from_header_with(&header, format.into())?;
@@ -162,7 +160,7 @@ impl DdsDecoder {
     pub fn header(&self) -> &Header {
         &self.header
     }
-    pub fn format(&self) -> DecodeFormat {
+    pub fn format(&self) -> Format {
         self.format
     }
     pub fn layout(&self) -> &DataLayout {

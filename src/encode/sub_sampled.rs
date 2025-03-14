@@ -1,9 +1,6 @@
-use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, ColorFormatSet};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, ColorFormatSet, EncodeError};
 
-use super::{
-    encoder::{Args, Encoder, EncoderSet, Flags},
-    EncodeError,
-};
+use super::encoder::{Args, Encoder, EncoderSet, Flags};
 
 // helpers
 

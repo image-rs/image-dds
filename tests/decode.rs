@@ -71,7 +71,7 @@ fn decode_bc6_fuzz_hdr() {
         let mut file = File::open(dds_path)?;
         let decoder = DdsDecoder::new(&mut file)?;
         let format = decoder.format();
-        if !matches!(format, DecodeFormat::BC6H_SF16 | DecodeFormat::BC6H_UF16) {
+        if !matches!(format, Format::BC6H_SF16 | Format::BC6H_UF16) {
             return Ok(None);
         }
 

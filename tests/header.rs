@@ -151,9 +151,9 @@ fn convert_header_snapshot() {
                 util::pretty_print_header(&mut output, &converted_back);
             }
 
-            let format = DecodeFormat::from_header(header).ok();
-            let converted_format = DecodeFormat::from_header(&converted).ok();
-            let converted_back_format = DecodeFormat::from_header(&converted_back).ok();
+            let format = Format::from_header(header).ok();
+            let converted_format = Format::from_header(&converted).ok();
+            let converted_back_format = Format::from_header(&converted_back).ok();
 
             if (converted_format, converted_back_format) != (format, format) {
                 output.push_str("\nChanged format during conversion:\n");

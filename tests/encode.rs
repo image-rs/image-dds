@@ -6,67 +6,7 @@ use util::{test_data_dir, Image, WithPrecision};
 
 mod util;
 
-const FORMATS: &[EncodeFormat] = &[
-    // uncompressed formats
-    EncodeFormat::R8G8B8_UNORM,
-    EncodeFormat::B8G8R8_UNORM,
-    EncodeFormat::R8G8B8A8_UNORM,
-    EncodeFormat::R8G8B8A8_SNORM,
-    EncodeFormat::B8G8R8A8_UNORM,
-    EncodeFormat::B8G8R8X8_UNORM,
-    EncodeFormat::B5G6R5_UNORM,
-    EncodeFormat::B5G5R5A1_UNORM,
-    EncodeFormat::B4G4R4A4_UNORM,
-    EncodeFormat::A4B4G4R4_UNORM,
-    EncodeFormat::R8_SNORM,
-    EncodeFormat::R8_UNORM,
-    EncodeFormat::R8G8_UNORM,
-    EncodeFormat::R8G8_SNORM,
-    EncodeFormat::A8_UNORM,
-    EncodeFormat::R16_UNORM,
-    EncodeFormat::R16_SNORM,
-    EncodeFormat::R16G16_UNORM,
-    EncodeFormat::R16G16_SNORM,
-    EncodeFormat::R16G16B16A16_UNORM,
-    EncodeFormat::R16G16B16A16_SNORM,
-    EncodeFormat::R10G10B10A2_UNORM,
-    EncodeFormat::R11G11B10_FLOAT,
-    EncodeFormat::R9G9B9E5_SHAREDEXP,
-    EncodeFormat::R16_FLOAT,
-    EncodeFormat::R16G16_FLOAT,
-    EncodeFormat::R16G16B16A16_FLOAT,
-    EncodeFormat::R32_FLOAT,
-    EncodeFormat::R32G32_FLOAT,
-    EncodeFormat::R32G32B32_FLOAT,
-    EncodeFormat::R32G32B32A32_FLOAT,
-    EncodeFormat::R10G10B10_XR_BIAS_A2_UNORM,
-    EncodeFormat::AYUV,
-    EncodeFormat::Y410,
-    EncodeFormat::Y416,
-    // sub-sampled formats
-    EncodeFormat::R1_UNORM,
-    EncodeFormat::R8G8_B8G8_UNORM,
-    EncodeFormat::G8R8_G8B8_UNORM,
-    EncodeFormat::UYVY,
-    EncodeFormat::YUY2,
-    EncodeFormat::Y210,
-    EncodeFormat::Y216,
-    // block compression formats
-    EncodeFormat::BC1_UNORM,
-    EncodeFormat::BC2_UNORM,
-    EncodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA,
-    EncodeFormat::BC3_UNORM,
-    EncodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA,
-    EncodeFormat::BC4_UNORM,
-    EncodeFormat::BC4_SNORM,
-    EncodeFormat::BC5_UNORM,
-    EncodeFormat::BC5_SNORM,
-    // EncodeFormat::BC6H_UF16,
-    // EncodeFormat::BC6H_SF16,
-    // EncodeFormat::BC7_UNORM,
-];
-
-fn create_header(size: Size, format: EncodeFormat) -> Header {
+fn create_header(size: Size, format: Format) -> Header {
     if let Ok(dxgi_format) = format.try_into() {
         Header::new_image(size.width, size.height, dxgi_format)
     } else if let Ok(format) = format.try_into() {
@@ -75,7 +15,7 @@ fn create_header(size: Size, format: EncodeFormat) -> Header {
         unreachable!("unsupported format: {:?}", format);
     }
 }
-fn write_dds_header(size: Size, format: EncodeFormat) -> Vec<u8> {
+fn write_dds_header(size: Size, format: Format) -> Vec<u8> {
     let header = create_header(size, format);
 
     let mut output = Vec::new();
@@ -86,14 +26,14 @@ fn write_dds_header(size: Size, format: EncodeFormat) -> Vec<u8> {
 }
 fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     image: &Image<T>,
-    format: EncodeFormat,
+    format: Format,
     writer: &mut W,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
     format.encode(writer, image.size, image.color(), image.as_bytes(), options)
 }
 fn encode_decode(
-    format: EncodeFormat,
+    format: Format,
     options: &EncodeOptions,
     image: &Image<f32>,
 ) -> (Vec<u8>, Image<f32>) {
@@ -104,7 +44,7 @@ fn encode_decode(
 
     // decode
     let header = create_header(image.size, format);
-    let decode_format = DecodeFormat::from_header(&header).unwrap();
+    let decode_format = Format::from_header(&header).unwrap();
     let mut output = vec![0_f32; image.size.pixels() as usize * image.channels.count() as usize];
     decode_format
         .decode_f32(
@@ -160,36 +100,35 @@ fn encode_base() {
     let base_u16 = base_u8.to_u16();
     let base_f32 = base_u8.to_f32();
 
-    fn get_output_path(format: EncodeFormat) -> PathBuf {
+    fn get_output_path(format: Format) -> PathBuf {
         let name = format!("{:?}.dds", format);
         test_data_dir().join("output-encode/base").join(&name)
     }
-    let test =
-        |format: EncodeFormat, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
-            let mut output = write_dds_header(base_u8.size, format);
+    let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
+        let mut output = write_dds_header(base_u8.size, format);
 
-            let options = EncodeOptions::default();
+        let options = EncodeOptions::default();
 
-            // and now the image data
-            if format.precision() == Precision::U16 {
-                encode_image(&base_u16, format, &mut output, &options)?;
-            } else if format.precision() == Precision::F32 {
-                encode_image(&base_f32, format, &mut output, &options)?;
-            } else {
-                encode_image(&base_u8, format, &mut output, &options)?;
-            }
+        // and now the image data
+        if format.precision() == Precision::U16 {
+            encode_image(&base_u16, format, &mut output, &options)?;
+        } else if format.precision() == Precision::F32 {
+            encode_image(&base_f32, format, &mut output, &options)?;
+        } else {
+            encode_image(&base_u8, format, &mut output, &options)?;
+        }
 
-            // write to disk
-            std::fs::create_dir_all(dds_path.parent().unwrap())?;
-            std::fs::write(dds_path, &output)?;
+        // write to disk
+        std::fs::create_dir_all(dds_path.parent().unwrap())?;
+        std::fs::write(dds_path, &output)?;
 
-            let hex = util::hash_hex(&output);
-            Ok(hex)
-        };
+        let hex = util::hash_hex(&output);
+        Ok(hex)
+    };
 
     let mut summaries = util::OutputSummaries::new("_hashes");
 
-    for format in FORMATS.iter().copied() {
+    for format in util::ALL_FORMATS.iter().copied() {
         let dds_path = get_output_path(format);
         summaries.add_output_file_result(&dds_path, test(format, &dds_path));
     }
@@ -199,12 +138,12 @@ fn encode_base() {
 
 #[test]
 fn encode_dither() {
-    fn get_output_dds(format: EncodeFormat, name: &str) -> PathBuf {
+    fn get_output_dds(format: Format, name: &str) -> PathBuf {
         let name = format!("{:?} {}.dds", format, name);
         test_data_dir().join("output-encode/dither").join(&name)
     }
     fn test(
-        format: EncodeFormat,
+        format: Format,
         image: &Image<f32>,
         dds_path: &Path,
     ) -> Result<String, Box<dyn std::error::Error>> {
@@ -229,19 +168,16 @@ fn encode_dither() {
         .unwrap()
         .to_f32();
 
-    let ignore = [
-        EncodeFormat::BC4_SNORM,
-        EncodeFormat::BC5_UNORM,
-        EncodeFormat::BC5_SNORM,
-    ];
+    let ignore = [Format::BC4_SNORM, Format::BC5_UNORM, Format::BC5_SNORM];
 
     let mut summaries = util::OutputSummaries::new("_hashes");
 
-    for format in FORMATS
+    for (format, encoding) in util::ALL_FORMATS
         .iter()
         .copied()
-        .filter(|f| f.supported_dithering() != Dithering::None)
         .filter(|f| !ignore.contains(f))
+        .filter_map(|f| f.encoding().map(|e| (f, e)))
+        .filter(|(_, e)| e.dithering != Dithering::None)
     {
         let mut test_and_summarize = |image, name| {
             let output_path = get_output_dds(format, name);
@@ -250,7 +186,7 @@ fn encode_dither() {
 
         test_and_summarize(&base, "base");
 
-        if format.supported_dithering() != Dithering::Alpha {
+        if encoding.dithering.color() {
             test_and_summarize(&twirl, "twirl");
         }
     }
@@ -296,7 +232,7 @@ fn encode_measure_quality() {
         }
     }
     struct TestCase<'a> {
-        format: EncodeFormat,
+        format: Format,
         options: Vec<(&'a str, EncodeOptions)>,
         images: &'a [&'a TestImage],
     }
@@ -309,7 +245,7 @@ fn encode_measure_quality() {
 
     let cases = [
         TestCase {
-            format: EncodeFormat::BC1_UNORM,
+            format: Format::BC1_UNORM,
             options: vec![
                 ("default", EncodeOptions::default()),
                 (
@@ -346,7 +282,7 @@ fn encode_measure_quality() {
             ],
         },
         TestCase {
-            format: EncodeFormat::BC4_UNORM,
+            format: Format::BC4_UNORM,
             options: vec![
                 ("default", EncodeOptions::default()),
                 (
@@ -359,7 +295,7 @@ fn encode_measure_quality() {
             images: &[base, color_twirl, clovers_r, stone_h, random],
         },
         TestCase {
-            format: EncodeFormat::BC4_UNORM,
+            format: Format::BC4_UNORM,
             options: vec![(
                 "ref",
                 new_options(|options| {
@@ -389,7 +325,7 @@ fn encode_measure_quality() {
         output.push('\n');
 
         let mut table =
-            PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR blur", "↓Region error"]);
+            util::PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR blur", "↓Region error"]);
 
         for image in case.images {
             let hash_alpha = matches!(image.image.channels, Channels::Rgba | Channels::Alpha);
@@ -497,7 +433,7 @@ fn block_dither() {
         let mut temp_image = image.to_f32();
         temp_image.channels = Channels::Alpha;
         let (_, encoded) = encode_decode(
-            EncodeFormat::BC1_UNORM,
+            Format::BC1_UNORM,
             &options,
             &temp_image.to_channels(Channels::Rgba),
         );
@@ -544,113 +480,4 @@ fn block_dither() {
         &image,
     )
     .unwrap();
-}
-
-#[test]
-fn format_metadata() {
-    let mut table = PrettyTable::from_header(&["Format", "Channels", "Precision", "Block height"]);
-    table.add_empty_row();
-
-    let gaps_at = [EncodeFormat::R1_UNORM, EncodeFormat::BC1_UNORM];
-
-    for format in FORMATS.iter().copied() {
-        if gaps_at.contains(&format) {
-            table.add_empty_row();
-        }
-
-        table.add_row(&[
-            format!("{:?}", format),
-            format!("{:?}", format.channels()),
-            format!("{:?}", format.precision()),
-            if let Some(block_height) = format.block_height() {
-                format!("{:?}", block_height)
-            } else {
-                "None".to_string()
-            },
-        ]);
-    }
-
-    util::compare_snapshot_text(
-        &util::test_data_dir().join("encode_format_metadata.txt"),
-        &table.to_string(),
-    )
-    .unwrap();
-}
-
-struct PrettyTable {
-    cells: Vec<String>,
-    width: usize,
-    height: usize,
-}
-impl PrettyTable {
-    pub fn new_empty(width: usize, height: usize) -> Self {
-        Self {
-            cells: vec![String::new(); width * height],
-            width,
-            height,
-        }
-    }
-    pub fn from_header<S: AsRef<str>>(header: &[S]) -> Self {
-        let mut table = Self::new_empty(header.len(), 0);
-        table.add_row(header);
-        table
-    }
-
-    pub fn get(&self, x: usize, y: usize) -> &str {
-        &self.cells[y * self.width + x]
-    }
-    pub fn get_mut(&mut self, x: usize, y: usize) -> &mut String {
-        &mut self.cells[y * self.width + x]
-    }
-
-    #[allow(unused)]
-    pub fn set(&mut self, x: usize, y: usize, value: impl Into<String>) {
-        *self.get_mut(x, y) = value.into();
-    }
-
-    #[track_caller]
-    pub fn add_row<S: AsRef<str>>(&mut self, row: &[S]) {
-        assert!(row.len() == self.width);
-        self.height += 1;
-        for cell in row {
-            self.cells.push(cell.as_ref().to_string());
-        }
-    }
-    pub fn add_empty_row(&mut self) {
-        self.height += 1;
-        for _ in 0..self.width {
-            self.cells.push(String::new());
-        }
-    }
-
-    pub fn print(&self, out: &mut String) {
-        let column_width: Vec<usize> = (0..self.width)
-            .map(|x| {
-                (0..self.height)
-                    .map(|y| self.get(x, y).chars().count())
-                    .max()
-                    .unwrap()
-            })
-            .collect();
-
-        for y in 0..self.height {
-            #[allow(clippy::needless_range_loop)]
-            for x in 0..self.width {
-                let cell = self.get(x, y);
-                out.push_str(cell);
-                for _ in 0..column_width[x] - cell.chars().count() {
-                    out.push(' ');
-                }
-                out.push_str("  ");
-            }
-            out.push('\n');
-        }
-    }
-}
-impl std::fmt::Display for PrettyTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut out = String::new();
-        self.print(&mut out);
-        write!(f, "{}", out)
-    }
 }

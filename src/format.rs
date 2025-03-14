@@ -1,16 +1,22 @@
-use std::io::{Read, Seek};
+use std::{
+    io::{Read, Seek, Write},
+    num::NonZeroU8,
+};
 
 use crate::{
     cast,
-    decode::{self, DecoderSet, ReadSeek},
-    detect, Channels, ColorFormat, DecodeError, Dx9PixelFormat, DxgiFormat, FourCC, Header,
-    Precision, Rect, Size,
+    decode::{get_decoders, ReadSeek},
+    detect,
+    encode::get_encoders,
+    Channels, ColorFormat, DecodeError, Dithering, Dx9PixelFormat, DxgiFormat, EncodeError,
+    EncodeOptions, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags, Precision, Rect,
+    Size,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 #[allow(non_camel_case_types)]
-pub enum DecodeFormat {
+pub enum Format {
     // uncompressed formats
     R8G8B8_UNORM,
     B8G8R8_UNORM,
@@ -83,16 +89,16 @@ pub enum DecodeFormat {
     /// set to 0 to improve the quality of G and B.
     BC3_UNORM_RXGB,
 }
-impl DecodeFormat {
+impl Format {
     /// Returns the format of the surfaces from a DDS header.
-    pub fn from_header(header: &Header) -> Result<DecodeFormat, DecodeError> {
+    pub fn from_header(header: &Header) -> Result<Format, FormatError> {
         match header {
             Header::Dx9(dx9) => match &dx9.pixel_format {
                 Dx9PixelFormat::FourCC(four_cc) => detect::four_cc_to_supported(*four_cc)
-                    .ok_or(DecodeError::UnsupportedFourCC(*four_cc)),
+                    .ok_or(FormatError::UnsupportedFourCC(*four_cc)),
                 Dx9PixelFormat::Mask(pixel_format) => {
                     detect::pixel_format_to_supported(pixel_format)
-                        .ok_or(DecodeError::UnsupportedPixelFormat)
+                        .ok_or(FormatError::UnsupportedPixelFormat)
                 }
             },
             Header::Dx10(dx10) => {
@@ -101,20 +107,20 @@ impl DecodeFormat {
                 }
 
                 detect::dxgi_format_to_supported(dx10.dxgi_format)
-                    .ok_or(DecodeError::UnsupportedDxgiFormat(dx10.dxgi_format))
+                    .ok_or(FormatError::UnsupportedDxgiFormat(dx10.dxgi_format))
             }
         }
     }
     /// Returns the format of a surface from a DXGI format.
     ///
     /// `None` if the DXGI format is not supported for decoding.
-    pub const fn from_dxgi(dxgi: DxgiFormat) -> Option<DecodeFormat> {
+    pub const fn from_dxgi(dxgi: DxgiFormat) -> Option<Format> {
         detect::dxgi_format_to_supported(dxgi)
     }
     /// Returns the format of a surface from a FourCC code.
     ///
     /// `None` if the FourCC code is not supported for decoding.
-    pub const fn from_four_cc(four_cc: FourCC) -> Option<DecodeFormat> {
+    pub const fn from_four_cc(four_cc: FourCC) -> Option<Format> {
         detect::four_cc_to_supported(four_cc)
     }
 
@@ -335,71 +341,183 @@ impl DecodeFormat {
         let decoders = get_decoders(*self);
         decoders.decode_rect(color, reader, size, rect, output, row_pitch)
     }
+
+    pub fn encode<W: Write>(
+        &self,
+        writer: &mut W,
+        size: Size,
+        color: ColorFormat,
+        data: &[u8],
+        options: &EncodeOptions,
+    ) -> Result<(), EncodeError> {
+        if let Some(encoders) = get_encoders(*self) {
+            encoders.encode(data, size.width, color, writer, options)
+        } else {
+            Err(EncodeError::UnsupportedFormat(*self))
+        }
+    }
+
+    const fn block_height(self) -> Option<NonZeroU8> {
+        const ONE: NonZeroU8 = NonZeroU8::new(1).unwrap();
+        const FOUR: NonZeroU8 = NonZeroU8::new(4).unwrap();
+
+        match self {
+            Format::BC1_UNORM
+            | Format::BC2_UNORM
+            | Format::BC2_UNORM_PREMULTIPLIED_ALPHA
+            | Format::BC3_UNORM
+            | Format::BC3_UNORM_PREMULTIPLIED_ALPHA
+            | Format::BC4_UNORM
+            | Format::BC4_SNORM
+            | Format::BC5_UNORM
+            | Format::BC5_SNORM
+            // | EncodeFormat::BC6H_UF16
+            // | EncodeFormat::BC6H_SF16
+            // | EncodeFormat::BC7_UNORM
+            => Some(FOUR),
+
+            _ => Some(ONE),
+        }
+    }
+    /// Returns information about the encoding support of this format.
+    ///
+    /// If the format does not support encoding, `None` is returned.
+    pub const fn encoding(self) -> Option<EncodingSupport> {
+        if let Some(encoders) = get_encoders(self) {
+            Some(EncodingSupport {
+                dithering: encoders.supported_dithering,
+                block_height: self.block_height(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
-const fn get_decoders(format: DecodeFormat) -> DecoderSet {
-    match format {
-        // uncompressed formats
-        DecodeFormat::R8G8B8_UNORM => decode::R8G8B8_UNORM,
-        DecodeFormat::B8G8R8_UNORM => decode::B8G8R8_UNORM,
-        DecodeFormat::R8G8B8A8_UNORM => decode::R8G8B8A8_UNORM,
-        DecodeFormat::R8G8B8A8_SNORM => decode::R8G8B8A8_SNORM,
-        DecodeFormat::B8G8R8A8_UNORM => decode::B8G8R8A8_UNORM,
-        DecodeFormat::B8G8R8X8_UNORM => decode::B8G8R8X8_UNORM,
-        DecodeFormat::B5G6R5_UNORM => decode::B5G6R5_UNORM,
-        DecodeFormat::B5G5R5A1_UNORM => decode::B5G5R5A1_UNORM,
-        DecodeFormat::B4G4R4A4_UNORM => decode::B4G4R4A4_UNORM,
-        DecodeFormat::A4B4G4R4_UNORM => decode::A4B4G4R4_UNORM,
-        DecodeFormat::R8_SNORM => decode::R8_SNORM,
-        DecodeFormat::R8_UNORM => decode::R8_UNORM,
-        DecodeFormat::R8G8_UNORM => decode::R8G8_UNORM,
-        DecodeFormat::R8G8_SNORM => decode::R8G8_SNORM,
-        DecodeFormat::A8_UNORM => decode::A8_UNORM,
-        DecodeFormat::R16_UNORM => decode::R16_UNORM,
-        DecodeFormat::R16_SNORM => decode::R16_SNORM,
-        DecodeFormat::R16G16_UNORM => decode::R16G16_UNORM,
-        DecodeFormat::R16G16_SNORM => decode::R16G16_SNORM,
-        DecodeFormat::R16G16B16A16_UNORM => decode::R16G16B16A16_UNORM,
-        DecodeFormat::R16G16B16A16_SNORM => decode::R16G16B16A16_SNORM,
-        DecodeFormat::R10G10B10A2_UNORM => decode::R10G10B10A2_UNORM,
-        DecodeFormat::R11G11B10_FLOAT => decode::R11G11B10_FLOAT,
-        DecodeFormat::R9G9B9E5_SHAREDEXP => decode::R9G9B9E5_SHAREDEXP,
-        DecodeFormat::R16_FLOAT => decode::R16_FLOAT,
-        DecodeFormat::R16G16_FLOAT => decode::R16G16_FLOAT,
-        DecodeFormat::R16G16B16A16_FLOAT => decode::R16G16B16A16_FLOAT,
-        DecodeFormat::R32_FLOAT => decode::R32_FLOAT,
-        DecodeFormat::R32G32_FLOAT => decode::R32G32_FLOAT,
-        DecodeFormat::R32G32B32_FLOAT => decode::R32G32B32_FLOAT,
-        DecodeFormat::R32G32B32A32_FLOAT => decode::R32G32B32A32_FLOAT,
-        DecodeFormat::R10G10B10_XR_BIAS_A2_UNORM => decode::R10G10B10_XR_BIAS_A2_UNORM,
-        DecodeFormat::AYUV => decode::AYUV,
-        DecodeFormat::Y410 => decode::Y410,
-        DecodeFormat::Y416 => decode::Y416,
+impl TryFrom<Format> for DxgiFormat {
+    type Error = ();
 
-        // sub-sampled formats
-        DecodeFormat::R1_UNORM => decode::R1_UNORM,
-        DecodeFormat::R8G8_B8G8_UNORM => decode::R8G8_B8G8_UNORM,
-        DecodeFormat::G8R8_G8B8_UNORM => decode::G8R8_G8B8_UNORM,
-        DecodeFormat::UYVY => decode::UYVY,
-        DecodeFormat::YUY2 => decode::YUY2,
-        DecodeFormat::Y210 => decode::Y210,
-        DecodeFormat::Y216 => decode::Y216,
+    fn try_from(value: Format) -> Result<DxgiFormat, Self::Error> {
+        Ok(match value {
+            Format::R8G8B8A8_UNORM => DxgiFormat::R8G8B8A8_UNORM,
+            Format::R8G8B8A8_SNORM => DxgiFormat::R8G8B8A8_SNORM,
+            Format::B8G8R8A8_UNORM => DxgiFormat::B8G8R8A8_UNORM,
+            Format::B8G8R8X8_UNORM => DxgiFormat::B8G8R8X8_UNORM,
+            Format::B5G6R5_UNORM => DxgiFormat::B5G6R5_UNORM,
+            Format::B5G5R5A1_UNORM => DxgiFormat::B5G5R5A1_UNORM,
+            Format::B4G4R4A4_UNORM => DxgiFormat::B4G4R4A4_UNORM,
+            Format::A4B4G4R4_UNORM => DxgiFormat::A4B4G4R4_UNORM,
+            Format::R8_SNORM => DxgiFormat::R8_SNORM,
+            Format::R8_UNORM => DxgiFormat::R8_UNORM,
+            Format::R8G8_UNORM => DxgiFormat::R8G8_UNORM,
+            Format::R8G8_SNORM => DxgiFormat::R8G8_SNORM,
+            Format::A8_UNORM => DxgiFormat::A8_UNORM,
+            Format::R16_UNORM => DxgiFormat::R16_UNORM,
+            Format::R16_SNORM => DxgiFormat::R16_SNORM,
+            Format::R16G16_UNORM => DxgiFormat::R16G16_UNORM,
+            Format::R16G16_SNORM => DxgiFormat::R16G16_SNORM,
+            Format::R16G16B16A16_UNORM => DxgiFormat::R16G16B16A16_UNORM,
+            Format::R16G16B16A16_SNORM => DxgiFormat::R16G16B16A16_SNORM,
+            Format::R10G10B10A2_UNORM => DxgiFormat::R10G10B10A2_UNORM,
+            Format::R11G11B10_FLOAT => DxgiFormat::R11G11B10_FLOAT,
+            Format::R9G9B9E5_SHAREDEXP => DxgiFormat::R9G9B9E5_SHAREDEXP,
+            Format::R16_FLOAT => DxgiFormat::R16_FLOAT,
+            Format::R16G16_FLOAT => DxgiFormat::R16G16_FLOAT,
+            Format::R16G16B16A16_FLOAT => DxgiFormat::R16G16B16A16_FLOAT,
+            Format::R32_FLOAT => DxgiFormat::R32_FLOAT,
+            Format::R32G32_FLOAT => DxgiFormat::R32G32_FLOAT,
+            Format::R32G32B32_FLOAT => DxgiFormat::R32G32B32_FLOAT,
+            Format::R32G32B32A32_FLOAT => DxgiFormat::R32G32B32A32_FLOAT,
+            Format::R10G10B10_XR_BIAS_A2_UNORM => DxgiFormat::R10G10B10_XR_BIAS_A2_UNORM,
+            Format::AYUV => DxgiFormat::AYUV,
+            Format::Y410 => DxgiFormat::Y410,
+            Format::Y416 => DxgiFormat::Y416,
+            Format::R1_UNORM => DxgiFormat::R1_UNORM,
+            Format::R8G8_B8G8_UNORM => DxgiFormat::R8G8_B8G8_UNORM,
+            Format::G8R8_G8B8_UNORM => DxgiFormat::G8R8_G8B8_UNORM,
+            Format::YUY2 => DxgiFormat::YUY2,
+            Format::Y210 => DxgiFormat::Y210,
+            Format::Y216 => DxgiFormat::Y216,
+            Format::BC1_UNORM => DxgiFormat::BC1_UNORM,
+            Format::BC2_UNORM => DxgiFormat::BC2_UNORM,
+            Format::BC3_UNORM => DxgiFormat::BC3_UNORM,
+            Format::BC4_UNORM => DxgiFormat::BC4_UNORM,
+            Format::BC4_SNORM => DxgiFormat::BC4_SNORM,
+            Format::BC5_UNORM => DxgiFormat::BC5_UNORM,
+            Format::BC5_SNORM => DxgiFormat::BC5_SNORM,
+            Format::BC6H_UF16 => DxgiFormat::BC6H_UF16,
+            Format::BC6H_SF16 => DxgiFormat::BC6H_SF16,
+            Format::BC7_UNORM => DxgiFormat::BC7_UNORM,
 
-        // block compression formats
-        DecodeFormat::BC1_UNORM => decode::BC1_UNORM,
-        DecodeFormat::BC2_UNORM => decode::BC2_UNORM,
-        DecodeFormat::BC2_UNORM_PREMULTIPLIED_ALPHA => decode::BC2_UNORM_PREMULTIPLIED_ALPHA,
-        DecodeFormat::BC3_UNORM => decode::BC3_UNORM,
-        DecodeFormat::BC3_UNORM_PREMULTIPLIED_ALPHA => decode::BC3_UNORM_PREMULTIPLIED_ALPHA,
-        DecodeFormat::BC4_UNORM => decode::BC4_UNORM,
-        DecodeFormat::BC4_SNORM => decode::BC4_SNORM,
-        DecodeFormat::BC5_UNORM => decode::BC5_UNORM,
-        DecodeFormat::BC5_SNORM => decode::BC5_SNORM,
-        DecodeFormat::BC6H_UF16 => decode::BC6H_UF16,
-        DecodeFormat::BC6H_SF16 => decode::BC6H_SF16,
-        DecodeFormat::BC7_UNORM => decode::BC7_UNORM,
-
-        // non-standard formats
-        DecodeFormat::BC3_UNORM_RXGB => decode::BC3_UNORM_RXGB,
+            Format::R8G8B8_UNORM
+            | Format::B8G8R8_UNORM
+            | Format::UYVY
+            | Format::BC2_UNORM_PREMULTIPLIED_ALPHA
+            | Format::BC3_UNORM_PREMULTIPLIED_ALPHA
+            | Format::BC3_UNORM_RXGB => return Err(()),
+        })
     }
+}
+impl TryFrom<Format> for FourCC {
+    type Error = ();
+
+    fn try_from(value: Format) -> Result<Self, Self::Error> {
+        match value {
+            Format::BC2_UNORM_PREMULTIPLIED_ALPHA => Ok(FourCC::DXT2),
+            Format::BC3_UNORM_PREMULTIPLIED_ALPHA => Ok(FourCC::DXT4),
+            Format::BC1_UNORM => Ok(FourCC::DXT1),
+            Format::BC2_UNORM => Ok(FourCC::DXT3),
+            Format::BC3_UNORM => Ok(FourCC::DXT5),
+            Format::BC4_UNORM => Ok(FourCC::BC4U),
+            Format::BC4_SNORM => Ok(FourCC::BC4S),
+            Format::BC5_UNORM => Ok(FourCC::BC5U),
+            Format::BC5_SNORM => Ok(FourCC::BC5S),
+
+            Format::R8G8_B8G8_UNORM => Ok(FourCC::RGBG),
+            Format::G8R8_G8B8_UNORM => Ok(FourCC::GRGB),
+            Format::UYVY => Ok(FourCC::UYVY),
+            Format::YUY2 => Ok(FourCC::YUY2),
+
+            Format::BC3_UNORM_RXGB => Ok(FourCC::RXGB),
+            _ => Err(()),
+        }
+    }
+}
+impl TryFrom<Format> for Dx9PixelFormat {
+    type Error = ();
+
+    fn try_from(value: Format) -> Result<Self, Self::Error> {
+        if let Ok(four_cc) = FourCC::try_from(value) {
+            return Ok(four_cc.into());
+        }
+
+        // TODO: more formats
+        match value {
+            Format::B8G8R8_UNORM => Ok(Self::Mask(MaskPixelFormat {
+                flags: PixelFormatFlags::RGB,
+                rgb_bit_count: 24,
+                r_bit_mask: 0x00FF0000,
+                g_bit_mask: 0x0000FF00,
+                b_bit_mask: 0x000000FF,
+                a_bit_mask: 0,
+            })),
+            Format::R8G8B8_UNORM => Ok(Self::Mask(MaskPixelFormat {
+                flags: PixelFormatFlags::RGB,
+                rgb_bit_count: 24,
+                r_bit_mask: 0x000000FF,
+                g_bit_mask: 0x0000FF00,
+                b_bit_mask: 0x00FF0000,
+                a_bit_mask: 0,
+            })),
+
+            _ => Err(()),
+        }
+    }
+}
+
+/// Describes the extent of support for encoding a format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EncodingSupport {
+    pub dithering: Dithering,
+    pub block_height: Option<NonZeroU8>,
 }
