@@ -977,9 +977,6 @@ pub(crate) mod fp10 {
     }
 }
 
-// TODO: Check whether these methods correctly implement the DirectX spec:
-// https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion
-
 /// Optimized functions for the R9G9B9E5_SHAREDEXP format.
 /// https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion
 pub(crate) mod rgb9995f {

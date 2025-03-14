@@ -1129,17 +1129,20 @@ impl PrettyTable {
             })
             .collect();
 
+        let mut line = String::new();
         for y in 0..self.height {
             #[allow(clippy::needless_range_loop)]
             for x in 0..self.width {
                 let cell = self.get(x, y);
-                out.push_str(cell);
+                line.push_str(cell);
                 for _ in 0..column_width[x] - cell.chars().count() {
-                    out.push(' ');
+                    line.push(' ');
                 }
-                out.push_str("  ");
+                line.push_str("  ");
             }
+            out.push_str(line.trim_end());
             out.push('\n');
+            line.clear();
         }
     }
 }

@@ -1,60 +1,60 @@
-Format                         C      P    Encoding                                                             
-                                                                                                                
-R8G8B8_UNORM                   RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-B8G8R8_UNORM                   RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R8G8B8A8_UNORM                 RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R8G8B8A8_SNORM                 RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-B8G8R8A8_UNORM                 RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-B8G8R8X8_UNORM                 RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-B5G6R5_UNORM                   RGB    U8   EncodingSupport { dithering: Color, block_height: Some(1) }          
-B5G5R5A1_UNORM                 RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }  
-B4G4R4A4_UNORM                 RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }  
-A4B4G4R4_UNORM                 RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }  
-R8_SNORM                       Gray   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R8_UNORM                       Gray   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R8G8_UNORM                     RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R8G8_SNORM                     RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-A8_UNORM                       Alpha  U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R16_UNORM                      Gray   U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16_SNORM                      Gray   U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16G16_UNORM                   RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16G16_SNORM                   RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16G16B16A16_UNORM             RGBA   U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16G16B16A16_SNORM             RGBA   U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-R10G10B10A2_UNORM              RGBA   U16  EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }  
-R11G11B10_FLOAT                RGB    F32  EncodingSupport { dithering: Color, block_height: Some(1) }          
-R9G9B9E5_SHAREDEXP             RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16_FLOAT                      Gray   F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16G16_FLOAT                   RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R16G16B16A16_FLOAT             RGBA   F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R32_FLOAT                      Gray   F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R32G32_FLOAT                   RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R32G32B32_FLOAT                RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R32G32B32A32_FLOAT             RGBA   F32  EncodingSupport { dithering: None, block_height: Some(1) }           
-R10G10B10_XR_BIAS_A2_UNORM     RGBA   F32  EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }  
-AYUV                           RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-Y410                           RGBA   U16  EncodingSupport { dithering: Alpha, block_height: Some(1) }          
-Y416                           RGBA   U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-                                                                                                                
-R1_UNORM                       Gray   U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-R8G8_B8G8_UNORM                RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-G8R8_G8B8_UNORM                RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-UYVY                           RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-YUY2                           RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }           
-Y210                           RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-Y216                           RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }           
-                                                                                                                
-BC1_UNORM                      RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }  
-BC2_UNORM                      RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }  
-BC2_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }  
-BC3_UNORM                      RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }  
-BC3_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }  
-BC4_UNORM                      Gray   U8   EncodingSupport { dithering: Color, block_height: Some(4) }          
-BC4_SNORM                      Gray   U8   EncodingSupport { dithering: Color, block_height: Some(4) }          
-BC5_UNORM                      RGB    U8   EncodingSupport { dithering: Color, block_height: Some(4) }          
-BC5_SNORM                      RGB    U8   EncodingSupport { dithering: Color, block_height: Some(4) }          
-BC6H_UF16                      RGB    F32  Not supported                                                        
-BC6H_SF16                      RGB    F32  Not supported                                                        
-BC7_UNORM                      RGBA   U8   Not supported                                                        
-                                                                                                                
-BC3_UNORM_RXGB                 RGB    U8   Not supported                                                        
+Format                         C      P    Encoding
+
+R8G8B8_UNORM                   RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+B8G8R8_UNORM                   RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R8G8B8A8_UNORM                 RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R8G8B8A8_SNORM                 RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+B8G8R8A8_UNORM                 RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+B8G8R8X8_UNORM                 RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+B5G6R5_UNORM                   RGB    U8   EncodingSupport { dithering: Color, block_height: Some(1) }
+B5G5R5A1_UNORM                 RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }
+B4G4R4A4_UNORM                 RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }
+A4B4G4R4_UNORM                 RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }
+R8_SNORM                       Gray   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R8_UNORM                       Gray   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R8G8_UNORM                     RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R8G8_SNORM                     RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+A8_UNORM                       Alpha  U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R16_UNORM                      Gray   U16  EncodingSupport { dithering: None, block_height: Some(1) }
+R16_SNORM                      Gray   U16  EncodingSupport { dithering: None, block_height: Some(1) }
+R16G16_UNORM                   RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }
+R16G16_SNORM                   RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }
+R16G16B16A16_UNORM             RGBA   U16  EncodingSupport { dithering: None, block_height: Some(1) }
+R16G16B16A16_SNORM             RGBA   U16  EncodingSupport { dithering: None, block_height: Some(1) }
+R10G10B10A2_UNORM              RGBA   U16  EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }
+R11G11B10_FLOAT                RGB    F32  EncodingSupport { dithering: Color, block_height: Some(1) }
+R9G9B9E5_SHAREDEXP             RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R16_FLOAT                      Gray   F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R16G16_FLOAT                   RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R16G16B16A16_FLOAT             RGBA   F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R32_FLOAT                      Gray   F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R32G32_FLOAT                   RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R32G32B32_FLOAT                RGB    F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R32G32B32A32_FLOAT             RGBA   F32  EncodingSupport { dithering: None, block_height: Some(1) }
+R10G10B10_XR_BIAS_A2_UNORM     RGBA   F32  EncodingSupport { dithering: ColorAndAlpha, block_height: Some(1) }
+AYUV                           RGBA   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+Y410                           RGBA   U16  EncodingSupport { dithering: Alpha, block_height: Some(1) }
+Y416                           RGBA   U16  EncodingSupport { dithering: None, block_height: Some(1) }
+
+R1_UNORM                       Gray   U8   EncodingSupport { dithering: None, block_height: Some(1) }
+R8G8_B8G8_UNORM                RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+G8R8_G8B8_UNORM                RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+UYVY                           RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+YUY2                           RGB    U8   EncodingSupport { dithering: None, block_height: Some(1) }
+Y210                           RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }
+Y216                           RGB    U16  EncodingSupport { dithering: None, block_height: Some(1) }
+
+BC1_UNORM                      RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }
+BC2_UNORM                      RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }
+BC2_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }
+BC3_UNORM                      RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }
+BC3_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   EncodingSupport { dithering: ColorAndAlpha, block_height: Some(4) }
+BC4_UNORM                      Gray   U8   EncodingSupport { dithering: Color, block_height: Some(4) }
+BC4_SNORM                      Gray   U8   EncodingSupport { dithering: Color, block_height: Some(4) }
+BC5_UNORM                      RGB    U8   EncodingSupport { dithering: Color, block_height: Some(4) }
+BC5_SNORM                      RGB    U8   EncodingSupport { dithering: Color, block_height: Some(4) }
+BC6H_UF16                      RGB    F32  Not supported
+BC6H_SF16                      RGB    F32  Not supported
+BC7_UNORM                      RGBA   U8   Not supported
+
+BC3_UNORM_RXGB                 RGB    U8   Not supported
