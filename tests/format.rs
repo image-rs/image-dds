@@ -2,14 +2,6 @@ use ddsd::*;
 
 mod util;
 
-const CHANNELS: &[Channels] = &[
-    Channels::Grayscale,
-    Channels::Alpha,
-    Channels::Rgb,
-    Channels::Rgba,
-];
-const PRECISION: &[Precision] = &[Precision::U8, Precision::U16, Precision::F32];
-
 fn short_name(channels: Channels) -> &'static str {
     match channels {
         Channels::Grayscale => "Gray",
