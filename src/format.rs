@@ -170,17 +170,13 @@ impl Format {
     ///
     /// `self.supports_channels(self.channels())` is always `true`.
     pub fn supports_channels(&self, channels: Channels) -> bool {
-        get_decoders(*self)
-            .supported_channels()
-            .contains_channels(channels)
+        get_decoders(*self).supports_channels(channels)
     }
     /// Whether this format supports decoding with the given precision.
     ///
     /// `self.supports_precision(self.precision())` is always `true`.
     pub fn supports_precision(&self, precision: Precision) -> bool {
-        get_decoders(*self)
-            .supported_precisions()
-            .contains_precision(precision)
+        get_decoders(*self).supports_precision(precision)
     }
 
     /// Decodes the image data of a surface from the given reader and writes it

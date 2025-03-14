@@ -1,4 +1,3 @@
-mod adapt;
 mod bc;
 mod bc6;
 mod bc7;

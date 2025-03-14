@@ -1,9 +1,9 @@
 use glam::Vec4;
 
 use crate::{
-    as_rgba_f32, cast, ch, convert_channels_untyped, fp10, fp11, fp16, n1, n10, n16, n2, n4, n5,
-    n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat,
-    ColorFormatSet, EncodeError, Precision,
+    as_rgba_f32, cast, ch, convert_channels_untyped, convert_channels_untyped_for, fp10, fp11,
+    fp16, n1, n10, n16, n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8,
+    Channels, ColorFormat, ColorFormatSet, EncodeError, Precision,
 };
 
 use super::{
@@ -162,13 +162,7 @@ fn simple_color_convert(
     move |line, color, out| {
         assert!(color.precision == target.precision);
 
-        let from = color.channels;
-        let to = target.channels;
-        match target.precision {
-            Precision::U8 => convert_channels_untyped::<u8>(from, to, line, out),
-            Precision::U16 => convert_channels_untyped::<u16>(from, to, line, out),
-            Precision::F32 => convert_channels_untyped::<f32>(from, to, line, out),
-        }
+        convert_channels_untyped_for(color, target.channels, line, out);
 
         if snorm {
             match target.precision {

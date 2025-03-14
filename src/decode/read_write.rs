@@ -5,6 +5,7 @@ use std::io::{Read, SeekFrom};
 use std::mem::size_of;
 
 use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
+use crate::{convert_channels_untyped_for, util, Channels, ColorFormat};
 
 use super::ReadSeek;
 
@@ -89,35 +90,46 @@ pub(crate) fn process_pixels_helper_unroll<const UNROLL: usize, InPixel, OutPixe
 pub(crate) fn for_each_pixel_untyped(
     r: &mut dyn Read,
     buf: &mut [u8],
+    buf_channels: Channels,
+    native_color: ColorFormat,
     pixel_size: PixelSize,
-    process_pixels: impl Fn(&[u8], &mut [u8]),
+    process_pixels: ProcessPixelsFn,
 ) -> Result<(), DecodeError> {
     fn inner(
         r: &mut dyn Read,
         buf: &mut [u8],
+        buf_color: ColorFormat,
+        native_color: ColorFormat,
         size_of_in: usize,
-        size_of_out: usize,
-        process_pixels: impl Fn(&[u8], &mut [u8]),
+        process_pixels: ProcessPixelsFn,
     ) -> Result<(), DecodeError> {
-        assert!(buf.len() % size_of_out == 0);
-        let pixels = buf.len() / size_of_out;
+        let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
+        assert!(buf.len() % buf_bytes_per_pixel == 0);
+        let pixels = buf.len() / buf_bytes_per_pixel;
 
         let mut read_buffer = UntypedPixelBuffer::new(pixels, size_of_in);
-        for buf in buf.chunks_mut(read_buffer.buffered_pixels() * size_of_out) {
+        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+        for buf in buf.chunks_mut(read_buffer.buffered_pixels() * buf_bytes_per_pixel) {
             let row = read_buffer.read(r)?;
             debug_assert!(row.len() % size_of_in == 0);
-            debug_assert!(buf.len() % size_of_out == 0);
-            debug_assert_eq!(row.len() / size_of_in, buf.len() / size_of_out);
-            process_pixels(row, buf);
+            debug_assert!(buf.len() % buf_bytes_per_pixel == 0);
+            let pixels = row.len() / size_of_in;
+            debug_assert_eq!(pixels, buf.len() / buf_bytes_per_pixel);
+
+            conversion_buffer.process_pixels(pixels, row, buf, process_pixels);
         }
         Ok(())
     }
 
+    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(native_color.bytes_per_pixel(), pixel_size.decoded_size);
+
     inner(
         r,
         buf,
+        buf_color,
+        native_color,
         pixel_size.encoded_size as usize,
-        pixel_size.decoded_size as usize,
         process_pixels,
     )
 }
@@ -131,8 +143,10 @@ pub(crate) fn for_each_pixel_rect_untyped(
     row_pitch: usize,
     size: Size,
     rect: Rect,
+    buf_channels: Channels,
+    native_color: ColorFormat,
     pixel_size: PixelSize,
-    process_pixels: impl Fn(&[u8], &mut [u8]),
+    process_pixels: ProcessPixelsFn,
 ) -> Result<(), DecodeError> {
     #[allow(clippy::too_many_arguments)]
     fn inner(
@@ -141,9 +155,10 @@ pub(crate) fn for_each_pixel_rect_untyped(
         row_pitch: usize,
         size: Size,
         rect: Rect,
+        buf_color: ColorFormat,
+        native_color: ColorFormat,
         size_of_in: usize,
-        size_of_out: usize,
-        process_pixels: impl Fn(&[u8], &mut [u8]),
+        process_pixels: ProcessPixelsFn,
     ) -> Result<(), DecodeError> {
         // assert that no overflow will occur for byte positions in the encoded image/reader
         assert!(size
@@ -157,6 +172,8 @@ pub(crate) fn for_each_pixel_rect_untyped(
         let encoded_bytes_after_rect =
             (size.width - rect.x - rect.width) as i64 * size_of_in as i64;
 
+        let buffer_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
+
         // jump to the first pixel
         seek_relative(
             r,
@@ -166,6 +183,7 @@ pub(crate) fn for_each_pixel_rect_untyped(
         let pixels_per_line = rect.width as usize;
         let mut row: Box<[u8]> =
             vec![Default::default(); pixels_per_line * size_of_in].into_boxed_slice();
+        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
         for y in 0..rect.height {
             if y > 0 {
                 // jump to the first pixel in the next row
@@ -177,10 +195,11 @@ pub(crate) fn for_each_pixel_rect_untyped(
             r.read_exact(&mut row)?;
 
             let buf_start = y as usize * row_pitch;
-            let buf_len = pixels_per_line * size_of_out;
+            let buf_len = pixels_per_line * buffer_bytes_per_pixel;
             let buf = &mut buf[buf_start..(buf_start + buf_len)];
-            debug_assert_eq!(row.len() / size_of_in, buf.len() / size_of_out);
-            process_pixels(&row, buf);
+            debug_assert_eq!(row.len() / size_of_in, buf.len() / buffer_bytes_per_pixel);
+
+            conversion_buffer.process_pixels(pixels_per_line, &row, buf, process_pixels);
         }
 
         // jump to the end of the surface to put the reader into a known position
@@ -193,14 +212,18 @@ pub(crate) fn for_each_pixel_rect_untyped(
         Ok(())
     }
 
+    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(native_color.bytes_per_pixel(), pixel_size.decoded_size);
+
     inner(
         r,
         buf,
         row_pitch,
         size,
         rect,
+        buf_color,
+        native_color,
         pixel_size.encoded_size as usize,
-        pixel_size.decoded_size as usize,
         process_pixels,
     )
 }
@@ -676,6 +699,61 @@ pub(crate) fn for_each_block_rect_untyped<
         BYTES_PER_BLOCK,
         process_pixels,
     )
+}
+
+struct ChannelConversionBuffer {
+    buffer: [u32; Self::BUFFER_BYTES / 4],
+    native_color: ColorFormat,
+    target: Channels,
+}
+impl ChannelConversionBuffer {
+    const BUFFER_BYTES: usize = 1024;
+    fn new(native_color: ColorFormat, target: Channels) -> Self {
+        Self {
+            buffer: [0_u32; Self::BUFFER_BYTES / 4],
+            native_color,
+            target,
+        }
+    }
+
+    fn process_pixels(
+        &mut self,
+        pixels: usize,
+        encoded: &[u8],
+        out: &mut [u8],
+        f: ProcessPixelsFn,
+    ) {
+        // fast path: no conversion needed
+        if self.native_color.channels == self.target {
+            f(PixelArgs(encoded, out));
+            return;
+        }
+
+        let encoded_bytes_per_pixel = encoded.len() / pixels;
+        let out_bytes_per_pixel = out.len() / pixels;
+        debug_assert!(out_bytes_per_pixel % self.target.count() as usize == 0);
+        let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
+        let buffer_pixels = Self::BUFFER_BYTES / buffer_bytes_per_pixel;
+
+        let buffer = cast::as_bytes_mut(&mut self.buffer);
+
+        for chunk_start in (0..pixels).step_by(buffer_pixels) {
+            let chunk_end = (chunk_start + buffer_pixels).min(pixels);
+            let chunk_size = chunk_end - chunk_start;
+
+            let encoded_chunk = &encoded
+                [chunk_start * encoded_bytes_per_pixel..chunk_end * encoded_bytes_per_pixel];
+            let out_chunk =
+                &mut out[chunk_start * out_bytes_per_pixel..chunk_end * out_bytes_per_pixel];
+            let buffer_chunk = &mut buffer[..chunk_size * buffer_bytes_per_pixel];
+
+            // decode into the temporary buffer
+            f(PixelArgs(encoded_chunk, buffer_chunk));
+
+            // convert the channels into the output buffer
+            convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
+        }
+    }
 }
 
 /// A buffer holding raw encoded pixels straight from the reader.
