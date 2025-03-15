@@ -170,5 +170,5 @@ BC7_UNORM.dds: >
     Error: Unsupported format: BC7_UNORM
 
 BC3_UNORM_RXGB.dds: >
-    Error: Unsupported format: BC3_UNORM_RXGB
+    a39296b87a699f9bdcbdf9cc84595d33d74e27bb7514caf9b223cda2065ed7e0
 

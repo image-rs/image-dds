@@ -258,6 +258,34 @@ pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new(&[Encoder 
     },
 }]);
 
+pub const BC3_UNORM_RXGB: EncoderSet = EncoderSet::new(&[Encoder {
+    color_formats: ColorFormatSet::ALL,
+    flags: Flags::DITHER_COLOR,
+    encode: |args| {
+        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+            let (bc1_options, bc4_options) = get_bc3_options(options);
+
+            let block_r = get_4x4_select_channel::<0>(data, row_pitch);
+            let mut block_gb = get_4x4_rgba(data, row_pitch);
+            block_gb.iter_mut().for_each(|pixel| {
+                // It's important to set the R channel to 1 (aka 255) to be
+                // compatible with NVTT's AGBR format, which just swaps the R
+                // and A channels. If the R channel is 0, the block will be
+                // considered transparent.
+                //
+                // Setting R=A would be another option, but this would result in
+                // worse compressed artifacts.
+                pixel[0] = 1.0;
+            });
+
+            let bc4_block = bc4::compress_bc4_block(block_r, bc4_options);
+            let bc1_block = bc1::compress_bc1_block(block_gb, bc1_options);
+
+            *out = concat_blocks(bc4_block, bc1_block);
+        })
+    },
+}]);
+
 fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 8] {
     let block = get_4x4_grayscale(data, row_pitch);
     bc4::compress_bc4_block(block, options)

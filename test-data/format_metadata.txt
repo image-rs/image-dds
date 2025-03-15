@@ -61,4 +61,4 @@ BC6H_UF16                      RGB    F32  Not supported
 BC6H_SF16                      RGB    F32  Not supported
 BC7_UNORM                      RGBA   U8   Not supported
 
-BC3_UNORM_RXGB                 RGB    U8   Not supported
+BC3_UNORM_RXGB                 RGB    U8   Supported: dithering=Color block_h=4

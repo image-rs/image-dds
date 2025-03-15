@@ -79,10 +79,11 @@ pub(crate) const fn get_encoders(format: Format) -> Option<&'static EncoderSet> 
         Format::BC5_UNORM => &BC5_UNORM,
         Format::BC5_SNORM => &BC5_SNORM,
 
+        // non-standard formats
+        Format::BC3_UNORM_RXGB => &BC3_UNORM_RXGB,
+
         // unsupported formats
-        Format::BC3_UNORM_RXGB | Format::BC6H_UF16 | Format::BC6H_SF16 | Format::BC7_UNORM => {
-            return None
-        }
+        Format::BC6H_UF16 | Format::BC6H_SF16 | Format::BC7_UNORM => return None,
     })
 }
 

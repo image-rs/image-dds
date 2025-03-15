@@ -333,7 +333,8 @@ impl Format {
             | Format::BC5_SNORM
             | Format::BC6H_UF16
             | Format::BC6H_SF16
-            | Format::BC7_UNORM => Some(FOUR),
+            | Format::BC7_UNORM
+            | Format::BC3_UNORM_RXGB => Some(FOUR),
 
             Format::NV12 | Format::P010 | Format::P016 => None,
 

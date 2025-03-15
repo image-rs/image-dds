@@ -79,3 +79,9 @@ BC4_UNORM base.dds: >
 BC4_UNORM twirl.dds: >
     469936d40e461025e67fdd77c761abf94fe9e57a1dc8305022aa52758c955d81
 
+BC3_UNORM_RXGB base.dds: >
+    294c5fdf51e8164a53a519bc001cf881655aa7c1060df00d0f43b4e863eabb78
+
+BC3_UNORM_RXGB twirl.dds: >
+    d326738dc0bfeae93494328cde1c241cd7edc36cfc4d9297bc0d0a509f6195c8
+
