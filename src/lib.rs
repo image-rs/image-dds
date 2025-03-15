@@ -223,10 +223,15 @@ impl SizeMultiple {
     pub const M2_2: Self = Self::new(2, 2);
 
     const fn new(width_multiple: u8, height_multiple: u8) -> Self {
-        Self {
-            width_multiple: NonZeroU8::new(width_multiple).unwrap(),
-            height_multiple: NonZeroU8::new(height_multiple).unwrap(),
+        if let Some(width_multiple) = NonZeroU8::new(width_multiple) {
+            if let Some(height_multiple) = NonZeroU8::new(height_multiple) {
+                return Self {
+                    width_multiple,
+                    height_multiple,
+                };
+            }
         }
+        panic!("SizeMultiple must be non-zero");
     }
 }
 

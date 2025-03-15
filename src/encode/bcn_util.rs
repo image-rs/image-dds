@@ -126,14 +126,14 @@ pub(crate) struct RefinementOptions {
     pub step_min: f32,
 }
 impl RefinementOptions {
-    pub const fn new_bc4(min: f32, max: f32) -> Self {
+    pub fn new_bc4(min: f32, max: f32) -> Self {
         Self {
             step_initial: 0.15 * (max - min),
             step_decay: 0.5,
             step_min: 1. / 255. / 2.,
         }
     }
-    pub const fn new_bc1(dist: f32) -> Self {
+    pub fn new_bc1(dist: f32) -> Self {
         Self {
             step_initial: 0.5 * dist,
             step_decay: 0.5,

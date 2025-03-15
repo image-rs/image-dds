@@ -97,10 +97,10 @@ fn to_rgbg([p0, p1]: &[[f32; 4]; 2]) -> [u8; 4] {
     [r, g0, b, g1]
 }
 
-pub const R8G8_B8G8_UNORM: EncoderSet =
+pub(crate) const R8G8_B8G8_UNORM: EncoderSet =
     EncoderSet::new(&[universal_subsample!(2, [u8; 4], to_rgbg).add_flags(Flags::EXACT_U8)]);
 
-pub const G8R8_G8B8_UNORM: EncoderSet =
+pub(crate) const G8R8_G8B8_UNORM: EncoderSet =
     EncoderSet::new(&[universal_subsample!(2, [u8; 4], |pair| {
         let [r, g0, b, g1] = to_rgbg(pair);
         [g0, r, g1, b]
@@ -122,9 +122,9 @@ fn to_yuy2([p0, p1]: &[[f32; 4]; 2]) -> [u8; 4] {
     [y0, u, y1, v]
 }
 
-pub const YUY2: EncoderSet = EncoderSet::new(&[universal_subsample!(2, [u8; 4], to_yuy2)]);
+pub(crate) const YUY2: EncoderSet = EncoderSet::new(&[universal_subsample!(2, [u8; 4], to_yuy2)]);
 
-pub const UYVY: EncoderSet = EncoderSet::new(&[universal_subsample!(2, [u8; 4], |pair| {
+pub(crate) const UYVY: EncoderSet = EncoderSet::new(&[universal_subsample!(2, [u8; 4], |pair| {
     let [y0, u, y1, v] = to_yuy2(pair);
     [u, y0, v, y1]
 })]);
@@ -144,16 +144,16 @@ fn to_y216([p0, p1]: &[[f32; 4]; 2]) -> [u16; 4] {
     [y0, u, y1, v]
 }
 
-pub const Y210: EncoderSet =
+pub(crate) const Y210: EncoderSet =
     EncoderSet::new(&[
         universal_subsample!(2, [u16; 4], |pair| to_y216(pair).map(|c| c & 0xFFC0))
             .add_flags(Flags::EXACT_U8),
     ]);
 
-pub const Y216: EncoderSet =
+pub(crate) const Y216: EncoderSet =
     EncoderSet::new(&[universal_subsample!(2, [u16; 4], to_y216).add_flags(Flags::EXACT_U8)]);
 
-pub const R1_UNORM: EncoderSet = EncoderSet::new(&[universal_subsample!(8, u8, |block| {
+pub(crate) const R1_UNORM: EncoderSet = EncoderSet::new(&[universal_subsample!(8, u8, |block| {
     let mut out = 0_u8;
     for (i, &p) in block.iter().enumerate() {
         out |= n1::from_f32(ch::rgba_to_grayscale(p)[0]) << (7 - i);

@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use crate::cast;
 
 pub(crate) fn read_u32_le_array(
@@ -47,6 +49,14 @@ impl Unsigned for u16 {}
 impl Unsigned for u32 {}
 impl Unsigned for u64 {}
 impl Unsigned for usize {}
+
+pub(crate) const NON_ZERO_U32_ONE: NonZeroU32 = {
+    if let Some(n) = NonZeroU32::new(1) {
+        n
+    } else {
+        unreachable!()
+    }
+};
 
 /// Computes `2^exponent` as a float.
 #[inline(always)]

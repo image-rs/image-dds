@@ -1,7 +1,7 @@
 use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
-    util::read_u32_le_array,
+    util::{read_u32_le_array, NON_ZERO_U32_ONE},
     DataLayout, DataRegion, HeaderError, Options, PixelInfo, Size,
 };
 use bitflags::bitflags;
@@ -332,7 +332,7 @@ impl Header {
             Header::Dx10(header) => header.width,
         }
     }
-    pub const fn width_mut(&mut self) -> &mut u32 {
+    pub fn width_mut(&mut self) -> &mut u32 {
         match self {
             Header::Dx9(header) => &mut header.width,
             Header::Dx10(header) => &mut header.width,
@@ -344,7 +344,7 @@ impl Header {
             Header::Dx10(header) => header.height,
         }
     }
-    pub const fn height_mut(&mut self) -> &mut u32 {
+    pub fn height_mut(&mut self) -> &mut u32 {
         match self {
             Header::Dx9(header) => &mut header.height,
             Header::Dx10(header) => &mut header.height,
@@ -359,7 +359,7 @@ impl Header {
             Header::Dx10(header) => header.depth,
         }
     }
-    pub const fn depth_mut(&mut self) -> &mut Option<u32> {
+    pub fn depth_mut(&mut self) -> &mut Option<u32> {
         match self {
             Header::Dx9(header) => &mut header.depth,
             Header::Dx10(header) => &mut header.depth,
@@ -371,7 +371,7 @@ impl Header {
             Header::Dx10(header) => header.mipmap_count,
         }
     }
-    pub const fn mipmap_count_mut(&mut self) -> &mut NonZeroU32 {
+    pub fn mipmap_count_mut(&mut self) -> &mut NonZeroU32 {
         match self {
             Header::Dx9(header) => &mut header.mipmap_count,
             Header::Dx10(header) => &mut header.mipmap_count,
@@ -398,7 +398,7 @@ impl Header {
             _ => None,
         }
     }
-    pub const fn dx9_mut(&mut self) -> Option<&mut Dx9Header> {
+    pub fn dx9_mut(&mut self) -> Option<&mut Dx9Header> {
         match self {
             Header::Dx9(dx9) => Some(dx9),
             _ => None,
@@ -410,7 +410,7 @@ impl Header {
             _ => None,
         }
     }
-    pub const fn dx10_mut(&mut self) -> Option<&mut Dx10Header> {
+    pub fn dx10_mut(&mut self) -> Option<&mut Dx10Header> {
         match self {
             Header::Dx10(dx10) => Some(dx10),
             _ => None,
@@ -840,7 +840,7 @@ impl Dx9Header {
             height,
             width,
             depth: None,
-            mipmap_count: NonZeroU32::new(1).unwrap(),
+            mipmap_count: NON_ZERO_U32_ONE,
             caps2: DdsCaps2::empty(),
             pixel_format: format,
         }
@@ -854,7 +854,7 @@ impl Dx9Header {
             height,
             width,
             depth: Some(depth),
-            mipmap_count: NonZeroU32::new(1).unwrap(),
+            mipmap_count: NON_ZERO_U32_ONE,
             caps2: DdsCaps2::VOLUME,
             pixel_format: format,
         }
@@ -868,7 +868,7 @@ impl Dx9Header {
             height,
             width,
             depth: None,
-            mipmap_count: NonZeroU32::new(1).unwrap(),
+            mipmap_count: NON_ZERO_U32_ONE,
             caps2: DdsCaps2::CUBE_MAP.union(DdsCaps2::CUBE_MAP_ALL_FACES),
             pixel_format: format,
         }
@@ -935,7 +935,7 @@ impl Dx10Header {
             height,
             width,
             depth: None,
-            mipmap_count: NonZeroU32::new(1).unwrap(),
+            mipmap_count: NON_ZERO_U32_ONE,
             dxgi_format: format,
             resource_dimension: ResourceDimension::Texture2D,
             misc_flag: MiscFlags::empty(),
@@ -956,7 +956,7 @@ impl Dx10Header {
             height,
             width,
             depth: Some(depth),
-            mipmap_count: NonZeroU32::new(1).unwrap(),
+            mipmap_count: NON_ZERO_U32_ONE,
             dxgi_format: format,
             resource_dimension: ResourceDimension::Texture3D,
             misc_flag: MiscFlags::empty(),
@@ -977,7 +977,7 @@ impl Dx10Header {
             height,
             width,
             depth: None,
-            mipmap_count: NonZeroU32::new(1).unwrap(),
+            mipmap_count: NON_ZERO_U32_ONE,
             dxgi_format: format,
             resource_dimension: ResourceDimension::Texture2D,
             misc_flag: MiscFlags::TEXTURE_CUBE,

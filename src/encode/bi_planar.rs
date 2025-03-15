@@ -83,7 +83,7 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
 
 // encoders
 
-pub const NV12: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
+pub(crate) const NV12: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::empty(),
     encode: |args| {
@@ -99,7 +99,7 @@ pub const NV12: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     },
 }]);
 
-pub const P010: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
+pub(crate) const P010: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::empty(),
     encode: |args| {
@@ -115,7 +115,7 @@ pub const P010: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     },
 }]);
 
-pub const P016: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
+pub(crate) const P016: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::empty(),
     encode: |args| {

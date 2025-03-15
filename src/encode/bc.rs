@@ -138,7 +138,7 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
         ..bc1::Bc1Options::default()
     }
 }
-pub const BC1_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC1_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -183,7 +183,7 @@ fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
     indexes.to_le_bytes()
 }
 
-pub const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -199,7 +199,7 @@ pub const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
         })
     },
 }]);
-pub const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -226,7 +226,7 @@ fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options
 
     (bc1_options, bc4_options)
 }
-pub const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -242,7 +242,7 @@ pub const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
         })
     },
 }]);
-pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -260,7 +260,7 @@ pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encod
     },
 }]);
 
-pub const BC3_UNORM_RXGB: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC3_UNORM_RXGB: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -300,7 +300,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
     }
 }
 
-pub const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -312,7 +312,7 @@ pub const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     },
 }]);
 
-pub const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -334,7 +334,7 @@ fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> 
     concat_blocks(red, green)
 }
 
-pub const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -346,7 +346,7 @@ pub const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     },
 }]);
 
-pub const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
+pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
