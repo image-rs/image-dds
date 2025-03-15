@@ -6,6 +6,10 @@ use util::{test_data_dir, Image, WithPrecision};
 
 mod util;
 
+fn get_sample(name: &str) -> PathBuf {
+    util::test_data_dir().join("samples").join(name)
+}
+
 fn create_header(size: Size, format: Format) -> Header {
     if let Ok(dxgi_format) = format.try_into() {
         Header::new_image(size.width, size.height, dxgi_format)
@@ -95,7 +99,7 @@ fn compression_ratio(data: &[u8]) -> f64 {
 
 #[test]
 fn encode_base() {
-    let base_u8 = util::read_png_u8(&util::test_data_dir().join("base.png")).unwrap();
+    let base_u8 = util::read_png_u8(&get_sample("base.png")).unwrap();
     assert!(base_u8.channels == Channels::Rgba);
     let base_u16 = base_u8.to_u16();
     let base_f32 = base_u8.to_f32();
@@ -166,10 +170,8 @@ fn encode_dither() {
         Ok(hex)
     }
 
-    let base = util::read_png_u8(&util::test_data_dir().join("base.png"))
-        .unwrap()
-        .to_f32();
-    let twirl = util::read_png_u8(&util::test_data_dir().join("color-twirl.png"))
+    let base = util::read_png_u8(&get_sample("base.png")).unwrap().to_f32();
+    let twirl = util::read_png_u8(&get_sample("color-twirl.png"))
         .unwrap()
         .to_f32();
 
@@ -226,9 +228,7 @@ fn encode_measure_quality() {
             }
         }
         fn from_file(name: &str) -> Self {
-            let image = util::read_png_u8(&util::test_data_dir().join(name))
-                .unwrap()
-                .to_f32();
+            let image = util::read_png_u8(&get_sample(name)).unwrap().to_f32();
 
             Self {
                 name: name.to_string(),
