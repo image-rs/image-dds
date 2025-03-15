@@ -1,6 +1,6 @@
-# DDS Decoder
+# DDS De/Encoder
 
-A DDS decoder focused on speed and correctness, while supporting as many DDS formats as possible.
+A DDS decoder and encoder focused on speed and correctness, while supporting as many DDS formats as possible.
 
 DDSD is written in 100% safe Rust.
 
