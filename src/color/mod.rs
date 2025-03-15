@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use crate::cast;
 
 pub(crate) mod ch;

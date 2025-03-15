@@ -124,10 +124,9 @@ impl Default for EncodeOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Dithering {
     /// Dithering is disabled for all channels.
-    #[default]
     None = 0b00,
     /// Dithering is enabled for all channels (RGBA).
     ColorAndAlpha = 0b11,
@@ -165,12 +164,21 @@ impl Dithering {
         }
     }
 }
+impl Default for Dithering {
+    fn default() -> Self {
+        Self::None
+    }
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorMetric {
-    #[default]
     Uniform,
     Perceptual,
+}
+impl Default for ErrorMetric {
+    fn default() -> Self {
+        Self::Uniform
+    }
 }
 
 /// The level of trade-off between compression quality and speed.
@@ -197,11 +205,15 @@ pub enum ErrorMetric {
 ///
 /// Encoding DDS images is embarrassingly parallel, so using multiple cores
 /// should make encoding roughly 4-10x faster on normal consumer hardware.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum CompressionQuality {
     Fast,
-    #[default]
     Normal,
     High,
     Unreasonable,
+}
+impl Default for CompressionQuality {
+    fn default() -> Self {
+        Self::Normal
+    }
 }
