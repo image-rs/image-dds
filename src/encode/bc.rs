@@ -46,6 +46,7 @@ fn block_universal<
         }
 
         // handle full blocks
+        #[allow(clippy::needless_range_loop)]
         for block_index in 0..width / BLOCK_WIDTH {
             let block_start = block_index * BLOCK_WIDTH;
             let block = &intermediate_buffer[block_start..];
@@ -131,12 +132,13 @@ fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
 // encoders
 
 fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
-    let mut o = bc1::Bc1Options::default();
-    o.dither = options.dithering.color();
-    o.perceptual = options.error_metric == ErrorMetric::Perceptual;
-    o
+    bc1::Bc1Options {
+        dither: options.dithering.color(),
+        perceptual: options.error_metric == ErrorMetric::Perceptual,
+        ..bc1::Bc1Options::default()
+    }
 }
-pub const BC1_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC1_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -181,7 +183,7 @@ fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
     indexes.to_le_bytes()
 }
 
-pub const BC2_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -197,7 +199,7 @@ pub const BC2_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
         })
     },
 }]);
-pub const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -224,7 +226,7 @@ fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options
 
     (bc1_options, bc4_options)
 }
-pub const BC3_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -240,7 +242,7 @@ pub const BC3_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
         })
     },
 }]);
-pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_ALL,
     encode: |args| {
@@ -258,7 +260,7 @@ pub const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet = EncoderSet::new(&[Encoder 
     },
 }]);
 
-pub const BC3_UNORM_RXGB: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC3_UNORM_RXGB: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -298,7 +300,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
     }
 }
 
-pub const BC4_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -310,7 +312,7 @@ pub const BC4_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     },
 }]);
 
-pub const BC4_SNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -332,7 +334,7 @@ fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> 
     concat_blocks(red, green)
 }
 
-pub const BC5_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {
@@ -344,7 +346,7 @@ pub const BC5_UNORM: EncoderSet = EncoderSet::new(&[Encoder {
     },
 }]);
 
-pub const BC5_SNORM: EncoderSet = EncoderSet::new(&[Encoder {
+pub const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::DITHER_COLOR,
     encode: |args| {

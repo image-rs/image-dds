@@ -31,11 +31,14 @@ fn format_metadata() {
         let encoding = if let Some(encoding) = format.encoding() {
             let mut out = "Supported: ".to_string();
 
+            if let Some(block_height) = encoding.split_height {
+                out.push_str(&format!("split={:?} ", block_height));
+            }
             if encoding.dithering != Dithering::None {
                 out.push_str(&format!("dithering={:?} ", encoding.dithering));
-            }
-            if let Some(block_height) = encoding.block_height {
-                out.push_str(&format!("block_h={:?} ", block_height));
+                if encoding.local_dithering {
+                    out.push_str("(local) ");
+                }
             }
             if encoding.size_multiple != SizeMultiple::ONE {
                 out.push_str(&format!(

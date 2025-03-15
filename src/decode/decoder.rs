@@ -122,18 +122,6 @@ pub(crate) struct DirectDecoder {
     decode_rect_fn: DecodeRectFn,
 }
 impl DirectDecoder {
-    pub const fn new(
-        color: ColorFormat,
-        decode_fn: DecodeFn,
-        decode_rect_fn: DecodeRectFn,
-    ) -> Self {
-        Self {
-            native_color: color,
-            supported_colors: ColorFormatSet::from_single(color),
-            decode_fn,
-            decode_rect_fn,
-        }
-    }
     pub const fn new_with_all_channels(
         color: ColorFormat,
         decode_fn: DecodeFn,

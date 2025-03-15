@@ -104,8 +104,7 @@ const COPY_S8: DecodeFn = |Args(r, out, _)| {
 // By defining them once here, we (1) save the compiler from having to compile
 // duplicate functions and (2) share optimizations across formats.
 
-// TODO: rename
-macro_rules! foo {
+macro_rules! create {
     ($f:expr) => {
         |PixelArgs(encoded, decoded)| process_pixels_helper(encoded, decoded, $f)
     };
@@ -117,22 +116,22 @@ const PROCESS_COPY: ProcessPixelsFn = |PixelArgs(encoded, decoded)| {
 };
 
 const N8_TO_U8: ProcessPixelsFn = PROCESS_COPY;
-const N8_TO_U16: ProcessPixelsFn = foo!(n8::n16);
-const N8_TO_F32: ProcessPixelsFn = foo!(n8::f32);
+const N8_TO_U16: ProcessPixelsFn = create!(n8::n16);
+const N8_TO_F32: ProcessPixelsFn = create!(n8::f32);
 
-const S8_TO_U8: ProcessPixelsFn = foo!(s8::n8);
-const S8_TO_U16: ProcessPixelsFn = foo!(s8::n16);
-const S8_TO_F32: ProcessPixelsFn = foo!(s8::uf32);
+const S8_TO_U8: ProcessPixelsFn = create!(s8::n8);
+const S8_TO_U16: ProcessPixelsFn = create!(s8::n16);
+const S8_TO_F32: ProcessPixelsFn = create!(s8::uf32);
 
-const N16_TO_U8: ProcessPixelsFn = foo!(n16::n8);
-const N16_TO_U16: ProcessPixelsFn = foo!(|x: u16| x);
-const N16_TO_F32: ProcessPixelsFn = foo!(n16::f32);
+const N16_TO_U8: ProcessPixelsFn = create!(n16::n8);
+const N16_TO_U16: ProcessPixelsFn = create!(|x: u16| x);
+const N16_TO_F32: ProcessPixelsFn = create!(n16::f32);
 
-const S16_TO_U8: ProcessPixelsFn = foo!(s16::n8);
-const S16_TO_U16: ProcessPixelsFn = foo!(s16::n16);
-const S16_TO_F32: ProcessPixelsFn = foo!(s16::uf32);
+const S16_TO_U8: ProcessPixelsFn = create!(s16::n8);
+const S16_TO_U16: ProcessPixelsFn = create!(s16::n16);
+const S16_TO_F32: ProcessPixelsFn = create!(s16::uf32);
 
-const F16_TO_U8: ProcessPixelsFn = foo!(fp16::n8);
+const F16_TO_U8: ProcessPixelsFn = create!(fp16::n8);
 const F16_TO_U16: ProcessPixelsFn = |PixelArgs(encoded, decoded)| {
     process_pixels_helper_unroll::<4, _, _, _>(encoded, decoded, fp16::n16)
 };
@@ -140,9 +139,9 @@ const F16_TO_F32: ProcessPixelsFn = |PixelArgs(encoded, decoded)| {
     process_pixels_helper_unroll::<4, _, _, _>(encoded, decoded, fp16::f32)
 };
 
-const F32_TO_U8: ProcessPixelsFn = foo!(fp::n8);
-const F32_TO_U16: ProcessPixelsFn = foo!(fp::n16);
-const F32_TO_F32: ProcessPixelsFn = foo!(|x: f32| x);
+const F32_TO_U8: ProcessPixelsFn = create!(fp::n8);
+const F32_TO_U16: ProcessPixelsFn = create!(fp::n16);
+const F32_TO_F32: ProcessPixelsFn = create!(|x: f32| x);
 
 // decoders
 

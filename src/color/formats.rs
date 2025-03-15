@@ -13,10 +13,6 @@ pub(crate) struct B5G6R5 {
 }
 impl B5G6R5 {
     #[inline(always)]
-    pub fn from_le_bytes(bytes: [u8; 2]) -> Self {
-        Self::from_u16(u16::from_le_bytes(bytes))
-    }
-    #[inline(always)]
     pub fn from_u16(u: u16) -> Self {
         Self {
             b5: u & 0x1F,
@@ -1253,29 +1249,6 @@ impl<T: Norm> ToRgba for [T; 1] {
     fn to_rgba(self) -> [T; 4] {
         let [gray] = self;
         [gray, gray, gray, Norm::ONE]
-    }
-}
-
-pub(crate) trait ToRgb {
-    type Channel;
-    fn to_rgb(self) -> [Self::Channel; 3];
-}
-impl<T> ToRgb for [T; 4] {
-    type Channel = T;
-
-    #[inline(always)]
-    fn to_rgb(self) -> [T; 3] {
-        let [r, g, b, _] = self;
-        [r, g, b]
-    }
-}
-impl<T: Copy> ToRgb for [T; 1] {
-    type Channel = T;
-
-    #[inline(always)]
-    fn to_rgb(self) -> [T; 3] {
-        let [gray] = self;
-        [gray, gray, gray]
     }
 }
 

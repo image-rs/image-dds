@@ -2,7 +2,7 @@ use super::read_write::{
     for_each_block_rect_untyped, for_each_block_untyped, process_4x4_blocks_helper, PixelRange,
 };
 use super::{Args, DecoderSet, DirectDecoder, RArgs};
-use crate::{Norm, NormConvert, ToRgb, ToRgba, WithPrecision};
+use crate::{NormConvert, WithPrecision};
 
 use crate::util::closure_types;
 use crate::{Channels::*, ColorFormat};

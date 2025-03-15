@@ -9,7 +9,7 @@ use super::{
     encoder::{Args, Encoder, EncoderSet, Flags},
     EncodeOptions,
 };
-
+#[allow(clippy::type_complexity)]
 fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + cast::Castable>(
     args: Args,
     encode_macro_pixel: fn([[f32; 4]; 4], &EncodeOptions) -> ([P1; 4], P2),
@@ -83,7 +83,7 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
 
 // encoders
 
-pub const NV12: EncoderSet = EncoderSet::new(&[Encoder {
+pub const NV12: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::empty(),
     encode: |args| {
@@ -99,7 +99,7 @@ pub const NV12: EncoderSet = EncoderSet::new(&[Encoder {
     },
 }]);
 
-pub const P010: EncoderSet = EncoderSet::new(&[Encoder {
+pub const P010: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::empty(),
     encode: |args| {
@@ -115,7 +115,7 @@ pub const P010: EncoderSet = EncoderSet::new(&[Encoder {
     },
 }]);
 
-pub const P016: EncoderSet = EncoderSet::new(&[Encoder {
+pub const P016: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
     color_formats: ColorFormatSet::ALL,
     flags: Flags::empty(),
     encode: |args| {

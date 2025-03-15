@@ -310,46 +310,65 @@ impl Format {
             Err(EncodeError::UnsupportedFormat(*self))
         }
     }
-
-    const fn size_multiple(self) -> SizeMultiple {
-        match self {
-            Format::NV12 | Format::P010 | Format::P016 => SizeMultiple::M2_2,
-            _ => SizeMultiple::ONE,
-        }
+    pub fn encode_u8<W: Write>(
+        &self,
+        writer: &mut W,
+        size: Size,
+        channels: Channels,
+        data: &[u8],
+        options: &EncodeOptions,
+    ) -> Result<(), EncodeError> {
+        self.encode(
+            writer,
+            size,
+            ColorFormat::new(channels, Precision::U8),
+            data,
+            options,
+        )
     }
-    const fn block_height(self) -> Option<NonZeroU8> {
-        const ONE: NonZeroU8 = NonZeroU8::new(1).unwrap();
-        const FOUR: NonZeroU8 = NonZeroU8::new(4).unwrap();
-
-        match self {
-            Format::BC1_UNORM
-            | Format::BC2_UNORM
-            | Format::BC2_UNORM_PREMULTIPLIED_ALPHA
-            | Format::BC3_UNORM
-            | Format::BC3_UNORM_PREMULTIPLIED_ALPHA
-            | Format::BC4_UNORM
-            | Format::BC4_SNORM
-            | Format::BC5_UNORM
-            | Format::BC5_SNORM
-            | Format::BC6H_UF16
-            | Format::BC6H_SF16
-            | Format::BC7_UNORM
-            | Format::BC3_UNORM_RXGB => Some(FOUR),
-
-            Format::NV12 | Format::P010 | Format::P016 => None,
-
-            _ => Some(ONE),
-        }
+    pub fn encode_u16<W: Write>(
+        &self,
+        writer: &mut W,
+        size: Size,
+        channels: Channels,
+        data: &[u16],
+        options: &EncodeOptions,
+    ) -> Result<(), EncodeError> {
+        self.encode(
+            writer,
+            size,
+            ColorFormat::new(channels, Precision::U16),
+            cast::as_bytes(data),
+            options,
+        )
     }
+    pub fn encode_f32<W: Write>(
+        &self,
+        writer: &mut W,
+        size: Size,
+        channels: Channels,
+        data: &[f32],
+        options: &EncodeOptions,
+    ) -> Result<(), EncodeError> {
+        self.encode(
+            writer,
+            size,
+            ColorFormat::new(channels, Precision::F32),
+            cast::as_bytes(data),
+            options,
+        )
+    }
+
     /// Returns information about the encoding support of this format.
     ///
     /// If the format does not support encoding, `None` is returned.
     pub const fn encoding(self) -> Option<EncodingSupport> {
         if let Some(encoders) = get_encoders(self) {
             Some(EncodingSupport {
-                dithering: encoders.supported_dithering,
-                block_height: self.block_height(),
-                size_multiple: self.size_multiple(),
+                dithering: encoders.supported_dithering(),
+                split_height: encoders.split_height,
+                local_dithering: encoders.local_dithering(),
+                size_multiple: encoders.size_multiple,
             })
         } else {
             None
@@ -492,7 +511,44 @@ impl TryFrom<Format> for Dx9PixelFormat {
 /// Describes the extent of support for encoding a format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EncodingSupport {
+    /// Whether and what type of dithering is supported.
     pub dithering: Dithering,
-    pub block_height: Option<NonZeroU8>,
+    /// The split height for the image format.
+    ///
+    /// Encoding most formats is trivially parallelizable, by splitting the
+    /// image into chunks by lines, encoding each chunk separately, and writing
+    /// the encoded chunks to the output stream in order.
+    ///
+    /// This value specifies how many lines need to be grouped together for
+    /// correct encoding. E.g. `BC1_UNORM` requires 4 lines to be grouped
+    /// together, meaning that all chunks (except the last one) must have a
+    /// height that is a multiple of 4. So e.g. an image with a height of 10
+    /// pixels can split into chunks with heights of 4-4-2, 8-2, 4-6, or 10.
+    ///
+    /// Note that most dithering will produce different (but not necessarily
+    /// incorrect) results if the image is split into chunks. However, all BCn
+    /// formats implement block-based local dithering, meaning that the dithering
+    /// is the same whether the image is split or not. See
+    /// [`EncodingSupport::local_dithering`].
+    pub split_height: Option<NonZeroU8>,
+    /// Whether the format supports local dithering.
+    ///
+    /// Most formats implement global error diffusing dithering for best quality.
+    /// However, this prevents parallel encoding of the image, as the dithering
+    /// error of one chunk depends on the dithering error of the previous chunk.
+    /// It's still possible to encode the image in parallel, but the dither
+    /// pattern may reveal the chunk seams.
+    ///
+    /// Local dithering on the other hand will attempt to diffuse the error
+    /// within a small region of the image. E.g. `BC1_UNORM` will dither within
+    /// a 4x4 block. This allows the image to be split into chunks and encoded
+    /// in parallel without revealing the chunk seams.
+    ///
+    /// `self.dithering == Dithering::None` implies `self.local_dithering == false`.
+    pub local_dithering: bool,
+    /// The size multiple of the encoded image.
+    ///
+    /// If the dimensions of the image are not multiples of this size, the
+    /// encoder with return an error.
     pub size_multiple: SizeMultiple,
 }

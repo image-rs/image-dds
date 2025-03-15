@@ -1,8 +1,8 @@
-use std::io::Write;
+use std::{io::Write, num::NonZeroU8};
 
 use bitflags::bitflags;
 
-use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision};
+use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision, SizeMultiple};
 
 use super::{Dithering, EncodeOptions};
 
@@ -125,8 +125,19 @@ impl Encoder {
         (self.encode)(args)
     }
 }
+bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub(crate) struct EncodeFormatFlags: u8 {
+        const DITHER_COLOR = 0x1;
+        const DITHER_ALPHA = 0x2;
+        /// Whether dithering is done within a block, instead of globally.
+        const LOCAL_DITHERING = 0x4;
+    }
+}
 pub(crate) struct EncoderSet {
-    pub supported_dithering: Dithering,
+    pub flags: EncodeFormatFlags,
+    pub split_height: Option<NonZeroU8>,
+    pub size_multiple: SizeMultiple,
     pub encoders: &'static [Encoder],
 }
 impl EncoderSet {
@@ -150,10 +161,42 @@ impl EncoderSet {
 
         let supported_dithering = combined_flags.get_dithering();
 
+        let mut flags = EncodeFormatFlags::empty();
+        if supported_dithering.color() {
+            flags = flags.union(EncodeFormatFlags::DITHER_COLOR);
+        }
+        if supported_dithering.alpha() {
+            flags = flags.union(EncodeFormatFlags::DITHER_ALPHA);
+        }
+
         Self {
-            supported_dithering,
+            flags,
+            split_height: NonZeroU8::new(1),
+            size_multiple: SizeMultiple::ONE,
             encoders,
         }
+    }
+    pub const fn new_bc(encoders: &'static [Encoder]) -> Self {
+        let mut set = Self::new(encoders);
+        set.flags = set.flags.union(EncodeFormatFlags::LOCAL_DITHERING);
+        set.split_height = NonZeroU8::new(4);
+        set
+    }
+    pub const fn new_bi_planar(encoders: &'static [Encoder]) -> Self {
+        let mut set = Self::new(encoders);
+        set.split_height = None;
+        set.size_multiple = SizeMultiple::M2_2;
+        set
+    }
+
+    pub const fn supported_dithering(&self) -> Dithering {
+        Dithering::new(
+            self.flags.contains(EncodeFormatFlags::DITHER_COLOR),
+            self.flags.contains(EncodeFormatFlags::DITHER_ALPHA),
+        )
+    }
+    pub const fn local_dithering(&self) -> bool {
+        self.flags.contains(EncodeFormatFlags::LOCAL_DITHERING)
     }
 
     fn encoders_for_color(&self, color: ColorFormat) -> impl Iterator<Item = &Encoder> {

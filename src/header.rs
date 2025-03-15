@@ -1,7 +1,7 @@
 use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
-    util::{self, read_u32_le_array},
+    util::read_u32_le_array,
     DataLayout, DataRegion, HeaderError, Options, PixelInfo, Size,
 };
 use bitflags::bitflags;

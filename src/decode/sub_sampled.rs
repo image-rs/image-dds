@@ -1,6 +1,6 @@
 use crate::cast::FromLeBytes;
 use crate::util::closure_types;
-use crate::{n1, n8, yuv10, yuv16, yuv8, ToRgba, WithPrecision};
+use crate::{n1, n8, yuv10, yuv16, yuv8, WithPrecision};
 use crate::{Channels::*, ColorFormat};
 
 use super::read_write::{
@@ -66,14 +66,6 @@ macro_rules! rgb {
         underlying!(Rgb, $out, $bpb, $f)
     };
 }
-macro_rules! rgba {
-    ($out:ty, $f:expr) => {
-        underlying!(Rgba, $out, 4, $f)
-    };
-    ($out:ty, $bpb:literal, $f:expr) => {
-        underlying!(Rgba, $out, $bpb, $f)
-    };
-}
 
 macro_rules! r1 {
     ($channels:expr, $out:ty, $f:expr) => {{
@@ -131,11 +123,6 @@ pub(crate) const R8G8_B8G8_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, decode_rg_bg),
     rgb!(u16, |pair| decode_rg_bg(pair.map(n8::n16))),
     rgb!(f32, |pair| decode_rg_bg(pair.map(n8::f32))),
-    rgba!(u8, |pair| decode_rg_bg(pair).map(ToRgba::to_rgba)),
-    rgba!(u16, |pair| decode_rg_bg(pair.map(n8::n16))
-        .map(ToRgba::to_rgba)),
-    rgba!(f32, |pair| decode_rg_bg(pair.map(n8::f32))
-        .map(ToRgba::to_rgba)),
 ]);
 
 #[inline]
@@ -146,11 +133,6 @@ pub(crate) const G8R8_G8B8_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, decode_gr_bg),
     rgb!(u16, |pair| decode_gr_bg(pair.map(n8::n16))),
     rgb!(f32, |pair| decode_gr_bg(pair.map(n8::f32))),
-    rgba!(u8, |pair| decode_gr_bg(pair).map(ToRgba::to_rgba)),
-    rgba!(u16, |pair| decode_gr_bg(pair.map(n8::n16))
-        .map(ToRgba::to_rgba)),
-    rgba!(f32, |pair| decode_gr_bg(pair.map(n8::f32))
-        .map(ToRgba::to_rgba)),
 ]);
 
 #[inline]
