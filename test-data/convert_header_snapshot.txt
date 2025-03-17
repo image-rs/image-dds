@@ -694,23 +694,6 @@ into_dx10 Header:
 
 
 Header:
-    w/h/d: 64 x 64 x 64
-    mipmap_count: 1
-    caps2: DdsCaps2(VOLUME)
-    format: masked
-        flags: PixelFormatFlags(ALPHAPIXELS | RGB)
-        rgb_bit_count: 32
-        bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-
-into_dx10 Header:
-    w/h/d: 64 x 64 x 64
-    mipmap_count: 1
-    DX10: Texture3D
-        dxgi_format: B8G8R8A8_UNORM (87)
-
-
-
-Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: masked
