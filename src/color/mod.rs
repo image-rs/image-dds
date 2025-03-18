@@ -290,55 +290,7 @@ impl WithPrecision for f32 {
     const PRECISION: Precision = Precision::F32;
 }
 
-pub(crate) fn convert_channels<Precision: Norm + cast::Castable>(
-    from: Channels,
-    to: Channels,
-    from_buffer: &[Precision],
-    to_buffer: &mut [Precision],
-) {
-    fn map<const FROM: usize, const TO: usize, Precision: cast::Castable + Copy>(
-        from_buffer: &[Precision],
-        to_buffer: &mut [Precision],
-        f: impl Fn([Precision; FROM]) -> [Precision; TO],
-    ) {
-        let from_chunked = cast::as_array_chunks(from_buffer).expect("invalid from buffer");
-        let to_chunked = cast::as_array_chunks_mut(to_buffer).expect("invalid to buffer");
-        debug_assert!(from_chunked.len() == to_chunked.len());
-
-        for (from, to) in from_chunked.iter().zip(to_chunked) {
-            *to = f(*from);
-        }
-    }
-
-    use ch::*;
-    use Channels::*;
-
-    debug_assert!(from_buffer.len() % from.count() as usize == 0);
-    debug_assert!(to_buffer.len() % to.count() as usize == 0);
-    debug_assert_eq!(
-        from_buffer.len() / from.count() as usize,
-        to_buffer.len() / to.count() as usize
-    );
-
-    match (from, to) {
-        (Grayscale, Grayscale) | (Alpha, Alpha) | (Rgb, Rgb) | (Rgba, Rgba) => {
-            to_buffer.copy_from_slice(from_buffer);
-        }
-
-        (Grayscale, Alpha) | (Rgb, Alpha) => to_buffer.fill(Precision::ONE),
-        (Alpha, Grayscale) | (Alpha, Rgb) => to_buffer.fill(Precision::ZERO),
-
-        (Grayscale, Rgb) => map(from_buffer, to_buffer, grayscale_to_rgb::<Precision>),
-        (Grayscale, Rgba) => map(from_buffer, to_buffer, grayscale_to_rgba::<Precision>),
-        (Alpha, Rgba) => map(from_buffer, to_buffer, alpha_to_rgba::<Precision>),
-        (Rgb, Grayscale) => map(from_buffer, to_buffer, rgb_to_grayscale::<Precision>),
-        (Rgb, Rgba) => map(from_buffer, to_buffer, rgb_to_rgba::<Precision>),
-        (Rgba, Grayscale) => map(from_buffer, to_buffer, rgba_to_grayscale::<Precision>),
-        (Rgba, Alpha) => map(from_buffer, to_buffer, rgba_to_alpha::<Precision>),
-        (Rgba, Rgb) => map(from_buffer, to_buffer, rgba_to_rgb::<Precision>),
-    }
-}
-pub(crate) fn convert_channels_untyped<Precision>(
+pub(crate) fn convert_channels<Precision>(
     from: Channels,
     to: Channels,
     from_buffer: &[u8],
@@ -349,15 +301,6 @@ pub(crate) fn convert_channels_untyped<Precision>(
     [Precision; 3]: cast::IntoNeBytes,
     [Precision; 4]: cast::IntoNeBytes,
 {
-    // use the typed version if possible for better performance
-    // TODO: test perf
-    if let Some(from_typed) = cast::from_bytes(from_buffer) {
-        if let Some(to_typed) = cast::from_bytes_mut(to_buffer) {
-            convert_channels::<Precision>(from, to, from_typed, to_typed);
-            return;
-        }
-    }
-
     fn map<From, To>(from_buffer: &[u8], to_buffer: &mut [u8], f: impl Fn(From) -> To)
     where
         From: cast::IntoNeBytes,
@@ -412,20 +355,16 @@ pub(crate) fn convert_channels_untyped<Precision>(
         (Rgba, Rgb) => map(from_buffer, to_buffer, rgba_to_rgb::<Precision>),
     }
 }
-pub(crate) fn convert_channels_untyped_for(
+pub(crate) fn convert_channels_for(
     from: ColorFormat,
     to: Channels,
     from_buffer: &[u8],
     to_buffer: &mut [u8],
 ) {
     match from.precision {
-        Precision::U8 => convert_channels_untyped::<u8>(from.channels, to, from_buffer, to_buffer),
-        Precision::U16 => {
-            convert_channels_untyped::<u16>(from.channels, to, from_buffer, to_buffer)
-        }
-        Precision::F32 => {
-            convert_channels_untyped::<f32>(from.channels, to, from_buffer, to_buffer)
-        }
+        Precision::U8 => convert_channels::<u8>(from.channels, to, from_buffer, to_buffer),
+        Precision::U16 => convert_channels::<u16>(from.channels, to, from_buffer, to_buffer),
+        Precision::F32 => convert_channels::<f32>(from.channels, to, from_buffer, to_buffer),
     }
 }
 
@@ -463,7 +402,7 @@ pub(crate) fn convert_to_rgba_f32(
         Precision::F32 => {
             // since the precision is already f32, we just need to convert
             // channels
-            convert_channels_untyped::<f32>(
+            convert_channels::<f32>(
                 channels,
                 Channels::Rgba,
                 from_buffer,
@@ -471,35 +410,6 @@ pub(crate) fn convert_to_rgba_f32(
             );
         }
     };
-}
-fn convert_u8_to_rgba_f32(from: Channels, from_buffer: &[u8], to_buffer: &mut [[f32; 4]]) {
-    fn to_f32<const C: usize>(pixel: [u8; C]) -> [f32; C] {
-        pixel.map(n8::f32)
-    }
-
-    fn map<const C: usize>(
-        from_buffer: &[u8],
-        to_buffer: &mut [[f32; 4]],
-        f: impl Fn([f32; C]) -> [f32; 4],
-    ) {
-        let from_chunked: &[[u8; C]] =
-            cast::as_array_chunks(from_buffer).expect("invalid from buffer");
-        debug_assert!(from_chunked.len() == to_buffer.len());
-
-        for (from, to) in from_chunked.iter().zip(to_buffer) {
-            *to = f(to_f32(*from));
-        }
-    }
-
-    use ch::*;
-    use Channels::*;
-
-    match from {
-        Grayscale => map(from_buffer, to_buffer, grayscale_to_rgba),
-        Alpha => map(from_buffer, to_buffer, alpha_to_rgba),
-        Rgb => map(from_buffer, to_buffer, rgb_to_rgba),
-        Rgba => map(from_buffer, to_buffer, |pixel| pixel),
-    }
 }
 fn convert_t_to_rgba_f32<T>(
     from: Channels,

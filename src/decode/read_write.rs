@@ -6,7 +6,7 @@ use std::mem::size_of;
 
 use crate::util::round_down_to_multiple;
 use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
-use crate::{convert_channels_untyped_for, util, Channels, ColorFormat};
+use crate::{convert_channels_for, util, Channels, ColorFormat};
 
 use super::{DecodeContext, ReadSeek};
 
@@ -796,7 +796,7 @@ impl ChannelConversionBuffer {
             f(PixelArgs(encoded_chunk, buffer_chunk));
 
             // convert the channels into the output buffer
-            convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
+            convert_channels_for(self.native_color, self.target, buffer_chunk, out_chunk);
         }
     }
 
@@ -855,7 +855,7 @@ impl ChannelConversionBuffer {
                 let buffer_row = &buffer[y * buffer_stride..(y + 1) * buffer_stride];
                 let out_row =
                     &mut out[y * stride..y * stride + offset_width as usize * out_bytes_per_pixel];
-                convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
+                convert_channels_for(self.native_color, self.target, buffer_row, out_row);
             }
 
             // adjust inputs
@@ -898,7 +898,7 @@ impl ChannelConversionBuffer {
                 let buffer_row = &buffer_chunk[y * buffer_stride..(y + 1) * buffer_stride];
                 let out_row = &mut out_chunk
                     [y * stride..y * stride + chunk_size as usize * out_bytes_per_pixel];
-                convert_channels_untyped_for(self.native_color, self.target, buffer_row, out_row);
+                convert_channels_for(self.native_color, self.target, buffer_row, out_row);
             }
         }
     }
@@ -958,7 +958,7 @@ impl ChannelConversionBuffer {
             );
 
             // convert the channels into the output buffer
-            convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
+            convert_channels_for(self.native_color, self.target, buffer_chunk, out_chunk);
 
             // adjust inputs
             range.offset = 0;
@@ -999,7 +999,7 @@ impl ChannelConversionBuffer {
             );
 
             // convert the channels into the output buffer
-            convert_channels_untyped_for(self.native_color, self.target, buffer_chunk, out_chunk);
+            convert_channels_for(self.native_color, self.target, buffer_chunk, out_chunk);
         }
     }
 }
