@@ -33,7 +33,14 @@ fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     writer: &mut W,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
-    format.encode(writer, image.size, image.color(), image.as_bytes(), options)
+    encode(
+        writer,
+        format,
+        image.size,
+        image.color(),
+        image.as_bytes(),
+        options,
+    )
 }
 fn encode_decode(
     format: Format,

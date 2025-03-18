@@ -1,4 +1,6 @@
-use crate::Format;
+use std::io::Write;
+
+use crate::{ColorFormat, EncodeError, Format, Size};
 
 mod bc;
 mod bc1;
@@ -85,6 +87,21 @@ pub(crate) const fn get_encoders(format: Format) -> Option<&'static EncoderSet> 
         // unsupported formats
         Format::BC6H_UF16 | Format::BC6H_SF16 | Format::BC7_UNORM => return None,
     })
+}
+
+pub fn encode(
+    writer: &mut dyn Write,
+    format: Format,
+    size: Size,
+    color: ColorFormat,
+    data: &[u8],
+    options: &EncodeOptions,
+) -> Result<(), EncodeError> {
+    if let Some(encoders) = get_encoders(format) {
+        encoders.encode(data, size.width, color, writer, options)
+    } else {
+        Err(EncodeError::UnsupportedFormat(format))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

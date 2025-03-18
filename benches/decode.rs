@@ -56,8 +56,9 @@ fn bench_decoder_with(
         let mut output =
             vec![0; surface.size().pixels() as usize * color.bytes_per_pixel() as usize];
         b.iter(|| {
-            let result = format.decode(
+            let result = decode(
                 black_box(&mut bytes.as_ref()),
+                format,
                 surface.size(),
                 color,
                 black_box(&mut output),

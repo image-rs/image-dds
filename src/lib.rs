@@ -16,9 +16,9 @@ mod util;
 use std::num::NonZeroU8;
 
 pub use color::*;
-pub use decode::DecodeOptions;
+pub use decode::{decode, decode_rect, DecodeOptions};
 pub use decoder::*;
-pub use encode::{CompressionQuality, Dithering, EncodeOptions, ErrorMetric};
+pub use encode::{encode, CompressionQuality, Dithering, EncodeOptions, ErrorMetric};
 pub use error::*;
 pub use format::*;
 pub use header::*;

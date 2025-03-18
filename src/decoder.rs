@@ -1,8 +1,8 @@
 use std::io::{Read, Seek};
 
 use crate::{
-    ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format, Header, ParseOptions,
-    Rect, Size, SurfaceDescriptor, Texture, Volume,
+    decode, decode_rect, ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format,
+    Header, ParseOptions, Rect, Size, SurfaceDescriptor, Texture, Volume,
 };
 
 /// Information about the header, pixel format, and data layout of a DDS file.
@@ -146,8 +146,17 @@ impl<R> Decoder<R> {
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
         let options = self.decode_options();
-        self.format()
-            .decode(&mut self.reader, current.size, color, buffer, &options)?;
+        let format = self.format();
+
+        decode(
+            &mut self.reader,
+            format,
+            current.size,
+            color,
+            buffer,
+            &options,
+        )?;
+
         self.iter.advance();
         Ok(())
     }
@@ -164,8 +173,11 @@ impl<R> Decoder<R> {
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
         let options = self.decode_options();
-        self.format().decode_rect(
+        let format = self.format();
+
+        decode_rect(
             &mut self.reader,
+            format,
             current.size,
             rect,
             color,
@@ -173,6 +185,7 @@ impl<R> Decoder<R> {
             row_pitch,
             &options,
         )?;
+
         self.iter.advance();
         Ok(())
     }

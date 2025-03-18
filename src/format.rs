@@ -1,15 +1,9 @@
-use std::{
-    io::{Read, Seek, Write},
-    num::NonZeroU8,
-};
+use std::num::NonZeroU8;
 
 use crate::{
-    decode::{get_decoders, ReadSeek},
-    detect,
-    encode::get_encoders,
-    Channels, ColorFormat, DecodeError, DecodeOptions, Dithering, Dx9PixelFormat, DxgiFormat,
-    EncodeError, EncodeOptions, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags,
-    Precision, Rect, Size, SizeMultiple,
+    decode::get_decoders, detect, encode::get_encoders, Channels, ColorFormat, Dithering,
+    Dx9PixelFormat, DxgiFormat, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags,
+    Precision, SizeMultiple,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -156,109 +150,6 @@ impl Format {
     /// This is simply [`Self::channels`] and [`Self::precision`] combined.
     pub const fn color(&self) -> ColorFormat {
         get_decoders(*self).native_color()
-    }
-
-    /// Decodes the image data of a surface from the given reader and writes it
-    /// to the given output buffer.
-    ///
-    /// ## Output buffer
-    ///
-    /// The output buffer must be exactly the right size to hold the decoded
-    /// image data.
-    ///
-    /// The size in bytes of the output buffer can be calculated as
-    /// `size.pixels() * color.bytes_per_pixel()`. If you are using one of the
-    /// `decode_<precision>` methods, the length of the types output buffer is
-    /// `size.pixels() * channels.count()`
-    ///
-    /// It is highly recommended for the output buffer to be aligned to the
-    /// given precision to improve performance. E.g. if the precision is `U16`,
-    /// the output buffer should be aligned to 2 bytes. As such, using the
-    /// `decode_<precision>` methods is recommended.
-    ///
-    /// ## State of the reader
-    ///
-    /// The reader is expected to be positioned at the start of the encoded
-    /// image data of the current surface.
-    ///
-    /// If the operation completes successfully, the reader will be positioned
-    /// at the end of the encoded image data, meaning that the next byte read
-    /// will be the first byte of either the next encoded surface or EOF.
-    ///
-    /// If the operation fails and returns an error, the position of the reader
-    /// remains unchanged.
-    ///
-    /// ## Panics
-    ///
-    /// This method will only panic in the given reader panics while reading.
-    pub fn decode(
-        &self,
-        reader: &mut dyn Read,
-        size: Size,
-        color: ColorFormat,
-        output: &mut [u8],
-        options: &DecodeOptions,
-    ) -> Result<(), DecodeError> {
-        get_decoders(*self).decode(color, reader, size, output, options)
-    }
-
-    /// Decodes a rectangle of the image data of a surface from the given reader
-    /// and writes it to the given output buffer.
-    ///
-    /// ## Row pitch and the output buffer
-    ///
-    /// The `row_pitch` parameter specifies the number of bytes between the start
-    /// of one row and the start of the next row in the output buffer.
-    ///
-    /// It is highly recommended for the output buffer to be aligned to the
-    /// given precision to improve performance. E.g. if the precision is `U16`,
-    /// the output buffer should be aligned to 2 bytes. As such, using the
-    /// `decode_*` methods is recommended.
-    ///
-    /// ## State of the reader
-    ///
-    /// The reader is expected to be positioned at the start of the encoded
-    /// image data of the current surface.
-    ///
-    /// If the operation completes successfully, the reader will be positioned
-    /// at the end of the encoded image data, meaning that the next byte read
-    /// will be the first byte of either the next encoded surface or EOF.
-    ///
-    /// If the operation fails and returns an error, the position of the reader
-    /// remains unchanged.
-    ///
-    /// ## Panics
-    ///
-    /// This method will only panic in the given reader panics while reading.
-    #[allow(clippy::too_many_arguments)]
-    pub fn decode_rect<R: Read + Seek>(
-        &self,
-        reader: &mut R,
-        size: Size,
-        rect: Rect,
-        color: ColorFormat,
-        output: &mut [u8],
-        row_pitch: usize,
-        options: &DecodeOptions,
-    ) -> Result<(), DecodeError> {
-        let reader = reader as &mut dyn ReadSeek;
-        let decoders = get_decoders(*self);
-        decoders.decode_rect(color, reader, size, rect, output, row_pitch, options)
-    }
-
-    pub fn encode(
-        &self,
-        writer: &mut dyn Write,
-        size: Size,
-        color: ColorFormat,
-        data: &[u8],
-        options: &EncodeOptions,
-    ) -> Result<(), EncodeError> {
-        if let Some(encoders) = get_encoders(*self) {
-            encoders.encode(data, size.width, color, writer, options)
-        } else {
-            Err(EncodeError::UnsupportedFormat(*self))
-        }
     }
 
     /// Returns information about the encoding support of this format.

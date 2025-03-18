@@ -182,8 +182,9 @@ fn decode_rect() {
                 let image_y = rect.y as usize + y_index;
 
                 let stride = image.stride();
-                format.decode_rect(
+                ddsd::decode_rect(
                     &mut Cursor::new(surface.as_slice()),
+                    format,
                     size,
                     rect,
                     target_color,

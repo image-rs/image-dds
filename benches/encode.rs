@@ -95,8 +95,9 @@ where
 
             let image = black_box(image);
 
-            let result = format.encode(
+            let result = encode(
                 black_box(&mut output),
+                format,
                 image.size,
                 image.color(),
                 image.as_bytes(),
