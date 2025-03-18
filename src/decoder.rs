@@ -20,8 +20,8 @@ pub struct DdsInfo {
 impl DdsInfo {
     /// Creates a new decoder by reading the header from the given reader.
     ///
-    /// This is equivalent to calling `Decoder::new_with(r, Options::default())`.
-    /// See [`Self::new_with`] for more details.
+    /// This is equivalent to calling `Decoder::read_with_options(r, ParseOptions::default())`.
+    /// See [`Self::read_with_options`] for more details.
     pub fn read<R: Read>(r: &mut R) -> Result<Self, DecodeError> {
         Self::read_with_options(r, &ParseOptions::default())
     }

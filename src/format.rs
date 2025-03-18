@@ -76,7 +76,7 @@ pub enum Format {
     BC7_UNORM,
 
     // non-standard formats
-    /// This is just [`BC3_UNORM`], but with the R channel stored in alpha.
+    /// This is just [`Format::BC3_UNORM`], but with the R channel stored in alpha.
     ///
     /// BC3 stores the A channel with a much higher precision than the other
     /// (color) channels. RXGB uses this by storing the R channel of the image in

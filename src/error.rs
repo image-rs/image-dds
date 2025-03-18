@@ -41,8 +41,8 @@ pub enum DecodeError {
     ArraySizeTooBig(u32),
     /// The header of the DDS file describes a data section that is too large.
     ///
-    /// I.e. it is possible for the header to describe a texture that requires
-    /// >2^64 bytes of memory.
+    /// I.e. it is possible for the header to describe a texture that requires >2^64
+    /// bytes of memory.
     DataLayoutTooBig,
     UnexpectedBufferSize {
         expected: usize,

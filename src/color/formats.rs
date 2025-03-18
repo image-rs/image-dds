@@ -1,7 +1,7 @@
 //! Internal module for converting between different number formats.
 //!
 //! Most magic constants for the U/SNorm conversion are from:
-//! https://rundevelopment.github.io/projects/multiply-add-constants-finder
+//! <https://rundevelopment.github.io/projects/multiply-add-constants-finder>
 
 use super::Norm;
 
@@ -974,7 +974,7 @@ pub(crate) mod fp10 {
 }
 
 /// Optimized functions for the R9G9B9E5_SHAREDEXP format.
-/// https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion
+/// <https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion>
 pub(crate) mod rgb9995f {
     use crate::util::two_powi;
 

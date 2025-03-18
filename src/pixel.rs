@@ -13,7 +13,7 @@ use crate::{util::div_ceil, Dx9PixelFormat, DxgiFormat, Format, FormatError, Hea
 /// - and more.
 ///
 /// The main purpose of this enum is to provide a way to calculate the byte size
-/// of a surface to create the [`DataLayout`] of a DDS file.
+/// of a surface to create the [`crate::DataLayout`] of a DDS file.
 ///
 /// ## Unsupported pixel formats
 ///

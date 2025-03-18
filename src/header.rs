@@ -14,7 +14,7 @@ use std::{
 ///
 /// See [`Header`] for a parsed version.
 ///
-/// See https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
+/// See <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header>
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RawHeader {
     /// Size of structure. This member must be set to 124.
@@ -41,9 +41,9 @@ pub struct RawHeader {
 }
 /// An unparsed DDS pixel format.
 ///
-/// See [`PixelFormat`] for a parsed version.
+/// See [`Dx9PixelFormat`] for a parsed version.
 ///
-/// See https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-pixelformat
+/// See <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-pixelformat>
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RawPixelFormat {
     /// Structure size; set to 32 (bytes).
@@ -61,7 +61,7 @@ pub struct RawPixelFormat {
 ///
 /// See [`Dx10Header`] for a parsed version.
 ///
-/// See https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10
+/// See <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10>
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RawDx10Header {
     pub dxgi_format: u32,
@@ -219,12 +219,9 @@ impl RawDx10Header {
     pub(crate) const SIZE: u32 = 20;
 }
 
-/// The DDS header and the DX10 extension header if any.
+/// A parsed header, split by version.
 ///
-/// This structure contains parsed data. Using by the decoder.
-///
-/// https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header
-/// Version-specific header data.
+/// <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header>
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Header {
     Dx9(Dx9Header),
@@ -251,7 +248,7 @@ pub struct Dx9Header {
 /// structure or with a `DXGI_FORMAT` from the Direct3D 10 and later APIs. This
 /// enum represents all cases in a single type.
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-pixelformat
+/// <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-pixelformat>
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Dx9PixelFormat {
     FourCC(FourCC),
@@ -274,7 +271,7 @@ pub struct MaskPixelFormat {
 }
 /// DDS header extension to handle resource arrays, DXGI pixel formats that don't map to the legacy Microsoft DirectDraw pixel format structures, and additional metadata.
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10
+/// <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10>
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Dx10Header {
     /// Surface height (in pixels).
@@ -329,7 +326,7 @@ pub struct ParseOptions {
     /// If this option is set to `true`, the decoder will (1) ignore invalid
     /// header values that would otherwise cause the decoder to reject the file
     /// and (2) attempt to fix the header to read the file correctly. To fix the
-    /// header, [`Options::file_len`] must be provided.
+    /// header, [`Self::file_len`] must be provided.
     ///
     /// Defaults to `false`.
     pub permissive: bool,
@@ -337,12 +334,12 @@ pub struct ParseOptions {
     /// The length of the file in bytes.
     ///
     /// This length includes the magic bytes, header, and data section. Even if
-    /// [`Options::skip_magic_bytes`] is set to `true`, the length must include
+    /// [`Self::skip_magic_bytes`] is set to `true`, the length must include
     /// the magic bytes.
     ///
     /// The purpose of this option is to provide more information, which enables
-    /// the decoder to read certain invalid DDS files if [`Options::permissive`]
-    /// is set to `true`. If [`Options::permissive`] is set to `false`, this
+    /// the decoder to read certain invalid DDS files if [`Self::permissive`]
+    /// is set to `true`. If [`Self::permissive`] is set to `false`, this
     /// option will be ignored.
     ///
     /// If this option is set incorrectly (i.e. this length is not equal to the
@@ -1224,7 +1221,11 @@ bitflags! {
     }
 }
 
-/// https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10
+/// The alpha mode of the associated texture.
+///
+/// This is most often `Unknown`, even in DX10 headers.
+///
+/// <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10>
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AlphaMode {
     /// Alpha channel content is unknown. This is the value for legacy files, which typically is assumed to be 'straight' alpha.
@@ -1260,8 +1261,8 @@ impl From<AlphaMode> for u32 {
 
 /// Identifies the type of resource being used.
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/api/d3d10/ne-d3d10-d3d10_resource_dimension
-/// https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_resource_dimension
+/// <https://learn.microsoft.com/en-us/windows/win32/api/d3d10/ne-d3d10-d3d10_resource_dimension>
+/// <https://learn.microsoft.com/en-us/windows/win32/api/d3d11/ne-d3d11-d3d11_resource_dimension>
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ResourceDimension {
     // Unknown = 0,
@@ -1348,7 +1349,7 @@ impl std::fmt::Debug for FourCC {
 /// of modifiers at the bottom of the page more fully describes each format
 /// type.
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format
+/// <https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format>
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DxgiFormat(u8);
 impl DxgiFormat {
