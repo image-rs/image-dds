@@ -11,7 +11,7 @@ fn get_headers() -> Vec<Header> {
             let mut file = File::open(p)?;
             let file_len = file.metadata()?.len();
 
-            let mut options = Options::default();
+            let mut options = ParseOptions::default();
             options.permissive = true;
             options.file_len = Some(file_len);
             Header::read(&mut file, &options)

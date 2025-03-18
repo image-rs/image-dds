@@ -26,7 +26,7 @@ pub use pixel::*;
 /// the header.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub struct Options {
+pub struct ParseOptions {
     /// Whether magic bytes should be skipped when reading the header.
     ///
     /// DDS files typically start with the magic bytes `"DDS "`. By default, the
@@ -100,7 +100,7 @@ pub struct Options {
     /// ```
     pub file_len: Option<u64>,
 }
-impl Default for Options {
+impl Default for ParseOptions {
     fn default() -> Self {
         Self {
             skip_magic_bytes: false,
@@ -123,20 +123,20 @@ impl DdsDecoder {
     /// This is equivalent to calling `Decoder::new_with(r, Options::default())`.
     /// See [`Self::new_with`] for more details.
     pub fn new<R: Read>(r: &mut R) -> Result<Self, DecodeError> {
-        Self::new_with(r, &Options::default())
+        Self::new_with(r, &ParseOptions::default())
     }
     /// Creates a new decoder with the given options by reading the header from the given reader.
     ///
     /// If this operations succeeds, the given reader will be positioned at the start of the data
     /// section. All offsets in [`DataLayout`] are relative to this position.
-    pub fn new_with<R: Read>(r: &mut R, options: &Options) -> Result<Self, DecodeError> {
+    pub fn new_with<R: Read>(r: &mut R, options: &ParseOptions) -> Result<Self, DecodeError> {
         Self::from_header_with(Header::read(r, options)?, options)
     }
 
     pub fn from_header(header: Header) -> Result<Self, DecodeError> {
-        Self::from_header_with(header, &Options::default())
+        Self::from_header_with(header, &ParseOptions::default())
     }
-    pub fn from_header_with(header: Header, options: &Options) -> Result<Self, DecodeError> {
+    pub fn from_header_with(header: Header, options: &ParseOptions) -> Result<Self, DecodeError> {
         // enforce `array_size` limit
         if let Some(dxt10) = header.dx10() {
             if dxt10.array_size > options.max_array_size {

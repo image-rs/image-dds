@@ -14,7 +14,7 @@ fn parse_data_layout_of_all_dds_files() {
         let mut file = File::open(&dds_path).expect("Failed to open file");
         let file_len = file.metadata().unwrap().len();
 
-        let mut options = Options::default();
+        let mut options = ParseOptions::default();
         options.permissive = true;
         options.file_len = Some(file_len);
 
@@ -62,7 +62,7 @@ fn full_layout_snapshot() {
         let mut file = File::open(dds_path)?;
         let file_len = file.metadata()?.len();
 
-        let mut options = Options::default();
+        let mut options = ParseOptions::default();
         options.permissive = false;
         let decoder = DdsDecoder::new_with(&mut file, &options)?;
 
@@ -78,7 +78,7 @@ fn full_layout_snapshot() {
         let mut file = File::open(dds_path)?;
         let file_len = file.metadata()?.len();
 
-        let mut options = Options::default();
+        let mut options = ParseOptions::default();
         options.permissive = true;
         options.file_len = Some(file_len);
         let decoder = DdsDecoder::new_with(&mut file, &options)?;

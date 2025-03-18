@@ -2,7 +2,7 @@ use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
     util::{read_u32_le_array, NON_ZERO_U32_ONE},
-    DataLayout, DataRegion, HeaderError, Options, PixelInfo, Size,
+    DataLayout, DataRegion, HeaderError, ParseOptions, PixelInfo, Size,
 };
 use bitflags::bitflags;
 use std::{
@@ -76,7 +76,7 @@ impl RawHeader {
     pub(crate) const SIZE: u32 = 124;
     pub(crate) const INTS: usize = Self::SIZE as usize / 4;
 
-    /// Reads the raw header without magic bytes from a reader.
+    /// Reads the raw header **without** magic bytes from a reader.
     pub fn read<R: Read>(reader: &mut R) -> std::io::Result<Self> {
         let mut buffer: [u32; RawHeader::INTS] = Default::default();
         read_u32_le_array(reader, &mut buffer)?;
@@ -128,7 +128,7 @@ impl RawHeader {
         Ok(header)
     }
 
-    /// Write the raw header without magic bytes to a writer.
+    /// Write the raw header **without** magic bytes to a writer.
     pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut buffer: [u32; 36] = [
             self.size,
@@ -332,22 +332,10 @@ impl Header {
             Header::Dx10(header) => header.width,
         }
     }
-    pub fn width_mut(&mut self) -> &mut u32 {
-        match self {
-            Header::Dx9(header) => &mut header.width,
-            Header::Dx10(header) => &mut header.width,
-        }
-    }
     pub const fn height(&self) -> u32 {
         match self {
             Header::Dx9(header) => header.height,
             Header::Dx10(header) => header.height,
-        }
-    }
-    pub fn height_mut(&mut self) -> &mut u32 {
-        match self {
-            Header::Dx9(header) => &mut header.height,
-            Header::Dx10(header) => &mut header.height,
         }
     }
     pub const fn size(&self) -> Size {
@@ -359,24 +347,19 @@ impl Header {
             Header::Dx10(header) => header.depth,
         }
     }
-    pub fn depth_mut(&mut self) -> &mut Option<u32> {
-        match self {
-            Header::Dx9(header) => &mut header.depth,
-            Header::Dx10(header) => &mut header.depth,
-        }
-    }
     pub const fn mipmap_count(&self) -> NonZeroU32 {
         match self {
             Header::Dx9(header) => header.mipmap_count,
             Header::Dx10(header) => header.mipmap_count,
         }
     }
-    pub fn mipmap_count_mut(&mut self) -> &mut NonZeroU32 {
+    fn mipmap_count_mut(&mut self) -> &mut NonZeroU32 {
         match self {
             Header::Dx9(header) => &mut header.mipmap_count,
             Header::Dx10(header) => &mut header.mipmap_count,
         }
     }
+
     /// The [`Dx10Header::array_size`] value, or 1 if it's a DX9 header.
     pub const fn array_size(&self) -> u32 {
         match self {
@@ -398,19 +381,7 @@ impl Header {
             _ => None,
         }
     }
-    pub fn dx9_mut(&mut self) -> Option<&mut Dx9Header> {
-        match self {
-            Header::Dx9(dx9) => Some(dx9),
-            _ => None,
-        }
-    }
     pub const fn dx10(&self) -> Option<&Dx10Header> {
-        match self {
-            Header::Dx10(dx10) => Some(dx10),
-            _ => None,
-        }
-    }
-    pub fn dx10_mut(&mut self) -> Option<&mut Dx10Header> {
         match self {
             Header::Dx10(dx10) => Some(dx10),
             _ => None,
@@ -472,8 +443,8 @@ impl Header {
         }
     }
 
-    fn fix_based_on_file_len(&mut self, options: &Options) -> Option<()> {
-        fn get_expected_data_len(header: &Header, options: &Options) -> Option<u64> {
+    fn fix_based_on_file_len(&mut self, options: &ParseOptions) -> Option<()> {
+        fn get_expected_data_len(header: &Header, options: &ParseOptions) -> Option<u64> {
             let non_data = Header::MAGIC.len() + header.byte_len();
             options.file_len?.checked_sub(non_data as u64)
         }
@@ -501,7 +472,7 @@ impl Header {
         // doesn't match the expected data length. This is because
         // `expected_data_len > 0` always implies `array_size > 0`, so we know that
         // `array_size = 0` is wrong, no matter what.
-        if let Some(dx10) = self.dx10_mut() {
+        if let Header::Dx10(dx10) = self {
             if expected_data_len > 0 && dx10.array_size == 0 {
                 dx10.array_size = 1;
 
@@ -521,7 +492,9 @@ impl Header {
                 && dx10.misc_flag.contains(MiscFlags::TEXTURE_CUBE)
             {
                 let mut new_header = self.clone();
-                new_header.dx10_mut().unwrap().array_size = 1;
+                if let Header::Dx10(dx10) = &mut new_header {
+                    dx10.array_size = 1;
+                }
 
                 if test(&new_header) {
                     *self = new_header;
@@ -579,7 +552,7 @@ impl Header {
     /// Reads the header without magic bytes from a reader.
     ///
     /// If the header is read successfully, the reader will be at the start of the pixel data.
-    pub fn read<R: Read>(reader: &mut R, options: &Options) -> Result<Self, HeaderError> {
+    pub fn read<R: Read>(reader: &mut R, options: &ParseOptions) -> Result<Self, HeaderError> {
         if !options.skip_magic_bytes {
             Self::read_magic(reader)?;
         }
@@ -588,7 +561,7 @@ impl Header {
         Self::from_raw(&raw, options)
     }
 
-    pub fn from_raw(raw: &RawHeader, options: &Options) -> Result<Self, HeaderError> {
+    pub fn from_raw(raw: &RawHeader, options: &ParseOptions) -> Result<Self, HeaderError> {
         // verify header size
         if raw.size != RawHeader::SIZE {
             if options.permissive && raw.size == 24 {
@@ -765,7 +738,7 @@ impl Header {
 }
 
 impl Dx9PixelFormat {
-    fn from_raw(raw: &RawPixelFormat, options: &Options) -> Result<Self, HeaderError> {
+    fn from_raw(raw: &RawPixelFormat, options: &ParseOptions) -> Result<Self, HeaderError> {
         let size = raw.size;
         if size != RawPixelFormat::SIZE {
             if options.permissive && size == 0 {

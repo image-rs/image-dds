@@ -261,7 +261,7 @@ pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castabl
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     let mut file = File::open(dds_path)?;
 
-    let mut options = Options::default();
+    let mut options = ParseOptions::default();
     options.permissive = true;
     options.file_len = Some(file.metadata()?.len());
 
@@ -269,14 +269,14 @@ pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castabl
 }
 
 pub fn decode_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
-    options: &Options,
+    options: &ParseOptions,
     reader: impl std::io::Read,
     channels: Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     decode_dds_with_channels_select(options, reader, |_| channels)
 }
 pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
-    options: &Options,
+    options: &ParseOptions,
     mut reader: impl std::io::Read,
     select_channels: impl FnOnce(Format) -> Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
@@ -559,7 +559,9 @@ pub fn write_simple_dds_header(
     format: DxgiFormat,
 ) -> std::io::Result<()> {
     let mut header = Header::new_image(size.width, size.height, format);
-    header.dx10_mut().unwrap().alpha_mode = AlphaMode::Unknown;
+    if let Header::Dx10(dx10) = &mut header {
+        dx10.alpha_mode = AlphaMode::Unknown;
+    }
 
     w.write_all(&Header::MAGIC)?;
     header.to_raw().write(w)?;

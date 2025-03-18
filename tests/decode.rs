@@ -322,7 +322,7 @@ fn neg_infinity_bc6_blocks() {
 
         // decode it
         let (image, _) = util::decode_dds_with_channels::<f32>(
-            &Options::default(),
+            &ParseOptions::default(),
             dds_file.as_slice(),
             Channels::Rgb,
         )
