@@ -23,8 +23,7 @@ fn write_dds_header(size: Size, format: Format) -> Vec<u8> {
     let header = create_header(size, format);
 
     let mut output = Vec::new();
-    output.extend_from_slice(&Header::MAGIC);
-    header.to_raw().write(&mut output).unwrap();
+    header.write(&mut output).unwrap();
 
     output
 }

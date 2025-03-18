@@ -261,10 +261,7 @@ pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castabl
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
     let mut file = File::open(dds_path)?;
 
-    let mut options = ParseOptions::default();
-    options.permissive = true;
-    options.file_len = Some(file.metadata()?.len());
-
+    let options = ParseOptions::new_permissive(Some(file.metadata()?.len()));
     decode_dds_with_channels_select(&options, &mut file, select_channels)
 }
 
@@ -280,7 +277,7 @@ pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Casta
     mut reader: impl std::io::Read,
     select_channels: impl FnOnce(Format) -> Channels,
 ) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
-    let decoder = DdsDecoder::new_with(&mut reader, options)?;
+    let decoder = DdsDecoder::new_with_options(&mut reader, options)?;
     let size = decoder.header().size();
     let format = decoder.format();
 
@@ -563,8 +560,7 @@ pub fn write_simple_dds_header(
         dx10.alpha_mode = AlphaMode::Unknown;
     }
 
-    w.write_all(&Header::MAGIC)?;
-    header.to_raw().write(w)?;
+    header.write(w)?;
 
     Ok(())
 }

@@ -58,6 +58,15 @@ pub(crate) const NON_ZERO_U32_ONE: NonZeroU32 = {
     }
 };
 
+pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> u32 {
+    let size = main_size >> level;
+    if size == 0 {
+        1
+    } else {
+        size
+    }
+}
+
 /// Computes `2^exponent` as a float.
 #[inline(always)]
 pub(crate) fn two_powi(exponent: i8) -> f32 {

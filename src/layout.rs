@@ -2,7 +2,10 @@ use std::num::NonZeroU8;
 
 use bitflags::bitflags;
 
-use crate::{DdsCaps2, DecodeError, Header, MiscFlags, PixelInfo, ResourceDimension, Size};
+use crate::{
+    util::get_mipmap_size, DdsCaps2, DecodeError, Header, MiscFlags, PixelInfo, ResourceDimension,
+    Size,
+};
 
 pub trait DataRegion {
     /// The number of bytes this object occupies in the data section of a DDS file.
@@ -191,12 +194,10 @@ impl Texture {
         // compute len
         let mut len = main.data_len();
         for level in 1..mipmaps.get() {
-            let width = get_mip_size(main.width(), level);
-            let height = get_mip_size(main.height(), level);
             // this technically cannot overflow, because mip_len <= main.len,
             // but being conservative is better here
             let mip_len = pixels
-                .surface_bytes(Size::new(width, height))
+                .surface_bytes(main.size().get_mipmap(level))
                 .ok_or(DecodeError::DataLayoutTooBig)?;
             // this might overflow, so we check it
             len = len
@@ -224,15 +225,13 @@ impl Texture {
     }
     pub fn iter_mips(&self) -> impl Iterator<Item = SurfaceDescriptor> {
         let mut offset = self.main.data_offset();
-        let width_0 = self.main.width();
-        let height_0 = self.main.height();
+        let size_0 = self.main.size();
         let pixels = self.pixels;
         (0..self.mipmaps.get()).map(move |level| {
-            let width = get_mip_size(width_0, level);
-            let height = get_mip_size(height_0, level);
+            let size = size_0.get_mipmap(level);
             // Panic Safety: This cannot overflow, because we already checked in the constructor
-            let len = pixels.surface_bytes(Size::new(width, height)).unwrap();
-            let surface = SurfaceDescriptor::new(width, height, offset, len);
+            let len = pixels.surface_bytes(size).unwrap();
+            let surface = SurfaceDescriptor::new(size.width, size.height, offset, len);
             offset += len;
             surface
         })
@@ -285,9 +284,9 @@ impl Volume {
         // compute len
         let mut len = main.data_len();
         for level in 1..mipmaps.get() {
-            let width = get_mip_size(main.width(), level);
-            let height = get_mip_size(main.height(), level);
-            let depth = get_mip_size(main.height(), level);
+            let width = get_mipmap_size(main.width(), level);
+            let height = get_mipmap_size(main.height(), level);
+            let depth = get_mipmap_size(main.height(), level);
             // this technically cannot overflow, because mip_len <= main.len,
             // but being conservative is better here
             let mip_slice_len = pixels
@@ -326,9 +325,9 @@ impl Volume {
         let depth_0 = self.main.depth();
         let pixels = self.pixels;
         (0..self.mipmaps.get()).map(move |level| {
-            let width = get_mip_size(width_0, level);
-            let height = get_mip_size(height_0, level);
-            let depth = get_mip_size(depth_0, level);
+            let width = get_mipmap_size(width_0, level);
+            let height = get_mipmap_size(height_0, level);
+            let depth = get_mipmap_size(depth_0, level);
             // Panic Safety: This cannot overflow, because we already checked in the constructor
             let slice_len = pixels.surface_bytes(Size::new(width, height)).unwrap();
             let volume = VolumeDescriptor::new(width, height, depth, offset, slice_len);
@@ -560,15 +559,6 @@ impl DataRegion for DataLayout {
     fn data_offset(&self) -> u64 {
         // the data layout describes the entire data section, so it has to start at 0
         0
-    }
-}
-
-fn get_mip_size(main_size: u32, level: u8) -> u32 {
-    let size = main_size >> level;
-    if size == 0 {
-        1
-    } else {
-        size
     }
 }
 

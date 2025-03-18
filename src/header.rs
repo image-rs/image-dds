@@ -2,7 +2,7 @@ use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
     util::{read_u32_le_array, NON_ZERO_U32_ONE},
-    DataLayout, DataRegion, HeaderError, ParseOptions, PixelInfo, Size,
+    DataLayout, DataRegion, HeaderError, PixelInfo, Size,
 };
 use bitflags::bitflags;
 use std::{
@@ -304,6 +304,86 @@ pub struct Dx10Header {
     pub alpha_mode: AlphaMode,
 }
 
+/// Options specifying how to read and interpret a DDS header.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct ParseOptions {
+    /// Whether magic bytes should be skipped when reading the header.
+    ///
+    /// DDS files typically start with the magic bytes `"DDS "`. By default, the
+    /// decoder will check for these bytes and error if they are not present.
+    ///
+    /// If this is set to `true`, the decoder assume that the magic bytes are
+    /// not present and immediately start reading the header. This can be used
+    /// to read DDS files without magic bytes.
+    ///
+    /// Defaults to `false`.
+    pub skip_magic_bytes: bool,
+
+    /// Whether to allow certain invalid DDS files to be read.
+    ///
+    /// Certain older software may generate DDS files that do not strictly
+    /// adhere to the DDS specification and may contain invalid values in the
+    /// header. By default, the decoder will reject such files.
+    ///
+    /// If this option is set to `true`, the decoder will (1) ignore invalid
+    /// header values that would otherwise cause the decoder to reject the file
+    /// and (2) attempt to fix the header to read the file correctly. To fix the
+    /// header, [`Options::file_len`] must be provided.
+    ///
+    /// Defaults to `false`.
+    pub permissive: bool,
+
+    /// The length of the file in bytes.
+    ///
+    /// This length includes the magic bytes, header, and data section. Even if
+    /// [`Options::skip_magic_bytes`] is set to `true`, the length must include
+    /// the magic bytes.
+    ///
+    /// The purpose of this option is to provide more information, which enables
+    /// the decoder to read certain invalid DDS files if [`Options::permissive`]
+    /// is set to `true`. If [`Options::permissive`] is set to `false`, this
+    /// option will be ignored.
+    ///
+    /// If this option is set incorrectly (i.e. this length is not equal to the
+    /// actual length of the file), the decoder may misinterpret certain valid
+    /// and invalid DDS files.
+    ///
+    /// Defaults to `None`.
+    ///
+    /// ### Usage
+    ///
+    /// The most common way to set this option is to use the file metadata:
+    ///
+    /// ```no_run
+    /// let mut file = std::fs::File::open("example.dds").unwrap();
+    ///
+    /// let mut options = ddsd::Options::default();
+    /// options.permissive = true;
+    /// options.file_len = file.metadata().ok().map(|m| m.len());
+    /// ```
+    pub file_len: Option<u64>,
+}
+impl ParseOptions {
+    pub fn new_permissive(file_len: Option<u64>) -> Self {
+        Self {
+            permissive: true,
+            file_len,
+            ..Default::default()
+        }
+    }
+}
+#[allow(clippy::derivable_impls)]
+impl Default for ParseOptions {
+    fn default() -> Self {
+        Self {
+            skip_magic_bytes: false,
+            permissive: false,
+            file_len: None,
+        }
+    }
+}
+
 impl From<Dx9Header> for Header {
     fn from(header: Dx9Header) -> Self {
         Self::Dx9(header)
@@ -372,6 +452,18 @@ impl Header {
         match self {
             Self::Dx9(header) => header.alpha_mode(),
             Self::Dx10(header) => header.alpha_mode,
+        }
+    }
+
+    /// Whether the color format is in sRGB color space.
+    ///
+    /// This can only be `true` for DX10 header. Legacy (DX9) formats cannot
+    /// specify the color space and are assumed to be linear.
+    pub const fn is_srgb(&self) -> bool {
+        if let Self::Dx10(dx10) = self {
+            dx10.dxgi_format.is_srgb()
+        } else {
+            false
         }
     }
 
@@ -549,7 +641,10 @@ impl Header {
         Ok(())
     }
 
-    /// Reads the header without magic bytes from a reader.
+    /// Reads the header from a reader.
+    ///
+    /// Magic bytes are read by default and can be turned off with
+    /// [`ParseOptions::skip_magic_bytes`].
     ///
     /// If the header is read successfully, the reader will be at the start of the pixel data.
     pub fn read<R: Read>(reader: &mut R, options: &ParseOptions) -> Result<Self, HeaderError> {
@@ -651,6 +746,14 @@ impl Header {
         }
 
         Ok(header)
+    }
+
+    /// Writes the header including magic bytes.
+    pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
+        writer.write_all(&Self::MAGIC)?;
+
+        let raw = self.to_raw();
+        raw.write(writer)
     }
 
     pub fn to_raw(&self) -> RawHeader {

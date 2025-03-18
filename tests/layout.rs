@@ -14,11 +14,8 @@ fn parse_data_layout_of_all_dds_files() {
         let mut file = File::open(&dds_path).expect("Failed to open file");
         let file_len = file.metadata().unwrap().len();
 
-        let mut options = ParseOptions::default();
-        options.permissive = true;
-        options.file_len = Some(file_len);
-
-        let decoder_result = DdsDecoder::new_with(&mut file, &options);
+        let options = ParseOptions::new_permissive(Some(file_len));
+        let decoder_result = DdsDecoder::new_with_options(&mut file, &options);
         let decoder = match decoder_result {
             Ok(decoder) => decoder,
             Err(e) => panic!("Failed to decode {}\nFile: {:?}", e, file),
@@ -64,7 +61,7 @@ fn full_layout_snapshot() {
 
         let mut options = ParseOptions::default();
         options.permissive = false;
-        let decoder = DdsDecoder::new_with(&mut file, &options)?;
+        let decoder = DdsDecoder::new_with_options(&mut file, &options)?;
 
         let data_len = file_len - get_header_byte_len(decoder.header());
         if data_len != decoder.layout().data_len() {
@@ -78,10 +75,8 @@ fn full_layout_snapshot() {
         let mut file = File::open(dds_path)?;
         let file_len = file.metadata()?.len();
 
-        let mut options = ParseOptions::default();
-        options.permissive = true;
-        options.file_len = Some(file_len);
-        let decoder = DdsDecoder::new_with(&mut file, &options)?;
+        let options = ParseOptions::new_permissive(Some(file_len));
+        let decoder = DdsDecoder::new_with_options(&mut file, &options)?;
 
         let header = decoder.header();
         let format = decoder.format();
@@ -114,7 +109,7 @@ fn full_layout_snapshot() {
         // FORMAT INFO
         output.push_str("\nPixel Format:\n");
         output.push_str(&format!("    format: {:?}", format));
-        if decoder.is_srgb() {
+        if header.is_srgb() {
             output.push_str(" (sRGB)");
         }
         output.push_str(&format!(
