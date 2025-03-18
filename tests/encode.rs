@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use ddsd::*;
 use rand::Rng;
-use util::{test_data_dir, Image, WithPrecision};
+use util::{as_bytes_mut, test_data_dir, Image, WithPrecision};
 
 mod util;
 
@@ -42,20 +42,13 @@ fn encode_decode(
 ) -> (Vec<u8>, Image<f32>) {
     // encode
     let mut encoded = write_dds_header(image.size, format);
-    let data_section_offset = encoded.len();
     encode_image(image, format, &mut encoded, options).unwrap();
 
     // decode
-    let header = create_header(image.size, format);
-    let decode_format = Format::from_header(&header).unwrap();
+    let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
     let mut output = vec![0_f32; image.size.pixels() as usize * image.channels.count() as usize];
-    decode_format
-        .decode_f32(
-            &mut &encoded[data_section_offset..],
-            image.size,
-            image.channels,
-            &mut output,
-        )
+    decoder
+        .next_surface(as_bytes_mut(&mut output), image.color())
         .unwrap();
 
     let image = Image {

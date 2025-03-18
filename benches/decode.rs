@@ -47,7 +47,7 @@ fn bench_decoder_with(
     c.bench_function(&name, |b| {
         let header = Header::new_image(config.size.width, config.size.height, format);
 
-        let reader = DdsDecoder::from_header(header).unwrap();
+        let reader = DdsInfo::new(header).unwrap();
         let format = reader.format();
 
         let surface = reader.layout().texture().unwrap().main();

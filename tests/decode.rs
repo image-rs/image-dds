@@ -69,8 +69,8 @@ fn decode_bc6_fuzz_hdr() {
         output_dds_path: &Path,
     ) -> Result<Option<String>, Box<dyn std::error::Error>> {
         let mut file = File::open(dds_path)?;
-        let decoder = DdsDecoder::new(&mut file)?;
-        let format = decoder.format();
+        let info = DdsInfo::read(&mut file)?;
+        let format = info.format();
         if !matches!(format, Format::BC6H_SF16 | Format::BC6H_UF16) {
             return Ok(None);
         }
@@ -150,13 +150,13 @@ fn decode_rect() {
 
         // read dds
         let mut file = File::open(dds_path)?;
-        let decoder = DdsDecoder::new(&mut file)?;
-        let size = decoder.header().size();
-        let format = decoder.format();
+        let info = DdsInfo::read(&mut file)?;
+        let size = info.header().size();
+        let format = info.format();
         let target_color = ColorFormat::new(Channels::Rgba, U8);
 
         // read in the whole DDS surface, because we need to read it multiple times
-        let surface_byte_len = decoder.layout().texture().unwrap().main().data_len();
+        let surface_byte_len = info.layout().texture().unwrap().main().data_len();
         let mut surface = vec![0_u8; surface_byte_len as usize];
         file.read_exact(&mut surface)?;
 

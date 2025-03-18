@@ -4674,7 +4674,7 @@ images/permissive/wrong mipmap count 2.dds
 
 
 images/permissive/wrong mipmap count 3.dds
-    Error if strict: Too many mipmaps (4294967295), the maximum supported is 32
+    Error if strict: Too many mipmaps (4294967295), the maximum supported is 255
 
     Raw Header:
         flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
@@ -4700,7 +4700,7 @@ images/permissive/wrong mipmap count 3.dds
 
 
 images/permissive/wrong mipmap count 4.dds
-    Error if strict: Too many mipmaps (4294967295), the maximum supported is 32
+    Error if strict: Too many mipmaps (4294967295), the maximum supported is 255
 
     Raw Header:
         flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)

@@ -4,7 +4,6 @@ use std::{
 };
 
 use crate::{
-    cast,
     decode::{get_decoders, ReadSeek},
     detect,
     encode::get_encoders,
@@ -202,58 +201,6 @@ impl Format {
         get_decoders(*self).decode(color, reader, size, output)
     }
 
-    /// A convenience method to decode with [`Precision::U8`].
-    ///
-    /// See [`Self::decode`] for more details.
-    pub fn decode_u8(
-        &self,
-        reader: &mut dyn Read,
-        size: Size,
-        channels: Channels,
-        output: &mut [u8],
-    ) -> Result<(), DecodeError> {
-        self.decode(
-            reader,
-            size,
-            ColorFormat::new(channels, Precision::U8),
-            output,
-        )
-    }
-    /// A convenience method to decode with [`Precision::U16`].
-    ///
-    /// See [`Self::decode`] for more details.
-    pub fn decode_u16(
-        &self,
-        reader: &mut dyn Read,
-        size: Size,
-        channels: Channels,
-        output: &mut [u16],
-    ) -> Result<(), DecodeError> {
-        self.decode(
-            reader,
-            size,
-            ColorFormat::new(channels, Precision::U16),
-            cast::as_bytes_mut(output),
-        )
-    }
-    /// A convenience method to decode with [`Precision::F32`].
-    ///
-    /// See [`Self::decode`] for more details.
-    pub fn decode_f32(
-        &self,
-        reader: &mut dyn Read,
-        size: Size,
-        channels: Channels,
-        output: &mut [f32],
-    ) -> Result<(), DecodeError> {
-        self.decode(
-            reader,
-            size,
-            ColorFormat::new(channels, Precision::F32),
-            cast::as_bytes_mut(output),
-        )
-    }
-
     /// Decodes a rectangle of the image data of a surface from the given reader
     /// and writes it to the given output buffer.
     ///
@@ -296,9 +243,9 @@ impl Format {
         decoders.decode_rect(color, reader, size, rect, output, row_pitch)
     }
 
-    pub fn encode<W: Write>(
+    pub fn encode(
         &self,
-        writer: &mut W,
+        writer: &mut dyn Write,
         size: Size,
         color: ColorFormat,
         data: &[u8],
@@ -309,54 +256,6 @@ impl Format {
         } else {
             Err(EncodeError::UnsupportedFormat(*self))
         }
-    }
-    pub fn encode_u8<W: Write>(
-        &self,
-        writer: &mut W,
-        size: Size,
-        channels: Channels,
-        data: &[u8],
-        options: &EncodeOptions,
-    ) -> Result<(), EncodeError> {
-        self.encode(
-            writer,
-            size,
-            ColorFormat::new(channels, Precision::U8),
-            data,
-            options,
-        )
-    }
-    pub fn encode_u16<W: Write>(
-        &self,
-        writer: &mut W,
-        size: Size,
-        channels: Channels,
-        data: &[u16],
-        options: &EncodeOptions,
-    ) -> Result<(), EncodeError> {
-        self.encode(
-            writer,
-            size,
-            ColorFormat::new(channels, Precision::U16),
-            cast::as_bytes(data),
-            options,
-        )
-    }
-    pub fn encode_f32<W: Write>(
-        &self,
-        writer: &mut W,
-        size: Size,
-        channels: Channels,
-        data: &[f32],
-        options: &EncodeOptions,
-    ) -> Result<(), EncodeError> {
-        self.encode(
-            writer,
-            size,
-            ColorFormat::new(channels, Precision::F32),
-            cast::as_bytes(data),
-            options,
-        )
     }
 
     /// Returns information about the encoding support of this format.

@@ -13,7 +13,7 @@ mod layout;
 mod pixel;
 mod util;
 
-use std::{io::Read, num::NonZeroU8};
+use std::num::NonZeroU8;
 
 pub use color::*;
 pub use decoder::*;

@@ -246,19 +246,19 @@ impl WithPrecision for f32 {
 
 pub fn read_dds<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
-) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     read_dds_with_channels_select(dds_path, |f| f.channels())
 }
 pub fn read_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
     channels: Channels,
-) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     read_dds_with_channels_select(dds_path, |_| channels)
 }
 pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
     select_channels: impl FnOnce(Format) -> Channels,
-) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     let mut file = File::open(dds_path)?;
 
     let options = ParseOptions::new_permissive(Some(file.metadata()?.len()));
@@ -269,27 +269,24 @@ pub fn decode_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
     options: &ParseOptions,
     reader: impl std::io::Read,
     channels: Channels,
-) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     decode_dds_with_channels_select(options, reader, |_| channels)
 }
 pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
     options: &ParseOptions,
     mut reader: impl std::io::Read,
     select_channels: impl FnOnce(Format) -> Channels,
-) -> Result<(Image<T>, DdsDecoder), Box<dyn std::error::Error>> {
-    let decoder = DdsDecoder::new_with_options(&mut reader, options)?;
+) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
+    let mut decoder = Decoder::new_with_options(reader, options)?;
     let size = decoder.header().size();
     let format = decoder.format();
 
     let channels = select_channels(format);
 
     let mut image_data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
-    let image_data_bytes: &mut [u8] = as_bytes_mut(&mut image_data);
-    format.decode(
-        &mut reader,
-        size,
+    decoder.next_surface(
+        as_bytes_mut(&mut image_data),
         ColorFormat::new(channels, T::PRECISION),
-        image_data_bytes,
     )?;
 
     let image = Image {
@@ -297,46 +294,37 @@ pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Casta
         channels,
         size,
     };
-    Ok((image, decoder))
+    Ok((image, decoder.info().clone()))
 }
 
 pub fn read_dds_png_compatible(
     dds_path: &Path,
-) -> Result<(Image<u8>, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<u8>, DdsInfo), Box<dyn std::error::Error>> {
     read_dds_with_channels_select(dds_path, |f| to_png_compatible_channels(f.channels()).0)
 }
 
 pub fn read_dds_rect_as_u8(
     dds_path: &Path,
     rect: Rect,
-) -> Result<(Image<u8>, DdsDecoder), Box<dyn std::error::Error>> {
+) -> Result<(Image<u8>, DdsInfo), Box<dyn std::error::Error>> {
     // read dds
     let mut file = File::open(dds_path)?;
+    let mut decoder = Decoder::new(file)?;
 
-    let decoder = DdsDecoder::new(&mut file)?;
-    let size = decoder.header().size();
-    let format = decoder.format();
-
-    let channels = to_png_compatible_channels(format.channels()).0;
-
+    let channels = to_png_compatible_channels(decoder.format().channels()).0;
     let color = ColorFormat::new(channels, U8);
     let bpp = color.bytes_per_pixel() as usize;
-    let mut image_data = vec![0_u8; rect.size().pixels() as usize * bpp];
-    format.decode_rect(
-        &mut file,
-        size,
-        rect,
-        color,
-        &mut image_data,
-        rect.width as usize * bpp,
-    )?;
+
+    let mut image_data = vec![0_u8; color.buffer_size(rect.size()).unwrap()];
+    let row_pitch = rect.width as usize * bpp;
+    decoder.next_surface_rect(&mut image_data, row_pitch, rect, color)?;
 
     let image = Image {
         data: image_data,
         channels,
         size: rect.size(),
     };
-    Ok((image, decoder))
+    Ok((image, decoder.info().clone()))
 }
 
 pub fn to_png_compatible_channels(channels: Channels) -> (Channels, png::ColorType) {
@@ -431,14 +419,12 @@ pub fn compare_snapshot_dds_f32(
     let dds_exists = dds_path.exists();
     if dds_exists {
         let mut file = File::open(dds_path)?;
-        let dds_decoder = DdsDecoder::new(&mut file)?;
-        let size = dds_decoder.header().size();
+        let mut decoder = Decoder::new(file)?;
+        let size = decoder.header().size();
 
         let mut dds_image_data =
             vec![0.0_f32; size.pixels() as usize * image.channels.count() as usize];
-        dds_decoder
-            .format()
-            .decode_f32(&mut file, size, image.channels, &mut dds_image_data)?;
+        decoder.next_surface(as_bytes_mut(&mut dds_image_data), image.color())?;
 
         assert!(dds_image_data.len() == image.data.len());
         if dds_image_data == image.data {

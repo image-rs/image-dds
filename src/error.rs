@@ -27,6 +27,9 @@ impl std::error::Error for FormatError {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecodeError {
+    /// The decoder only supports up to 255 mipmaps.
+    ///
+    /// For all practical purposes, 32 should be the maximum number of mipmaps.
     TooManyMipMaps(u32),
     /// A volume/texture 3D without a depth.
     MissingDepth,
@@ -61,6 +64,14 @@ pub enum DecodeError {
         required_minimum: usize,
     },
 
+    /// When decoding a volume texture, it is not allowed to skip mipmaps
+    /// within a volume.
+    ///
+    /// See [`crate::Decoder::skip_mipmaps`] for more details.
+    CannotSkipMipmapsInVolume,
+    /// There are no further surfaces to decode.
+    NoMoreSurfaces,
+
     Format(FormatError),
     Header(HeaderError),
     Io(std::io::Error),
@@ -72,7 +83,7 @@ impl std::fmt::Display for DecodeError {
             DecodeError::TooManyMipMaps(mipmaps) => {
                 write!(
                     f,
-                    "Too many mipmaps ({}), the maximum supported is 32",
+                    "Too many mipmaps ({}), the maximum supported is 255",
                     mipmaps
                 )
             }
@@ -108,6 +119,12 @@ impl std::fmt::Display for DecodeError {
                     "Buffer too small for rectangle: required at least {} bytes",
                     required_minimum
                 )
+            }
+            DecodeError::CannotSkipMipmapsInVolume => {
+                write!(f, "Cannot skip mipmaps within a volume texture")
+            }
+            DecodeError::NoMoreSurfaces => {
+                write!(f, "No more surfaces to decode")
             }
 
             DecodeError::Format(error) => write!(f, "{}", error),

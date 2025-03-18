@@ -15,13 +15,13 @@ fn parse_data_layout_of_all_dds_files() {
         let file_len = file.metadata().unwrap().len();
 
         let options = ParseOptions::new_permissive(Some(file_len));
-        let decoder_result = DdsDecoder::new_with_options(&mut file, &options);
-        let decoder = match decoder_result {
-            Ok(decoder) => decoder,
+        let info_result = DdsInfo::read_with_options(&mut file, &options);
+        let info = match info_result {
+            Ok(info) => info,
             Err(e) => panic!("Failed to decode {}\nFile: {:?}", e, file),
         };
 
-        let header = decoder.header();
+        let header = info.header();
 
         // skip cubemaps with array_size == 6 for now
         // https://github.com/RunDevelopment/ddsd/issues/4
@@ -32,7 +32,7 @@ fn parse_data_layout_of_all_dds_files() {
         }
 
         let data_len = file_len - get_header_byte_len(header);
-        let expected_len = decoder.layout().data_len();
+        let expected_len = info.layout().data_len();
         assert_eq!(data_len, expected_len, "File: {:?}", &dds_path);
     }
 }
@@ -61,7 +61,7 @@ fn full_layout_snapshot() {
 
         let mut options = ParseOptions::default();
         options.permissive = false;
-        let decoder = DdsDecoder::new_with_options(&mut file, &options)?;
+        let decoder = DdsInfo::read_with_options(&mut file, &options)?;
 
         let data_len = file_len - get_header_byte_len(decoder.header());
         if data_len != decoder.layout().data_len() {
@@ -76,11 +76,11 @@ fn full_layout_snapshot() {
         let file_len = file.metadata()?.len();
 
         let options = ParseOptions::new_permissive(Some(file_len));
-        let decoder = DdsDecoder::new_with_options(&mut file, &options)?;
+        let info = DdsInfo::read_with_options(&mut file, &options)?;
 
-        let header = decoder.header();
-        let format = decoder.format();
-        let layout = decoder.layout();
+        let header = info.header();
+        let format = info.format();
+        let layout = info.layout();
 
         let mut output = String::new();
 

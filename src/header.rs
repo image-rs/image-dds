@@ -356,11 +356,10 @@ pub struct ParseOptions {
     /// The most common way to set this option is to use the file metadata:
     ///
     /// ```no_run
+    /// # use ddsd::*;
     /// let mut file = std::fs::File::open("example.dds").unwrap();
-    ///
-    /// let mut options = ddsd::Options::default();
-    /// options.permissive = true;
-    /// options.file_len = file.metadata().ok().map(|m| m.len());
+    /// let file_len = file.metadata().ok().map(|m| m.len());
+    /// let options = ParseOptions::new_permissive(file_len);
     /// ```
     pub file_len: Option<u64>,
 }

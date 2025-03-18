@@ -389,7 +389,7 @@ impl CubeMapSide {
 pub struct TextureArray {
     kind: TextureArrayKind,
     array_len: u32,
-    first: Texture,
+    pub(crate) first: Texture,
 }
 impl TextureArray {
     fn new(kind: TextureArrayKind, array_len: u32, first: Texture) -> Result<Self, DecodeError> {
@@ -608,7 +608,7 @@ struct VolumeLayoutInfo {
 impl VolumeLayoutInfo {
     fn from_header(header: &Header, pixels: PixelInfo) -> Result<Self, DecodeError> {
         let mipmaps = header.mipmap_count().get();
-        if mipmaps > 32 {
+        if mipmaps > 255 {
             return Err(DecodeError::TooManyMipMaps(mipmaps));
         }
         let mipmaps = NonZeroU8::new(mipmaps as u8).unwrap();

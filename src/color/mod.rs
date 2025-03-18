@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use crate::cast;
+use crate::{cast, Size};
 
 pub(crate) mod ch;
 mod formats;
@@ -86,6 +86,21 @@ impl ColorFormat {
     /// This is calculated as simply `channels.count() * precision.size()`.
     pub const fn bytes_per_pixel(&self) -> u8 {
         self.channels.count() * self.precision.size()
+    }
+
+    /// The number of bytes per pixel in a decoded surface/output buffer.
+    ///
+    /// If the number if bytes is larger than `isize::MAX`, `None` is returned.
+    pub fn buffer_size(&self, size: Size) -> Option<usize> {
+        let bytes_per_pixel = self.bytes_per_pixel() as u64;
+        let pixels = size.pixels();
+
+        let bytes = pixels.checked_mul(bytes_per_pixel)?;
+        if bytes < isize::MAX as u64 {
+            Some(bytes as usize)
+        } else {
+            None
+        }
     }
 
     /// Returns a unique key for this color format.

@@ -12,10 +12,10 @@ fn from_header() {
         let options = ParseOptions::new_permissive(Some(
             file.metadata().expect("Failed to get metadata").len(),
         ));
-        let decoder = DdsDecoder::new_with_options(&mut file, &options).expect("Failed to decode");
+        let info = DdsInfo::read_with_options(&mut file, &options).expect("Failed to decode");
 
-        let from_format = PixelInfo::from(decoder.format());
-        let from_header = PixelInfo::from_header(decoder.header()).ok();
+        let from_format = PixelInfo::from(info.format());
+        let from_header = PixelInfo::from_header(info.header()).ok();
 
         assert_eq!(Some(from_format), from_header, "File: {:?}", &dds_path);
     }
