@@ -7,7 +7,7 @@ use super::read_write::{
     for_each_block_rect_untyped, for_each_block_untyped, process_2x1_blocks_helper,
     process_8x1_blocks_helper, PixelRange,
 };
-use super::{Args, DecoderSet, DirectDecoder, RArgs};
+use super::{Args, Decoder, DecoderSet, RArgs};
 
 // helpers
 
@@ -30,7 +30,7 @@ macro_rules! underlying {
         const NATIVE_COLOR: ColorFormat =
             ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
 
-        DirectDecoder::new_with_all_channels(
+        Decoder::new_with_all_channels(
             NATIVE_COLOR,
             |Args(r, out, context)| {
                 for_each_block_untyped::<2, 1, BYTES_PER_BLOCK, OutPixel>(
@@ -83,7 +83,7 @@ macro_rules! r1 {
         const NATIVE_COLOR: ColorFormat =
             ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
 
-        DirectDecoder::new_with_all_channels(
+        Decoder::new_with_all_channels(
             NATIVE_COLOR,
             |Args(r, out, context)| {
                 for_each_block_untyped::<8, 1, 1, OutPixel>(

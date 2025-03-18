@@ -27,10 +27,7 @@ pub(crate) struct PixelSize {
 /// guaranteed te have a length that is a multiple of `size_of::<OutputPixel>()`.
 ///
 /// Both slices are guaranteed to have the same number of pixels.
-pub(crate) type ProcessPixelsFn = fn(encoded_decoded: PixelArgs);
-// Another hack to work around that mutable references aren't allowed in const
-// environments on MSRV.
-pub(crate) struct PixelArgs<'a, 'b>(pub &'a [u8], pub &'b mut [u8]);
+pub(crate) type ProcessPixelsFn = fn(&[u8], &mut [u8]);
 
 /// A helper function for implementing [`ProcessPixelsFn`]s.
 #[inline]
@@ -768,7 +765,7 @@ impl ChannelConversionBuffer {
     fn process_pixels(&mut self, encoded: &[u8], out: &mut [u8], f: ProcessPixelsFn) {
         // fast path: no conversion needed
         if self.native_color.channels == self.target {
-            f(PixelArgs(encoded, out));
+            f(encoded, out);
             return;
         }
 
@@ -793,7 +790,7 @@ impl ChannelConversionBuffer {
             let buffer_chunk = &mut buffer[..chunk_size * buffer_bytes_per_pixel];
 
             // decode into the temporary buffer
-            f(PixelArgs(encoded_chunk, buffer_chunk));
+            f(encoded_chunk, buffer_chunk);
 
             // convert the channels into the output buffer
             convert_channels_for(self.native_color, self.target, buffer_chunk, out_chunk);

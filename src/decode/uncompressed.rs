@@ -1,7 +1,8 @@
 use super::read_write::{
-    process_pixels_helper, process_pixels_helper_unroll, PixelArgs, ProcessPixelsFn,
+    for_each_pixel_rect_untyped, for_each_pixel_untyped, process_pixels_helper,
+    process_pixels_helper_unroll, PixelSize, ProcessPixelsFn,
 };
-use super::{Args, DecodeFn, DecoderSet, UncompressedDecoder};
+use super::{Args, DecodeFn, Decoder, DecoderSet, RArgs};
 use crate::{
     cast, fp, fp10, fp11, fp16, n10, n16, n2, n4, n8, rgb9995f, s16, s8, xr10, yuv10, yuv16, yuv8,
     Norm, SwapRB, ToRgba, WithPrecision, B5G5R5A1, B5G6R5,
@@ -18,9 +19,30 @@ macro_rules! underlying {
         type InPixel = $in_pixel;
         type OutPixel = [$out; OUT_COUNT];
 
-        UncompressedDecoder::new::<InPixel, OutPixel>(
-            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION),
-            $f,
+        const NATIVE_COLOR: ColorFormat =
+            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
+        const PIXEL_SIZE: PixelSize = PixelSize {
+            encoded_size: std::mem::size_of::<InPixel>() as u8,
+            decoded_size: std::mem::size_of::<OutPixel>() as u8,
+        };
+
+        Decoder::new_with_all_channels(
+            NATIVE_COLOR,
+            |Args(r, out, context)| {
+                for_each_pixel_untyped(r, out, context, NATIVE_COLOR, PIXEL_SIZE, $f)
+            },
+            |RArgs(r, out, row_pitch, rect, context)| {
+                for_each_pixel_rect_untyped(
+                    r,
+                    out,
+                    row_pitch,
+                    context,
+                    rect,
+                    NATIVE_COLOR,
+                    PIXEL_SIZE,
+                    $f,
+                )
+            },
         )
     }};
     ($channels:expr, $out:ty, $in_pixel:ty, $f:expr) => {{
@@ -28,15 +50,12 @@ macro_rules! underlying {
         type InPixel = $in_pixel;
         type OutPixel = [$out; OUT_COUNT];
 
-        fn process_pixels(PixelArgs(encoded, decoded): PixelArgs) {
+        fn process_pixels(encoded: &[u8], decoded: &mut [u8]) {
             let f = closure_types::<InPixel, OutPixel, _>($f);
             process_pixels_helper(encoded, decoded, f);
         }
 
-        UncompressedDecoder::new::<InPixel, OutPixel>(
-            ColorFormat::new($channels, <$out as WithPrecision>::PRECISION),
-            process_pixels,
-        )
+        underlying!($channels, $out, $in_pixel, process_fn = process_pixels)
     }};
 }
 macro_rules! gray {
@@ -106,11 +125,11 @@ const COPY_S8: DecodeFn = |Args(r, out, _)| {
 
 macro_rules! create {
     ($f:expr) => {
-        |PixelArgs(encoded, decoded)| process_pixels_helper(encoded, decoded, $f)
+        |encoded, decoded| process_pixels_helper(encoded, decoded, $f)
     };
 }
 
-const PROCESS_COPY: ProcessPixelsFn = |PixelArgs(encoded, decoded)| {
+const PROCESS_COPY: ProcessPixelsFn = |encoded, decoded| {
     debug_assert!(encoded.len() == decoded.len());
     decoded.copy_from_slice(encoded);
 };
@@ -132,12 +151,10 @@ const S16_TO_U16: ProcessPixelsFn = create!(s16::n16);
 const S16_TO_F32: ProcessPixelsFn = create!(s16::uf32);
 
 const F16_TO_U8: ProcessPixelsFn = create!(fp16::n8);
-const F16_TO_U16: ProcessPixelsFn = |PixelArgs(encoded, decoded)| {
-    process_pixels_helper_unroll::<4, _, _, _>(encoded, decoded, fp16::n16)
-};
-const F16_TO_F32: ProcessPixelsFn = |PixelArgs(encoded, decoded)| {
-    process_pixels_helper_unroll::<4, _, _, _>(encoded, decoded, fp16::f32)
-};
+const F16_TO_U16: ProcessPixelsFn =
+    |encoded, decoded| process_pixels_helper_unroll::<4, _, _, _>(encoded, decoded, fp16::n16);
+const F16_TO_F32: ProcessPixelsFn =
+    |encoded, decoded| process_pixels_helper_unroll::<4, _, _, _>(encoded, decoded, fp16::f32);
 
 const F32_TO_U8: ProcessPixelsFn = create!(fp::n8);
 const F32_TO_U16: ProcessPixelsFn = create!(fp::n16);
@@ -145,34 +162,34 @@ const F32_TO_F32: ProcessPixelsFn = create!(|x: f32| x);
 
 // decoders
 
-pub(crate) const R8G8B8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8G8B8_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, [u8; 3], process_fn = N8_TO_U8),
     rgb!(u16, [u8; 3], process_fn = N8_TO_U16),
     rgb!(f32, [u8; 3], process_fn = N8_TO_F32),
 ])
 .add_specialized(Rgb, U8, COPY_U8);
 
-pub(crate) const B8G8R8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const B8G8R8_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, [u8; 3], |bgr| bgr.swap_rb()),
     rgb!(u16, [u8; 3], |bgr| bgr.swap_rb().map(n8::n16)),
     rgb!(f32, [u8; 3], |bgr| bgr.swap_rb().map(n8::f32)),
 ]);
 
-pub(crate) const R8G8B8A8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8G8B8A8_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u8; 4], process_fn = N8_TO_U8),
     rgba!(u16, [u8; 4], process_fn = N8_TO_U16),
     rgba!(f32, [u8; 4], process_fn = N8_TO_F32),
 ])
 .add_specialized(Rgba, U8, COPY_U8);
 
-pub(crate) const R8G8B8A8_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8G8B8A8_SNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u8; 4], process_fn = S8_TO_U8),
     rgba!(u16, [u8; 4], process_fn = S8_TO_U16),
     rgba!(f32, [u8; 4], process_fn = S8_TO_F32),
 ])
 .add_specialized(Rgba, U8, COPY_S8);
 
-pub(crate) const B8G8R8A8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const B8G8R8A8_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u8; 4], |bgra| bgra.swap_rb()),
     rgba!(u16, [u8; 4], |bgra| bgra.swap_rb().map(n8::n16)),
     rgba!(f32, [u8; 4], |bgra| bgra.swap_rb().map(n8::f32)),
@@ -191,7 +208,7 @@ pub(crate) const B8G8R8A8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
 fn bgrx_to_rgb([b, g, r, _]: [u8; 4]) -> [u8; 3] {
     [r, g, b]
 }
-pub(crate) const B8G8R8X8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const B8G8R8X8_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, [u8; 4], bgrx_to_rgb),
     rgb!(u16, [u8; 4], |bgrx| bgrx_to_rgb(bgrx).map(n8::n16)),
     rgb!(f32, [u8; 4], |bgrx| bgrx_to_rgb(bgrx).map(n8::f32)),
@@ -199,13 +216,13 @@ pub(crate) const B8G8R8X8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
     rgba!(u8, [u8; 4], |bgrx| bgrx_to_rgb(bgrx).to_rgba()),
 ]);
 
-pub(crate) const B5G6R5_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const B5G6R5_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, [u16; 1], |[bgr]| B5G6R5::from_u16(bgr).to_n8()),
     rgb!(u16, [u16; 1], |[bgr]| B5G6R5::from_u16(bgr).to_n16()),
     rgb!(f32, [u16; 1], |[bgr]| B5G6R5::from_u16(bgr).to_f32()),
 ]);
 
-pub(crate) const B5G5R5A1_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const B5G5R5A1_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u16; 1], |[bgra]| B5G5R5A1::from_u16(bgra).to_n8()),
     rgba!(u16, [u16; 1], |[bgra]| B5G5R5A1::from_u16(bgra).to_n16()),
     rgba!(f32, [u16; 1], |[bgra]| B5G5R5A1::from_u16(bgra).to_f32()),
@@ -220,7 +237,7 @@ fn unpack_bgra4444([low, high]: [u8; 2]) -> [u8; 4] {
 
     [r4, g4, b4, a4]
 }
-pub(crate) const B4G4R4A4_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const B4G4R4A4_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u8; 2], |bgra| unpack_bgra4444(bgra).map(n4::n8)),
     rgba!(u16, [u8; 2], |bgra| unpack_bgra4444(bgra).map(n4::n16)),
     rgba!(f32, [u8; 2], |bgra| unpack_bgra4444(bgra).map(n4::f32)),
@@ -235,33 +252,33 @@ fn unpack_abgr4444([low, high]: [u8; 2]) -> [u8; 4] {
 
     [r4, g4, b4, a4]
 }
-pub(crate) const A4B4G4R4_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const A4B4G4R4_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u8; 2], |bgra| unpack_abgr4444(bgra).map(n4::n8)),
     rgba!(u16, [u8; 2], |bgra| unpack_abgr4444(bgra).map(n4::n16)),
     rgba!(f32, [u8; 2], |bgra| unpack_abgr4444(bgra).map(n4::f32)),
 ]);
 
-pub(crate) const R8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8_UNORM: DecoderSet = DecoderSet::new(&[
     gray!(u8, [u8; 1], process_fn = N8_TO_U8),
     gray!(u16, [u8; 1], process_fn = N8_TO_U16),
     gray!(f32, [u8; 1], process_fn = N8_TO_F32),
 ])
 .add_specialized(Grayscale, U8, COPY_U8);
 
-pub(crate) const R8_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8_SNORM: DecoderSet = DecoderSet::new(&[
     gray!(u8, [u8; 1], process_fn = S8_TO_U8),
     gray!(u16, [u8; 1], process_fn = S8_TO_U16),
     gray!(f32, [u8; 1], process_fn = S8_TO_F32),
 ])
 .add_specialized(Grayscale, U8, COPY_S8);
 
-pub(crate) const R8G8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8G8_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, [u8; 2], |rg| [rg[0], rg[1], 0]),
     rgb!(u16, [u8; 2], |rg| [rg[0], rg[1], 0].map(n8::n16)),
     rgb!(f32, [u8; 2], |rg| [rg[0], rg[1], 0].map(n8::f32)),
 ]);
 
-pub(crate) const R8G8_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R8G8_SNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u8, [u8; 2], |[r, g]| [s8::n8(r), s8::n8(g), Norm::HALF]),
     rgb!(u16, [u8; 2], |[r, g]| [s8::n16(r), s8::n16(g), Norm::HALF]),
     rgb!(f32, [u8; 2], |[r, g]| [
@@ -271,33 +288,33 @@ pub(crate) const R8G8_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
     ]),
 ]);
 
-pub(crate) const A8_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const A8_UNORM: DecoderSet = DecoderSet::new(&[
     alpha!(u8, [u8; 1], process_fn = N8_TO_U8),
     alpha!(u16, [u8; 1], process_fn = N8_TO_U16),
     alpha!(f32, [u8; 1], process_fn = N8_TO_F32),
 ])
 .add_specialized(Alpha, U8, COPY_U8);
 
-pub(crate) const R16_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16_UNORM: DecoderSet = DecoderSet::new(&[
     gray!(u16, [u16; 1], process_fn = N16_TO_U16),
     gray!(u8, [u16; 1], process_fn = N16_TO_U8),
     gray!(f32, [u16; 1], process_fn = N16_TO_F32),
 ])
 .add_specialized(Grayscale, U16, COPY_U16);
 
-pub(crate) const R16_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16_SNORM: DecoderSet = DecoderSet::new(&[
     gray!(u16, [u16; 1], process_fn = S16_TO_U16),
     gray!(u8, [u16; 1], process_fn = S16_TO_U8),
     gray!(f32, [u16; 1], process_fn = S16_TO_F32),
 ]);
 
-pub(crate) const R16G16_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16G16_UNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u16, [u16; 2], |rg| [rg[0], rg[1], 0]),
     rgb!(u8, [u16; 2], |rg| [rg[0], rg[1], 0].map(n16::n8)),
     rgb!(f32, [u16; 2], |rg| [rg[0], rg[1], 0].map(n16::f32)),
 ]);
 
-pub(crate) const R16G16_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16G16_SNORM: DecoderSet = DecoderSet::new(&[
     rgb!(u16, [u16; 2], |[r, g]| [
         s16::n16(r),
         s16::n16(g),
@@ -311,14 +328,14 @@ pub(crate) const R16G16_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
     ]),
 ]);
 
-pub(crate) const R16G16B16A16_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16G16B16A16_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u16, [u16; 4], process_fn = N16_TO_U16),
     rgba!(u8, [u16; 4], process_fn = N16_TO_U8),
     rgba!(f32, [u16; 4], process_fn = N16_TO_F32),
 ])
 .add_specialized(Rgba, U16, COPY_U16);
 
-pub(crate) const R16G16B16A16_SNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16G16B16A16_SNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u16, [u16; 4], process_fn = S16_TO_U16),
     rgba!(u8, [u16; 4], process_fn = S16_TO_U8),
     rgba!(f32, [u16; 4], process_fn = S16_TO_F32),
@@ -332,7 +349,7 @@ fn unpack_rgba1010102(rgba: u32) -> (u16, u16, u16, u8) {
     let a2 = (rgba >> 30) & 0x3;
     (r10 as u16, g10 as u16, b10 as u16, a2 as u8)
 }
-pub(crate) const R10G10B10A2_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R10G10B10A2_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u16, [u32; 1], |[rgba]| {
         let (r, g, b, a) = unpack_rgba1010102(rgba);
         [n10::n16(r), n10::n16(g), n10::n16(b), n2::n16(a)]
@@ -354,7 +371,7 @@ fn unpack_rgb111110f(rgb: u32) -> [u16; 3] {
     let b10 = ((rgb >> 22) & 0x3FF) as u16;
     [r11, g11, b10]
 }
-pub(crate) const R11G11B10_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R11G11B10_FLOAT: DecoderSet = DecoderSet::new(&[
     rgb!(f32, [u32; 1], |[rgb]| {
         let [r11, g11, b10] = unpack_rgb111110f(rgb);
         [fp11::f32(r11), fp11::f32(g11), fp10::f32(b10)]
@@ -369,51 +386,51 @@ pub(crate) const R11G11B10_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
     }),
 ]);
 
-pub(crate) const R9G9B9E5_SHAREDEXP: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R9G9B9E5_SHAREDEXP: DecoderSet = DecoderSet::new(&[
     rgb!(f32, [u32; 1], |[rgb]| rgb9995f::f32(rgb)),
     rgb!(u16, [u32; 1], |[rgb]| rgb9995f::n16(rgb)),
     rgb!(u8, [u32; 1], |[rgb]| rgb9995f::n8(rgb)),
 ]);
 
-pub(crate) const R16_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16_FLOAT: DecoderSet = DecoderSet::new(&[
     gray!(f32, [u16; 1], process_fn = F16_TO_F32),
     gray!(u8, [u16; 1], process_fn = F16_TO_U8),
     gray!(u16, [u16; 1], process_fn = F16_TO_U16),
 ]);
 
-pub(crate) const R16G16_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16G16_FLOAT: DecoderSet = DecoderSet::new(&[
     rgb!(f32, [u16; 2], |[r, g]| [fp16::f32(r), fp16::f32(g), 0.0]),
     rgb!(u16, [u16; 2], |[r, g]| [fp16::n16(r), fp16::n16(g), 0]),
     rgb!(u8, [u16; 2], |[r, g]| [fp16::n8(r), fp16::n8(g), 0]),
 ]);
 
-pub(crate) const R16G16B16A16_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R16G16B16A16_FLOAT: DecoderSet = DecoderSet::new(&[
     rgba!(f32, [u16; 4], process_fn = F16_TO_F32),
     rgba!(u8, [u16; 4], process_fn = F16_TO_U8),
     rgba!(u16, [u16; 4], process_fn = F16_TO_U16),
 ]);
 
-pub(crate) const R32_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R32_FLOAT: DecoderSet = DecoderSet::new(&[
     gray!(f32, [f32; 1], process_fn = F32_TO_F32),
     gray!(u8, [f32; 1], process_fn = F32_TO_U8),
     gray!(u16, [f32; 1], process_fn = F32_TO_U16),
 ])
 .add_specialized(Grayscale, F32, COPY_U32);
 
-pub(crate) const R32G32_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R32G32_FLOAT: DecoderSet = DecoderSet::new(&[
     rgb!(f32, [f32; 2], |[r, g]| [r, g, 0.0]),
     rgb!(u16, [f32; 2], |[r, g]| [fp::n16(r), fp::n16(g), 0]),
     rgb!(u8, [f32; 2], |[r, g]| [fp::n8(r), fp::n8(g), 0]),
 ]);
 
-pub(crate) const R32G32B32_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R32G32B32_FLOAT: DecoderSet = DecoderSet::new(&[
     rgb!(f32, [f32; 3], process_fn = F32_TO_F32),
     rgb!(u8, [f32; 3], process_fn = F32_TO_U8),
     rgb!(u16, [f32; 3], process_fn = F32_TO_U16),
 ])
 .add_specialized(Rgb, F32, COPY_U32);
 
-pub(crate) const R32G32B32A32_FLOAT: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R32G32B32A32_FLOAT: DecoderSet = DecoderSet::new(&[
     rgba!(f32, [f32; 4], process_fn = F32_TO_F32),
     rgba!(u8, [f32; 4], process_fn = F32_TO_U8),
     rgba!(u16, [f32; 4], process_fn = F32_TO_U16),
@@ -429,7 +446,7 @@ fn unpack_rgba1010102_xr(rgba: u32) -> ([u16; 3], u8) {
 
     ([r_fixed as u16, g_fixed as u16, b_fixed as u16], a2 as u8)
 }
-pub(crate) const R10G10B10_XR_BIAS_A2_UNORM: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const R10G10B10_XR_BIAS_A2_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(f32, [u32; 1], |[rgba]| {
         let (rgb, a2) = unpack_rgba1010102_xr(rgba);
         let [r, g, b] = rgb.map(xr10::f32);
@@ -456,7 +473,7 @@ fn unpack_ayuv<T>(
     let [y, u, v] = decode_yuv([y, u, v]);
     [y, u, v, decode_alpha(a)]
 }
-pub(crate) const AYUV: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const AYUV: DecoderSet = DecoderSet::new(&[
     rgba!(u8, [u8; 4], |ayuv| unpack_ayuv(ayuv, yuv8::n8, |x| x)),
     rgba!(u16, [u8; 4], |ayuv| unpack_ayuv(ayuv, yuv8::n16, n8::n16)),
     rgba!(f32, [u8; 4], |ayuv| unpack_ayuv(ayuv, yuv8::f32, n8::f32)),
@@ -471,7 +488,7 @@ fn unpack_y410<T>(
     let [y, u, v] = decode_yuv([y, u, v]);
     [y, u, v, decode_alpha(a)]
 }
-pub(crate) const Y410: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const Y410: DecoderSet = DecoderSet::new(&[
     rgba!(u16, u32, |y410| unpack_y410(y410, yuv10::n16, n2::n16)),
     rgba!(f32, u32, |y410| unpack_y410(y410, yuv10::f32, n2::f32)),
     rgba!(u8, u32, |y410| unpack_y410(y410, yuv10::n8, n2::n8)),
@@ -486,7 +503,7 @@ fn unpack_y416<T>(
     let [y, u, v] = decode_yuv([y, u, v]);
     [y, u, v, decode_alpha(a)]
 }
-pub(crate) const Y416: DecoderSet = DecoderSet::new_uncompressed(&[
+pub(crate) const Y416: DecoderSet = DecoderSet::new(&[
     rgba!(u16, [u16; 4], |y416| unpack_y416(y416, yuv16::n16, |x| x)),
     rgba!(f32, [u16; 4], |y416| unpack_y416(
         y416,

@@ -117,8 +117,8 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// at the end of the encoded image data, meaning that the next byte read
 /// will be the first byte of either the next encoded surface or EOF.
 ///
-/// If the operation fails and returns an error, the position of the reader
-/// remains unchanged.
+/// If the operation fails and returns an error **other** than an IO error,
+/// the position of the reader remains unchanged.
 ///
 /// ## Panics
 ///
@@ -156,8 +156,8 @@ pub fn decode(
 /// at the end of the encoded image data, meaning that the next byte read
 /// will be the first byte of either the next encoded surface or EOF.
 ///
-/// If the operation fails and returns an error, the position of the reader
-/// remains unchanged.
+/// If the operation fails and returns an error **other** than an IO error,
+/// the position of the reader remains unchanged.
 ///
 /// ## Panics
 ///

@@ -5,7 +5,7 @@ use crate::{Channels::*, ColorFormat};
 use super::read_write::{
     for_each_bi_planar, for_each_bi_planar_rect, process_bi_planar_helper, BiPlaneInfo, PlaneRange,
 };
-use super::{Args, DecoderSet, DirectDecoder, RArgs};
+use super::{Args, Decoder, DecoderSet, RArgs};
 
 // helpers
 
@@ -37,7 +37,7 @@ macro_rules! underlying {
         const NATIVE_COLOR: ColorFormat =
             ColorFormat::new($channels, <$out as WithPrecision>::PRECISION);
 
-        DirectDecoder::new_with_all_channels(
+        Decoder::new_with_all_channels(
             NATIVE_COLOR,
             |Args(r, out, context)| {
                 for_each_bi_planar(r, out, context, NATIVE_COLOR, INFO, process_bi_planar)
