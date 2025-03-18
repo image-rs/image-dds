@@ -61,6 +61,7 @@ fn bench_decoder_with(
                 surface.size(),
                 color,
                 black_box(&mut output),
+                &DecodeOptions::default(),
             );
             black_box(result).unwrap();
         });

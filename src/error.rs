@@ -72,6 +72,9 @@ pub enum DecodeError {
     /// There are no further surfaces to decode.
     NoMoreSurfaces,
 
+    /// The decoder has exceeded its memory limit.
+    MemoryLimitExceeded,
+
     Format(FormatError),
     Header(HeaderError),
     Io(std::io::Error),
@@ -125,6 +128,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::NoMoreSurfaces => {
                 write!(f, "No more surfaces to decode")
+            }
+            DecodeError::MemoryLimitExceeded => {
+                write!(f, "Memory limit exceeded")
             }
 
             DecodeError::Format(error) => write!(f, "{}", error),

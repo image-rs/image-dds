@@ -1,8 +1,8 @@
 use std::io::{Read, Seek};
 
 use crate::{
-    ColorFormat, DataLayout, DataRegion, DecodeError, Format, Header, ParseOptions, Rect, Size,
-    SurfaceDescriptor, Texture, Volume,
+    ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format, Header, ParseOptions,
+    Rect, Size, SurfaceDescriptor, Texture, Volume,
 };
 
 /// Information about the header, pixel format, and data layout of a DDS file.
@@ -121,6 +121,12 @@ impl<R> Decoder<R> {
         self.reader
     }
 
+    fn decode_options(&self) -> DecodeOptions {
+        DecodeOptions {
+            memory_limit: self.memory_limit,
+        }
+    }
+
     /// Returns information about the next surface.
     ///
     /// The returned value is not valid after calling `next_surface`.
@@ -139,8 +145,9 @@ impl<R> Decoder<R> {
         R: Read,
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+        let options = self.decode_options();
         self.format()
-            .decode(&mut self.reader, current.size, color, buffer)?;
+            .decode(&mut self.reader, current.size, color, buffer, &options)?;
         self.iter.advance();
         Ok(())
     }
@@ -156,6 +163,7 @@ impl<R> Decoder<R> {
         R: Read + Seek,
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+        let options = self.decode_options();
         self.format().decode_rect(
             &mut self.reader,
             current.size,
@@ -163,6 +171,7 @@ impl<R> Decoder<R> {
             color,
             buffer,
             row_pitch,
+            &options,
         )?;
         self.iter.advance();
         Ok(())

@@ -8,7 +8,7 @@ use crate::util::round_down_to_multiple;
 use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
 use crate::{convert_channels_untyped_for, util, Channels, ColorFormat};
 
-use super::ReadSeek;
+use super::{DecodeContext, ReadSeek};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct PixelSize {
@@ -91,7 +91,7 @@ pub(crate) fn process_pixels_helper_unroll<const UNROLL: usize, InPixel, OutPixe
 pub(crate) fn for_each_pixel_untyped(
     r: &mut dyn Read,
     buf: &mut [u8],
-    buf_channels: Channels,
+    context: DecodeContext,
     native_color: ColorFormat,
     pixel_size: PixelSize,
     process_pixels: ProcessPixelsFn,
@@ -99,11 +99,12 @@ pub(crate) fn for_each_pixel_untyped(
     fn inner(
         r: &mut dyn Read,
         buf: &mut [u8],
-        buf_color: ColorFormat,
+        context: DecodeContext,
         native_color: ColorFormat,
         size_of_in: usize,
         process_pixels: ProcessPixelsFn,
     ) -> Result<(), DecodeError> {
+        let buf_color = context.color;
         let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
         assert!(buf.len() % buf_bytes_per_pixel == 0);
         let pixels = buf.len() / buf_bytes_per_pixel;
@@ -122,13 +123,13 @@ pub(crate) fn for_each_pixel_untyped(
         Ok(())
     }
 
-    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(context.color.precision, native_color.precision);
     debug_assert_eq!(native_color.bytes_per_pixel(), pixel_size.decoded_size);
 
     inner(
         r,
         buf,
-        buf_color,
+        context,
         native_color,
         pixel_size.encoded_size as usize,
         process_pixels,
@@ -143,9 +144,8 @@ pub(crate) fn for_each_pixel_rect_untyped(
     r: &mut dyn ReadSeek,
     buf: &mut [u8],
     row_pitch: usize,
-    size: Size,
+    context: DecodeContext,
     rect: Rect,
-    buf_channels: Channels,
     native_color: ColorFormat,
     pixel_size: PixelSize,
     process_pixels: ProcessPixelsFn,
@@ -155,13 +155,15 @@ pub(crate) fn for_each_pixel_rect_untyped(
         r: &mut dyn ReadSeek,
         buf: &mut [u8],
         row_pitch: usize,
-        size: Size,
+        mut context: DecodeContext,
         rect: Rect,
-        buf_color: ColorFormat,
         native_color: ColorFormat,
         size_of_in: usize,
         process_pixels: ProcessPixelsFn,
     ) -> Result<(), DecodeError> {
+        let size = context.size;
+        let buf_color = context.color;
+
         // assert that no overflow will occur for byte positions in the encoded image/reader
         assert!(size
             .pixels()
@@ -183,8 +185,7 @@ pub(crate) fn for_each_pixel_rect_untyped(
         )?;
 
         let pixels_per_line = rect.width as usize;
-        let mut row: Box<[u8]> =
-            vec![Default::default(); pixels_per_line * size_of_in].into_boxed_slice();
+        let mut row: Box<[u8]> = context.alloc(pixels_per_line * size_of_in)?;
         let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
         for y in 0..rect.height {
             if y > 0 {
@@ -214,16 +215,15 @@ pub(crate) fn for_each_pixel_rect_untyped(
         Ok(())
     }
 
-    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(context.color.precision, native_color.precision);
     debug_assert_eq!(native_color.bytes_per_pixel(), pixel_size.decoded_size);
 
     inner(
         r,
         buf,
         row_pitch,
-        size,
+        context,
         rect,
-        buf_color,
         native_color,
         pixel_size.encoded_size as usize,
         process_pixels,
@@ -354,11 +354,6 @@ pub(crate) fn process_4x4_blocks_helper<
         encoded_blocks.len() / BYTES_PER_BLOCK,
         div_ceil(range.width_offset as u32 + range.width, 4) as usize
     );
-    if decoded.len()
-        < stride * (range.rows.len() - 1) + range.width as usize * size_of::<OutPixel>()
-    {
-        println!("debugger");
-    }
     debug_assert!(
         decoded.len()
             >= stride * (range.rows.len() - 1) + range.width as usize * size_of::<OutPixel>(),
@@ -545,8 +540,7 @@ pub(crate) fn for_each_block_untyped<
 >(
     r: &mut dyn Read,
     buf: &mut [u8],
-    size: Size,
-    buf_channels: Channels,
+    context: DecodeContext,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodeError> {
@@ -554,13 +548,15 @@ pub(crate) fn for_each_block_untyped<
     fn inner(
         r: &mut dyn Read,
         buf: &mut [u8],
-        size: Size,
+        mut context: DecodeContext,
         block_size: (usize, usize),
         bytes_per_block: usize,
-        buf_color: ColorFormat,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
     ) -> Result<(), DecodeError> {
+        let size = context.size;
+        let buf_color = context.color;
+
         // The basic idea here is to decode the image line by line. A line is a
         // sequence of encoded blocks that together describe BLOCK_SIZE_Y rows of
         // pixels in the final image.
@@ -575,7 +571,8 @@ pub(crate) fn for_each_block_untyped<
         let width_blocks = div_ceil(size.width, block_size_x as u32) as usize;
         let height_blocks = div_ceil(size.height, block_size_y as u32) as usize;
 
-        let mut line_buffer = UntypedLineBuffer::new(width_blocks * bytes_per_block, height_blocks);
+        let mut line_buffer =
+            UntypedLineBuffer::new(width_blocks * bytes_per_block, height_blocks, &mut context)?;
         let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
 
         let mut block_y = 0;
@@ -611,16 +608,15 @@ pub(crate) fn for_each_block_untyped<
         Ok(())
     }
 
-    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(context.color.precision, native_color.precision);
     debug_assert_eq!(native_color.bytes_per_pixel(), size_of::<OutPixel>() as u8);
 
     inner(
         r,
         buf,
-        size,
+        context,
         (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
-        buf_color,
         native_color,
         process_pixels,
     )
@@ -635,9 +631,8 @@ pub(crate) fn for_each_block_rect_untyped<
     r: &mut dyn ReadSeek,
     buf: &mut [u8],
     row_pitch: usize,
-    size: Size,
+    context: DecodeContext,
     rect: Rect,
-    buf_channels: Channels,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodeError> {
@@ -646,14 +641,16 @@ pub(crate) fn for_each_block_rect_untyped<
         r: &mut dyn ReadSeek,
         buf: &mut [u8],
         row_pitch: usize,
-        size: Size,
+        mut context: DecodeContext,
         rect: Rect,
         block_size: (usize, usize),
         bytes_per_block: usize,
-        buf_color: ColorFormat,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
     ) -> Result<(), DecodeError> {
+        let size = context.size;
+        let buf_color = context.color;
+
         // To make this algorithm easier to implement, we'll always read full
         // lines of blocks.
 
@@ -676,8 +673,11 @@ pub(crate) fn for_each_block_rect_untyped<
             (blocks_per_line * skip_block_lines_before * bytes_per_block) as i64,
         )?;
 
-        let mut line_buffer =
-            UntypedLineBuffer::new(blocks_per_line * bytes_per_block, block_lines_to_read);
+        let mut line_buffer = UntypedLineBuffer::new(
+            blocks_per_line * bytes_per_block,
+            block_lines_to_read,
+            &mut context,
+        )?;
         let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
 
         // the range of blocks within a block line
@@ -735,17 +735,16 @@ pub(crate) fn for_each_block_rect_untyped<
         Ok(())
     }
 
-    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    debug_assert_eq!(context.color.precision, native_color.precision);
 
     inner(
         r,
         buf,
         row_pitch,
-        size,
+        context,
         rect,
         (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
-        buf_color,
         native_color,
         process_pixels,
     )
@@ -1007,19 +1006,15 @@ impl ChannelConversionBuffer {
 
 /// A buffer holding raw encoded pixels straight from the reader.
 struct UntypedPixelBuffer {
-    buf: Vec<u8>,
+    buf: [u8; 4096],
     bytes_per_pixel: usize,
     bytes_left: usize,
 }
 impl UntypedPixelBuffer {
-    /// The target buffer size is in bytes. Currently 64 KiB.
-    const TARGET: usize = 64 * 1024;
-
+    #[inline(always)]
     fn new(pixels: usize, bytes_per_pixel: usize) -> Self {
-        let buf_bytes = (Self::TARGET / bytes_per_pixel).min(pixels) * bytes_per_pixel;
-        let buf = vec![0; buf_bytes];
         Self {
-            buf,
+            buf: [0; 4096],
             bytes_per_pixel,
             bytes_left: pixels * bytes_per_pixel,
         }
@@ -1030,7 +1025,8 @@ impl UntypedPixelBuffer {
     }
 
     fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[u8], DecodeError> {
-        let bytes_to_read = self.buf.len().min(self.bytes_left);
+        let full_pixel_bytes = self.buf.len() / self.bytes_per_pixel * self.bytes_per_pixel;
+        let bytes_to_read = full_pixel_bytes.min(self.bytes_left);
         assert!(bytes_to_read > 0);
         self.bytes_left -= bytes_to_read;
 
@@ -1042,7 +1038,8 @@ impl UntypedPixelBuffer {
 
 /// A buffer holding raw encoded lines of pixels straight from the reader.
 struct UntypedLineBuffer {
-    buf: Vec<u8>,
+    buf: Box<[u8]>,
+    buf_filled: usize,
     bytes_per_line: usize,
     /// How many lines are still left to read from disk
     lines_on_disk: usize,
@@ -1052,25 +1049,29 @@ struct UntypedLineBuffer {
     current_line_start: usize,
 }
 impl UntypedLineBuffer {
-    fn new(bytes_per_line: usize, height: usize) -> Self {
+    fn new(
+        bytes_per_line: usize,
+        height: usize,
+        context: &mut DecodeContext,
+    ) -> Result<Self, DecodeError> {
         const TARGET_BUFFER_SIZE: usize = 64 * 1024; // 64 KB
 
         let lines_in_buffer = (TARGET_BUFFER_SIZE / bytes_per_line).clamp(1, height);
         let buf_len = lines_in_buffer * bytes_per_line;
-        // TODO: protect against allocating very large buffers (> 1 MB)
-        let buf = vec![0_u8; buf_len];
+        let buf = context.alloc(buf_len)?;
 
-        Self {
+        Ok(Self {
             buf,
+            buf_filled: 0,
             bytes_per_line,
             lines_on_disk: height,
             current_line_start: buf_len,
-        }
+        })
     }
 
     // CURSE YOU, lack of trait up-casting
     fn next_line<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<Option<&[u8]>, DecodeError> {
-        if self.current_line_start >= self.buf.len() {
+        if self.current_line_start >= self.buf_filled {
             if self.lines_on_disk == 0 {
                 // all lines have been read
                 return Ok(None);
@@ -1079,8 +1080,8 @@ impl UntypedLineBuffer {
             // refill the buffer
             let lines_to_read = (self.buf.len() / self.bytes_per_line).min(self.lines_on_disk);
             self.lines_on_disk -= lines_to_read;
-            self.buf.truncate(lines_to_read * self.bytes_per_line);
-            r.read_exact(&mut self.buf)?;
+            self.buf_filled = lines_to_read * self.bytes_per_line;
+            r.read_exact(&mut self.buf[..self.buf_filled])?;
             self.current_line_start = 0;
         }
 
@@ -1186,13 +1187,15 @@ pub(crate) struct BiPlaneInfo {
 pub(crate) fn for_each_bi_planar(
     r: &mut dyn Read,
     buf: &mut [u8],
-    size: Size,
-    buf_channels: Channels,
+    mut context: DecodeContext,
     native_color: ColorFormat,
     info: BiPlaneInfo,
     process_bi_planar: ProcessBiPlanarFn,
 ) -> Result<(), DecodeError> {
-    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    let size = context.size;
+    let buf_color = context.color;
+    debug_assert_eq!(buf_color.precision, native_color.precision);
+
     let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
     assert_eq!(buf.len(), buf_bytes_per_pixel * size.pixels() as usize);
     let buf_stride = size.width as usize * buf_bytes_per_pixel;
@@ -1200,9 +1203,7 @@ pub(crate) fn for_each_bi_planar(
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
     let plane1_size = plain1_bytes_per_line * size.height as usize;
-    // TODO: Protect against huge allocations
-    // TODO: Allow the user to provide a buffer
-    let mut plane1 = Vec::new();
+    let mut plane1 = context.alloc_capacity(plane1_size)?;
     read_exact_into(r, &mut plane1, plane1_size)?;
 
     // Step 2: Go through plane 2
@@ -1210,7 +1211,7 @@ pub(crate) fn for_each_bi_planar(
     let uv_lines = util::div_ceil(size.height, info.sub_sampling.1 as u32) as usize;
     let uv_bytes_per_line = uv_width * info.plane2_element_size as usize;
 
-    let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines);
+    let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines, &mut context)?;
     let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
 
     let mut y: usize = 0;
@@ -1249,23 +1250,24 @@ pub(crate) fn for_each_bi_planar_rect(
     r: &mut dyn ReadSeek,
     buf: &mut [u8],
     row_pitch: usize,
-    size: Size,
+    mut context: DecodeContext,
     rect: Rect,
-    buf_channels: Channels,
     native_color: ColorFormat,
     info: BiPlaneInfo,
     process_bi_planar: ProcessBiPlanarFn,
 ) -> Result<(), DecodeError> {
-    let buf_color = ColorFormat::new(buf_channels, native_color.precision);
+    let size = context.size;
+    let buf_color = context.color;
+    debug_assert_eq!(buf_color.precision, native_color.precision);
+
     let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
 
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
     seek_relative(r, (plain1_bytes_per_line * rect.y as usize) as i64)?;
-    // TODO: Protect against huge allocations
-    // TODO: Allow the user to provide a buffer
-    let mut plane1 = Vec::new();
-    read_exact_into(r, &mut plane1, plain1_bytes_per_line * rect.height as usize)?;
+    let plane1_bytes = plain1_bytes_per_line * rect.height as usize;
+    let mut plane1 = context.alloc_capacity(plane1_bytes)?;
+    read_exact_into(r, &mut plane1, plane1_bytes)?;
     seek_relative(
         r,
         (plain1_bytes_per_line * (size.height - rect.y - rect.height) as usize) as i64,
@@ -1285,7 +1287,7 @@ pub(crate) fn for_each_bi_planar_rect(
 
     seek_relative(r, uv_before as i64 * uv_bytes_per_line as i64)?;
 
-    let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines);
+    let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines, &mut context)?;
     let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
 
     let mut y: usize = uv_before * info.sub_sampling.1 as usize;
@@ -1348,7 +1350,7 @@ fn read_exact_into<R: Read + ?Sized>(
     buf.clear();
     buf.reserve(count);
 
-    let mut temp = [0_u8; 1024];
+    let mut temp = [0_u8; 4096];
     while count >= temp.len() {
         r.read_exact(&mut temp)?;
         buf.extend_from_slice(&temp);

@@ -87,3 +87,19 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
         Format::BC3_UNORM_RXGB => BC3_UNORM_RXGB,
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub struct DecodeOptions {
+    /// The maximum amount of memory that the decoder is allowed to allocate.
+    ///
+    /// Default: 32 MiB
+    pub memory_limit: usize,
+}
+impl Default for DecodeOptions {
+    fn default() -> Self {
+        Self {
+            memory_limit: 32 * 1024 * 1024,
+        }
+    }
+}

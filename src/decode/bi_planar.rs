@@ -40,24 +40,15 @@ macro_rules! underlying {
         DirectDecoder::new_with_all_channels(
             NATIVE_COLOR,
             |Args(r, out, context)| {
-                for_each_bi_planar(
-                    r,
-                    out,
-                    context.size,
-                    context.color.channels,
-                    NATIVE_COLOR,
-                    INFO,
-                    process_bi_planar,
-                )
+                for_each_bi_planar(r, out, context, NATIVE_COLOR, INFO, process_bi_planar)
             },
             |RArgs(r, out, row_pitch, rect, context)| {
                 for_each_bi_planar_rect(
                     r,
                     out,
                     row_pitch,
-                    context.size,
+                    context,
                     rect,
-                    context.color.channels,
                     NATIVE_COLOR,
                     INFO,
                     process_bi_planar,

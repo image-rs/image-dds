@@ -8,6 +8,7 @@ use crate::{
 };
 
 use super::read_write::{for_each_pixel_untyped, PixelSize, ProcessPixelsFn};
+use super::DecodeOptions;
 
 pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodeError>;
 pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodeError>;
@@ -15,6 +16,25 @@ pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodeError>;
 pub(crate) struct DecodeContext {
     pub color: ColorFormat,
     pub size: Size,
+    pub memory_limit: usize,
+}
+impl DecodeContext {
+    pub fn reserve_bytes(&mut self, bytes: usize) -> Result<(), DecodeError> {
+        if self.memory_limit < bytes {
+            return Err(DecodeError::MemoryLimitExceeded);
+        }
+
+        self.memory_limit -= bytes;
+        Ok(())
+    }
+    pub fn alloc<T: Default + Copy>(&mut self, len: usize) -> Result<Box<[T]>, DecodeError> {
+        self.reserve_bytes(len * size_of::<T>())?;
+        Ok(vec![T::default(); len].into_boxed_slice())
+    }
+    pub fn alloc_capacity<T: Default + Copy>(&mut self, len: usize) -> Result<Vec<T>, DecodeError> {
+        self.reserve_bytes(len * size_of::<T>())?;
+        Ok(Vec::with_capacity(len))
+    }
 }
 
 pub(crate) trait ReadSeek: Read + Seek {}
@@ -52,6 +72,10 @@ impl<'a, 'b> Args<'a, 'b> {
         }
 
         Ok(Self(reader, output, context))
+    }
+
+    pub fn color(&self) -> ColorFormat {
+        self.2.color
     }
 }
 
@@ -96,6 +120,10 @@ impl<'a, 'b> RArgs<'a, 'b> {
         }
 
         Ok(Self(reader, output, row_pitch, rect, context))
+    }
+
+    pub fn color(&self) -> ColorFormat {
+        self.4.color
     }
 }
 
@@ -192,12 +220,12 @@ impl DirectDecoderSet {
             .expect("All color formats should be supported")
     }
 
-    fn decode(&self, color: ColorFormat, args: Args) -> Result<(), DecodeError> {
-        let decoder = self.get_decoder(color);
+    fn decode(&self, args: Args) -> Result<(), DecodeError> {
+        let decoder = self.get_decoder(args.color());
         (decoder.decode_fn)(args)
     }
-    fn decode_rect(&self, color: ColorFormat, args: RArgs) -> Result<(), DecodeError> {
-        let decoder = self.get_decoder(color);
+    fn decode_rect(&self, args: RArgs) -> Result<(), DecodeError> {
+        let decoder = self.get_decoder(args.color());
         (decoder.decode_rect_fn)(args)
     }
 }
@@ -265,30 +293,29 @@ impl UncompressedDecoderSet {
         unreachable!("This object is invalid, because it should have at least one process function of every precision");
     }
 
-    fn decode(&self, color: ColorFormat, args: Args) -> Result<(), DecodeError> {
-        let decoder = self.get_closest_process_fn(color);
-        debug_assert!(decoder.native_color.precision == color.precision);
+    fn decode(&self, args: Args) -> Result<(), DecodeError> {
+        let decoder = self.get_closest_process_fn(args.color());
+        debug_assert!(decoder.native_color.precision == args.color().precision);
 
         for_each_pixel_untyped(
             args.0,
             args.1,
-            color.channels,
+            args.2,
             decoder.native_color,
             decoder.pixel_size,
             decoder.process_fn,
         )
     }
-    fn decode_rect(&self, color: ColorFormat, args: RArgs) -> Result<(), DecodeError> {
-        let decoder = self.get_closest_process_fn(color);
-        debug_assert!(decoder.native_color.precision == color.precision);
+    fn decode_rect(&self, args: RArgs) -> Result<(), DecodeError> {
+        let decoder = self.get_closest_process_fn(args.color());
+        debug_assert!(decoder.native_color.precision == args.color().precision);
 
         for_each_pixel_rect_untyped(
             args.0,
             args.1,
             args.2,
-            args.4.size,
+            args.4,
             args.3,
-            color.channels,
             decoder.native_color,
             decoder.pixel_size,
             decoder.process_fn,
@@ -352,8 +379,17 @@ impl DecoderSet {
         reader: &mut dyn Read,
         size: Size,
         output: &mut [u8],
+        options: &DecodeOptions,
     ) -> Result<(), DecodeError> {
-        let args = Args::new(reader, output, DecodeContext { color, size })?;
+        let args = Args::new(
+            reader,
+            output,
+            DecodeContext {
+                color,
+                size,
+                memory_limit: options.memory_limit,
+            },
+        )?;
 
         // never decode empty images
         if size.is_empty() {
@@ -368,11 +404,12 @@ impl DecoderSet {
         }
 
         match &self.decoders {
-            Inner::List(list) => list.decode(color, args),
-            Inner::Uncompressed(list) => list.decode(color, args),
+            Inner::List(list) => list.decode(args),
+            Inner::Uncompressed(list) => list.decode(args),
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn decode_rect(
         &self,
         color: ColorFormat,
@@ -381,13 +418,18 @@ impl DecoderSet {
         rect: Rect,
         output: &mut [u8],
         row_pitch: usize,
+        options: &DecodeOptions,
     ) -> Result<(), DecodeError> {
         let args = RArgs::new(
             reader,
             output,
             row_pitch,
             rect,
-            DecodeContext { color, size },
+            DecodeContext {
+                color,
+                size,
+                memory_limit: options.memory_limit,
+            },
         )?;
 
         // never decode empty rects
@@ -396,8 +438,8 @@ impl DecoderSet {
         }
 
         match &self.decoders {
-            Inner::List(list) => list.decode_rect(color, args),
-            Inner::Uncompressed(list) => list.decode_rect(color, args),
+            Inner::List(list) => list.decode_rect(args),
+            Inner::Uncompressed(list) => list.decode_rect(args),
         }
     }
 }

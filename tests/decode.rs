@@ -189,6 +189,7 @@ fn decode_rect() {
                     target_color,
                     &mut image.data[(image_y * stride + image_x * 4)..],
                     stride,
+                    &DecodeOptions::default(),
                 )?;
             }
         }

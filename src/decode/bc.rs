@@ -34,8 +34,7 @@ macro_rules! underlying {
                 for_each_block_untyped::<4, 4, BYTES_PER_BLOCK, OutPixel>(
                     r,
                     out,
-                    context.size,
-                    context.color.channels,
+                    context,
                     NATIVE_COLOR,
                     process_blocks,
                 )
@@ -45,9 +44,8 @@ macro_rules! underlying {
                     r,
                     out,
                     row_pitch,
-                    context.size,
+                    context,
                     rect,
-                    context.color.channels,
                     NATIVE_COLOR,
                     process_blocks,
                 )

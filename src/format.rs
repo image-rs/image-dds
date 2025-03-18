@@ -7,9 +7,9 @@ use crate::{
     decode::{get_decoders, ReadSeek},
     detect,
     encode::get_encoders,
-    Channels, ColorFormat, DecodeError, Dithering, Dx9PixelFormat, DxgiFormat, EncodeError,
-    EncodeOptions, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags, Precision, Rect,
-    Size, SizeMultiple,
+    Channels, ColorFormat, DecodeError, DecodeOptions, Dithering, Dx9PixelFormat, DxgiFormat,
+    EncodeError, EncodeOptions, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags,
+    Precision, Rect, Size, SizeMultiple,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -197,8 +197,9 @@ impl Format {
         size: Size,
         color: ColorFormat,
         output: &mut [u8],
+        options: &DecodeOptions,
     ) -> Result<(), DecodeError> {
-        get_decoders(*self).decode(color, reader, size, output)
+        get_decoders(*self).decode(color, reader, size, output, options)
     }
 
     /// Decodes a rectangle of the image data of a surface from the given reader
@@ -229,6 +230,7 @@ impl Format {
     /// ## Panics
     ///
     /// This method will only panic in the given reader panics while reading.
+    #[allow(clippy::too_many_arguments)]
     pub fn decode_rect<R: Read + Seek>(
         &self,
         reader: &mut R,
@@ -237,10 +239,11 @@ impl Format {
         color: ColorFormat,
         output: &mut [u8],
         row_pitch: usize,
+        options: &DecodeOptions,
     ) -> Result<(), DecodeError> {
         let reader = reader as &mut dyn ReadSeek;
         let decoders = get_decoders(*self);
-        decoders.decode_rect(color, reader, size, rect, output, row_pitch)
+        decoders.decode_rect(color, reader, size, rect, output, row_pitch, options)
     }
 
     pub fn encode(
