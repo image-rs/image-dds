@@ -24,7 +24,7 @@ fn decode_all_dds_files() {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let name = dds_path.file_name().unwrap().to_str().unwrap();
         if name.contains("DX10 A8_UNORM") {
-            println!("debugger");
+            // println!("debugger");
         }
         let (image, _) = util::read_dds_png_compatible(dds_path)?;
 
