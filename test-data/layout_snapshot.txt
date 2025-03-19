@@ -2163,7 +2163,7 @@ images/bi-planar/DX10 NV12.dds
 
     Pixel Format:
         format: NV12
-        pixel_info: ChromaSubSampled(1 bytes per sample, 2x2)
+        pixel_info: BiPlanar(plane1: 1 bytes per pixel, plane2: 2 bytes per sample 2x2 sub-sampled)
 
     Layout: Texture (12672 bytes)
         Surface[0] 128x66 (12672 bytes)
@@ -2194,7 +2194,7 @@ images/bi-planar/DX10 P010.dds
 
     Pixel Format:
         format: P010
-        pixel_info: ChromaSubSampled(2 bytes per sample, 2x2)
+        pixel_info: BiPlanar(plane1: 2 bytes per pixel, plane2: 4 bytes per sample 2x2 sub-sampled)
 
     Layout: Texture (25344 bytes)
         Surface[0] 128x66 (25344 bytes)
@@ -2225,7 +2225,7 @@ images/bi-planar/DX10 P016.dds
 
     Pixel Format:
         format: P016
-        pixel_info: ChromaSubSampled(2 bytes per sample, 2x2)
+        pixel_info: BiPlanar(plane1: 2 bytes per pixel, plane2: 4 bytes per sample 2x2 sub-sampled)
 
     Layout: Texture (25344 bytes)
         Surface[0] 128x66 (25344 bytes)

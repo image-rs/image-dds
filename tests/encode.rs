@@ -55,7 +55,7 @@ fn encode_decode(
     let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
     let mut output = vec![0_f32; image.size.pixels() as usize * image.channels.count() as usize];
     decoder
-        .next_surface(as_bytes_mut(&mut output), image.color())
+        .read_surface(as_bytes_mut(&mut output), image.color())
         .unwrap();
 
     let image = Image {

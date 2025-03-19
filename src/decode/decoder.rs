@@ -1,8 +1,7 @@
 use std::io::{Read, Seek};
 use std::mem::size_of;
 
-use crate::ColorFormatSet;
-use crate::{Channels, ColorFormat, DecodeError, Precision, Rect, Size};
+use crate::{Channels, ColorFormat, ColorFormatSet, DecodeError, Precision, Rect, Size};
 
 use super::DecodeOptions;
 

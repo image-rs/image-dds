@@ -183,13 +183,27 @@ pub fn decode_rect<R: Read + Seek>(
 pub struct DecodeOptions {
     /// The maximum amount of memory that the decoder is allowed to allocate.
     ///
-    /// Default: 32 MiB
+    /// If the decoder needs to allocate more memory than this limit, it will
+    /// return [`DecodeError::MemoryLimitExceeded`].
+    ///
+    /// While most decoders can make do with a few kilobytes of stack memory,
+    /// some formats require a variable amount of memory depending on the size
+    /// of the image. For example,
+    /// [`NV12`](https://learn.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering#nv12)
+    /// is a bi-planar format and decoding it generally requires reading the
+    /// entire Y plane into memory. This can be a problem for large images.
+    ///
+    /// Default: 33 MiB
+    ///
+    /// (The default was chosen to be large enough to decode 4K `NV12`, `P016`,
+    /// and `P010` images. All other formats require at most 256 KiB for 16K
+    /// images.)
     pub memory_limit: usize,
 }
 impl Default for DecodeOptions {
     fn default() -> Self {
         Self {
-            memory_limit: 32 * 1024 * 1024,
+            memory_limit: 33 * 1024 * 1024,
         }
     }
 }

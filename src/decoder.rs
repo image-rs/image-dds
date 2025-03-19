@@ -71,13 +71,7 @@ pub struct Decoder<R> {
 
     info: DdsInfo,
     iter: SurfaceIterator,
-
-    /// The maximum number of bytes the decoder is allowed to allocate.
-    ///
-    /// This does not include any buffers given to the decoder.
-    ///
-    /// Default: 32 MiB
-    pub memory_limit: usize,
+    pub options: DecodeOptions,
 }
 impl<R> Decoder<R> {
     pub fn new(reader: R) -> Result<Self, DecodeError>
@@ -100,15 +94,12 @@ impl<R> Decoder<R> {
             reader,
             iter: SurfaceIterator::new(info.layout()),
             info,
-            memory_limit: 32 * 1024 * 1024,
+            options: DecodeOptions::default(),
         })
     }
 
     pub fn info(&self) -> &DdsInfo {
         &self.info
-    }
-    pub fn header(&self) -> &Header {
-        self.info.header()
     }
     pub fn format(&self) -> Format {
         self.info.format()
@@ -117,14 +108,25 @@ impl<R> Decoder<R> {
         self.info.layout()
     }
 
-    pub fn into_inner(self) -> R {
-        self.reader
+    /// The size of the level 0 object.
+    ///
+    /// For single textures and texture arrays, this will return the size of the
+    /// texture (mipmap level 0). For cube maps, this will return the size of
+    /// the individual faces (mipmap level 0). For volume textures, this will
+    /// return the size of the first depth slice (mipmap level 0).
+    pub fn main_size(&self) -> Size {
+        self.info.header().size()
+    }
+    /// The native color of the DDS file.
+    ///
+    /// See [`Format::precision`] for more information about the precision of
+    /// the color format.
+    pub fn native_color(&self) -> ColorFormat {
+        self.info.format().color()
     }
 
-    fn decode_options(&self) -> DecodeOptions {
-        DecodeOptions {
-            memory_limit: self.memory_limit,
-        }
+    pub fn into_reader(self) -> R {
+        self.reader
     }
 
     /// Returns information about the next surface.
@@ -140,28 +142,32 @@ impl<R> Decoder<R> {
     ///
     /// The next surface is determined by the data layout of the DDS file. For
     /// volume textures, this function will read the next depth slice.
-    pub fn next_surface(&mut self, buffer: &mut [u8], color: ColorFormat) -> Result<(), DecodeError>
+    pub fn read_surface(&mut self, buffer: &mut [u8], color: ColorFormat) -> Result<(), DecodeError>
     where
         R: Read,
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
-        let options = self.decode_options();
-        let format = self.format();
 
         decode(
             &mut self.reader,
-            format,
+            self.info.format,
             current.size,
             color,
             buffer,
-            &options,
+            &self.options,
         )?;
 
         self.iter.advance();
         Ok(())
     }
 
-    pub fn next_surface_rect(
+    /// Reads a rectangle of the next surface into the given buffer.
+    ///
+    /// Similarly to [`Decoder::read_surface`], this operation will consume the
+    /// current surface and advance to the next one. It is not possible to read
+    /// multiple rectangles from the same surface. If this is what you want to
+    /// do, use the [`decode_rect`] function instead.
+    pub fn read_surface_rect(
         &mut self,
         buffer: &mut [u8],
         row_pitch: usize,
@@ -172,18 +178,16 @@ impl<R> Decoder<R> {
         R: Read + Seek,
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
-        let options = self.decode_options();
-        let format = self.format();
 
         decode_rect(
             &mut self.reader,
-            format,
+            self.info.format,
             current.size,
             rect,
             color,
             buffer,
             row_pitch,
-            &options,
+            &self.options,
         )?;
 
         self.iter.advance();
@@ -197,6 +201,8 @@ impl<R> Decoder<R> {
     ///
     /// Volume textures are not allowed to call this function within a volume.
     /// It's only valid to call this function at the start or end of a volume.
+    /// Because of this, it can only be used to skip to the end of the file for
+    /// volumes.
     ///
     /// Notes:
     ///

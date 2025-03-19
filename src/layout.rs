@@ -213,6 +213,10 @@ impl Texture {
         })
     }
 
+    pub fn pixel_info(&self) -> PixelInfo {
+        self.pixels
+    }
+
     /// The level 0 mipmap of this texture.
     pub fn main(&self) -> SurfaceDescriptor {
         self.main
@@ -307,6 +311,10 @@ impl Volume {
             pixels,
             len,
         })
+    }
+
+    pub fn pixel_info(&self) -> PixelInfo {
+        self.pixels
     }
 
     pub fn main(&self) -> VolumeDescriptor {
@@ -406,6 +414,10 @@ impl TextureArray {
             array_len,
             first,
         })
+    }
+
+    pub fn pixel_info(&self) -> PixelInfo {
+        self.first.pixel_info()
     }
 
     pub fn kind(&self) -> TextureArrayKind {
@@ -545,6 +557,14 @@ impl DataLayout {
         match self {
             DataLayout::TextureArray(array) => Some(array),
             _ => None,
+        }
+    }
+
+    pub fn pixel_info(&self) -> PixelInfo {
+        match self {
+            DataLayout::Texture(texture) => texture.pixel_info(),
+            DataLayout::Volume(volume) => volume.pixel_info(),
+            DataLayout::TextureArray(array) => array.pixel_info(),
         }
     }
 }

@@ -53,9 +53,10 @@ pub enum PixelInfo {
     ///
     /// The Y samples are stored in one plane, while the U and V samples are
     /// channel-packed in a second plane.
-    ChromaSubSampled {
-        bytes_per_sample: u8,
-        sub_sampling: (u8, u8),
+    BiPlanar {
+        plane1_bytes_per_pixel: u8,
+        plane2_bytes_per_sample: u8,
+        plane2_sub_sampling: (u8, u8),
     },
 }
 impl PixelInfo {
@@ -68,10 +69,11 @@ impl PixelInfo {
             block_size,
         }
     }
-    pub fn chroma(bytes_per_sample: u8, sub_sampling: (u8, u8)) -> Self {
-        Self::ChromaSubSampled {
-            bytes_per_sample,
-            sub_sampling,
+    pub fn bi_planar(bytes_per_pixel: u8, bytes_per_sample: u8, sub_sampling: (u8, u8)) -> Self {
+        Self::BiPlanar {
+            plane1_bytes_per_pixel: bytes_per_pixel,
+            plane2_bytes_per_sample: bytes_per_sample,
+            plane2_sub_sampling: sub_sampling,
         }
     }
 
@@ -112,13 +114,14 @@ impl PixelInfo {
                 let pixels_per_block = block_size.0 as u32 * block_size.1 as u32;
                 div_ceil(bits_per_block, pixels_per_block)
             }
-            Self::ChromaSubSampled {
-                bytes_per_sample,
-                sub_sampling,
+            Self::BiPlanar {
+                plane1_bytes_per_pixel,
+                plane2_bytes_per_sample,
+                plane2_sub_sampling,
             } => {
-                let bits_per_sample = bytes_per_sample as u32 * 8;
-                let sub_sampling = sub_sampling.0 as u32 * sub_sampling.1 as u32;
-                bits_per_sample + div_ceil(2 * bits_per_sample, sub_sampling)
+                let plane1_bits_per_pixel = plane1_bytes_per_pixel as u32 * 8;
+                let sub_sampling = plane2_sub_sampling.0 as u32 * plane2_sub_sampling.1 as u32;
+                plane1_bits_per_pixel + div_ceil(plane2_bytes_per_sample as u32 * 8, sub_sampling)
             }
         }
     }
@@ -142,16 +145,20 @@ impl PixelInfo {
                 let blocks = blocks_x as u64 * blocks_y as u64;
                 blocks.checked_mul(bytes_per_block as u64)
             }
-            Self::ChromaSubSampled {
-                bytes_per_sample,
-                sub_sampling,
+            Self::BiPlanar {
+                plane1_bytes_per_pixel,
+                plane2_bytes_per_sample,
+                plane2_sub_sampling,
             } => {
-                let chroma_x = div_ceil(size.width, sub_sampling.0 as u32);
-                let chroma_y = div_ceil(size.height, sub_sampling.1 as u32);
+                let plane1_bytes = size.pixels().checked_mul(plane1_bytes_per_pixel as u64)?;
+
+                let chroma_x = div_ceil(size.width, plane2_sub_sampling.0 as u32);
+                let chroma_y = div_ceil(size.height, plane2_sub_sampling.1 as u32);
                 // This cannot overflow, because both factors are u32.
                 let samples_chroma = chroma_x as u64 * chroma_y as u64;
-                let samples = size.pixels().checked_add(samples_chroma.checked_mul(2)?)?;
-                samples.checked_mul(bytes_per_sample as u64)
+                let plane2_bytes = samples_chroma.checked_mul(plane2_bytes_per_sample as u64)?;
+
+                plane1_bytes.checked_add(plane2_bytes)
             }
         }
     }
@@ -171,13 +178,17 @@ impl std::fmt::Debug for PixelInfo {
                 "Block({} bytes per {}x{} block)",
                 bytes_per_block, block_size.0, block_size.1
             ),
-            Self::ChromaSubSampled {
-                bytes_per_sample,
-                sub_sampling,
+            Self::BiPlanar {
+                plane1_bytes_per_pixel,
+                plane2_bytes_per_sample,
+                plane2_sub_sampling,
             } => write!(
                 f,
-                "ChromaSubSampled({} bytes per sample, {}x{})",
-                bytes_per_sample, sub_sampling.0, sub_sampling.1
+                "BiPlanar(plane1: {} bytes per pixel, plane2: {} bytes per sample {}x{} sub-sampled)",
+                plane1_bytes_per_pixel,
+                plane2_bytes_per_sample,
+                plane2_sub_sampling.0,
+                plane2_sub_sampling.1
             ),
         }
     }
@@ -237,8 +248,8 @@ impl From<Format> for PixelInfo {
             F::R1_UNORM => Self::block(1, (8, 1)),
 
             // bi-planar formats
-            F::NV12 => Self::chroma(1, (2, 2)),
-            F::P010 | F::P016 => Self::chroma(2, (2, 2)),
+            F::NV12 => Self::bi_planar(1, 2, (2, 2)),
+            F::P010 | F::P016 => Self::bi_planar(2, 4, (2, 2)),
 
             // block compression formats
             // 8 bytes per one 4x4 block
@@ -386,13 +397,13 @@ impl TryFrom<DxgiFormat> for PixelInfo {
             | F::BC7_UNORM_SRGB => Ok(Self::block(16, (4, 4))),
 
             // (4:2:0) bytes = w*h + 2 * ceil(w/2)*ceil(h/2)
-            F::NV12 | F::OPAQUE_420 => Ok(Self::chroma(1, (2, 2))),
+            F::NV12 | F::OPAQUE_420 => Ok(Self::bi_planar(1, 2, (2, 2))),
             // (4:2:0) bytes = 2*(w*h + 2 * ceil(w/2)*ceil(h/2))
-            F::P010 | F::P016 => Ok(Self::chroma(2, (2, 2))),
+            F::P010 | F::P016 => Ok(Self::bi_planar(2, 4, (2, 2))),
             // (4:1:1) bytes = w*h + 2 * ceil(w/4)*h
-            F::NV11 => Ok(Self::chroma(1, (4, 1))),
+            F::NV11 => Ok(Self::bi_planar(1, 2, (4, 1))),
             // (4:2:2) bytes = w*h + 2 * ceil(w/2)*h
-            F::P208 => Ok(Self::chroma(1, (2, 1))),
+            F::P208 => Ok(Self::bi_planar(1, 2, (2, 1))),
 
             // Palette formats
             F::AI44 | F::IA44 | F::P8 => Ok(Self::fixed(1)),
