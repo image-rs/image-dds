@@ -48,7 +48,7 @@ impl Size {
     /// Level 0 is the original size. All returned sizes are at least 1x1.
     ///
     /// ```
-    /// # use ddsd::Size;
+    /// # use dds::Size;
     /// let size = Size::new(256, 100);
     /// assert_eq!(size.get_mipmap(0), size);
     /// assert_eq!(size.get_mipmap(1), Size::new(128, 50));

@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use ddsd::{header::*, *};
+use dds::{header::*, *};
 use rand::SeedableRng;
 use sha2::{Digest, Sha256};
 use std::{

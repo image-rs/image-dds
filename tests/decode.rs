@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use ddsd::{header::*, *};
+use dds::{header::*, *};
 use Precision::*;
 
 mod util;
@@ -182,7 +182,7 @@ fn decode_rect() {
                 let image_y = rect.y as usize + y_index;
 
                 let stride = image.stride();
-                ddsd::decode_rect(
+                dds::decode_rect(
                     &mut Cursor::new(surface.as_slice()),
                     format,
                     size,

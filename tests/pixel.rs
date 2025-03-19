@@ -1,4 +1,4 @@
-use ddsd::{header::*, *};
+use dds::{header::*, *};
 
 use std::fs::File;
 

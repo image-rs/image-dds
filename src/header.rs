@@ -365,7 +365,7 @@ pub struct ParseOptions {
     /// The most common way to set this option is to use the file metadata:
     ///
     /// ```no_run
-    /// # use ddsd::header::*;
+    /// # use dds::header::*;
     /// let mut file = std::fs::File::open("example.dds").unwrap();
     /// let file_len = file.metadata().ok().map(|m| m.len());
     /// let options = ParseOptions::new_permissive(file_len);

@@ -7,16 +7,16 @@
 		{
 			"type": "lldb",
 			"request": "launch",
-			"name": "Debug unit tests in library 'ddsd'",
+			"name": "Debug unit tests in library 'dds'",
 			"cargo": {
 				"args": [
 					"test",
 					"--no-run",
 					"--lib",
-					"--package=ddsd"
+					"--package=dds"
 				],
 				"filter": {
-					"name": "ddsd",
+					"name": "dds",
 					"kind": "lib"
 				}
 			},

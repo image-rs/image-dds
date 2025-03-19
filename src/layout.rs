@@ -125,7 +125,7 @@ impl VolumeDescriptor {
     /// To get the depth value of a slice, use `.enumerate()`. Example:
     ///
     /// ```no_run
-    /// # use ddsd::{VolumeDescriptor, DataRegion};
+    /// # use dds::{VolumeDescriptor, DataRegion};
     /// # fn get_volume() -> VolumeDescriptor { todo!() }
     /// let volume: VolumeDescriptor = get_volume();
     /// for (depth, slice) in volume.iter_depth_slices().enumerate() {

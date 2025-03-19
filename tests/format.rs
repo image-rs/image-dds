@@ -1,4 +1,4 @@
-use ddsd::*;
+use dds::*;
 
 mod util;
 

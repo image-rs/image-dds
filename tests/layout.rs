@@ -1,4 +1,4 @@
-use ddsd::{header::*, *};
+use dds::{header::*, *};
 
 use std::{fs::File, io::Seek, num::NonZero, path::PathBuf};
 
@@ -24,7 +24,7 @@ fn parse_data_layout_of_all_dds_files() {
         let header = info.header();
 
         // skip cubemaps with array_size == 6 for now
-        // https://github.com/RunDevelopment/ddsd/issues/4
+        // https://github.com/RunDevelopment/dds/issues/4
         if let Some(dx10) = header.dx10() {
             if dx10.array_size == 6 {
                 continue;

@@ -1,12 +1,12 @@
 [package]
-name = "ddsd"
+name = "dds"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
-description = "DDS decoding library in pure safe Rust"
+description = "DDS de/encoding library in pure safe Rust"
 categories = ["multimedia::images"]
 authors = ["Michael Schmidt"]
-repository = "https://github.com/RunDevelopment/ddsd"
+repository = "https://github.com/RunDevelopment/dds"
 
 edition = "2021"
 rust-version = "1.61"
