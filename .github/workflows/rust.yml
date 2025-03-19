@@ -77,4 +77,4 @@ jobs:
       - name: Start Docker (required for cross-rs)
         run: sudo systemctl start docker
       - name: Cross-Run Tests using QEMU
-        run: cross test --target ${{ matrix.arch }}
+        run: cross test --no-fail-fast --target ${{ matrix.arch }}
