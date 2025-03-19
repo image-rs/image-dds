@@ -1,4 +1,5 @@
-use crate::{util::div_ceil, Dx9PixelFormat, DxgiFormat, Format, FormatError, Header, Size};
+use crate::header::{Dx9PixelFormat, DxgiFormat, Header};
+use crate::{util::div_ceil, Format, FormatError, Size};
 
 /// This describes the number of bits per pixel and the layout of pixels within
 /// a surface.
@@ -418,6 +419,7 @@ impl TryFrom<DxgiFormat> for PixelInfo {
 
 #[cfg(test)]
 mod test {
+    use crate::header::*;
     use crate::*;
 
     #[test]

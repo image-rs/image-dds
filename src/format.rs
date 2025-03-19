@@ -1,9 +1,11 @@
 use std::num::NonZeroU8;
 
+use crate::header::{
+    Dx9PixelFormat, DxgiFormat, FourCC, Header, MaskPixelFormat, PixelFormatFlags,
+};
 use crate::{
     decode::get_decoders, detect, encode::get_encoders, Channels, ColorFormat, Dithering,
-    Dx9PixelFormat, DxgiFormat, FormatError, FourCC, Header, MaskPixelFormat, PixelFormatFlags,
-    Precision, SizeMultiple,
+    FormatError, Precision, SizeMultiple,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

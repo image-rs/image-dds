@@ -1,8 +1,10 @@
 use std::io::{Read, Seek};
 
 use crate::{
-    decode, decode_rect, ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format,
-    Header, ParseOptions, Rect, Size, SurfaceDescriptor, Texture, Volume,
+    decode, decode_rect,
+    header::{Header, ParseOptions},
+    ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format, Rect, Size,
+    SurfaceDescriptor, Texture, Volume,
 };
 
 /// Information about the header, pixel format, and data layout of a DDS file.

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs::File};
 
-use ddsd::*;
+use ddsd::{header::*, *};
 
 mod util;
 

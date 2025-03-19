@@ -1,3 +1,15 @@
+//! Functionality for reading, parsing, and writing DDS headers.
+//!
+//! This module revolves around the [`Header`] enum, which represents a parsed
+//! DDS header. [`Header::read`] and [`Header::write`] can be used to read and
+//! write DDS headers from and to disk. [`Header::new_image`] and co. can be
+//! used to create new headers. To use specifically DX9 or DX10 headers, use
+//! [`Dx9Header`] and [`Dx10Header`] directly.
+//!
+//! [`RawHeader`] is a low-level representation of an unparsed DDS header. It is
+//! bit-for-bit what is on disk. You rarely need to interact with this type, but
+//! it can useful for manually detecting and parsing non-standard DDS files.
+
 use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},

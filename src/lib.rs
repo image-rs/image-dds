@@ -8,7 +8,7 @@ mod detect;
 mod encode;
 mod error;
 mod format;
-mod header;
+pub mod header;
 mod layout;
 mod pixel;
 mod util;
@@ -21,7 +21,7 @@ pub use decoder::*;
 pub use encode::{encode, CompressionQuality, Dithering, EncodeOptions, ErrorMetric};
 pub use error::*;
 pub use format::*;
-pub use header::*;
+// pub use header::*;
 pub use layout::*;
 pub use pixel::*;
 

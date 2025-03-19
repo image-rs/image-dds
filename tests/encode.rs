@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use ddsd::*;
+use ddsd::{header::*, *};
 use rand::Rng;
 use util::{as_bytes_mut, test_data_dir, Image, WithPrecision};
 

@@ -1,7 +1,8 @@
 //! Internal module for detecting supported formats from DXGI, FourCC, and
 //! DDS pixel formats.
 
-use crate::{AlphaMode, Dx10Header, DxgiFormat, Format, FourCC, MaskPixelFormat, PixelFormatFlags};
+use crate::header::{AlphaMode, Dx10Header, DxgiFormat, FourCC, MaskPixelFormat, PixelFormatFlags};
+use crate::Format;
 
 pub(crate) const fn special_cases(dx10: &Dx10Header) -> Option<Format> {
     if matches!(dx10.alpha_mode, AlphaMode::Premultiplied) {

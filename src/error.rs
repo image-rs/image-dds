@@ -1,4 +1,7 @@
-use crate::{DxgiFormat, Format, FourCC, Header, SizeMultiple};
+use crate::{
+    header::{DxgiFormat, FourCC, Header},
+    Format, SizeMultiple,
+};
 
 #[derive(Debug)]
 #[non_exhaustive]

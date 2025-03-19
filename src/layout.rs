@@ -2,10 +2,8 @@ use std::num::NonZeroU8;
 
 use bitflags::bitflags;
 
-use crate::{
-    util::get_mipmap_size, DdsCaps2, DecodeError, Header, MiscFlags, PixelInfo, ResourceDimension,
-    Size,
-};
+use crate::header::{DdsCaps2, Header, MiscFlags, ResourceDimension};
+use crate::{util::get_mipmap_size, DecodeError, PixelInfo, Size};
 
 pub trait DataRegion {
     /// The number of bytes this object occupies in the data section of a DDS file.

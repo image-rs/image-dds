@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ddsd::*;
+use ddsd::{header::*, *};
 use rand::{seq::SliceRandom, Rng, RngCore};
 
 fn random_bytes(len: usize) -> Vec<u8> {

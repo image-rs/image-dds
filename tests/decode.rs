@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use ddsd::*;
+use ddsd::{header::*, *};
 use Precision::*;
 
 mod util;

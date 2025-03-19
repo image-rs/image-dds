@@ -5,7 +5,7 @@
 
 use std::{fs::File, io::Write};
 
-use ddsd::*;
+use ddsd::{header::*, *};
 
 mod util;
 
