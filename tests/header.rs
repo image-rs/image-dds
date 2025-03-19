@@ -185,3 +185,201 @@ fn convert_header_snapshot() {
     )
     .unwrap();
 }
+
+#[test]
+fn raw_header_read_write() {
+    // RawHeader is not supposed to so any validation and should any garbage
+    // data just fine. In particular, `RawHeader::write` should perfectly
+    // reproduce the bytes read by `RawHeader::read`
+
+    {
+        // DX9 path
+        let garbage = [1234_u32.to_le(); 31];
+        let garbage_bytes = util::as_bytes(&garbage);
+        let raw = RawHeader::read(&mut &garbage_bytes[..]).unwrap();
+        assert_eq!(raw.size, 1234);
+        let mut written = Vec::new();
+        raw.write(&mut written).unwrap();
+        assert_eq!(garbage_bytes, written.as_slice());
+    }
+    {
+        // DX10 path
+        let mut garbage = [1234_u32.to_le(); 36];
+        garbage[19] = PixelFormatFlags::FOURCC.bits().to_le();
+        garbage[20] = u32::from(FourCC::DX10).to_le();
+        let garbage_bytes = util::as_bytes(&garbage);
+        let raw = RawHeader::read(&mut &garbage_bytes[..]).unwrap();
+        assert_eq!(raw.size, 1234);
+        assert_eq!(raw.pixel_format.flags, PixelFormatFlags::FOURCC);
+        assert_eq!(raw.pixel_format.four_cc, FourCC::DX10);
+        assert!(raw.dx10.is_some());
+        assert_eq!(raw.dx10.as_ref().unwrap().dxgi_format, 1234);
+        let mut written = Vec::new();
+        raw.write(&mut written).unwrap();
+        assert_eq!(garbage_bytes, written.as_slice());
+    }
+    {
+        // *almost* DX10 path
+        // This checks that RawHeader checks for BOTH the flag and the fourCC
+        let mut garbage = [1234_u32.to_le(); 31];
+        garbage[19] = 0;
+        garbage[20] = u32::from(FourCC::DX10).to_le();
+        let garbage_bytes = util::as_bytes(&garbage);
+        let raw = RawHeader::read(&mut &garbage_bytes[..]).unwrap();
+        assert_eq!(raw.size, 1234);
+        assert_eq!(raw.pixel_format.flags, PixelFormatFlags::empty());
+        assert_eq!(raw.pixel_format.four_cc, FourCC::DX10);
+        assert!(raw.dx10.is_none());
+        let mut written = Vec::new();
+        raw.write(&mut written).unwrap();
+        assert_eq!(garbage_bytes, written.as_slice());
+    }
+}
+
+#[test]
+fn magic_bytes() {
+    let original_header = Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
+
+    let mut bytes = Vec::new();
+    original_header.write(&mut bytes).unwrap();
+
+    assert!(Header::read_magic(&mut &bytes[..]).is_ok());
+    let mut options = ParseOptions::default();
+    let parsed = Header::read(&mut &bytes[..], &options).unwrap();
+    assert_eq!(original_header, parsed);
+    options.skip_magic_bytes = true;
+    let parsed_without_magic = Header::read(&mut &bytes[4..], &options).unwrap();
+    assert_eq!(original_header, parsed_without_magic);
+
+    let invalid_magic_bytes = "what am I doing?".as_bytes();
+    assert!(matches!(
+        Header::read_magic(&mut &invalid_magic_bytes[..]),
+        Err(HeaderError::InvalidMagicBytes(_))
+    ));
+}
+
+/// A collection of weird and invalid DDS header to test header parsing
+#[test]
+fn weird_and_invalid_headers() {
+    fn valid_dx9_fourcc() -> RawHeader {
+        Header::from(Dx9Header::new_image(123, 345, FourCC::DXT1.into())).to_raw()
+    }
+    fn valid_dx9_masked() -> RawHeader {
+        Header::from(Dx9Header::new_image(
+            123,
+            345,
+            MaskPixelFormat {
+                flags: PixelFormatFlags::RGB,
+                rgb_bit_count: RgbBitCount::Count32,
+                r_bit_mask: 0xff,
+                g_bit_mask: 0x00ff,
+                b_bit_mask: 0x0000ff,
+                a_bit_mask: 0x000000ff,
+            }
+            .into(),
+        ))
+        .to_raw()
+    }
+    fn valid_dx10() -> RawHeader {
+        let mut header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
+        header.alpha_mode = AlphaMode::Unknown;
+        Header::from(header).to_raw()
+    }
+
+    fn apply_edit(mut raw: RawHeader, f: fn(&mut RawHeader)) -> RawHeader {
+        f(&mut raw);
+        raw
+    }
+    fn apply_edit_dx10(mut raw: RawHeader, f: fn(&mut RawDx10Header)) -> RawHeader {
+        f(raw.dx10.as_mut().unwrap());
+        raw
+    }
+
+    let raw_headers = [
+        // valid headers for sanity checking
+        valid_dx9_fourcc(),
+        valid_dx9_masked(),
+        valid_dx10(),
+        //
+        // invalid header size
+        apply_edit(valid_dx9_fourcc(), |raw| raw.size = 0),
+        apply_edit(valid_dx9_fourcc(), |raw| raw.size = 123),
+        apply_edit(valid_dx9_fourcc(), |raw| {
+            // This is an invalid header size, but one we accept because of
+            // the game Stalker
+            raw.size = 24;
+        }),
+        //
+        // invalid pixel format size
+        apply_edit(valid_dx9_fourcc(), |raw| raw.pixel_format.size = 0),
+        apply_edit(valid_dx9_fourcc(), |raw| raw.pixel_format.size = 123),
+        apply_edit(valid_dx9_fourcc(), |raw| {
+            // This is an invalid pixel format size, but one we accept because of
+            // the game Flat Out 2
+            raw.size = 24;
+        }),
+        //
+        // invalid pixel format flags
+        apply_edit(valid_dx9_fourcc(), |raw| {
+            raw.pixel_format.flags = PixelFormatFlags::empty()
+        }),
+        //
+        // invalid pixel format rgb bit count
+        apply_edit(valid_dx9_masked(), |raw| raw.pixel_format.rgb_bit_count = 7),
+        //
+        // invalid dxgi_format
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.dxgi_format = 0),
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.dxgi_format = 1234),
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.dxgi_format = u32::MAX),
+        //
+        // invalid resource_dimension
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.resource_dimension = 0),
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.resource_dimension = 1),
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.resource_dimension = 2),
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.resource_dimension = 123),
+        //
+        // invalid alpha_mode
+        apply_edit_dx10(valid_dx10(), |dx10| dx10.misc_flags2 = u32::MAX),
+        //
+        // invalid array_size
+        apply_edit_dx10(valid_dx10(), |dx10| {
+            dx10.resource_dimension = 4; // Texture 3D
+            dx10.array_size = 0;
+        }),
+        apply_edit_dx10(valid_dx10(), |dx10| {
+            dx10.resource_dimension = 4; // Texture 3D
+            dx10.array_size = 123;
+        }),
+    ];
+
+    let output = &mut String::new();
+    for raw in raw_headers.iter() {
+        util::pretty_print_raw_header(output, raw);
+
+        let mut options = ParseOptions::default();
+
+        output.push_str("\nStrict parsing ");
+        options.permissive = false;
+        let strict = Header::from_raw(raw, &options);
+        match &strict {
+            Ok(strict) => util::pretty_print_header(output, strict),
+            Err(err) => output.push_str(&format!("error: {}\n", err)),
+        }
+
+        output.push_str("\nPermissive parsing ");
+        options.permissive = true;
+        let permissive = Header::from_raw(raw, &options);
+        if strict.is_ok() && strict.as_ref().ok() == permissive.as_ref().ok() {
+            output.push_str("resulted in the same header.\n");
+        } else {
+            match &permissive {
+                Ok(permissive) => util::pretty_print_header(output, permissive),
+                Err(err) => output.push_str(&format!("error: {}\n", err)),
+            }
+        }
+
+        output.push_str("\n\n\n");
+    }
+
+    util::compare_snapshot_text(&util::test_data_dir().join("header_parsing.txt"), output).unwrap()
+}

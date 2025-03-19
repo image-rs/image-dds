@@ -1,7 +1,7 @@
 use std::num::NonZeroU8;
 
 use crate::header::{
-    Dx9PixelFormat, DxgiFormat, FourCC, Header, MaskPixelFormat, PixelFormatFlags,
+    Dx9PixelFormat, DxgiFormat, FourCC, Header, MaskPixelFormat, PixelFormatFlags, RgbBitCount,
 };
 use crate::{
     decode::get_decoders, detect, encode::get_encoders, Channels, ColorFormat, Dithering,
@@ -283,7 +283,7 @@ impl TryFrom<Format> for Dx9PixelFormat {
         match value {
             Format::B8G8R8_UNORM => Ok(Self::Mask(MaskPixelFormat {
                 flags: PixelFormatFlags::RGB,
-                rgb_bit_count: 24,
+                rgb_bit_count: RgbBitCount::Count24,
                 r_bit_mask: 0x00FF0000,
                 g_bit_mask: 0x0000FF00,
                 b_bit_mask: 0x000000FF,
@@ -291,7 +291,7 @@ impl TryFrom<Format> for Dx9PixelFormat {
             })),
             Format::R8G8B8_UNORM => Ok(Self::Mask(MaskPixelFormat {
                 flags: PixelFormatFlags::RGB,
-                rgb_bit_count: 24,
+                rgb_bit_count: RgbBitCount::Count24,
                 r_bit_mask: 0x000000FF,
                 g_bit_mask: 0x0000FF00,
                 b_bit_mask: 0x00FF0000,
