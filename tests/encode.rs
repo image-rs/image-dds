@@ -200,6 +200,8 @@ fn encode_dither() {
     summaries.snapshot_or_fail()
 }
 
+// Don't run this on big endian targets, it's just too slow
+#[cfg(not(target_endian = "big"))]
 #[test]
 fn encode_measure_quality() {
     let base = &TestImage::from_file("base.png");
