@@ -14,7 +14,7 @@ use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
     util::{read_u32_le_array, NON_ZERO_U32_ONE},
-    DataLayout, DataRegion, HeaderError, PixelInfo, Size,
+    CubeMapFaces, DataLayout, DataRegion, HeaderError, PixelInfo, Size,
 };
 use bitflags::bitflags;
 use std::{
@@ -474,6 +474,23 @@ impl Header {
             false
         }
     }
+    /// Whether this header describes a cube map.
+    ///
+    /// Note: DX9 supports partial cube maps, which will also return `true`.
+    /// DX10 only supports full cube maps.
+    pub const fn is_cube_map(&self) -> bool {
+        match self {
+            Self::Dx9(dx9) => dx9.is_cube_map(),
+            Self::Dx10(dx10) => dx10.is_cube_map(),
+        }
+    }
+    /// Whether this header describes a volume texture.
+    pub const fn is_volume(&self) -> bool {
+        match self {
+            Self::Dx9(dx9) => dx9.is_volume(),
+            Self::Dx10(dx10) => dx10.is_volume(),
+        }
+    }
 
     pub const fn dx9(&self) -> Option<&Dx9Header> {
         match self {
@@ -915,6 +932,29 @@ impl Dx9Header {
         AlphaMode::Unknown
     }
 
+    /// Whether this header describes a cube map by checking for the
+    /// [`DdsCaps2::CUBE_MAP`] flag.
+    ///
+    /// Note: DX9 supports partial cube maps, which will also return `true`.
+    /// See [`Dx9Header::cube_map_faces`].
+    pub const fn is_cube_map(&self) -> bool {
+        self.caps2.contains(DdsCaps2::CUBE_MAP)
+    }
+    /// Returns the cube map faces iff this header describes a cube map.
+    pub fn cube_map_faces(&self) -> Option<CubeMapFaces> {
+        if self.caps2.contains(DdsCaps2::CUBE_MAP) {
+            Some(self.caps2.into())
+        } else {
+            None
+        }
+    }
+
+    /// Whether this header describes a volume texture by checking for the
+    /// [`DdsCaps2::VOLUME`] flag.
+    pub const fn is_volume(&self) -> bool {
+        self.caps2.contains(DdsCaps2::VOLUME)
+    }
+
     /// Creates a new header for DX10 texture 2D with the given dimensions and
     /// format.
     ///
@@ -1010,6 +1050,19 @@ impl Dx9Header {
 }
 
 impl Dx10Header {
+    /// Whether this header describes a cube map by checking for the
+    /// [`MiscFlags::TEXTURE_CUBE`] flag.
+    ///
+    /// Note: DX10 guarantees that cube maps have exactly 6 faces.
+    pub const fn is_cube_map(&self) -> bool {
+        self.misc_flag.contains(MiscFlags::TEXTURE_CUBE)
+    }
+    /// Whether this header describes a volume texture by checking for
+    /// [`ResourceDimension::Texture3D`].
+    pub const fn is_volume(&self) -> bool {
+        matches!(self.resource_dimension, ResourceDimension::Texture3D)
+    }
+
     /// Creates a new header for DX10 texture 2D with the given dimensions and
     /// format.
     ///

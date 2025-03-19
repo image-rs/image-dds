@@ -2,7 +2,7 @@ use std::num::NonZeroU8;
 
 use bitflags::bitflags;
 
-use crate::header::{DdsCaps2, Header, MiscFlags, ResourceDimension};
+use crate::header::{DdsCaps2, Header, ResourceDimension};
 use crate::{util::get_mipmap_size, DecodeError, PixelInfo, Size};
 
 pub trait DataRegion {
@@ -361,11 +361,11 @@ pub enum TextureArrayKind {
     /// The number of textures in the array is a multiple of 6.
     CubeMaps,
     /// An array of at most 5 sides of a cube maps.
-    PartialCubeMap(CubeMapSide),
+    PartialCubeMap(CubeMapFaces),
 }
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-    pub struct CubeMapSide: u8 {
+    pub struct CubeMapFaces: u8 {
         const POSITIVE_X = 0b0000_0001;
         const NEGATIVE_X = 0b0000_0010;
         const POSITIVE_Y = 0b0000_0100;
@@ -375,13 +375,13 @@ bitflags! {
         const ALL = Self::POSITIVE_X.bits() | Self::NEGATIVE_X.bits() | Self::POSITIVE_Y.bits() | Self::NEGATIVE_Y.bits() | Self::POSITIVE_Z.bits() | Self::NEGATIVE_Z.bits();
     }
 }
-impl From<DdsCaps2> for CubeMapSide {
+impl From<DdsCaps2> for CubeMapFaces {
     fn from(value: DdsCaps2) -> Self {
         let faces = (value & DdsCaps2::CUBE_MAP_ALL_FACES).bits();
-        CubeMapSide::from_bits_truncate((faces >> 10) as u8)
+        CubeMapFaces::from_bits_truncate((faces >> 10) as u8)
     }
 }
-impl CubeMapSide {
+impl CubeMapFaces {
     /// Returns the number of cube map sides set in this bit mask.
     pub fn count(&self) -> u32 {
         self.bits().count_ones()
@@ -490,9 +490,8 @@ impl DataLayout {
                     ResourceDimension::Texture2D => {
                         let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
                         let array_size = dx10.array_size;
-                        let is_cube_map = dx10.misc_flag.contains(MiscFlags::TEXTURE_CUBE);
 
-                        if is_cube_map {
+                        if dx10.is_cube_map() {
                             // "For a 2D texture that is also a cube-map texture, array_size represents the number of cubes."
                             let cube_map_faces = array_size
                                 .checked_mul(6)
@@ -517,20 +516,19 @@ impl DataLayout {
                 }
             }
             Header::Dx9(dx9) => {
-                if dx9.caps2.contains(DdsCaps2::VOLUME) {
+                if dx9.is_volume() {
                     let info = VolumeLayoutInfo::from_header(header, pixel_info)?;
                     Ok(Self::Volume(info.create()?))
-                } else if dx9.caps2.contains(DdsCaps2::CUBE_MAP) {
+                } else if let Some(faces) = dx9.cube_map_faces() {
                     let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
-                    let sides = CubeMapSide::from(dx9.caps2);
-                    let side_count = sides.count();
+                    let face_count = faces.count();
 
-                    let kind = if side_count == 6 {
+                    let kind = if face_count == 6 {
                         TextureArrayKind::CubeMaps
                     } else {
-                        TextureArrayKind::PartialCubeMap(sides)
+                        TextureArrayKind::PartialCubeMap(faces)
                     };
-                    Ok(Self::TextureArray(info.create_array(kind, side_count)?))
+                    Ok(Self::TextureArray(info.create_array(kind, face_count)?))
                 } else {
                     let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
                     Ok(Self::Texture(info.create()?))
