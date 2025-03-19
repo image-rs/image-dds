@@ -85,12 +85,7 @@ impl PixelInfo {
                     .map(Into::into)
                     .ok_or(FormatError::UnsupportedFourCC(*four_cc)),
                 Dx9PixelFormat::Mask(pixel_format) => {
-                    let bit_count = pixel_format.rgb_bit_count;
-                    if bit_count > 0 && bit_count <= 32 && bit_count % 8 == 0 {
-                        Ok(PixelInfo::fixed((bit_count / 8) as u8))
-                    } else {
-                        Err(FormatError::UnsupportedPixelFormat)
-                    }
+                    Ok(PixelInfo::fixed(pixel_format.rgb_bit_count as u8 / 8))
                 }
             },
             Header::Dx10(dx10) => dx10

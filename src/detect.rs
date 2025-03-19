@@ -1,7 +1,9 @@
 //! Internal module for detecting supported formats from DXGI, FourCC, and
 //! DDS pixel formats.
 
-use crate::header::{AlphaMode, Dx10Header, DxgiFormat, FourCC, MaskPixelFormat, PixelFormatFlags};
+use crate::header::{
+    AlphaMode, Dx10Header, DxgiFormat, FourCC, MaskPixelFormat, PixelFormatFlags, RgbBitCount,
+};
 use crate::Format;
 
 pub(crate) const fn special_cases(dx10: &Dx10Header) -> Option<Format> {
@@ -230,7 +232,7 @@ pub(crate) fn dxgi_to_pixel_format(dxgi_format: DxgiFormat) -> Option<MaskPixelF
 
 struct PFPattern {
     flags: PixelFormatFlags,
-    rgb_bit_count: u32,
+    rgb_bit_count: RgbBitCount,
     r_bit_mask: u32,
     g_bit_mask: u32,
     b_bit_mask: u32,
@@ -251,10 +253,19 @@ impl PFPattern {
     }
 }
 const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {
+    const fn parse_bit_count(bit_count: u32) -> RgbBitCount {
+        match bit_count {
+            8 => RgbBitCount::Count8,
+            16 => RgbBitCount::Count16,
+            24 => RgbBitCount::Count24,
+            32 => RgbBitCount::Count32,
+            _ => panic!("Invalid bit count"),
+        }
+    }
     const fn alpha_only(bit_count: u32, a_mask: u32) -> PFPattern {
         PFPattern {
             flags: PixelFormatFlags::ALPHA,
-            rgb_bit_count: bit_count,
+            rgb_bit_count: parse_bit_count(bit_count),
             r_bit_mask: 0,
             g_bit_mask: 0,
             b_bit_mask: 0,
@@ -264,7 +275,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {
     const fn grayscale(bit_count: u32, r_mask: u32) -> PFPattern {
         PFPattern {
             flags: PixelFormatFlags::LUMINANCE,
-            rgb_bit_count: bit_count,
+            rgb_bit_count: parse_bit_count(bit_count),
             r_bit_mask: r_mask,
             g_bit_mask: 0,
             b_bit_mask: 0,
@@ -274,7 +285,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {
     const fn rgb(bit_count: u32, r_mask: u32, g_mask: u32, b_mask: u32) -> PFPattern {
         PFPattern {
             flags: PixelFormatFlags::RGB,
-            rgb_bit_count: bit_count,
+            rgb_bit_count: parse_bit_count(bit_count),
             r_bit_mask: r_mask,
             g_bit_mask: g_mask,
             b_bit_mask: b_mask,
@@ -284,7 +295,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {
     const fn rgba(bit_count: u32, r_mask: u32, g_mask: u32, b_mask: u32, a_mask: u32) -> PFPattern {
         PFPattern {
             flags: PixelFormatFlags::RGBA,
-            rgb_bit_count: bit_count,
+            rgb_bit_count: parse_bit_count(bit_count),
             r_bit_mask: r_mask,
             g_bit_mask: g_mask,
             b_bit_mask: b_mask,
@@ -300,7 +311,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {
     ) -> PFPattern {
         PFPattern {
             flags: PixelFormatFlags::BUMP_DUDV,
-            rgb_bit_count: bit_count,
+            rgb_bit_count: parse_bit_count(bit_count),
             r_bit_mask: r_mask,
             g_bit_mask: g_mask,
             b_bit_mask: b_mask,
@@ -397,7 +408,7 @@ const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {
             // I have no idea why, but LUMINANCE + ALPHAPIXELS is used for R8G8_UNORM
             PFPattern {
                 flags: PixelFormatFlags::LUMINANCE_ALPHA,
-                rgb_bit_count: 16,
+                rgb_bit_count: RgbBitCount::Count16,
                 r_bit_mask: 0xFF,
                 g_bit_mask: 0,
                 b_bit_mask: 0,

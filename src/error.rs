@@ -176,6 +176,7 @@ pub enum HeaderError {
     InvalidMagicBytes([u8; 4]),
     InvalidHeaderSize(u32),
     InvalidPixelFormatSize(u32),
+    InvalidRgbBitCount(u32),
     InvalidDxgiFormat(u32),
     InvalidResourceDimension(u32),
     InvalidAlphaMode(u32),
@@ -203,6 +204,13 @@ impl std::fmt::Display for HeaderError {
                     f,
                     "Invalid DDS header pixel format size of {}, expected 32",
                     size
+                )
+            }
+            HeaderError::InvalidRgbBitCount(count) => {
+                write!(
+                    f,
+                    "Invalid DDS header pixel format rgb_bit_count of {}, expected 8, 16, 24, or 32",
+                    count
                 )
             }
             HeaderError::InvalidDxgiFormat(format) => {

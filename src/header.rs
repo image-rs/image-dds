@@ -89,6 +89,9 @@ impl RawHeader {
     pub(crate) const INTS: usize = Self::SIZE as usize / 4;
 
     /// Reads the raw header **without** magic bytes from a reader.
+    ///
+    /// This will not do any form of validation whatsoever. The way for this
+    /// operation to fail is for the given reader to error.
     pub fn read<R: Read>(reader: &mut R) -> std::io::Result<Self> {
         let mut buffer: [u32; RawHeader::INTS] = Default::default();
         read_u32_le_array(reader, &mut buffer)?;
@@ -141,6 +144,9 @@ impl RawHeader {
     }
 
     /// Write the raw header **without** magic bytes to a writer.
+    ///
+    /// This will not do any form of validation whatsoever. The way for this
+    /// operation to fail is for the given reader to error.
     pub fn write<W: Write>(&self, writer: &mut W) -> std::io::Result<()> {
         let mut buffer: [u32; 36] = [
             self.size,
@@ -218,7 +224,7 @@ impl RawPixelFormat {
             size: Self::SIZE,
             flags: mask.flags,
             four_cc: FourCC::NONE,
-            rgb_bit_count: mask.rgb_bit_count,
+            rgb_bit_count: mask.rgb_bit_count.into(),
             r_bit_mask: mask.r_bit_mask,
             g_bit_mask: mask.g_bit_mask,
             b_bit_mask: mask.b_bit_mask,
@@ -271,7 +277,7 @@ pub struct MaskPixelFormat {
     /// Values which indicate what type of data is in the surface.
     pub flags: PixelFormatFlags,
     /// Number of bits in an RGB (possibly including alpha) format. Valid when dwFlags includes DDPF_RGB, DDPF_LUMINANCE, or DDPF_YUV.
-    pub rgb_bit_count: u32,
+    pub rgb_bit_count: RgbBitCount,
     /// Red (or luminance or Y) mask for reading color data. For instance, given the A8R8G8B8 format, the red mask would be 0x00ff0000.
     pub r_bit_mask: u32,
     /// Green (or U) mask for reading color data. For instance, given the A8R8G8B8 format, the green mask would be 0x0000ff00.
@@ -281,6 +287,40 @@ pub struct MaskPixelFormat {
     /// Alpha mask for reading alpha data. dwFlags must include DDPF_ALPHAPIXELS or DDPF_ALPHA. For instance, given the A8R8G8B8 format, the alpha mask would be 0xff000000.
     pub a_bit_mask: u32,
 }
+/// Valid values for [`MaskPixelFormat::rgb_bit_count`].
+///
+/// There are only 4 possible valid values: 8, 16, 24, and 32. This is because
+/// the number of bits must:
+///
+/// 1. be greater than 0,
+/// 2. be divisible to be a whole number of bytes, and
+/// 3. be at most 32 because the masks don't support more than that.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum RgbBitCount {
+    Count8 = 8,
+    Count16 = 16,
+    Count24 = 24,
+    Count32 = 32,
+}
+impl TryFrom<u32> for RgbBitCount {
+    type Error = u32;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match value {
+            8 => Ok(RgbBitCount::Count8),
+            16 => Ok(RgbBitCount::Count16),
+            24 => Ok(RgbBitCount::Count24),
+            32 => Ok(RgbBitCount::Count32),
+            _ => Err(value),
+        }
+    }
+}
+impl From<RgbBitCount> for u32 {
+    fn from(value: RgbBitCount) -> Self {
+        value as u32
+    }
+}
+
 /// DDS header extension to handle resource arrays, DXGI pixel formats that don't map to the legacy Microsoft DirectDraw pixel format structures, and additional metadata.
 ///
 /// <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-header-dxt10>
@@ -903,6 +943,11 @@ impl Dx9PixelFormat {
         let format = if flags.contains(PixelFormatFlags::FOURCC) {
             Dx9PixelFormat::FourCC(four_cc)
         } else {
+            let rgb_bit_count = match RgbBitCount::try_from(rgb_bit_count) {
+                Ok(valid) => valid,
+                Err(invalid) => return Err(HeaderError::InvalidRgbBitCount(invalid)),
+            };
+
             Dx9PixelFormat::Mask(MaskPixelFormat {
                 flags,
                 rgb_bit_count,

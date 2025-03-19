@@ -637,7 +637,7 @@ pub fn pretty_print_header(out: &mut String, header: &Header) {
                     out.push_str(&format!("        flags: {:?}\n", pixel_format.flags));
                     out.push_str(&format!(
                         "        rgb_bit_count: {:?}\n",
-                        pixel_format.rgb_bit_count
+                        pixel_format.rgb_bit_count as u32
                     ));
                     out.push_str(&format!(
                         "        bit_mask: r:0x{:x} g:0x{:x} b:0x{:x} a:0x{:x}\n",
