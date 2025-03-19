@@ -27,6 +27,21 @@ pub fn hash_hex(data: &[u8]) -> String {
     }
     hex
 }
+pub fn hash_hex_f32(data: &[f32]) -> String {
+    let mut hasher = Sha256::new();
+    for f in data {
+        let bytes: [u8; 4] = f.to_le_bytes();
+        hasher.update(bytes);
+    }
+    let result = hasher.finalize();
+    let bytes: [u8; 32] = result.into();
+
+    let mut hex = String::new();
+    for byte in bytes.iter() {
+        hex.push_str(&format!("{:02x}", byte));
+    }
+    hex
+}
 
 pub trait Castable: FromBytes + IntoBytes + Immutable {}
 impl<T: FromBytes + IntoBytes + Immutable> Castable for T {}
@@ -437,23 +452,24 @@ pub fn compare_snapshot_dds_f32(
     if !is_ci() {
         println!("Writing DDS: {:?}", dds_path);
 
+        let format = match image.channels {
+            Channels::Grayscale => Format::R32_FLOAT,
+            Channels::Alpha => Format::R32_FLOAT,
+            Channels::Rgb => Format::R32G32B32_FLOAT,
+            Channels::Rgba => Format::R32G32B32A32_FLOAT,
+        };
         let mut output = Vec::new();
-        write_simple_dds_header(
-            &mut output,
-            image.size,
-            match image.channels {
-                Channels::Grayscale => DxgiFormat::R32_FLOAT,
-                Channels::Alpha => DxgiFormat::R32_FLOAT,
-                Channels::Rgb => DxgiFormat::R32G32B32_FLOAT,
-                Channels::Rgba => DxgiFormat::R32G32B32A32_FLOAT,
-            },
-        )?;
+        write_simple_dds_header(&mut output, image.size, format.try_into().unwrap())?;
 
         // convert to LE
-        let mut data = image.data.clone();
-        let data_u32: &mut [u32] = cast_slice_mut(&mut data);
-        data_u32.iter_mut().for_each(|x| *x = x.to_le());
-        output.extend_from_slice(as_bytes(&data));
+        encode(
+            &mut output,
+            format,
+            image.size,
+            format.color(),
+            image.as_bytes(),
+            &EncodeOptions::default(),
+        )?;
 
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
         std::fs::write(dds_path, output)?;

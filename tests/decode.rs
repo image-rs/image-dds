@@ -24,7 +24,7 @@ fn decode_all_dds_files() {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let name = dds_path.file_name().unwrap().to_str().unwrap();
         if name.contains("DX10 A8_UNORM") {
-            println!("debugger");
+            // println!("debugger");
         }
         let (image, _) = util::read_dds_png_compatible(dds_path)?;
 
@@ -80,7 +80,7 @@ fn decode_bc6_fuzz_hdr() {
         // compare to PNG and ignore any errors
         _ = util::compare_snapshot_dds_f32(output_dds_path, &image);
 
-        let hex = util::hash_hex(util::as_bytes(&image.data));
+        let hex = util::hash_hex_f32(&image.data);
 
         Ok(Some(hex))
     }
