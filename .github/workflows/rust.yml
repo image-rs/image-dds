@@ -51,3 +51,30 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo check
+
+  # taken from https://github.com/image-rs/image/blob/ca9e2dceb436a8c5a8202797cb9e8a1573eba35e/.github/workflows/rust.yml#L64-L88
+  test_other_archs:
+    # github actions does not support 32-bit or big endian systems directly, but
+    # it does support QEMU. so we install qemu, then build and run the tests in
+    # an emulated mips system. NOTE: you can also use this approach to test for
+    # big endian locally.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [powerpc-unknown-linux-gnu, i686-unknown-linux-gnu]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install or use cached cross-rs/cross
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cross
+      - name: Cache Cargo Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+          key: ${{ matrix.arch }}
+      - name: Start Docker (required for cross-rs)
+        run: sudo systemctl start docker
+      - name: Cross-Run Tests using QEMU
+        run: cross test --target ${{ matrix.arch }}
