@@ -27,6 +27,21 @@ pub fn hash_hex(data: &[u8]) -> String {
     }
     hex
 }
+pub fn hash_hex_f32(data: &[f32]) -> String {
+    let mut hasher = Sha256::new();
+    for f in data {
+        let bytes: [u8; 4] = f.to_le_bytes();
+        hasher.update(bytes);
+    }
+    let result = hasher.finalize();
+    let bytes: [u8; 32] = result.into();
+
+    let mut hex = String::new();
+    for byte in bytes.iter() {
+        hex.push_str(&format!("{:02x}", byte));
+    }
+    hex
+}
 
 pub trait Castable: FromBytes + IntoBytes + Immutable {}
 impl<T: FromBytes + IntoBytes + Immutable> Castable for T {}

@@ -80,7 +80,7 @@ fn decode_bc6_fuzz_hdr() {
         // compare to PNG and ignore any errors
         _ = util::compare_snapshot_dds_f32(output_dds_path, &image);
 
-        let hex = util::hash_hex(util::as_bytes(&image.data));
+        let hex = util::hash_hex_f32(&image.data);
 
         Ok(Some(hex))
     }
