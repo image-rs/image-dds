@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - run: cargo test
+      - run: cargo test --no-fail-fast
 
   msrv:
     runs-on: ubuntu-latest
