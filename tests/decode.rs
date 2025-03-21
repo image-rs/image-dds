@@ -108,6 +108,7 @@ fn decode_rect() {
         "images/uncompressed/DX10 R8_UNORM.dds",
         // Sub-sampled formats
         "images/sub-sampled/DX9 R8G8_B8G8_UNORM.dds",
+        "images/uncompressed/DX10 R1_UNORM.dds",
         // Bi-planar formats
         "images/bi-planar/DX10 NV12.dds",
         // Block-compressed formats
@@ -231,6 +232,10 @@ fn decode_rect() {
     }
 }
 
+/// Checks that all color formats are decoded correctly.
+///
+/// The idea here is that if you decode as u8, you should get same result as
+/// decoding as u16/f32 and then converting to u8.
 #[test]
 fn decode_all_color_formats() {
     fn u16_to_u8(data: &[u16]) -> Vec<u8> {
