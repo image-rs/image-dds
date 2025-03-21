@@ -192,42 +192,39 @@ pub(crate) const fn four_cc_to_supported(four_cc: FourCC) -> Option<Format> {
     }
 }
 
-pub(crate) fn pixel_format_to_supported(pf: &MaskPixelFormat) -> Option<Format> {
-    // known patterns
-    for (pattern, _, format) in KNOWN_PIXEL_FORMATS {
-        if pattern.matches(pf) {
-            return Some(*format);
-        }
-    }
-
-    None
+pub(crate) fn masked_to_supported(pf: &MaskPixelFormat) -> Option<Format> {
+    KNOWN_PIXEL_FORMATS.iter().find_map(
+        |(p, _, format)| {
+            if p.matches(pf) {
+                Some(*format)
+            } else {
+                None
+            }
+        },
+    )
 }
-pub(crate) fn pixel_format_to_dxgi(pf: &MaskPixelFormat) -> Option<DxgiFormat> {
-    // known patterns
-    for (pattern, dxgi, _) in KNOWN_PIXEL_FORMATS {
-        if pattern.matches(pf) {
-            return *dxgi;
-        }
-    }
-
-    None
+pub(crate) fn masked_to_dxgi(pf: &MaskPixelFormat) -> Option<DxgiFormat> {
+    KNOWN_PIXEL_FORMATS
+        .iter()
+        .find_map(|(p, dxgi, _)| if p.matches(pf) { *dxgi } else { None })
 }
-pub(crate) fn dxgi_to_pixel_format(dxgi_format: DxgiFormat) -> Option<MaskPixelFormat> {
-    // known patterns
-    for (pattern, dxgi, _) in KNOWN_PIXEL_FORMATS {
+pub(crate) fn dxgi_to_masked(dxgi_format: DxgiFormat) -> Option<MaskPixelFormat> {
+    KNOWN_PIXEL_FORMATS.iter().find_map(|(p, dxgi, _)| {
         if *dxgi == Some(dxgi_format) {
-            return Some(MaskPixelFormat {
-                flags: pattern.flags,
-                rgb_bit_count: pattern.rgb_bit_count,
-                r_bit_mask: pattern.r_bit_mask,
-                g_bit_mask: pattern.g_bit_mask,
-                b_bit_mask: pattern.b_bit_mask,
-                a_bit_mask: pattern.a_bit_mask,
-            });
+            Some(p.to_masked())
+        } else {
+            None
         }
-    }
-
-    None
+    })
+}
+pub(crate) fn supported_to_masked(format: Format) -> Option<MaskPixelFormat> {
+    KNOWN_PIXEL_FORMATS.iter().find_map(|(p, _, f)| {
+        if *f == format {
+            Some(p.to_masked())
+        } else {
+            None
+        }
+    })
 }
 
 struct PFPattern {
@@ -250,6 +247,16 @@ impl PFPattern {
     const fn with_flags(mut self, flags: PixelFormatFlags) -> Self {
         self.flags = flags;
         self
+    }
+    fn to_masked(&self) -> MaskPixelFormat {
+        MaskPixelFormat {
+            flags: self.flags,
+            rgb_bit_count: self.rgb_bit_count,
+            r_bit_mask: self.r_bit_mask,
+            g_bit_mask: self.g_bit_mask,
+            b_bit_mask: self.b_bit_mask,
+            a_bit_mask: self.a_bit_mask,
+        }
     }
 }
 const KNOWN_PIXEL_FORMATS: &[(PFPattern, Option<DxgiFormat>, Format)] = {

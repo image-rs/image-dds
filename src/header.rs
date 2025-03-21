@@ -12,7 +12,7 @@
 
 use crate::{
     cast,
-    detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
+    detect::{dxgi_to_four_cc, dxgi_to_masked, four_cc_to_dxgi, masked_to_dxgi},
     util::{read_u32_le_array, NON_ZERO_U32_ONE},
     CubeMapFaces, DataLayout, DataRegion, HeaderError, PixelInfo, Size,
 };
@@ -1064,7 +1064,7 @@ impl Dx9Header {
                     return None;
                 }
             }
-            Dx9PixelFormat::Mask(mask_pixel_format) => pixel_format_to_dxgi(mask_pixel_format)?,
+            Dx9PixelFormat::Mask(mask_pixel_format) => masked_to_dxgi(mask_pixel_format)?,
         };
 
         if self.caps2.contains(Caps2::CUBE_MAP) && !self.caps2.contains(Caps2::CUBE_MAP_ALL_FACES) {
@@ -1191,7 +1191,7 @@ impl Dx10Header {
 
             dxgi_to_four_cc(dxgi_format)
                 .map(Dx9PixelFormat::FourCC)
-                .or_else(|| dxgi_to_pixel_format(dxgi_format).map(Dx9PixelFormat::Mask))
+                .or_else(|| dxgi_to_masked(dxgi_format).map(Dx9PixelFormat::Mask))
         }
 
         if self.array_size != 1 {
