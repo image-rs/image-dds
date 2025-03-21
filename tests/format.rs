@@ -105,3 +105,18 @@ fn format_metadata() {
     util::compare_snapshot_text(&util::test_data_dir().join("format_metadata.txt"), &output)
         .unwrap();
 }
+
+#[test]
+fn format_conversion() {
+    for &format in util::ALL_FORMATS {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            let roundtrip = Format::from_dxgi(dxgi).unwrap();
+            assert_eq!(format, roundtrip, "DXGI -> Format -> DXGI: {:?}", format);
+        }
+
+        if let Ok(four_cc) = FourCC::try_from(format) {
+            let roundtrip = Format::from_four_cc(four_cc).unwrap();
+            assert_eq!(format, roundtrip, "FourCC -> Format -> FourCC: {:?}", format);
+        }
+    }
+}
