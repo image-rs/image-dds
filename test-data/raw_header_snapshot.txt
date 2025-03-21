@@ -208,6 +208,90 @@ Raw Header:
 
 
 Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X)
+    format: FourCC(DXT1)
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 64 x 64 (x 1)
+    linear_size: 2048
+    mipmap_count: 1
+    pixel_format: FourCC(DXT1)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X)
+
+
+
+Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 1
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z | VOLUME)
+    format: FourCC(DXT1)
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE | DEPTH)
+    w/h/d: 64 x 64 x 64
+    linear_size: 2048
+    mipmap_count: 1
+    pixel_format: FourCC(DXT1)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z | VOLUME)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DXT1)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(DXT1)
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DXT1)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+
+
+
+Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    caps2: DdsCaps2(VOLUME)
+    format: FourCC(DXT1)
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE | DEPTH)
+    w/h/d: 100 x 100 x 100
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DXT1)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(VOLUME)
+
+
+
+Header:
     w/h: 120 x 120
     mipmap_count: 1
     format: FourCC(DXT1)
@@ -1100,6 +1184,29 @@ Raw Header:
 
 
 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: UNKNOWN (0)
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT)
+    w/h: 100 x 100 (x 1)
+    pitch_or_linear_size: 0
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+    DX10:
+        dxgi_format: UNKNOWN (0)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 0
+
+
+
+Header:
     w/h: 129 x 66
     mipmap_count: 8
     DX10: Texture2D
@@ -1873,6 +1980,78 @@ Raw Header:
 
 
 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Premultiplied
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+    DX10:
+        dxgi_format: BC1_UNORM (71)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 2
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Opaque
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+    DX10:
+        dxgi_format: BC1_UNORM (71)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 3
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Custom
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+    DX10:
+        dxgi_format: BC1_UNORM (71)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 4
+
+
+
+Header:
     w/h: 129 x 66
     mipmap_count: 8
     DX10: Texture2D
@@ -1921,6 +2100,31 @@ Raw Header:
 
 
 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        array_size: 3
+        alpha_mode: Straight
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+    DX10:
+        dxgi_format: BC1_UNORM (71)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(0x0)
+        array_size: 3
+        misc_flags2: 1
+
+
+
+Header:
     w/h: 32 x 32
     mipmap_count: 1
     DX10: Texture2D
@@ -1940,6 +2144,30 @@ Raw Header:
         misc_flag: MiscFlags(0x0)
         array_size: 1
         misc_flags2: 0
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        alpha_mode: Straight
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(0x0)
+    DX10:
+        dxgi_format: BC1_UNORM_SRGB (72)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 1
 
 
 
@@ -2973,6 +3201,31 @@ Raw Header:
 
 
 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+    w/h: 100 x 100 (x 1)
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    DX10:
+        dxgi_format: BC1_UNORM_SRGB (72)
+        resource_dimension: Texture2D
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        array_size: 1
+        misc_flags2: 1
+
+
+
+Header:
     w/h: 128 x 128
     mipmap_count: 1
     DX10: Texture2D
@@ -3015,6 +3268,55 @@ Raw Header:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: Texture3D
         misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 1
+
+
+
+Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        alpha_mode: Straight
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE | DEPTH)
+    w/h/d: 100 x 100 x 100
+    linear_size: 5000
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(VOLUME)
+    DX10:
+        dxgi_format: BC1_UNORM_SRGB (72)
+        resource_dimension: Texture3D
+        misc_flag: MiscFlags(0x0)
+        array_size: 1
+        misc_flags2: 1
+
+
+
+Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Raw Header:
+    flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE | DEPTH)
+    w/h/d: 64 x 64 x 64
+    linear_size: 2048
+    mipmap_count: 1
+    pixel_format: FourCC(DX10)
+    caps: DdsCaps(TEXTURE)
+    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z | VOLUME)
+    DX10:
+        dxgi_format: BC1_UNORM (71)
+        resource_dimension: Texture3D
+        misc_flag: MiscFlags(TEXTURE_CUBE)
         array_size: 1
         misc_flags2: 1
 

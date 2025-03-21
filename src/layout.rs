@@ -2,7 +2,7 @@ use std::num::NonZeroU8;
 
 use bitflags::bitflags;
 
-use crate::header::{DdsCaps2, Header, ResourceDimension};
+use crate::header::{Caps2, Header, ResourceDimension};
 use crate::{util::get_mipmap_size, DecodeError, PixelInfo, Size};
 
 pub trait DataRegion {
@@ -375,9 +375,9 @@ bitflags! {
         const ALL = Self::POSITIVE_X.bits() | Self::NEGATIVE_X.bits() | Self::POSITIVE_Y.bits() | Self::NEGATIVE_Y.bits() | Self::POSITIVE_Z.bits() | Self::NEGATIVE_Z.bits();
     }
 }
-impl From<DdsCaps2> for CubeMapFaces {
-    fn from(value: DdsCaps2) -> Self {
-        let faces = (value & DdsCaps2::CUBE_MAP_ALL_FACES).bits();
+impl From<Caps2> for CubeMapFaces {
+    fn from(value: Caps2) -> Self {
+        let faces = (value & Caps2::CUBE_MAP_ALL_FACES).bits();
         CubeMapFaces::from_bits_truncate((faces >> 10) as u8)
     }
 }
