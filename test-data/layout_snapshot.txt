@@ -5,8 +5,8 @@ images/bc fuzz/bc6 SF16 mode one 00011.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -36,8 +36,8 @@ images/bc fuzz/bc6 SF16 mode one 00111.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -67,8 +67,8 @@ images/bc fuzz/bc6 SF16 mode one 01011.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -98,8 +98,8 @@ images/bc fuzz/bc6 SF16 mode one 01111.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -129,8 +129,8 @@ images/bc fuzz/bc6 SF16 mode two 00.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -160,8 +160,8 @@ images/bc fuzz/bc6 SF16 mode two 00010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -191,8 +191,8 @@ images/bc fuzz/bc6 SF16 mode two 00110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -222,8 +222,8 @@ images/bc fuzz/bc6 SF16 mode two 01.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -253,8 +253,8 @@ images/bc fuzz/bc6 SF16 mode two 01010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -284,8 +284,8 @@ images/bc fuzz/bc6 SF16 mode two 01110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -315,8 +315,8 @@ images/bc fuzz/bc6 SF16 mode two 10010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -346,8 +346,8 @@ images/bc fuzz/bc6 SF16 mode two 10110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -377,8 +377,8 @@ images/bc fuzz/bc6 SF16 mode two 11010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -408,8 +408,8 @@ images/bc fuzz/bc6 SF16 mode two 11110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -439,8 +439,8 @@ images/bc fuzz/bc6 UF16 mode one 00011.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -470,8 +470,8 @@ images/bc fuzz/bc6 UF16 mode one 00111.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -501,8 +501,8 @@ images/bc fuzz/bc6 UF16 mode one 01011.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -532,8 +532,8 @@ images/bc fuzz/bc6 UF16 mode one 01111.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -563,8 +563,8 @@ images/bc fuzz/bc6 UF16 mode two 00.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -594,8 +594,8 @@ images/bc fuzz/bc6 UF16 mode two 00010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -625,8 +625,8 @@ images/bc fuzz/bc6 UF16 mode two 00110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -656,8 +656,8 @@ images/bc fuzz/bc6 UF16 mode two 01.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -687,8 +687,8 @@ images/bc fuzz/bc6 UF16 mode two 01010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -718,8 +718,8 @@ images/bc fuzz/bc6 UF16 mode two 01110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -749,8 +749,8 @@ images/bc fuzz/bc6 UF16 mode two 10010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -780,8 +780,8 @@ images/bc fuzz/bc6 UF16 mode two 10110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -811,8 +811,8 @@ images/bc fuzz/bc6 UF16 mode two 11010.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -842,8 +842,8 @@ images/bc fuzz/bc6 UF16 mode two 11110.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -873,8 +873,8 @@ images/bc fuzz/bc7 mode 0.dds
         linear_size: 65536
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -904,8 +904,8 @@ images/bc fuzz/bc7 mode 1.dds
         linear_size: 131072
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -935,8 +935,8 @@ images/bc fuzz/bc7 mode 2.dds
         linear_size: 131072
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -966,8 +966,8 @@ images/bc fuzz/bc7 mode 3.dds
         linear_size: 131072
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -997,8 +997,8 @@ images/bc fuzz/bc7 mode 4.dds
         linear_size: 32768
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -1028,8 +1028,8 @@ images/bc fuzz/bc7 mode 5.dds
         linear_size: 16384
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -1059,8 +1059,8 @@ images/bc fuzz/bc7 mode 6.dds
         linear_size: 65536
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -1090,8 +1090,8 @@ images/bc fuzz/bc7 mode 7.dds
         linear_size: 131072
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -1121,8 +1121,8 @@ images/bc/DX10 BC1_UNORM.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
@@ -1160,8 +1160,8 @@ images/bc/DX10 BC1_UNORM_SRGB.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC1_UNORM_SRGB (72)
             resource_dimension: Texture2D
@@ -1199,8 +1199,8 @@ images/bc/DX10 BC2_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC2_UNORM (74)
             resource_dimension: Texture2D
@@ -1238,8 +1238,8 @@ images/bc/DX10 BC2_UNORM_SRGB.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC2_UNORM_SRGB (75)
             resource_dimension: Texture2D
@@ -1277,8 +1277,8 @@ images/bc/DX10 BC3_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC3_UNORM (77)
             resource_dimension: Texture2D
@@ -1316,8 +1316,8 @@ images/bc/DX10 BC3_UNORM_SRGB.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC3_UNORM_SRGB (78)
             resource_dimension: Texture2D
@@ -1355,8 +1355,8 @@ images/bc/DX10 BC4_SNORM.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC4_SNORM (81)
             resource_dimension: Texture2D
@@ -1393,8 +1393,8 @@ images/bc/DX10 BC4_UNORM.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC4_UNORM (80)
             resource_dimension: Texture2D
@@ -1431,8 +1431,8 @@ images/bc/DX10 BC5_SNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC5_SNORM (84)
             resource_dimension: Texture2D
@@ -1469,8 +1469,8 @@ images/bc/DX10 BC5_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC5_UNORM (83)
             resource_dimension: Texture2D
@@ -1507,8 +1507,8 @@ images/bc/DX10 BC6H_SF16.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_SF16 (96)
             resource_dimension: Texture2D
@@ -1545,8 +1545,8 @@ images/bc/DX10 BC6H_UF16.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -1583,8 +1583,8 @@ images/bc/DX10 BC7_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -1622,8 +1622,8 @@ images/bc/DX10 BC7_UNORM_SRGB.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM_SRGB (99)
             resource_dimension: Texture2D
@@ -1661,8 +1661,8 @@ images/bc/DX9 BC1_UNORM.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1692,8 +1692,8 @@ images/bc/DX9 BC2_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DXT3)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1723,8 +1723,8 @@ images/bc/DX9 BC3_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1754,8 +1754,8 @@ images/bc/DX9 BC3n (DXT5nm).dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1785,8 +1785,8 @@ images/bc/DX9 BC4_SNORM.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(BC4S)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1816,8 +1816,8 @@ images/bc/DX9 BC4_UNORM.dds
         linear_size: 4488
         mipmap_count: 8
         pixel_format: FourCC(ATI1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1847,8 +1847,8 @@ images/bc/DX9 BC5_SNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(BC5S)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1878,8 +1878,8 @@ images/bc/DX9 BC5_UNORM.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(ATI2)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1909,8 +1909,8 @@ images/bc/DX9 DXT2.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DXT2)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1940,8 +1940,8 @@ images/bc/DX9 DXT4.dds
         linear_size: 8976
         mipmap_count: 8
         pixel_format: FourCC(DXT4)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -1971,8 +1971,8 @@ images/bc/dxt1-alpha.dds
         linear_size: 4096
         mipmap_count: 8
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 128 x 64
@@ -2002,8 +2002,8 @@ images/bc/dxt1-simple.dds
         linear_size: 2048
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 64 x 64
@@ -2026,8 +2026,8 @@ images/bc/dxt1.dds
         linear_size: 7200
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 120 x 120
@@ -2050,8 +2050,8 @@ images/bc/dxt3-simple.dds
         linear_size: 4096
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT3)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 64 x 64
@@ -2074,8 +2074,8 @@ images/bc/dxt3.dds
         linear_size: 14400
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT3)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 120 x 120
@@ -2098,8 +2098,8 @@ images/bc/dxt5-simple.dds
         linear_size: 4096
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 64 x 64
@@ -2122,8 +2122,8 @@ images/bc/dxt5.dds
         linear_size: 14400
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 120 x 120
@@ -2146,8 +2146,8 @@ images/bi-planar/DX10 NV12.dds
         linear_size: 12672
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: NV12 (103)
             resource_dimension: Texture2D
@@ -2177,8 +2177,8 @@ images/bi-planar/DX10 P010.dds
         linear_size: 25344
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: P010 (104)
             resource_dimension: Texture2D
@@ -2208,8 +2208,8 @@ images/bi-planar/DX10 P016.dds
         linear_size: 25344
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: P016 (105)
             resource_dimension: Texture2D
@@ -2239,8 +2239,8 @@ images/cube/BC1 Pretoria Gardens DX10.dds
         linear_size: 8192
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         DX10:
             dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
@@ -2325,13 +2325,13 @@ images/cube/DXT1 Pretoria Gardens DX9.dds
         linear_size: 8192
         mipmap_count: 8
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
 
     Header:
         w/h: 128 x 128
         mipmap_count: 8
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         format: FourCC(DXT1)
 
     Pixel Format:
@@ -2403,8 +2403,8 @@ images/cube/Pretoria Gardens DX10.dds
         pitch: 256
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | TEXTURE)
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps: Caps(COMPLEX | TEXTURE)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         DX10:
             dxgi_format: B5G6R5_UNORM (85)
             resource_dimension: Texture2D
@@ -2449,13 +2449,13 @@ images/cube/Pretoria Gardens DX9.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 16
             bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
-        caps: DdsCaps(COMPLEX | TEXTURE)
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps: Caps(COMPLEX | TEXTURE)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
 
     Header:
         w/h: 128 x 128
         mipmap_count: 1
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         format: masked
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 16
@@ -2488,13 +2488,13 @@ images/cube/SYSTEX_ENVLIGHT.dds
         pitch: 256
         mipmap_count: 1  (not specified)
         pixel_format: FourCC(0x71)
-        caps: DdsCaps(COMPLEX | TEXTURE)
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps: Caps(COMPLEX | TEXTURE)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
 
     Header:
         w/h: 32 x 32
         mipmap_count: 1
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         format: FourCC(0x71)
 
     Pixel Format:
@@ -2528,8 +2528,8 @@ images/nvtt/16.16f RG DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16_FLOAT (34)
             resource_dimension: Texture2D
@@ -2571,8 +2571,8 @@ images/nvtt/16.16f RG.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(0x70)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -2606,8 +2606,8 @@ images/nvtt/16f R DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16_FLOAT (54)
             resource_dimension: Texture2D
@@ -2649,8 +2649,8 @@ images/nvtt/16f R.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(0x6f)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -2684,8 +2684,8 @@ images/nvtt/16x4f RGBA DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16B16A16_FLOAT (10)
             resource_dimension: Texture2D
@@ -2727,8 +2727,8 @@ images/nvtt/16x4f RGBA.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(0x71)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -2762,8 +2762,8 @@ images/nvtt/32.32f RG DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32G32_FLOAT (16)
             resource_dimension: Texture2D
@@ -2805,8 +2805,8 @@ images/nvtt/32.32f RG.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(0x73)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -2840,8 +2840,8 @@ images/nvtt/32f R DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32_FLOAT (41)
             resource_dimension: Texture2D
@@ -2883,8 +2883,8 @@ images/nvtt/32f R.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(0x72)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -2918,8 +2918,8 @@ images/nvtt/32x4f RGBA DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32G32B32A32_FLOAT (2)
             resource_dimension: Texture2D
@@ -2961,8 +2961,8 @@ images/nvtt/32x4f RGBA.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(0x74)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -2996,8 +2996,8 @@ images/nvtt/8 A DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: A8_UNORM (65)
             resource_dimension: Texture2D
@@ -3042,8 +3042,8 @@ images/nvtt/8 A.dds
             flags: PixelFormatFlags(ALPHA)
             rgb_bit_count: 8
             bit_mask: r:0x0 g:0x0 b:0x0 a:0xff
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3080,8 +3080,8 @@ images/nvtt/8 L DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8_UNORM (61)
             resource_dimension: Texture2D
@@ -3126,8 +3126,8 @@ images/nvtt/8 L.dds
             flags: PixelFormatFlags(RGB | LUMINANCE)
             rgb_bit_count: 8
             bit_mask: r:0xff g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3167,8 +3167,8 @@ images/nvtt/8.8.8 BGR.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 24
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3208,8 +3208,8 @@ images/nvtt/8.8.8 RGB.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 24
             bit_mask: r:0xff g:0xff00 b:0xff0000 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3246,8 +3246,8 @@ images/nvtt/8.8.8.8 BGRA DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8A8_UNORM (87)
             resource_dimension: Texture2D
@@ -3292,8 +3292,8 @@ images/nvtt/8.8.8.8 BGRA.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3330,8 +3330,8 @@ images/nvtt/8.8.8.8 RGBA DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8B8A8_UNORM (28)
             resource_dimension: Texture2D
@@ -3376,8 +3376,8 @@ images/nvtt/8.8.8.X BGRX.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3414,8 +3414,8 @@ images/nvtt/8.8.8.x BGRX DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8X8_UNORM (88)
             resource_dimension: Texture2D
@@ -3457,8 +3457,8 @@ images/nvtt/BC1 RGB DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
@@ -3500,8 +3500,8 @@ images/nvtt/BC1 RGB.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3535,8 +3535,8 @@ images/nvtt/BC1a RGBA DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
@@ -3578,8 +3578,8 @@ images/nvtt/BC1a RGBA.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3613,8 +3613,8 @@ images/nvtt/BC2 RGB DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC2_UNORM (74)
             resource_dimension: Texture2D
@@ -3656,8 +3656,8 @@ images/nvtt/BC2 RGBA.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DXT3)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3691,8 +3691,8 @@ images/nvtt/BC3 RGBA DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC3_UNORM (77)
             resource_dimension: Texture2D
@@ -3734,8 +3734,8 @@ images/nvtt/BC3 RGBA.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3773,8 +3773,8 @@ images/nvtt/BC3n AGBR.dds
             four_cc: FourCC(RXGB)
             rgb_bit_count: 0
             bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3812,8 +3812,8 @@ images/nvtt/BC3n Normals.dds
             four_cc: FourCC(DX10)
             rgb_bit_count: 0
             bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC3_UNORM (77)
             resource_dimension: Texture2D
@@ -3855,8 +3855,8 @@ images/nvtt/BC4u R.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC4_UNORM (80)
             resource_dimension: Texture2D
@@ -3898,8 +3898,8 @@ images/nvtt/BC5u RG DX10.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC5_UNORM (83)
             resource_dimension: Texture2D
@@ -3941,8 +3941,8 @@ images/nvtt/BC5u RG.dds
                 9: NVT3 (ASCII)
                10: 0x00000001 1
         pixel_format: FourCC(BC5U)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -3975,8 +3975,8 @@ images/other/24-bit-uncompressed-odd.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 24
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 1 x 3
@@ -4005,8 +4005,8 @@ images/other/32-bit-uncompressed-odd.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 5 x 9
@@ -4035,8 +4035,8 @@ images/other/32-bit-uncompressed.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 64 x 64
@@ -4062,8 +4062,8 @@ images/other/BC1_UNORM_SRGB-47.dds
         linear_size: 32768
         mipmap_count: 9
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC1_UNORM_SRGB (72)
             resource_dimension: Texture2D
@@ -4105,8 +4105,8 @@ images/other/RXGB (no alpha).dds
             four_cc: FourCC(RXGB)
             rgb_bit_count: 0
             bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 64 x 64
@@ -4143,8 +4143,8 @@ images/other/ati2-custom-flags.dds
             four_cc: FourCC(ATI2)
             rgb_bit_count: 1498952257
             bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -4174,8 +4174,8 @@ images/other/bc6h-simple.dds
         linear_size: 4096
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC6H_UF16 (95)
             resource_dimension: Texture2D
@@ -4205,8 +4205,8 @@ images/other/bc7-simple.dds
         linear_size: 4096
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC7_UNORM (98)
             resource_dimension: Texture2D
@@ -4240,8 +4240,8 @@ images/other/both-dx10-and-pixel-format.dds
             four_cc: FourCC(DX10)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8X8_UNORM_SRGB (93)
             resource_dimension: Texture2D
@@ -4278,8 +4278,8 @@ images/other/dxt5-simple-1x1.dds
         linear_size: 16
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 1 x 1
@@ -4302,8 +4302,8 @@ images/other/dxt5-simple-odd.dds
         linear_size: 96
         mipmap_count: 0  (not specified)
         pixel_format: FourCC(DXT5)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 5 x 9
@@ -4329,8 +4329,8 @@ images/other/non-standard header flag.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 24
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 4 x 4
@@ -4361,8 +4361,8 @@ images/other/restricted-header.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 16
             bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
-        caps: DdsCaps(TEXTURE | 0x2)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE | 0x2)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -4397,8 +4397,8 @@ images/permissive/BC1 Pretoria Gardens DX10 - array_size=6 issue4.dds
         linear_size: 8192
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
         DX10:
             dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture2D
@@ -4485,8 +4485,8 @@ images/permissive/array_size 0.dds
         linear_size: 512
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: BC1_UNORM_SRGB (72)
             resource_dimension: Texture2D
@@ -4519,8 +4519,8 @@ images/permissive/dds header_size 24.dds
         linear_size: 512
         mipmap_count: 1  (not specified)
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)  (not specified)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)  (not specified)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4545,8 +4545,8 @@ images/permissive/dds pixel_format size 0.dds
         linear_size: 512
         mipmap_count: 1
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4571,8 +4571,8 @@ images/permissive/dds pixel_format size 24.dds
         linear_size: 512
         mipmap_count: 1
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4601,8 +4601,8 @@ images/permissive/no pixel_format flags.dds
             four_cc: FourCC(DXT1)
             rgb_bit_count: 0
             bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(0x0)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(0x0)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4625,8 +4625,8 @@ images/permissive/wrong mipmap count 1.dds
         linear_size: 512
         mipmap_count: 0
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4651,8 +4651,8 @@ images/permissive/wrong mipmap count 2.dds
         linear_size: 512
         mipmap_count: 1
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4682,8 +4682,8 @@ images/permissive/wrong mipmap count 3.dds
         linear_size: 512
         mipmap_count: 4294967295
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4708,8 +4708,8 @@ images/permissive/wrong mipmap count 4.dds
         linear_size: 512
         mipmap_count: 4294967295
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4739,8 +4739,8 @@ images/permissive/wrong mipmap count 5.dds
         linear_size: 512
         mipmap_count: 3
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4765,8 +4765,8 @@ images/permissive/wrong mipmap count 6.dds
         linear_size: 512
         mipmap_count: 3
         pixel_format: FourCC(DXT1)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 32 x 32
@@ -4794,8 +4794,8 @@ images/sub-sampled/DX10 G8R8_G8B8_UNORM.dds
         pitch: 260
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: G8R8_G8B8_UNORM (69)
             resource_dimension: Texture2D
@@ -4832,8 +4832,8 @@ images/sub-sampled/DX10 R8G8_B8G8_UNORM.dds
         pitch: 260
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8_B8G8_UNORM (68)
             resource_dimension: Texture2D
@@ -4870,8 +4870,8 @@ images/sub-sampled/DX10 Y210.dds
         pitch: 520
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: Y210 (108)
             resource_dimension: Texture2D
@@ -4908,8 +4908,8 @@ images/sub-sampled/DX10 Y216.dds
         pitch: 520
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: Y216 (109)
             resource_dimension: Texture2D
@@ -4946,8 +4946,8 @@ images/sub-sampled/DX9 G8R8_G8B8_UNORM.dds
         pitch: 260
         mipmap_count: 8
         pixel_format: FourCC(GRGB)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -4977,8 +4977,8 @@ images/sub-sampled/DX9 R8G8_B8G8_UNORM.dds
         pitch: 260
         mipmap_count: 8
         pixel_format: FourCC(RGBG)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -5008,8 +5008,8 @@ images/sub-sampled/DX9 UYVY.dds
         pitch: 260
         mipmap_count: 8
         pixel_format: FourCC(UYVY)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -5039,8 +5039,8 @@ images/sub-sampled/DX9 YUY2.dds
         pitch: 260
         mipmap_count: 8
         pixel_format: FourCC(YUY2)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -5070,8 +5070,8 @@ images/uncompressed/DX10 A4B4G4R4_UNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: A4B4G4R4_UNORM (191)
             resource_dimension: Texture2D
@@ -5108,8 +5108,8 @@ images/uncompressed/DX10 A8_UNORM.dds
         pitch: 129
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: A8_UNORM (65)
             resource_dimension: Texture2D
@@ -5146,8 +5146,8 @@ images/uncompressed/DX10 AYUV.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: AYUV (100)
             resource_dimension: Texture2D
@@ -5184,8 +5184,8 @@ images/uncompressed/DX10 B4G4R4A4_UNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B4G4R4A4_UNORM (115)
             resource_dimension: Texture2D
@@ -5223,8 +5223,8 @@ images/uncompressed/DX10 B5G5R5A1_UNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B5G5R5A1_UNORM (86)
             resource_dimension: Texture2D
@@ -5262,8 +5262,8 @@ images/uncompressed/DX10 B5G6R5_UNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B5G6R5_UNORM (85)
             resource_dimension: Texture2D
@@ -5300,8 +5300,8 @@ images/uncompressed/DX10 B8G8R8A8_UNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8A8_UNORM (87)
             resource_dimension: Texture2D
@@ -5339,8 +5339,8 @@ images/uncompressed/DX10 B8G8R8A8_UNORM_SRGB.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8A8_UNORM_SRGB (91)
             resource_dimension: Texture2D
@@ -5378,8 +5378,8 @@ images/uncompressed/DX10 B8G8R8X8_UNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8X8_UNORM (88)
             resource_dimension: Texture2D
@@ -5416,8 +5416,8 @@ images/uncompressed/DX10 B8G8R8X8_UNORM_SRGB.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: B8G8R8X8_UNORM_SRGB (93)
             resource_dimension: Texture2D
@@ -5454,8 +5454,8 @@ images/uncompressed/DX10 R10G10B10A2_UNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R10G10B10A2_UNORM (24)
             resource_dimension: Texture2D
@@ -5493,8 +5493,8 @@ images/uncompressed/DX10 R10G10B10_XR_BIAS_A2_UNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R10G10B10_XR_BIAS_A2_UNORM (89)
             resource_dimension: Texture2D
@@ -5532,8 +5532,8 @@ images/uncompressed/DX10 R11G11B10_FLOAT.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R11G11B10_FLOAT (26)
             resource_dimension: Texture2D
@@ -5570,8 +5570,8 @@ images/uncompressed/DX10 R16G16B16A16_FLOAT.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16B16A16_FLOAT (10)
             resource_dimension: Texture2D
@@ -5609,8 +5609,8 @@ images/uncompressed/DX10 R16G16B16A16_SNORM.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16B16A16_SNORM (13)
             resource_dimension: Texture2D
@@ -5648,8 +5648,8 @@ images/uncompressed/DX10 R16G16B16A16_UNORM.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16B16A16_UNORM (11)
             resource_dimension: Texture2D
@@ -5687,8 +5687,8 @@ images/uncompressed/DX10 R16G16_FLOAT.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16_FLOAT (34)
             resource_dimension: Texture2D
@@ -5725,8 +5725,8 @@ images/uncompressed/DX10 R16G16_SNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16_SNORM (37)
             resource_dimension: Texture2D
@@ -5763,8 +5763,8 @@ images/uncompressed/DX10 R16G16_UNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16G16_UNORM (35)
             resource_dimension: Texture2D
@@ -5801,8 +5801,8 @@ images/uncompressed/DX10 R16_FLOAT.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16_FLOAT (54)
             resource_dimension: Texture2D
@@ -5839,8 +5839,8 @@ images/uncompressed/DX10 R16_SNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16_SNORM (58)
             resource_dimension: Texture2D
@@ -5877,8 +5877,8 @@ images/uncompressed/DX10 R16_UNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R16_UNORM (56)
             resource_dimension: Texture2D
@@ -5915,8 +5915,8 @@ images/uncompressed/DX10 R1_UNORM.dds
         pitch: 129
         mipmap_count: 1
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R1_UNORM (66)
             resource_dimension: Texture2D
@@ -5946,8 +5946,8 @@ images/uncompressed/DX10 R32G32B32A32_FLOAT.dds
         pitch: 2064
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32G32B32A32_FLOAT (2)
             resource_dimension: Texture2D
@@ -5985,8 +5985,8 @@ images/uncompressed/DX10 R32G32B32_FLOAT.dds
         pitch: 1548
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32G32B32_FLOAT (6)
             resource_dimension: Texture2D
@@ -6023,8 +6023,8 @@ images/uncompressed/DX10 R32G32_FLOAT.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32G32_FLOAT (16)
             resource_dimension: Texture2D
@@ -6061,8 +6061,8 @@ images/uncompressed/DX10 R32_FLOAT.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R32_FLOAT (41)
             resource_dimension: Texture2D
@@ -6099,8 +6099,8 @@ images/uncompressed/DX10 R8G8B8A8_SNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8B8A8_SNORM (31)
             resource_dimension: Texture2D
@@ -6138,8 +6138,8 @@ images/uncompressed/DX10 R8G8B8A8_UNORM.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8B8A8_UNORM (28)
             resource_dimension: Texture2D
@@ -6177,8 +6177,8 @@ images/uncompressed/DX10 R8G8B8A8_UNORM_SRGB.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8B8A8_UNORM_SRGB (29)
             resource_dimension: Texture2D
@@ -6216,8 +6216,8 @@ images/uncompressed/DX10 R8G8_SNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8_SNORM (51)
             resource_dimension: Texture2D
@@ -6254,8 +6254,8 @@ images/uncompressed/DX10 R8G8_UNORM.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8G8_UNORM (49)
             resource_dimension: Texture2D
@@ -6292,8 +6292,8 @@ images/uncompressed/DX10 R8_SNORM.dds
         pitch: 129
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8_SNORM (63)
             resource_dimension: Texture2D
@@ -6330,8 +6330,8 @@ images/uncompressed/DX10 R8_UNORM.dds
         pitch: 129
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R8_UNORM (61)
             resource_dimension: Texture2D
@@ -6368,8 +6368,8 @@ images/uncompressed/DX10 R9G9B9E5_SHAREDEXP.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: R9G9B9E5_SHAREDEXP (67)
             resource_dimension: Texture2D
@@ -6406,8 +6406,8 @@ images/uncompressed/DX10 Y410.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: Y410 (101)
             resource_dimension: Texture2D
@@ -6444,8 +6444,8 @@ images/uncompressed/DX10 Y416.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
         DX10:
             dxgi_format: Y416 (102)
             resource_dimension: Texture2D
@@ -6485,8 +6485,8 @@ images/uncompressed/DX9 A8_UNORM.dds
             flags: PixelFormatFlags(ALPHA)
             rgb_bit_count: 8
             bit_mask: r:0x0 g:0x0 b:0x0 a:0xff
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6522,8 +6522,8 @@ images/uncompressed/DX9 B4G4R4A4_UNORM.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 16
             bit_mask: r:0xf00 g:0xf0 b:0xf a:0xf000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6559,8 +6559,8 @@ images/uncompressed/DX9 B5G5R5A1_UNORM.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 16
             bit_mask: r:0x7c00 g:0x3e0 b:0x1f a:0x8000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6596,8 +6596,8 @@ images/uncompressed/DX9 B5G6R5_UNORM.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 16
             bit_mask: r:0xf800 g:0x7e0 b:0x1f a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6633,8 +6633,8 @@ images/uncompressed/DX9 B8G8R8A8_UNORM.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0xff000000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6670,8 +6670,8 @@ images/uncompressed/DX9 B8G8R8X8_UNORM.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6707,8 +6707,8 @@ images/uncompressed/DX9 R10G10B10A2_UNORM.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 32
             bit_mask: r:0x3ff00000 g:0xffc00 b:0x3ff a:0xc0000000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6741,8 +6741,8 @@ images/uncompressed/DX9 R16G16B16A16_FLOAT.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(0x71)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6772,8 +6772,8 @@ images/uncompressed/DX9 R16G16B16A16_SNORM.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(0x6e)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6803,8 +6803,8 @@ images/uncompressed/DX9 R16G16B16A16_UNORM.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(0x24)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6834,8 +6834,8 @@ images/uncompressed/DX9 R16G16_FLOAT.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(0x70)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6868,8 +6868,8 @@ images/uncompressed/DX9 R16G16_SNORM.dds
             flags: PixelFormatFlags(BUMP_DUDV)
             rgb_bit_count: 32
             bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6905,8 +6905,8 @@ images/uncompressed/DX9 R16G16_UNORM.dds
             flags: PixelFormatFlags(RGB)
             rgb_bit_count: 32
             bit_mask: r:0xffff g:0xffff0000 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6939,8 +6939,8 @@ images/uncompressed/DX9 R16_FLOAT.dds
         pitch: 258
         mipmap_count: 8
         pixel_format: FourCC(0x6f)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -6973,8 +6973,8 @@ images/uncompressed/DX9 R16_UNORM.dds
             flags: PixelFormatFlags(LUMINANCE)
             rgb_bit_count: 16
             bit_mask: r:0xffff g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7007,8 +7007,8 @@ images/uncompressed/DX9 R32G32B32A32_FLOAT.dds
         pitch: 2064
         mipmap_count: 8
         pixel_format: FourCC(0x74)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7038,8 +7038,8 @@ images/uncompressed/DX9 R32G32_FLOAT.dds
         pitch: 1032
         mipmap_count: 8
         pixel_format: FourCC(0x73)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7069,8 +7069,8 @@ images/uncompressed/DX9 R32_FLOAT.dds
         pitch: 516
         mipmap_count: 8
         pixel_format: FourCC(0x72)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7103,8 +7103,8 @@ images/uncompressed/DX9 R8G8B8A8_SNORM.dds
             flags: PixelFormatFlags(BUMP_DUDV)
             rgb_bit_count: 32
             bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7140,8 +7140,8 @@ images/uncompressed/DX9 R8G8B8A8_UNORM.dds
             flags: PixelFormatFlags(ALPHAPIXELS | RGB)
             rgb_bit_count: 32
             bit_mask: r:0xff g:0xff00 b:0xff0000 a:0xff000000
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7177,8 +7177,8 @@ images/uncompressed/DX9 R8G8_SNORM.dds
             flags: PixelFormatFlags(BUMP_DUDV)
             rgb_bit_count: 16
             bit_mask: r:0xff g:0xff00 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7214,8 +7214,8 @@ images/uncompressed/DX9 R8G8_UNORM.dds
             flags: PixelFormatFlags(ALPHAPIXELS | LUMINANCE)
             rgb_bit_count: 16
             bit_mask: r:0xff g:0x0 b:0x0 a:0xff00
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7251,8 +7251,8 @@ images/uncompressed/DX9 R8_UNORM.dds
             flags: PixelFormatFlags(LUMINANCE)
             rgb_bit_count: 8
             bit_mask: r:0xff g:0x0 b:0x0 a:0x0
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(0x0)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
 
     Header:
         w/h: 129 x 66
@@ -7285,8 +7285,8 @@ images/volume/TestVolume_Noise3D BC1.dds
         linear_size: 2048
         mipmap_count: 7
         pixel_format: FourCC(DX10)
-        caps: DdsCaps(COMPLEX | MIPMAP | TEXTURE)
-        caps2: DdsCaps2(VOLUME)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(VOLUME)
         DX10:
             dxgi_format: BC1_UNORM (71)
             resource_dimension: Texture3D
