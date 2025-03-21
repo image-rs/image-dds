@@ -487,3 +487,51 @@ fn block_dither() {
     )
     .unwrap();
 }
+
+/// Ensures that all color formats can be encoded (1) without error and (2)
+/// get the same result.
+///
+/// Basically, if we encode a u8 image, we should get the same encoded result
+/// as first converting the image to u16/f32 and then encoding that.
+#[test]
+fn encode_all_color_formats() {
+    let base_u8 = util::read_png_u8(&get_sample("base.png")).unwrap();
+    let base_u16 = base_u8.to_u16();
+    let base_f32 = base_u8.to_f32();
+
+    let mut options = EncodeOptions::default();
+    options.quality = CompressionQuality::Fast; // quality isn't relevant here
+
+    let mut failures = String::new();
+
+    for &format in util::ALL_FORMATS {
+        if let Some(support) = format.encoding() {
+            if support.size_multiple != SizeMultiple::ONE {
+                continue;
+            }
+        } else {
+            // encoding isn't supported
+            continue;
+        }
+
+        let mut encoded_u8 = Vec::new();
+        encode_image(&base_u8, format, &mut encoded_u8, &options).unwrap();
+
+        let mut encoded_u16 = Vec::new();
+        encode_image(&base_u16, format, &mut encoded_u16, &options).unwrap();
+
+        let mut encoded_f32 = Vec::new();
+        encode_image(&base_f32, format, &mut encoded_f32, &options).unwrap();
+
+        if encoded_u8 != encoded_u16 {
+            failures.push_str(&format!("{:?} u8 != u16\n", format));
+        }
+        if encoded_u8 != encoded_f32 {
+            failures.push_str(&format!("{:?} u8 != f32\n", format));
+        }
+    }
+
+    if !failures.is_empty() {
+        panic!("Failed for formats:\n{}", failures);
+    }
+}

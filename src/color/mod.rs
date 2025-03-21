@@ -397,8 +397,11 @@ pub(crate) fn convert_to_rgba_f32(
     );
 
     match precision {
-        Precision::U8 => convert_t_to_rgba_f32(channels, from_buffer, to_buffer, n8::f32),
-        Precision::U16 => convert_t_to_rgba_f32(channels, from_buffer, to_buffer, n16::f32),
+        // Use exact conversions. This function is mainly used by encoders,
+        // where performance isn't as important and exactness makes testing a
+        // lot easier.
+        Precision::U8 => convert_t_to_rgba_f32(channels, from_buffer, to_buffer, n8::f32_exact),
+        Precision::U16 => convert_t_to_rgba_f32(channels, from_buffer, to_buffer, n16::f32_exact),
         Precision::F32 => {
             // since the precision is already f32, we just need to convert
             // channels
