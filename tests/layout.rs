@@ -76,6 +76,67 @@ fn full_layout_snapshot() {
         Ok(())
     }
 
+    fn validate_region(layout: &DataLayout) {
+        let mut offset: u64 = 0;
+
+        match layout {
+            DataLayout::Texture(texture) => {
+                assert_eq!(texture.data_offset(), 0);
+
+                for surface in texture.iter_mips() {
+                    assert_eq!(surface.data_offset(), offset);
+                    assert_eq!(
+                        surface.data_offset() + surface.data_len(),
+                        surface.data_end()
+                    );
+                    offset += surface.data_len();
+                }
+            }
+            DataLayout::Volume(volume) => {
+                assert_eq!(volume.data_offset(), 0);
+
+                for v in volume.iter_mips() {
+                    assert_eq!(v.data_offset(), offset);
+                    assert_eq!(v.data_offset() + v.data_len(), v.data_end());
+
+                    for slice in v.iter_depth_slices() {
+                        assert_eq!(slice.data_offset(), offset);
+                        assert_eq!(slice.data_offset() + slice.data_len(), slice.data_end());
+                        offset += slice.data_len();
+                    }
+
+                    assert_eq!(offset, v.data_end());
+                }
+            }
+            DataLayout::TextureArray(texture_array) => {
+                assert_eq!(texture_array.data_offset(), 0);
+
+                for texture in texture_array.iter() {
+                    assert_eq!(texture.data_offset(), offset);
+                    assert_eq!(
+                        texture.data_offset() + texture.data_len(),
+                        texture.data_end()
+                    );
+
+                    for surface in texture.iter_mips() {
+                        assert_eq!(surface.data_offset(), offset);
+                        assert_eq!(
+                            surface.data_offset() + surface.data_len(),
+                            surface.data_end()
+                        );
+                        offset += surface.data_len();
+                    }
+
+                    assert_eq!(offset, texture.data_end());
+                }
+            }
+        }
+
+        assert_eq!(layout.data_offset(), 0);
+        assert_eq!(layout.data_len(), layout.data_end());
+        assert_eq!(layout.data_len(), offset);
+    }
+
     fn collect_info(dds_path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
         let mut file = File::open(dds_path)?;
         let file_len = file.metadata()?.len();
@@ -86,6 +147,7 @@ fn full_layout_snapshot() {
         let header = info.header();
         let format = info.format();
         let layout = info.layout();
+        validate_region(layout);
 
         let mut output = String::new();
 
