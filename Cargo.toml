@@ -41,3 +41,9 @@ harness = false
 # enable some optimizations for tests
 # image de/encoding without optimizations is extremely slow
 opt-level = 1
+
+[lints.rust]
+# https://github.com/taiki-e/cargo-llvm-cov
+unexpected_cfgs = { level = "warn", check-cfg = [
+	'cfg(coverage,coverage_nightly)',
+] }
