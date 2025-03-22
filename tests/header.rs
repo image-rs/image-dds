@@ -99,8 +99,8 @@ fn add_more_header(mut add: impl FnMut(&Header)) {
     add(&Dx9Header::new_volume(100, 100, 100, FourCC::DXT1.into()).into());
 
     // DX9 partial cube map
-    let mut partial_cube_map = Dx9Header::new_cube_map(64, 64, FourCC::DXT1.into());
-    partial_cube_map.caps2 = Caps2::CUBE_MAP | Caps2::CUBE_MAP_POSITIVE_X;
+    let partial_cube_map = Dx9Header::new_cube_map(64, 64, FourCC::DXT1.into())
+        .with_cube_map_faces(CubeMapFaces::POSITIVE_X);
     assert!(partial_cube_map.is_cube_map());
     assert!(partial_cube_map.cube_map_faces().unwrap().count() == 1);
     add(&partial_cube_map.into());
@@ -114,20 +114,22 @@ fn add_more_header(mut add: impl FnMut(&Header)) {
     // Fun DX10
     add(&Header::new_image(100, 100, DxgiFormat::UNKNOWN));
 
-    let mut array = Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM);
-    array.array_size = 3;
-    add(&array.into());
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_array_size(3)
+        .into());
 
-    let mut alpha_mode = Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM);
-    alpha_mode.alpha_mode = AlphaMode::Premultiplied;
-    add(&alpha_mode.clone().into());
-    alpha_mode.alpha_mode = AlphaMode::Opaque;
-    add(&alpha_mode.clone().into());
-    alpha_mode.alpha_mode = AlphaMode::Custom;
-    add(&alpha_mode.clone().into());
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_alpha_mode(AlphaMode::Premultiplied)
+        .into());
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_alpha_mode(AlphaMode::Opaque)
+        .into());
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_alpha_mode(AlphaMode::Custom)
+        .into());
 
-    let mut dx10_volume_cube = Dx10Header::new_volume(64, 64, 64, DxgiFormat::BC1_UNORM);
-    dx10_volume_cube.misc_flag = MiscFlags::TEXTURE_CUBE;
+    let dx10_volume_cube = Dx10Header::new_volume(64, 64, 64, DxgiFormat::BC1_UNORM)
+        .with_misc_flags(MiscFlags::TEXTURE_CUBE);
     assert!(dx10_volume_cube.is_volume());
     assert!(dx10_volume_cube.is_cube_map());
     add(&dx10_volume_cube.into());
@@ -359,8 +361,8 @@ fn weird_and_invalid_headers() {
         .to_raw()
     }
     fn valid_dx10() -> RawHeader {
-        let mut header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
-        header.alpha_mode = AlphaMode::Unknown;
+        let header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM)
+            .with_alpha_mode(AlphaMode::Unknown);
         Header::from(header).to_raw()
     }
 

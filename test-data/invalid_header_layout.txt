@@ -1,0 +1,433 @@
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Layout: Texture (5000 bytes)
+    Surface[0] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(DXT1)
+
+Layout: TextureArray len:6 kind:CubeMaps (30000 bytes)
+    Texture[0] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[1] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[2] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[3] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[4] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[5] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_Y)
+    format: FourCC(DXT1)
+
+Layout: TextureArray len:2 kind:PartialCubeMap(CubeMapFaces(POSITIVE_X | NEGATIVE_Y)) (10000 bytes)
+    Texture[0] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[1] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h/d: 100 x 100 x 4
+    mipmap_count: 1
+    caps2: Caps2(VOLUME)
+    format: FourCC(DXT1)
+
+Layout: Volume (20000 bytes)
+    Volume[0] 100x100x4 (20000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+        Surface[1] 100x100 (5000 bytes)
+        Surface[2] 100x100 (5000 bytes)
+        Surface[3] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Layout: Texture (5000 bytes)
+    Surface[0] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Layout: TextureArray len:6 kind:CubeMaps (30000 bytes)
+    Texture[0] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[1] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[2] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[3] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[4] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[5] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        array_size: 4
+        alpha_mode: Straight
+
+Layout: TextureArray len:24 kind:CubeMaps (120000 bytes)
+    Texture[0] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[1] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[2] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[3] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[4] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[5] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[6] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[7] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[8] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[9] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[10] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[11] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[12] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[13] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[14] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[15] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[16] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[17] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[18] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[19] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[20] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[21] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[22] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+    Texture[23] (5000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h/d: 100 x 100 x 4
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Layout: Volume (20000 bytes)
+    Volume[0] 100x100x4 (20000 bytes)
+        Surface[0] 100x100 (5000 bytes)
+        Surface[1] 100x100 (5000 bytes)
+        Surface[2] 100x100 (5000 bytes)
+        Surface[3] 100x100 (5000 bytes)
+
+
+
+Header:
+    w/h: 100 x 1
+    mipmap_count: 1
+    DX10: Texture1D
+        dxgi_format: R8_UNORM (61)
+
+Layout: Texture (100 bytes)
+    Surface[0] 100x1 (100 bytes)
+
+
+
+Header:
+    w/h: 1 x 1
+    mipmap_count: 123456
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Error:
+    Too many mipmaps (123456), the maximum supported is 255
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: UNKNOWN (0)
+
+Error:
+    DXGI format UNKNOWN (0) is not supported for decoding
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(0x0)
+
+Error:
+    Unsupported FourCC(0x0) in DX10 header extension
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: masked
+        flags: PixelFormatFlags(0x0)
+        rgb_bit_count: 16
+        bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
+
+Layout: Texture (20000 bytes)
+    Surface[0] 100x100 (20000 bytes)
+
+
+
+Header:
+    w/h: 0 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Error:
+    The width, height, or depth of the texture is zero
+
+
+
+Header:
+    w/h: 100 x 0
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Error:
+    The width, height, or depth of the texture is zero
+
+
+
+Header:
+    w/h/d: 100 x 100 x 0
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Error:
+    The width, height, or depth of the texture is zero
+
+
+
+Header:
+    w/h: 100 x 0
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Error:
+    The width, height, or depth of the texture is zero
+
+
+
+Header:
+    w/h: 10 x 10
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Straight
+
+Error:
+    Missing depth for a texture 3D/volume
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        array_size: 4294967295
+        alpha_mode: Straight
+
+Error:
+    Array size 4294967295 is too large
+
+
+
+Header:
+    w/h: 4294967295 x 4294967295
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+
+Layout: Texture (18446744065119617025 bytes)
+    Surface[0] 4294967295x4294967295 (18446744065119617025 bytes)
+
+
+
+Header:
+    w/h: 4294967295 x 4294967295
+    mipmap_count: 5
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+
+Error:
+    Data layout described by the header is too large
+
+
+
+Header:
+    w/h: 4294967295 x 4294967295
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: R16_UNORM (56)
+
+Error:
+    Data layout described by the header is too large
+
+
+
+Header:
+    w/h: 4294967295 x 2
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: R8_UNORM (61)
+        array_size: 4294967295
+
+Error:
+    Data layout described by the header is too large
+
+
+
+Header:
+    w/h/d: 4294967295 x 4294967295 x 1
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: R8_UNORM (61)
+
+Layout: Volume (18446744065119617025 bytes)
+    Volume[0] 4294967295x4294967295x1 (18446744065119617025 bytes)
+        Surface[0] 4294967295x4294967295 (18446744065119617025 bytes)
+
+
+
+Header:
+    w/h/d: 4294967295 x 4294967295 x 2
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: R8_UNORM (61)
+
+Error:
+    Data layout described by the header is too large
+
+
+
+Header:
+    w/h/d: 4294967295 x 4294967295 x 1
+    mipmap_count: 5
+    DX10: Texture3D
+        dxgi_format: R8_UNORM (61)
+
+Error:
+    Data layout described by the header is too large
+
+
+
+Header:
+    w/h/d: 4294967295 x 4294967295 x 1
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: R16_UNORM (56)
+
+Error:
+    Data layout described by the header is too large
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture1D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Error:
+    Cube map faces must be 2D textures
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Error:
+    Cube map faces must be 2D textures
+
+
+
+Header:
+    w/h/d: 100 x 100 x 1
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z | VOLUME)
+    format: FourCC(DXT1)
+
+Error:
+    Cube map faces must be 2D textures
+
+
+

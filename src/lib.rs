@@ -64,8 +64,8 @@ impl Size {
     /// ```
     pub const fn get_mipmap(&self, level: u8) -> Self {
         Self {
-            width: util::get_mipmap_size(self.width, level),
-            height: util::get_mipmap_size(self.height, level),
+            width: util::get_mipmap_size(self.width, level).get(),
+            height: util::get_mipmap_size(self.height, level).get(),
         }
     }
 

@@ -47,6 +47,8 @@ pub enum DecodeError {
     /// I.e. it is possible for the header to describe a texture that requires >2^64
     /// bytes of memory.
     DataLayoutTooBig,
+    /// The faces of a cube map must always be 2D textures.
+    InvalidCubeMapDimensions,
     UnexpectedBufferSize {
         expected: usize,
     },
@@ -104,6 +106,9 @@ impl std::fmt::Display for DecodeError {
             }
             DecodeError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")
+            }
+            DecodeError::InvalidCubeMapDimensions => {
+                write!(f, "Cube map faces must be 2D textures")
             }
             DecodeError::UnexpectedBufferSize { expected } => {
                 write!(f, "Unexpected buffer size: expected {} bytes", expected)

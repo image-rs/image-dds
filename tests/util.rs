@@ -794,36 +794,65 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
         out.push_str(&format!("        array_size: {:?}\n", dx10.array_size));
         out.push_str(&format!("        misc_flags2: {:?}\n", dx10.misc_flags2));
     }
-    // match &header.format {
-    //     PixelFormat::FourCC(four_cc) => {
-    //         out.push_str(&format!("    format: {:?}\n", four_cc));
-    //     }
-    //     PixelFormat::Mask(pixel_format) => {
-    //         out.push_str("    format: masked\n");
-    //         out.push_str(&format!("        flags: {:?}\n", pixel_format.flags));
-    //         out.push_str(&format!(
-    //             "        rgb_bit_count: {:?}\n",
-    //             pixel_format.rgb_bit_count
-    //         ));
-    //         out.push_str(&format!(
-    //             "        bit_mask: r:0x{:x} g:0x{:x} b:0x{:x} a:0x{:x}\n",
-    //             pixel_format.r_bit_mask,
-    //             pixel_format.g_bit_mask,
-    //             pixel_format.b_bit_mask,
-    //             pixel_format.a_bit_mask
-    //         ));
-    //     }
-    //     PixelFormat::Dx10(dx10) => {
-    //         out.push_str("    format: DX10\n");
-    //         out.push_str(&format!("        dxgi_format: {:?}\n", dx10.dxgi_format));
-    //         out.push_str(&format!(
-    //             "        resource_dimension: {:?}\n",
-    //             dx10.resource_dimension
-    //         ));
-    //         out.push_str(&format!("        misc_flag: {:?}\n", dx10.misc_flag));
-    //         out.push_str(&format!("        array_size: {:?}\n", dx10.array_size));
-    //     }
-    // };
+}
+
+pub fn pretty_print_data_layout(out: &mut String, layout: &DataLayout) {
+    out.push_str("Layout: ");
+    match layout {
+        DataLayout::Texture(texture) => {
+            out.push_str(&format!("Texture ({} bytes)\n", texture.data_len()));
+            for (i, surface) in texture.iter_mips().enumerate() {
+                out.push_str(&format!(
+                    "    Surface[{i}] {}x{} ({} bytes)\n",
+                    surface.width(),
+                    surface.height(),
+                    surface.data_len()
+                ));
+            }
+        }
+        DataLayout::Volume(volume) => {
+            out.push_str(&format!("Volume ({} bytes)\n", volume.data_len()));
+            for (i, volume) in volume.iter_mips().enumerate() {
+                out.push_str(&format!(
+                    "    Volume[{i}] {}x{}x{} ({} bytes)\n",
+                    volume.width(),
+                    volume.height(),
+                    volume.depth(),
+                    volume.data_len()
+                ));
+                for (i, surface) in volume.iter_depth_slices().enumerate() {
+                    out.push_str(&format!(
+                        "        Surface[{i}] {}x{} ({} bytes)\n",
+                        surface.width(),
+                        surface.height(),
+                        surface.data_len()
+                    ));
+                }
+            }
+        }
+        DataLayout::TextureArray(texture_array) => {
+            out.push_str(&format!(
+                "TextureArray len:{} kind:{:?} ({} bytes)\n",
+                texture_array.len(),
+                texture_array.kind(),
+                texture_array.data_len()
+            ));
+            for (i, texture) in texture_array.iter().enumerate() {
+                out.push_str(&format!(
+                    "    Texture[{i}] ({} bytes)\n",
+                    texture.data_len()
+                ));
+                for (i, surface) in texture.iter_mips().enumerate() {
+                    out.push_str(&format!(
+                        "        Surface[{i}] {}x{} ({} bytes)\n",
+                        surface.width(),
+                        surface.height(),
+                        surface.data_len()
+                    ));
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

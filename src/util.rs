@@ -54,16 +54,16 @@ pub(crate) const NON_ZERO_U32_ONE: NonZeroU32 = {
     if let Some(n) = NonZeroU32::new(1) {
         n
     } else {
-        unreachable!()
+        panic!()
     }
 };
 
-pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> u32 {
+pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> NonZeroU32 {
     let size = main_size >> level;
-    if size == 0 {
-        1
-    } else {
+    if let Some(size) = NonZeroU32::new(size) {
         size
+    } else {
+        NON_ZERO_U32_ONE
     }
 }
 

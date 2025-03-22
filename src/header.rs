@@ -486,12 +486,6 @@ impl Header {
             Header::Dx10(header) => header.mipmap_count,
         }
     }
-    fn mipmap_count_mut(&mut self) -> &mut NonZeroU32 {
-        match self {
-            Header::Dx9(header) => &mut header.mipmap_count,
-            Header::Dx10(header) => &mut header.mipmap_count,
-        }
-    }
 
     /// The [`Dx10Header::array_size`] value, or 1 if it's a DX9 header.
     pub const fn array_size(&self) -> u32 {
@@ -588,6 +582,54 @@ impl Header {
         Self::Dx10(Dx10Header::new_cube_map(width, height, format))
     }
 
+    /// A builder-pattern-style method to set the width and height of the
+    /// header.
+    ///
+    /// Depth will be set to `None`. If you want to leave the depth unchanged
+    /// or change it as well, use [`Header::with_dimensions`].
+    pub fn with_size(mut self, size: Size) -> Header {
+        match &mut self {
+            Header::Dx9(header) => {
+                header.width = size.width;
+                header.height = size.height;
+                header.depth = None;
+            }
+            Header::Dx10(header) => {
+                header.width = size.width;
+                header.height = size.height;
+                header.depth = None;
+            }
+        }
+        self
+    }
+    /// A builder-pattern-style method to set the width, height, and depth of
+    /// the header.
+    ///
+    /// For headers of 2D textures, [`Header::with_size`] is more appropriate.
+    pub fn with_dimensions(mut self, width: u32, height: u32, depth: Option<u32>) -> Header {
+        match &mut self {
+            Header::Dx9(header) => {
+                header.width = width;
+                header.height = height;
+                header.depth = depth;
+            }
+            Header::Dx10(header) => {
+                header.width = width;
+                header.height = height;
+                header.depth = depth;
+            }
+        }
+        self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header.
+    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
+        match &mut self {
+            Header::Dx9(header) => header.mipmap_count = mipmap_count,
+            Header::Dx10(header) => header.mipmap_count = mipmap_count,
+        }
+        self
+    }
+
     /// Converts this header into a DX9 header if possible. If the header is a
     /// DX9 header already, it will be returned as is.
     pub fn to_dx9(&self) -> Option<Dx9Header> {
@@ -680,8 +722,7 @@ impl Header {
             mipmap.saturating_add(1),
         ];
         for guess in guesses.into_iter().filter_map(NonZeroU32::new) {
-            let mut new_header = self.clone();
-            *new_header.mipmap_count_mut() = guess;
+            let new_header = self.clone().with_mipmap_count(guess);
 
             if test(&new_header) {
                 *self = new_header;
@@ -1048,6 +1089,47 @@ impl Dx9Header {
         }
     }
 
+    /// A builder-pattern-style method to set the width and height of the
+    /// header.
+    ///
+    /// Depth will be set to `None`. If you want to leave the depth unchanged
+    /// or change it as well, use [`Self::with_dimensions`].
+    pub fn with_size(mut self, size: Size) -> Self {
+        self.width = size.width;
+        self.height = size.height;
+        self.depth = None;
+        self
+    }
+    /// A builder-pattern-style method to set the width, height, and depth of
+    /// the header.
+    ///
+    /// For headers of 2D textures, [`Self::with_size`] is more appropriate.
+    pub fn with_dimensions(mut self, width: u32, height: u32, depth: Option<u32>) -> Self {
+        self.width = width;
+        self.height = height;
+        self.depth = depth;
+        self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header.
+    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Self {
+        self.mipmap_count = mipmap_count;
+        self
+    }
+    /// A builder-pattern-style method to set the cube map faces of the header.
+    ///
+    /// This will set the [`Caps2::CUBE_MAP`] flag and the flags of all given
+    /// faces. Faces not given will have their flags unset.
+    pub fn with_cube_map_faces(mut self, faces: CubeMapFaces) -> Self {
+        self.caps2 =
+            (self.caps2 & !Caps2::CUBE_MAP_ALL_FACES) | Caps2::CUBE_MAP | Caps2::from(faces);
+        self
+    }
+    /// A builder-pattern-style method to set the pixel format of the header.
+    pub fn with_pixel_format(mut self, pixel_format: Dx9PixelFormat) -> Self {
+        self.pixel_format = pixel_format;
+        self
+    }
+
     pub fn to_dx10(&self) -> Option<Dx10Header> {
         let alpha_mode = self.alpha_mode();
 
@@ -1168,6 +1250,64 @@ impl Dx10Header {
             array_size: 1,
             alpha_mode: Self::pick_alpha_mode(format),
         }
+    }
+
+    /// A builder-pattern-style method to set the width and height of the
+    /// header.
+    ///
+    /// Depth will be set to `None`. If you want to leave the depth unchanged
+    /// or change it as well, use [`Self::with_dimensions`].
+    pub fn with_size(mut self, size: Size) -> Self {
+        self.width = size.width;
+        self.height = size.height;
+        self.depth = None;
+        self
+    }
+    /// A builder-pattern-style method to set the width, height, and depth of
+    /// the header.
+    ///
+    /// For headers of 2D textures, [`Self::with_size`] is more appropriate.
+    pub fn with_dimensions(mut self, width: u32, height: u32, depth: Option<u32>) -> Self {
+        self.width = width;
+        self.height = height;
+        self.depth = depth;
+        self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header.
+    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Self {
+        self.mipmap_count = mipmap_count;
+        self
+    }
+    /// A builder-pattern-style method to set the DXGI format of the header.
+    ///
+    /// The alpha mode will be set to `AlphaMode::Straight` if the format has
+    /// alpha, and `AlphaMode::Unknown` otherwise.
+    pub fn with_dxgi_format(mut self, dxgi_format: DxgiFormat) -> Self {
+        self.dxgi_format = dxgi_format;
+        self.alpha_mode = Self::pick_alpha_mode(dxgi_format);
+        self
+    }
+    /// A builder-pattern-style method to set the resource dimension of the
+    /// header.
+    pub fn with_resource_dimension(mut self, resource_dimension: ResourceDimension) -> Self {
+        self.resource_dimension = resource_dimension;
+        self
+    }
+    /// A builder-pattern-style method to set the misc flags of the header.
+    /// This will overwrite all current flags.
+    pub fn with_misc_flags(mut self, misc_flags: MiscFlags) -> Self {
+        self.misc_flag = misc_flags;
+        self
+    }
+    /// A builder-pattern-style method to set the array size of the header.
+    pub fn with_array_size(mut self, array_size: u32) -> Self {
+        self.array_size = array_size;
+        self
+    }
+    /// A builder-pattern-style method to set the alpha mode of the header.
+    pub fn with_alpha_mode(mut self, alpha_mode: AlphaMode) -> Self {
+        self.alpha_mode = alpha_mode;
+        self
     }
 
     pub fn to_dx9(&self) -> Option<Dx9Header> {
