@@ -53,25 +53,19 @@ fn encode_decode(
 
     // decode
     let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
-    let mut output = vec![0_f32; image.size.pixels() as usize * image.channels.count() as usize];
+    let mut decoded = Image::new_empty(image.channels, image.size);
     decoder
-        .read_surface(as_bytes_mut(&mut output), image.color())
+        .read_surface(decoded.as_bytes_mut(), image.color())
         .unwrap();
 
-    let image = Image {
-        size: image.size,
-        channels: image.channels,
-        data: output,
-    };
-
-    (encoded, image)
+    (encoded, decoded)
 }
 fn create_random_color_blocks() -> Image<f32> {
     let mut rng = util::create_rng();
 
     let width = 256;
     let height = 256;
-    let mut data = vec![0_f32; width * height * 3];
+    let mut image = Image::new_empty(Channels::Rgb, Size::new(width as u32, height as u32));
     let block_stride = 4 * 3;
     for y in (0..height).step_by(4) {
         for x in (0..width).step_by(4) {
@@ -80,16 +74,12 @@ fn create_random_color_blocks() -> Image<f32> {
             let line_flat: &[f32] = util::cast_slice(&block_line);
             for j in 0..4 {
                 let i = ((y + j) * width + x) * 3;
-                data[i..i + block_stride].copy_from_slice(line_flat);
+                image.data[i..i + block_stride].copy_from_slice(line_flat);
             }
         }
     }
 
-    Image {
-        size: Size::new(width as u32, height as u32),
-        channels: Channels::Rgb,
-        data,
-    }
+    image
 }
 fn compression_ratio(data: &[u8]) -> f64 {
     let compressed = miniz_oxide::deflate::compress_to_vec(data, 6);
@@ -454,10 +444,8 @@ fn block_dither() {
     }
 
     let size = Size::new(17 * 8, 8);
-    let mut image = Image {
-        size,
-        channels: Channels::Grayscale,
-        data: (0..size.pixels() as usize)
+    let mut image = Image::new(
+        (0..size.pixels() as usize)
             .map(|i| {
                 let x = i % size.width as usize;
                 // let y = i / size.width as usize;
@@ -465,19 +453,21 @@ fn block_dither() {
                 (x_quantized * 255 / 16) as u8
             })
             .collect(),
-    };
+        Channels::Grayscale,
+        size,
+    );
     append_quantized(&mut image);
 
-    let mut image_smooth = Image {
-        size,
-        channels: Channels::Grayscale,
-        data: (0..size.pixels() as usize)
+    let mut image_smooth = Image::new(
+        (0..size.pixels() as usize)
             .map(|i| {
                 let x = i % size.width as usize;
                 (x * 255 / (size.width as usize - 1)) as u8
             })
             .collect(),
-    };
+        Channels::Grayscale,
+        size,
+    );
     append_quantized(&mut image_smooth);
 
     image.size.height *= 2;

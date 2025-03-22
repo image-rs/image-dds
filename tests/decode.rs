@@ -143,11 +143,8 @@ fn decode_rect() {
     fn patchwork(dds_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let width = 200;
         let height = 100;
-        let mut image = util::Image {
-            data: vec![0_u8; width * height * 4],
-            channels: Channels::Rgba,
-            size: Size::new(width as u32, height as u32),
-        };
+        let mut image =
+            util::Image::new_empty(Channels::Rgba, Size::new(width as u32, height as u32));
 
         // read dds
         let mut file = File::open(dds_path)?;
@@ -252,7 +249,8 @@ fn decode_all_color_formats() {
     }
 
     fn test_color_formats(dds_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let (reference, _) = util::read_dds::<u8>(dds_path)?;
+        let (reference, _) =
+            util::read_dds_with_settings::<u8>(dds_path, util::ReadSettings::no_cube_map())?;
 
         let all_channels = [
             Channels::Alpha,

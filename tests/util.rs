@@ -161,12 +161,35 @@ pub const ALL_FORMATS: &[Format] = &[
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct Image<T> {
     pub data: Vec<T>,
     pub channels: Channels,
     pub size: Size,
 }
 impl<T> Image<T> {
+    #[track_caller]
+    pub fn new(data: Vec<T>, channels: Channels, size: Size) -> Self {
+        assert_eq!(
+            data.len(),
+            size.pixels() as usize * channels.count() as usize,
+            "Data size doesn't match image size"
+        );
+
+        Self {
+            data,
+            channels,
+            size,
+        }
+    }
+    pub fn new_empty(channels: Channels, size: Size) -> Self
+    where
+        T: Default + Copy,
+    {
+        let data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
+        Self::new(data, channels, size)
+    }
+
     pub fn stride(&self) -> usize {
         self.size.width as usize * self.channels.count() as usize * std::mem::size_of::<T>()
     }
@@ -176,6 +199,12 @@ impl<T> Image<T> {
         T: Castable,
     {
         as_bytes(&self.data)
+    }
+    pub fn as_bytes_mut(&mut self) -> &mut [u8]
+    where
+        T: Castable,
+    {
+        as_bytes_mut(&mut self.data)
     }
 
     pub fn precision(&self) -> Precision
@@ -195,11 +224,11 @@ impl<T> Image<T> {
     where
         T: Copy + Default + Castable + Norm,
     {
-        Image {
-            data: convert_channels(&self.data, self.channels, channels),
+        Image::new(
+            convert_channels(&self.data, self.channels, channels),
             channels,
-            size: self.size,
-        }
+            self.size,
+        )
     }
 
     pub fn cropped(&self, new_size: Size) -> Image<T>
@@ -223,27 +252,23 @@ impl<T> Image<T> {
             new_data.extend_from_slice(&self.data[src_offset..src_offset + new_stride]);
         }
 
-        Image {
-            data: new_data,
-            channels: self.channels,
-            size: new_size,
-        }
+        Image::new(new_data, self.channels, new_size)
     }
 }
 impl Image<u8> {
     pub fn to_u16(&self) -> Image<u16> {
-        Image {
-            data: self.data.iter().map(|&x| x as u16 * 257).collect(),
-            channels: self.channels,
-            size: self.size,
-        }
+        Image::new(
+            self.data.iter().map(|&x| x as u16 * 257).collect(),
+            self.channels,
+            self.size,
+        )
     }
     pub fn to_f32(&self) -> Image<f32> {
-        Image {
-            data: self.data.iter().map(|&x| x as f32 / 255.0).collect(),
-            channels: self.channels,
-            size: self.size,
-        }
+        Image::new(
+            self.data.iter().map(|&x| x as f32 / 255.0).collect(),
+            self.channels,
+            self.size,
+        )
     }
 }
 
@@ -260,25 +285,68 @@ impl WithPrecision for f32 {
     const PRECISION: Precision = F32;
 }
 
+#[derive(Clone, Copy)]
+pub struct ReadSettings {
+    pub complete_cube_map: bool,
+    pub force_channels: Option<Channels>,
+    pub select_channels: Option<fn(Format) -> Channels>,
+}
+impl ReadSettings {
+    pub fn any() -> Self {
+        Self {
+            complete_cube_map: true,
+            force_channels: None,
+            select_channels: None,
+        }
+    }
+    pub fn no_cube_map() -> Self {
+        Self {
+            complete_cube_map: false,
+            force_channels: None,
+            select_channels: None,
+        }
+    }
+    pub fn force(channels: Channels) -> Self {
+        Self {
+            complete_cube_map: false,
+            force_channels: Some(channels),
+            select_channels: None,
+        }
+    }
+
+    pub fn allow_cube_map(&self) -> bool {
+        self.complete_cube_map && self.force_channels.is_none()
+    }
+    pub fn pick_channels(&self, format: Format) -> Channels {
+        if let Some(channels) = self.force_channels {
+            return channels;
+        }
+        if let Some(f) = self.select_channels {
+            return f(format);
+        }
+        format.channels()
+    }
+}
+
 pub fn read_dds<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
-    read_dds_with_channels_select(dds_path, |f| f.channels())
+    read_dds_with_settings(dds_path, ReadSettings::any())
 }
 pub fn read_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
     channels: Channels,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
-    read_dds_with_channels_select(dds_path, |_| channels)
+    read_dds_with_settings(dds_path, ReadSettings::force(channels))
 }
-pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
+pub fn read_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
-    select_channels: impl FnOnce(Format) -> Channels,
+    settings: ReadSettings,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     let mut file = File::open(dds_path)?;
 
     let options = ParseOptions::new_permissive(Some(file.metadata()?.len()));
-    decode_dds_with_channels_select(&options, &mut file, select_channels)
+    decode_dds_with_settings(&options, &mut file, settings)
 }
 
 pub fn decode_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
@@ -286,23 +354,23 @@ pub fn decode_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
     reader: impl std::io::Read + Seek,
     channels: Channels,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
-    decode_dds_with_channels_select(options, reader, |_| channels)
+    decode_dds_with_settings(options, reader, ReadSettings::force(channels))
 }
-pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
+pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
     options: &ParseOptions,
     mut reader: impl std::io::Read + Seek,
-    select_channels: impl FnOnce(Format) -> Channels,
+    settings: ReadSettings,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     let mut decoder = Decoder::new_with_options(reader, options)?;
     let size = decoder.main_size();
     let format = decoder.format();
 
     if let Some(array) = decoder.layout().texture_array().cloned() {
-        if array.kind() == TextureArrayKind::CubeMaps {
+        if array.kind() == TextureArrayKind::CubeMaps && settings.allow_cube_map() {
             let out_size = Size::new(size.width * 4, size.height * 3);
 
-            let mut image_data = vec![T::default(); out_size.pixels() as usize * 4];
-            let image_bytes = as_bytes_mut(&mut image_data);
+            let mut image = Image::new_empty(Channels::Rgba, out_size);
+            let image_bytes = image.as_bytes_mut();
             let color = ColorFormat::new(Channels::Rgba, T::PRECISION);
             let row_pitch = color.bytes_per_pixel() as usize * out_size.width as usize;
             let rect = Rect::new(0, 0, size.width, size.height);
@@ -321,29 +389,16 @@ pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Casta
                 )?;
             }
 
-            let image = Image {
-                data: image_data,
-                channels: Channels::Rgba,
-                size: out_size,
-            };
-
             return Ok((image, decoder.info().clone()));
         }
     };
 
-    let channels = select_channels(format);
-
-    let mut image_data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
+    let channels = settings.pick_channels(format);
+    let mut image = Image::new_empty(channels, size);
     decoder.read_surface(
-        as_bytes_mut(&mut image_data),
+        image.as_bytes_mut(),
         ColorFormat::new(channels, T::PRECISION),
     )?;
-
-    let image = Image {
-        data: image_data,
-        channels,
-        size,
-    };
 
     Ok((image, decoder.info().clone()))
 }
@@ -351,7 +406,14 @@ pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Casta
 pub fn read_dds_png_compatible(
     dds_path: &Path,
 ) -> Result<(Image<u8>, DdsInfo), Box<dyn std::error::Error>> {
-    read_dds_with_channels_select(dds_path, |f| to_png_compatible_channels(f.channels()).0)
+    read_dds_with_settings(
+        dds_path,
+        ReadSettings {
+            complete_cube_map: true,
+            force_channels: None,
+            select_channels: Some(|f| to_png_compatible_channels(f.channels()).0),
+        },
+    )
 }
 
 pub fn read_dds_rect_as_u8(
@@ -366,15 +428,10 @@ pub fn read_dds_rect_as_u8(
     let color = ColorFormat::new(channels, U8);
     let bpp = color.bytes_per_pixel() as usize;
 
-    let mut image_data = vec![0_u8; color.buffer_size(rect.size()).unwrap()];
+    let mut image = Image::new_empty(channels, rect.size());
     let row_pitch = rect.width as usize * bpp;
-    decoder.read_surface_rect(&mut image_data, row_pitch, rect, color)?;
+    decoder.read_surface_rect(image.as_bytes_mut(), row_pitch, rect, color)?;
 
-    let image = Image {
-        data: image_data,
-        channels,
-        size: rect.size(),
-    };
     Ok((image, decoder.info().clone()))
 }
 
@@ -406,11 +463,11 @@ pub fn read_png_u8(png_path: &Path) -> Result<Image<u8>, Box<dyn std::error::Err
     png_reader.next_frame(&mut png_image_data)?;
     png_reader.finish()?;
 
-    Ok(Image {
-        data: png_image_data,
+    Ok(Image::new(
+        png_image_data,
         channels,
-        size: Size::new(png_reader.info().width, png_reader.info().height),
-    })
+        Size::new(png_reader.info().width, png_reader.info().height),
+    ))
 }
 
 pub fn compare_snapshot_png_u8(
