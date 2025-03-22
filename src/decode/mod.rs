@@ -103,11 +103,6 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// `decode_<precision>` methods, the length of the types output buffer is
 /// `size.pixels() * channels.count()`
 ///
-/// It is highly recommended for the output buffer to be aligned to the
-/// given precision to improve performance. E.g. if the precision is `U16`,
-/// the output buffer should be aligned to 2 bytes. As such, using the
-/// `decode_<precision>` methods is recommended.
-///
 /// ## State of the reader
 ///
 /// The reader is expected to be positioned at the start of the encoded
@@ -141,11 +136,6 @@ pub fn decode(
 ///
 /// The `row_pitch` parameter specifies the number of bytes between the start
 /// of one row and the start of the next row in the output buffer.
-///
-/// It is highly recommended for the output buffer to be aligned to the
-/// given precision to improve performance. E.g. if the precision is `U16`,
-/// the output buffer should be aligned to 2 bytes. As such, using the
-/// `decode_*` methods is recommended.
 ///
 /// ## State of the reader
 ///

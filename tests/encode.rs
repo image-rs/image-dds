@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use dds::{header::*, *};
 use rand::Rng;
-use util::{as_bytes_mut, test_data_dir, Image, WithPrecision};
+use util::{test_data_dir, Image, WithPrecision};
 
 mod util;
 
@@ -53,25 +53,19 @@ fn encode_decode(
 
     // decode
     let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
-    let mut output = vec![0_f32; image.size.pixels() as usize * image.channels.count() as usize];
+    let mut decoded = Image::new_empty(image.channels, image.size);
     decoder
-        .read_surface(as_bytes_mut(&mut output), image.color())
+        .read_surface(decoded.as_bytes_mut(), image.color())
         .unwrap();
 
-    let image = Image {
-        size: image.size,
-        channels: image.channels,
-        data: output,
-    };
-
-    (encoded, image)
+    (encoded, decoded)
 }
 fn create_random_color_blocks() -> Image<f32> {
     let mut rng = util::create_rng();
 
     let width = 256;
     let height = 256;
-    let mut data = vec![0_f32; width * height * 3];
+    let mut image = Image::new_empty(Channels::Rgb, Size::new(width as u32, height as u32));
     let block_stride = 4 * 3;
     for y in (0..height).step_by(4) {
         for x in (0..width).step_by(4) {
@@ -80,16 +74,12 @@ fn create_random_color_blocks() -> Image<f32> {
             let line_flat: &[f32] = util::cast_slice(&block_line);
             for j in 0..4 {
                 let i = ((y + j) * width + x) * 3;
-                data[i..i + block_stride].copy_from_slice(line_flat);
+                image.data[i..i + block_stride].copy_from_slice(line_flat);
             }
         }
     }
 
-    Image {
-        size: Size::new(width as u32, height as u32),
-        channels: Channels::Rgb,
-        data,
-    }
+    image
 }
 fn compression_ratio(data: &[u8]) -> f64 {
     let compressed = miniz_oxide::deflate::compress_to_vec(data, 6);
@@ -202,6 +192,8 @@ fn encode_dither() {
 
 // Don't run this on big endian targets, it's just too slow
 #[cfg(not(target_endian = "big"))]
+// Don't run when doing code coverage, it's just too slow
+#[cfg(not(coverage))]
 #[test]
 fn encode_measure_quality() {
     let base = &TestImage::from_file("base.png");
@@ -452,10 +444,8 @@ fn block_dither() {
     }
 
     let size = Size::new(17 * 8, 8);
-    let mut image = Image {
-        size,
-        channels: Channels::Grayscale,
-        data: (0..size.pixels() as usize)
+    let mut image = Image::new(
+        (0..size.pixels() as usize)
             .map(|i| {
                 let x = i % size.width as usize;
                 // let y = i / size.width as usize;
@@ -463,19 +453,21 @@ fn block_dither() {
                 (x_quantized * 255 / 16) as u8
             })
             .collect(),
-    };
+        Channels::Grayscale,
+        size,
+    );
     append_quantized(&mut image);
 
-    let mut image_smooth = Image {
-        size,
-        channels: Channels::Grayscale,
-        data: (0..size.pixels() as usize)
+    let mut image_smooth = Image::new(
+        (0..size.pixels() as usize)
             .map(|i| {
                 let x = i % size.width as usize;
                 (x * 255 / (size.width as usize - 1)) as u8
             })
             .collect(),
-    };
+        Channels::Grayscale,
+        size,
+    );
     append_quantized(&mut image_smooth);
 
     image.size.height *= 2;
@@ -486,4 +478,52 @@ fn block_dither() {
         &image,
     )
     .unwrap();
+}
+
+/// Ensures that all color formats can be encoded (1) without error and (2)
+/// get the same result.
+///
+/// Basically, if we encode a u8 image, we should get the same encoded result
+/// as first converting the image to u16/f32 and then encoding that.
+#[test]
+fn encode_all_color_formats() {
+    let base_u8 = util::read_png_u8(&get_sample("base.png")).unwrap();
+    let base_u16 = base_u8.to_u16();
+    let base_f32 = base_u8.to_f32();
+
+    let mut options = EncodeOptions::default();
+    options.quality = CompressionQuality::Fast; // quality isn't relevant here
+
+    let mut failures = String::new();
+
+    for &format in util::ALL_FORMATS {
+        if let Some(support) = format.encoding() {
+            if support.size_multiple != SizeMultiple::ONE {
+                continue;
+            }
+        } else {
+            // encoding isn't supported
+            continue;
+        }
+
+        let mut encoded_u8 = Vec::new();
+        encode_image(&base_u8, format, &mut encoded_u8, &options).unwrap();
+
+        let mut encoded_u16 = Vec::new();
+        encode_image(&base_u16, format, &mut encoded_u16, &options).unwrap();
+
+        let mut encoded_f32 = Vec::new();
+        encode_image(&base_f32, format, &mut encoded_f32, &options).unwrap();
+
+        if encoded_u8 != encoded_u16 {
+            failures.push_str(&format!("{:?} u8 != u16\n", format));
+        }
+        if encoded_u8 != encoded_f32 {
+            failures.push_str(&format!("{:?} u8 != f32\n", format));
+        }
+    }
+
+    if !failures.is_empty() {
+        panic!("Failed for formats:\n{}", failures);
+    }
 }

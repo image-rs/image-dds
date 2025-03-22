@@ -1,64 +1,131 @@
-Format                         C      P    Encoding
+Format                         C      P    bpp  Encoding
 
-R8G8B8_UNORM                   RGB    U8   Supported: split=1
-B8G8R8_UNORM                   RGB    U8   Supported: split=1
-R8G8B8A8_UNORM                 RGBA   U8   Supported: split=1
-R8G8B8A8_SNORM                 RGBA   U8   Supported: split=1
-B8G8R8A8_UNORM                 RGBA   U8   Supported: split=1
-B8G8R8X8_UNORM                 RGB    U8   Supported: split=1
-B5G6R5_UNORM                   RGB    U8   Supported: split=1 dithering=Color
-B5G5R5A1_UNORM                 RGBA   U8   Supported: split=1 dithering=ColorAndAlpha
-B4G4R4A4_UNORM                 RGBA   U8   Supported: split=1 dithering=ColorAndAlpha
-A4B4G4R4_UNORM                 RGBA   U8   Supported: split=1 dithering=ColorAndAlpha
-R8_SNORM                       Gray   U8   Supported: split=1
-R8_UNORM                       Gray   U8   Supported: split=1
-R8G8_UNORM                     RGB    U8   Supported: split=1
-R8G8_SNORM                     RGB    U8   Supported: split=1
-A8_UNORM                       Alpha  U8   Supported: split=1
-R16_UNORM                      Gray   U16  Supported: split=1
-R16_SNORM                      Gray   U16  Supported: split=1
-R16G16_UNORM                   RGB    U16  Supported: split=1
-R16G16_SNORM                   RGB    U16  Supported: split=1
-R16G16B16A16_UNORM             RGBA   U16  Supported: split=1
-R16G16B16A16_SNORM             RGBA   U16  Supported: split=1
-R10G10B10A2_UNORM              RGBA   U16  Supported: split=1 dithering=ColorAndAlpha
-R11G11B10_FLOAT                RGB    F32  Supported: split=1 dithering=Color
-R9G9B9E5_SHAREDEXP             RGB    F32  Supported: split=1
-R16_FLOAT                      Gray   F32  Supported: split=1
-R16G16_FLOAT                   RGB    F32  Supported: split=1
-R16G16B16A16_FLOAT             RGBA   F32  Supported: split=1
-R32_FLOAT                      Gray   F32  Supported: split=1
-R32G32_FLOAT                   RGB    F32  Supported: split=1
-R32G32B32_FLOAT                RGB    F32  Supported: split=1
-R32G32B32A32_FLOAT             RGBA   F32  Supported: split=1
-R10G10B10_XR_BIAS_A2_UNORM     RGBA   F32  Supported: split=1 dithering=ColorAndAlpha
-AYUV                           RGBA   U8   Supported: split=1
-Y410                           RGBA   U16  Supported: split=1 dithering=Alpha
-Y416                           RGBA   U16  Supported: split=1
+R8G8B8_UNORM                   RGB    U8   24   ✔️ split=1
+B8G8R8_UNORM                   RGB    U8   24   ✔️ split=1
+R8G8B8A8_UNORM                 RGBA   U8   32   ✔️ split=1
+R8G8B8A8_SNORM                 RGBA   U8   32   ✔️ split=1
+B8G8R8A8_UNORM                 RGBA   U8   32   ✔️ split=1
+B8G8R8X8_UNORM                 RGB    U8   32   ✔️ split=1
+B5G6R5_UNORM                   RGB    U8   16   ✔️ split=1 dithering=Color
+B5G5R5A1_UNORM                 RGBA   U8   16   ✔️ split=1 dithering=ColorAndAlpha
+B4G4R4A4_UNORM                 RGBA   U8   16   ✔️ split=1 dithering=ColorAndAlpha
+A4B4G4R4_UNORM                 RGBA   U8   16   ✔️ split=1 dithering=ColorAndAlpha
+R8_SNORM                       Gray   U8   8    ✔️ split=1
+R8_UNORM                       Gray   U8   8    ✔️ split=1
+R8G8_UNORM                     RGB    U8   16   ✔️ split=1
+R8G8_SNORM                     RGB    U8   16   ✔️ split=1
+A8_UNORM                       Alpha  U8   8    ✔️ split=1
+R16_UNORM                      Gray   U16  16   ✔️ split=1
+R16_SNORM                      Gray   U16  16   ✔️ split=1
+R16G16_UNORM                   RGB    U16  32   ✔️ split=1
+R16G16_SNORM                   RGB    U16  32   ✔️ split=1
+R16G16B16A16_UNORM             RGBA   U16  64   ✔️ split=1
+R16G16B16A16_SNORM             RGBA   U16  64   ✔️ split=1
+R10G10B10A2_UNORM              RGBA   U16  32   ✔️ split=1 dithering=ColorAndAlpha
+R11G11B10_FLOAT                RGB    F32  32   ✔️ split=1 dithering=Color
+R9G9B9E5_SHAREDEXP             RGB    F32  32   ✔️ split=1
+R16_FLOAT                      Gray   F32  16   ✔️ split=1
+R16G16_FLOAT                   RGB    F32  32   ✔️ split=1
+R16G16B16A16_FLOAT             RGBA   F32  64   ✔️ split=1
+R32_FLOAT                      Gray   F32  32   ✔️ split=1
+R32G32_FLOAT                   RGB    F32  64   ✔️ split=1
+R32G32B32_FLOAT                RGB    F32  96   ✔️ split=1
+R32G32B32A32_FLOAT             RGBA   F32  128  ✔️ split=1
+R10G10B10_XR_BIAS_A2_UNORM     RGBA   F32  32   ✔️ split=1 dithering=ColorAndAlpha
+AYUV                           RGBA   U8   32   ✔️ split=1
+Y410                           RGBA   U16  32   ✔️ split=1 dithering=Alpha
+Y416                           RGBA   U16  64   ✔️ split=1
 
-R1_UNORM                       Gray   U8   Supported: split=1
-R8G8_B8G8_UNORM                RGB    U8   Supported: split=1
-G8R8_G8B8_UNORM                RGB    U8   Supported: split=1
-UYVY                           RGB    U8   Supported: split=1
-YUY2                           RGB    U8   Supported: split=1
-Y210                           RGB    U16  Supported: split=1
-Y216                           RGB    U16  Supported: split=1
+R1_UNORM                       Gray   U8   1    ✔️ split=1
+R8G8_B8G8_UNORM                RGB    U8   16   ✔️ split=1
+G8R8_G8B8_UNORM                RGB    U8   16   ✔️ split=1
+UYVY                           RGB    U8   16   ✔️ split=1
+YUY2                           RGB    U8   16   ✔️ split=1
+Y210                           RGB    U16  32   ✔️ split=1
+Y216                           RGB    U16  32   ✔️ split=1
 
-NV12                           RGB    U8   Supported: size_mul=2x2
-P010                           RGB    U16  Supported: size_mul=2x2
-P016                           RGB    U16  Supported: size_mul=2x2
+NV12                           RGB    U8   12   ✔️ size_mul=2x2
+P010                           RGB    U16  24   ✔️ size_mul=2x2
+P016                           RGB    U16  24   ✔️ size_mul=2x2
 
-BC1_UNORM                      RGBA   U8   Supported: split=4 dithering=ColorAndAlpha (local)
-BC2_UNORM                      RGBA   U8   Supported: split=4 dithering=ColorAndAlpha (local)
-BC2_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   Supported: split=4 dithering=ColorAndAlpha (local)
-BC3_UNORM                      RGBA   U8   Supported: split=4 dithering=ColorAndAlpha (local)
-BC3_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   Supported: split=4 dithering=ColorAndAlpha (local)
-BC4_UNORM                      Gray   U8   Supported: split=4 dithering=Color (local)
-BC4_SNORM                      Gray   U8   Supported: split=4 dithering=Color (local)
-BC5_UNORM                      RGB    U8   Supported: split=4 dithering=Color (local)
-BC5_SNORM                      RGB    U8   Supported: split=4 dithering=Color (local)
-BC6H_UF16                      RGB    F32  Not supported
-BC6H_SF16                      RGB    F32  Not supported
-BC7_UNORM                      RGBA   U8   Not supported
+BC1_UNORM                      RGBA   U8   4    ✔️ split=4 dithering=ColorAndAlpha (local)
+BC2_UNORM                      RGBA   U8   8    ✔️ split=4 dithering=ColorAndAlpha (local)
+BC2_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   8    ✔️ split=4 dithering=ColorAndAlpha (local)
+BC3_UNORM                      RGBA   U8   8    ✔️ split=4 dithering=ColorAndAlpha (local)
+BC3_UNORM_PREMULTIPLIED_ALPHA  RGBA   U8   8    ✔️ split=4 dithering=ColorAndAlpha (local)
+BC4_UNORM                      Gray   U8   4    ✔️ split=4 dithering=Color (local)
+BC4_SNORM                      Gray   U8   4    ✔️ split=4 dithering=Color (local)
+BC5_UNORM                      RGB    U8   8    ✔️ split=4 dithering=Color (local)
+BC5_SNORM                      RGB    U8   8    ✔️ split=4 dithering=Color (local)
+BC6H_UF16                      RGB    F32  8    ❌
+BC6H_SF16                      RGB    F32  8    ❌
+BC7_UNORM                      RGBA   U8   8    ❌
 
-BC3_UNORM_RXGB                 RGB    U8   Supported: split=4 dithering=Color (local)
+BC3_UNORM_RXGB                 RGB    U8   8    ✔️ split=4 dithering=Color (local)
+
+
+
+Format                         DXGI  FourCC        Masked
+
+R8G8B8_UNORM                   -                   flags:RGB       rgb_bits:24 r:ff g:ff00 b:ff0000 a:0
+B8G8R8_UNORM                   -                   flags:RGB       rgb_bits:24 r:ff0000 g:ff00 b:ff a:0
+R8G8B8A8_UNORM                 28                  flags:RGBA      rgb_bits:32 r:ff g:ff00 b:ff0000 a:ff000000
+R8G8B8A8_SNORM                 31                  flags:BUMP_DUDV rgb_bits:32 r:ff g:ff00 b:ff0000 a:ff000000
+B8G8R8A8_UNORM                 87                  flags:RGBA      rgb_bits:32 r:ff0000 g:ff00 b:ff a:ff000000
+B8G8R8X8_UNORM                 88                  flags:RGB       rgb_bits:32 r:ff0000 g:ff00 b:ff a:0
+B5G6R5_UNORM                   85                  flags:RGB       rgb_bits:16 r:f800 g:7e0 b:1f a:0
+B5G5R5A1_UNORM                 86                  flags:RGBA      rgb_bits:16 r:7c00 g:3e0 b:1f a:8000
+B4G4R4A4_UNORM                 115                 flags:RGBA      rgb_bits:16 r:f00 g:f0 b:f a:f000
+A4B4G4R4_UNORM                 191
+R8_SNORM                       63
+R8_UNORM                       61                  flags:LUMINANCE rgb_bits:8 r:ff g:0 b:0 a:0
+R8G8_UNORM                     49                  flags:RGB       rgb_bits:16 r:ff g:ff00 b:0 a:0
+R8G8_SNORM                     51                  flags:BUMP_DUDV rgb_bits:16 r:ff g:ff00 b:0 a:0
+A8_UNORM                       65                  flags:ALPHA     rgb_bits:8 r:0 g:0 b:0 a:ff
+R16_UNORM                      56                  flags:LUMINANCE rgb_bits:16 r:ffff g:0 b:0 a:0
+R16_SNORM                      58
+R16G16_UNORM                   35                  flags:RGB       rgb_bits:32 r:ffff g:ffff0000 b:0 a:0
+R16G16_SNORM                   37                  flags:BUMP_DUDV rgb_bits:32 r:ffff g:ffff0000 b:0 a:0
+R16G16B16A16_UNORM             11
+R16G16B16A16_SNORM             13
+R10G10B10A2_UNORM              24                  flags:RGBA      rgb_bits:32 r:3ff00000 g:ffc00 b:3ff a:c0000000
+R11G11B10_FLOAT                26
+R9G9B9E5_SHAREDEXP             67
+R16_FLOAT                      54
+R16G16_FLOAT                   34
+R16G16B16A16_FLOAT             10
+R32_FLOAT                      41
+R32G32_FLOAT                   16
+R32G32B32_FLOAT                6
+R32G32B32A32_FLOAT             2
+R10G10B10_XR_BIAS_A2_UNORM     89
+AYUV                           100
+Y410                           101
+Y416                           102
+
+R1_UNORM                       66
+R8G8_B8G8_UNORM                68    FourCC(RGBG)
+G8R8_G8B8_UNORM                69    FourCC(GRGB)
+UYVY                           -     FourCC(UYVY)
+YUY2                           107   FourCC(YUY2)
+Y210                           108
+Y216                           109
+
+NV12                           103
+P010                           104
+P016                           105
+
+BC1_UNORM                      71    FourCC(DXT1)
+BC2_UNORM                      74    FourCC(DXT3)
+BC2_UNORM_PREMULTIPLIED_ALPHA  -     FourCC(DXT2)
+BC3_UNORM                      77    FourCC(DXT5)
+BC3_UNORM_PREMULTIPLIED_ALPHA  -     FourCC(DXT4)
+BC4_UNORM                      80    FourCC(BC4U)
+BC4_SNORM                      81    FourCC(BC4S)
+BC5_UNORM                      83    FourCC(BC5U)
+BC5_SNORM                      84    FourCC(BC5S)
+BC6H_UF16                      95
+BC6H_SF16                      96
+BC7_UNORM                      98
+
+BC3_UNORM_RXGB                 -     FourCC(RXGB)

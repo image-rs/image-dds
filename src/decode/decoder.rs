@@ -91,10 +91,14 @@ impl<'a, 'b> RArgs<'a, 'b> {
         }
 
         // Check row pitch
-        let min_row_pitch = usize::saturating_mul(
-            rect.width as usize,
-            context.color.bytes_per_pixel() as usize,
-        );
+        let min_row_pitch = if rect.size().is_empty() {
+            0
+        } else {
+            usize::saturating_mul(
+                rect.width as usize,
+                context.color.bytes_per_pixel() as usize,
+            )
+        };
         if row_pitch < min_row_pitch {
             return Err(DecodeError::RowPitchTooSmall {
                 required_minimum: min_row_pitch,
@@ -103,7 +107,12 @@ impl<'a, 'b> RArgs<'a, 'b> {
 
         // Check that the buffer is long enough
         // saturate to usize::MAX on overflow
-        let required_bytes = usize::saturating_mul(row_pitch, rect.height as usize);
+        let required_bytes = if rect.size().is_empty() {
+            0
+        } else {
+            usize::saturating_mul(row_pitch, (rect.height - 1) as usize)
+                .saturating_add(min_row_pitch)
+        };
         if output.len() < required_bytes {
             return Err(DecodeError::RectBufferTooSmall {
                 required_minimum: required_bytes,
@@ -157,7 +166,7 @@ impl DecoderSet {
     }
     #[cfg(debug_assertions)]
     const fn verify(decoders: &'static [Decoder]) {
-        assert!(!decoders.is_empty());
+        debug_assert!(!decoders.is_empty());
 
         let mut supported_colors = ColorFormatSet::EMPTY;
         let mut native_colors = ColorFormatSet::EMPTY;
@@ -170,8 +179,8 @@ impl DecoderSet {
             i += 1;
         }
 
-        assert!(supported_colors.is_all(), "All colors must be supported");
-        assert!(
+        debug_assert!(supported_colors.is_all(), "All colors must be supported");
+        debug_assert!(
             native_colors.len() as usize == decoders.len(),
             "There should only be one decoder per native color."
         );
@@ -182,7 +191,7 @@ impl DecoderSet {
         precision: Precision,
         decode_fn: DecodeFn,
     ) -> Self {
-        assert!(self.optimized.is_none());
+        debug_assert!(self.optimized.is_none());
         Self {
             decoders: self.decoders,
             optimized: Some(SpecializedDecodeFn {
@@ -266,7 +275,7 @@ impl DecoderSet {
             },
         )?;
 
-        // never decode empty rects
+        // never decode empty rectangles
         if rect.size().is_empty() {
             return Ok(());
         }

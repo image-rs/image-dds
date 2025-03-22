@@ -1,6 +1,11 @@
 use dds::{header::*, *};
 
-use std::{fs::File, io::Seek, num::NonZero, path::PathBuf};
+use std::{
+    fs::File,
+    io::Seek,
+    num::{NonZero, NonZeroU32},
+    path::PathBuf,
+};
 
 mod util;
 
@@ -71,6 +76,67 @@ fn full_layout_snapshot() {
         Ok(())
     }
 
+    fn validate_region(layout: &DataLayout) {
+        let mut offset: u64 = 0;
+
+        match layout {
+            DataLayout::Texture(texture) => {
+                assert_eq!(texture.data_offset(), 0);
+
+                for surface in texture.iter_mips() {
+                    assert_eq!(surface.data_offset(), offset);
+                    assert_eq!(
+                        surface.data_offset() + surface.data_len(),
+                        surface.data_end()
+                    );
+                    offset += surface.data_len();
+                }
+            }
+            DataLayout::Volume(volume) => {
+                assert_eq!(volume.data_offset(), 0);
+
+                for v in volume.iter_mips() {
+                    assert_eq!(v.data_offset(), offset);
+                    assert_eq!(v.data_offset() + v.data_len(), v.data_end());
+
+                    for slice in v.iter_depth_slices() {
+                        assert_eq!(slice.data_offset(), offset);
+                        assert_eq!(slice.data_offset() + slice.data_len(), slice.data_end());
+                        offset += slice.data_len();
+                    }
+
+                    assert_eq!(offset, v.data_end());
+                }
+            }
+            DataLayout::TextureArray(texture_array) => {
+                assert_eq!(texture_array.data_offset(), 0);
+
+                for texture in texture_array.iter() {
+                    assert_eq!(texture.data_offset(), offset);
+                    assert_eq!(
+                        texture.data_offset() + texture.data_len(),
+                        texture.data_end()
+                    );
+
+                    for surface in texture.iter_mips() {
+                        assert_eq!(surface.data_offset(), offset);
+                        assert_eq!(
+                            surface.data_offset() + surface.data_len(),
+                            surface.data_end()
+                        );
+                        offset += surface.data_len();
+                    }
+
+                    assert_eq!(offset, texture.data_end());
+                }
+            }
+        }
+
+        assert_eq!(layout.data_offset(), 0);
+        assert_eq!(layout.data_len(), layout.data_end());
+        assert_eq!(layout.data_len(), offset);
+    }
+
     fn collect_info(dds_path: &PathBuf) -> Result<String, Box<dyn std::error::Error>> {
         let mut file = File::open(dds_path)?;
         let file_len = file.metadata()?.len();
@@ -81,6 +147,7 @@ fn full_layout_snapshot() {
         let header = info.header();
         let format = info.format();
         let layout = info.layout();
+        validate_region(layout);
 
         let mut output = String::new();
 
@@ -118,62 +185,8 @@ fn full_layout_snapshot() {
         ));
 
         // LAYOUT
-        output.push_str("\nLayout: ");
-        match layout {
-            DataLayout::Texture(texture) => {
-                output.push_str(&format!("Texture ({} bytes)\n", texture.data_len()));
-                for (i, surface) in texture.iter_mips().enumerate() {
-                    output.push_str(&format!(
-                        "    Surface[{i}] {}x{} ({} bytes)\n",
-                        surface.width(),
-                        surface.height(),
-                        surface.data_len()
-                    ));
-                }
-            }
-            DataLayout::Volume(volume) => {
-                output.push_str(&format!("Volume ({} bytes)\n", volume.data_len()));
-                for (i, volume) in volume.iter_mips().enumerate() {
-                    output.push_str(&format!(
-                        "    Volume[{i}] {}x{}x{} ({} bytes)\n",
-                        volume.width(),
-                        volume.height(),
-                        volume.depth(),
-                        volume.data_len()
-                    ));
-                    for (i, surface) in volume.iter_depth_slices().enumerate() {
-                        output.push_str(&format!(
-                            "        Surface[{i}] {}x{} ({} bytes)\n",
-                            surface.width(),
-                            surface.height(),
-                            surface.data_len()
-                        ));
-                    }
-                }
-            }
-            DataLayout::TextureArray(texture_array) => {
-                output.push_str(&format!(
-                    "TextureArray len:{} kind:{:?} ({} bytes)\n",
-                    texture_array.len(),
-                    texture_array.kind(),
-                    texture_array.data_len()
-                ));
-                for (i, texture) in texture_array.iter().enumerate() {
-                    output.push_str(&format!(
-                        "    Texture[{i}] ({} bytes)\n",
-                        texture.data_len()
-                    ));
-                    for (i, surface) in texture.iter_mips().enumerate() {
-                        output.push_str(&format!(
-                            "        Surface[{i}] {}x{} ({} bytes)\n",
-                            surface.width(),
-                            surface.height(),
-                            surface.data_len()
-                        ));
-                    }
-                }
-            }
-        }
+        output.push('\n');
+        util::pretty_print_data_layout(&mut output, layout);
 
         Ok(output)
     }
@@ -304,4 +317,108 @@ fn empty_array() {
     assert!(array.is_empty());
     assert!(array.iter().next().is_none());
     assert!(array.data_len() == 0);
+}
+
+#[test]
+fn weird_and_invalid_headers() {
+    let headers: &[Header] = &[
+        // just some simple headers
+        //
+        Dx9Header::new_image(100, 100, FourCC::DXT1.into()).into(),
+        Dx9Header::new_cube_map(100, 100, FourCC::DXT1.into()).into(),
+        Dx9Header::new_cube_map(100, 100, FourCC::DXT1.into())
+            .with_cube_map_faces(CubeMapFaces::POSITIVE_X | CubeMapFaces::NEGATIVE_Y)
+            .into(),
+        Dx9Header::new_volume(100, 100, 4, FourCC::DXT1.into()).into(),
+        Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM).into(),
+        Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM).into(),
+        Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM)
+            .with_array_size(4)
+            .into(),
+        Dx10Header::new_volume(100, 100, 4, DxgiFormat::BC1_UNORM).into(),
+        Dx10Header::new_image(100, 1, DxgiFormat::R8_UNORM)
+            .with_resource_dimension(ResourceDimension::Texture1D)
+            .into(),
+        //
+        // too many mipmaps
+        Header::new_image(1, 1, DxgiFormat::BC1_UNORM)
+            .with_mipmap_count(NonZeroU32::new(123456).unwrap()),
+        //
+        // unknown pixel format
+        Header::new_image(100, 100, DxgiFormat::UNKNOWN),
+        Dx9Header::new_image(100, 100, FourCC::NONE.into()).into(),
+        // despite the invalid pixel format, we can create a proper layout
+        Dx9Header::new_image(
+            100,
+            100,
+            MaskPixelFormat {
+                flags: PixelFormatFlags::empty(),
+                rgb_bit_count: RgbBitCount::Count16,
+                r_bit_mask: 0,
+                g_bit_mask: 0,
+                b_bit_mask: 0,
+                a_bit_mask: 0,
+            }
+            .into(),
+        )
+        .into(),
+        //
+        // zero dimension
+        Header::new_image(0, 100, DxgiFormat::BC1_UNORM),
+        Header::new_image(100, 0, DxgiFormat::BC1_UNORM),
+        Header::new_volume(100, 100, 0, DxgiFormat::BC1_UNORM),
+        Header::new_cube_map(100, 0, DxgiFormat::BC1_UNORM),
+        // volume without depth
+        Header::new_volume(100, 100, 100, DxgiFormat::BC1_UNORM).with_dimensions(10, 10, None),
+        //
+        // cube map with huge array size
+        Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM)
+            .with_array_size(u32::MAX)
+            .into(),
+        //
+        // HUGE files
+        Header::new_image(u32::MAX, u32::MAX, DxgiFormat::R8_UNORM),
+        Header::new_image(u32::MAX, u32::MAX, DxgiFormat::R8_UNORM)
+            .with_mipmap_count(NonZeroU32::new(5).unwrap()),
+        Header::new_image(u32::MAX, u32::MAX, DxgiFormat::R16_UNORM),
+        Dx10Header::new_image(u32::MAX, 2, DxgiFormat::R8_UNORM)
+            .with_array_size(u32::MAX)
+            .into(),
+        Header::new_volume(u32::MAX, u32::MAX, 1, DxgiFormat::R8_UNORM),
+        Header::new_volume(u32::MAX, u32::MAX, 2, DxgiFormat::R8_UNORM),
+        Header::new_volume(u32::MAX, u32::MAX, 1, DxgiFormat::R8_UNORM)
+            .with_mipmap_count(NonZeroU32::new(5).unwrap()),
+        Header::new_volume(u32::MAX, u32::MAX, 1, DxgiFormat::R16_UNORM),
+        //
+        // non-2D cube map
+        Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM)
+            .with_resource_dimension(ResourceDimension::Texture1D)
+            .into(),
+        Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM)
+            .with_resource_dimension(ResourceDimension::Texture3D)
+            .into(),
+        Dx9Header::new_volume(100, 100, 1, FourCC::DXT1.into())
+            .with_cube_map_faces(CubeMapFaces::ALL)
+            .into(),
+    ];
+
+    let output = &mut String::new();
+
+    for header in headers {
+        util::pretty_print_header(output, header);
+        output.push('\n');
+
+        match DataLayout::from_header(header) {
+            Ok(layout) => util::pretty_print_data_layout(output, &layout),
+            Err(e) => output.push_str(&format!("Error:\n    {}\n", e)),
+        };
+
+        output.push_str("\n\n\n");
+    }
+
+    util::compare_snapshot_text(
+        &util::test_data_dir().join("invalid_header_layout.txt"),
+        output,
+    )
+    .unwrap();
 }

@@ -12,7 +12,7 @@
 
 use crate::{
     cast,
-    detect::{dxgi_to_four_cc, dxgi_to_pixel_format, four_cc_to_dxgi, pixel_format_to_dxgi},
+    detect::{dxgi_to_four_cc, dxgi_to_masked, four_cc_to_dxgi, masked_to_dxgi},
     util::{read_u32_le_array, NON_ZERO_U32_ONE},
     CubeMapFaces, DataLayout, DataRegion, HeaderError, PixelInfo, Size,
 };
@@ -44,8 +44,8 @@ pub struct RawHeader {
     pub mipmap_count: u32,
     pub reserved1: [u32; 11],
     pub pixel_format: RawPixelFormat,
-    pub caps: DdsCaps,
-    pub caps2: DdsCaps2,
+    pub caps: Caps,
+    pub caps2: Caps2,
     pub caps3: u32,
     pub caps4: u32,
     pub reserved2: u32,
@@ -118,8 +118,8 @@ impl RawHeader {
                 b_bit_mask: buffer[24],
                 a_bit_mask: buffer[25],
             },
-            caps: DdsCaps::from_bits_retain(buffer[26]),
-            caps2: DdsCaps2::from_bits_retain(buffer[27]),
+            caps: Caps::from_bits_retain(buffer[26]),
+            caps2: Caps2::from_bits_retain(buffer[27]),
             caps3: buffer[28],
             caps4: buffer[29],
             reserved2: buffer[30],
@@ -257,7 +257,7 @@ pub struct Dx9Header {
     /// Number of mipmap levels.
     pub mipmap_count: NonZeroU32,
     /// Additional detail about the surfaces stored.
-    pub caps2: DdsCaps2,
+    pub caps2: Caps2,
     pub pixel_format: Dx9PixelFormat,
 }
 /// DX9 pixel format.
@@ -272,9 +272,14 @@ pub enum Dx9PixelFormat {
     FourCC(FourCC),
     Mask(MaskPixelFormat),
 }
+/// The RGBA mask for reading color data.
+///
+/// For more information, see <https://learn.microsoft.com/en-us/windows/win32/direct3ddds/dds-pixelformat>.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MaskPixelFormat {
     /// Values which indicate what type of data is in the surface.
+    ///
+    /// The flag [`PixelFormatFlags::FOURCC`] must **not** be set.
     pub flags: PixelFormatFlags,
     /// Number of bits in an RGB (possibly including alpha) format. Valid when dwFlags includes DDPF_RGB, DDPF_LUMINANCE, or DDPF_YUV.
     pub rgb_bit_count: RgbBitCount,
@@ -481,12 +486,6 @@ impl Header {
             Header::Dx10(header) => header.mipmap_count,
         }
     }
-    fn mipmap_count_mut(&mut self) -> &mut NonZeroU32 {
-        match self {
-            Header::Dx9(header) => &mut header.mipmap_count,
-            Header::Dx10(header) => &mut header.mipmap_count,
-        }
-    }
 
     /// The [`Dx10Header::array_size`] value, or 1 if it's a DX9 header.
     pub const fn array_size(&self) -> u32 {
@@ -583,20 +582,68 @@ impl Header {
         Self::Dx10(Dx10Header::new_cube_map(width, height, format))
     }
 
+    /// A builder-pattern-style method to set the width and height of the
+    /// header.
+    ///
+    /// Depth will be set to `None`. If you want to leave the depth unchanged
+    /// or change it as well, use [`Header::with_dimensions`].
+    pub fn with_size(mut self, size: Size) -> Header {
+        match &mut self {
+            Header::Dx9(header) => {
+                header.width = size.width;
+                header.height = size.height;
+                header.depth = None;
+            }
+            Header::Dx10(header) => {
+                header.width = size.width;
+                header.height = size.height;
+                header.depth = None;
+            }
+        }
+        self
+    }
+    /// A builder-pattern-style method to set the width, height, and depth of
+    /// the header.
+    ///
+    /// For headers of 2D textures, [`Header::with_size`] is more appropriate.
+    pub fn with_dimensions(mut self, width: u32, height: u32, depth: Option<u32>) -> Header {
+        match &mut self {
+            Header::Dx9(header) => {
+                header.width = width;
+                header.height = height;
+                header.depth = depth;
+            }
+            Header::Dx10(header) => {
+                header.width = width;
+                header.height = height;
+                header.depth = depth;
+            }
+        }
+        self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header.
+    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
+        match &mut self {
+            Header::Dx9(header) => header.mipmap_count = mipmap_count,
+            Header::Dx10(header) => header.mipmap_count = mipmap_count,
+        }
+        self
+    }
+
     /// Converts this header into a DX9 header if possible. If the header is a
     /// DX9 header already, it will be returned as is.
-    pub fn into_dx9(self) -> Option<Dx9Header> {
+    pub fn to_dx9(&self) -> Option<Dx9Header> {
         match self {
-            Header::Dx9(dx9_header) => Some(dx9_header),
+            Header::Dx9(dx9_header) => Some(dx9_header.clone()),
             Header::Dx10(dx10_header) => dx10_header.to_dx9(),
         }
     }
     /// Converts this header into a DX10 header if possible. If the header is a
     /// DX10 header already, it will be returned as is.
-    pub fn into_dx10(self) -> Option<Dx10Header> {
+    pub fn to_dx10(&self) -> Option<Dx10Header> {
         match self {
             Header::Dx9(dx9_header) => dx9_header.to_dx10(),
-            Header::Dx10(dx10_header) => Some(dx10_header),
+            Header::Dx10(dx10_header) => Some(dx10_header.clone()),
         }
     }
 
@@ -675,8 +722,7 @@ impl Header {
             mipmap.saturating_add(1),
         ];
         for guess in guesses.into_iter().filter_map(NonZeroU32::new) {
-            let mut new_header = self.clone();
-            *new_header.mipmap_count_mut() = guess;
+            let new_header = self.clone().with_mipmap_count(guess);
 
             if test(&new_header) {
                 *self = new_header;
@@ -744,8 +790,8 @@ impl Header {
         };
 
         let mipmap_count = if flags.contains(DdsFlags::MIPMAP_COUNT)
-            || raw.caps.contains(DdsCaps::COMPLEX)
-            || raw.caps.contains(DdsCaps::MIPMAP)
+            || raw.caps.contains(Caps::COMPLEX)
+            || raw.caps.contains(Caps::MIPMAP)
         {
             raw.mipmap_count
         } else {
@@ -823,10 +869,10 @@ impl Header {
 
     pub fn to_raw(&self) -> RawHeader {
         let mut flags = DdsFlags::REQUIRED | DdsFlags::MIPMAP_COUNT;
-        let mut caps = DdsCaps::REQUIRED;
+        let mut caps = Caps::REQUIRED;
 
         if self.mipmap_count().get() > 1 {
-            caps |= DdsCaps::MIPMAP | DdsCaps::COMPLEX;
+            caps |= Caps::MIPMAP | Caps::COMPLEX;
         }
         if self.depth().is_some() {
             flags |= DdsFlags::DEPTH;
@@ -865,12 +911,12 @@ impl Header {
                 (dx9_header.caps2, format, None)
             }
             Header::Dx10(dx10_header) => {
-                let mut caps2 = DdsCaps2::empty();
+                let mut caps2 = Caps2::empty();
                 if dx10_header.resource_dimension == ResourceDimension::Texture3D {
-                    caps2 |= DdsCaps2::VOLUME;
+                    caps2 |= Caps2::VOLUME;
                 }
                 if dx10_header.misc_flag.contains(MiscFlags::TEXTURE_CUBE) {
-                    caps2 |= DdsCaps2::CUBE_MAP | DdsCaps2::CUBE_MAP_ALL_FACES;
+                    caps2 |= Caps2::CUBE_MAP | Caps2::CUBE_MAP_ALL_FACES;
                 }
 
                 let dx10 = RawDx10Header {
@@ -983,11 +1029,11 @@ impl Dx9Header {
     /// Note: DX9 supports partial cube maps, which will also return `true`.
     /// See [`Dx9Header::cube_map_faces`].
     pub const fn is_cube_map(&self) -> bool {
-        self.caps2.contains(DdsCaps2::CUBE_MAP)
+        self.caps2.contains(Caps2::CUBE_MAP)
     }
     /// Returns the cube map faces iff this header describes a cube map.
     pub fn cube_map_faces(&self) -> Option<CubeMapFaces> {
-        if self.caps2.contains(DdsCaps2::CUBE_MAP) {
+        if self.caps2.contains(Caps2::CUBE_MAP) {
             Some(self.caps2.into())
         } else {
             None
@@ -997,7 +1043,7 @@ impl Dx9Header {
     /// Whether this header describes a volume texture by checking for the
     /// [`DdsCaps2::VOLUME`] flag.
     pub const fn is_volume(&self) -> bool {
-        self.caps2.contains(DdsCaps2::VOLUME)
+        self.caps2.contains(Caps2::VOLUME)
     }
 
     /// Creates a new header for DX10 texture 2D with the given dimensions and
@@ -1010,7 +1056,7 @@ impl Dx9Header {
             width,
             depth: None,
             mipmap_count: NON_ZERO_U32_ONE,
-            caps2: DdsCaps2::empty(),
+            caps2: Caps2::empty(),
             pixel_format: format,
         }
     }
@@ -1024,7 +1070,7 @@ impl Dx9Header {
             width,
             depth: Some(depth),
             mipmap_count: NON_ZERO_U32_ONE,
-            caps2: DdsCaps2::VOLUME,
+            caps2: Caps2::VOLUME,
             pixel_format: format,
         }
     }
@@ -1038,9 +1084,50 @@ impl Dx9Header {
             width,
             depth: None,
             mipmap_count: NON_ZERO_U32_ONE,
-            caps2: DdsCaps2::CUBE_MAP.union(DdsCaps2::CUBE_MAP_ALL_FACES),
+            caps2: Caps2::CUBE_MAP.union(Caps2::CUBE_MAP_ALL_FACES),
             pixel_format: format,
         }
+    }
+
+    /// A builder-pattern-style method to set the width and height of the
+    /// header.
+    ///
+    /// Depth will be set to `None`. If you want to leave the depth unchanged
+    /// or change it as well, use [`Self::with_dimensions`].
+    pub fn with_size(mut self, size: Size) -> Self {
+        self.width = size.width;
+        self.height = size.height;
+        self.depth = None;
+        self
+    }
+    /// A builder-pattern-style method to set the width, height, and depth of
+    /// the header.
+    ///
+    /// For headers of 2D textures, [`Self::with_size`] is more appropriate.
+    pub fn with_dimensions(mut self, width: u32, height: u32, depth: Option<u32>) -> Self {
+        self.width = width;
+        self.height = height;
+        self.depth = depth;
+        self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header.
+    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Self {
+        self.mipmap_count = mipmap_count;
+        self
+    }
+    /// A builder-pattern-style method to set the cube map faces of the header.
+    ///
+    /// This will set the [`Caps2::CUBE_MAP`] flag and the flags of all given
+    /// faces. Faces not given will have their flags unset.
+    pub fn with_cube_map_faces(mut self, faces: CubeMapFaces) -> Self {
+        self.caps2 =
+            (self.caps2 & !Caps2::CUBE_MAP_ALL_FACES) | Caps2::CUBE_MAP | Caps2::from(faces);
+        self
+    }
+    /// A builder-pattern-style method to set the pixel format of the header.
+    pub fn with_pixel_format(mut self, pixel_format: Dx9PixelFormat) -> Self {
+        self.pixel_format = pixel_format;
+        self
     }
 
     pub fn to_dx10(&self) -> Option<Dx10Header> {
@@ -1059,22 +1146,20 @@ impl Dx9Header {
                     return None;
                 }
             }
-            Dx9PixelFormat::Mask(mask_pixel_format) => pixel_format_to_dxgi(mask_pixel_format)?,
+            Dx9PixelFormat::Mask(mask_pixel_format) => masked_to_dxgi(mask_pixel_format)?,
         };
 
-        if self.caps2.contains(DdsCaps2::CUBE_MAP)
-            && !self.caps2.contains(DdsCaps2::CUBE_MAP_ALL_FACES)
-        {
+        if self.caps2.contains(Caps2::CUBE_MAP) && !self.caps2.contains(Caps2::CUBE_MAP_ALL_FACES) {
             // DX10 requires all faces to be present
             return None;
         }
 
-        let resource_dimension = if self.caps2.contains(DdsCaps2::VOLUME) {
+        let resource_dimension = if self.caps2.contains(Caps2::VOLUME) {
             ResourceDimension::Texture3D
         } else {
             ResourceDimension::Texture2D
         };
-        let misc_flag = if self.caps2.contains(DdsCaps2::CUBE_MAP) {
+        let misc_flag = if self.caps2.contains(Caps2::CUBE_MAP) {
             MiscFlags::TEXTURE_CUBE
         } else {
             MiscFlags::empty()
@@ -1108,6 +1193,13 @@ impl Dx10Header {
         matches!(self.resource_dimension, ResourceDimension::Texture3D)
     }
 
+    const fn pick_alpha_mode(dxgi: DxgiFormat) -> AlphaMode {
+        if dxgi.has_alpha() {
+            AlphaMode::Straight
+        } else {
+            AlphaMode::Unknown
+        }
+    }
     /// Creates a new header for DX10 texture 2D with the given dimensions and
     /// format.
     ///
@@ -1122,11 +1214,7 @@ impl Dx10Header {
             resource_dimension: ResourceDimension::Texture2D,
             misc_flag: MiscFlags::empty(),
             array_size: 1,
-            alpha_mode: if format.has_alpha() {
-                AlphaMode::Straight
-            } else {
-                AlphaMode::Unknown
-            },
+            alpha_mode: Self::pick_alpha_mode(format),
         }
     }
     /// Creates a new header for DX10 texture 3D with the given dimensions and
@@ -1143,11 +1231,7 @@ impl Dx10Header {
             resource_dimension: ResourceDimension::Texture3D,
             misc_flag: MiscFlags::empty(),
             array_size: 1,
-            alpha_mode: if format.has_alpha() {
-                AlphaMode::Straight
-            } else {
-                AlphaMode::Unknown
-            },
+            alpha_mode: Self::pick_alpha_mode(format),
         }
     }
     /// Creates a new header for DX10 cube map with the given dimensions and
@@ -1164,12 +1248,66 @@ impl Dx10Header {
             resource_dimension: ResourceDimension::Texture2D,
             misc_flag: MiscFlags::TEXTURE_CUBE,
             array_size: 1,
-            alpha_mode: if format.has_alpha() {
-                AlphaMode::Straight
-            } else {
-                AlphaMode::Unknown
-            },
+            alpha_mode: Self::pick_alpha_mode(format),
         }
+    }
+
+    /// A builder-pattern-style method to set the width and height of the
+    /// header.
+    ///
+    /// Depth will be set to `None`. If you want to leave the depth unchanged
+    /// or change it as well, use [`Self::with_dimensions`].
+    pub fn with_size(mut self, size: Size) -> Self {
+        self.width = size.width;
+        self.height = size.height;
+        self.depth = None;
+        self
+    }
+    /// A builder-pattern-style method to set the width, height, and depth of
+    /// the header.
+    ///
+    /// For headers of 2D textures, [`Self::with_size`] is more appropriate.
+    pub fn with_dimensions(mut self, width: u32, height: u32, depth: Option<u32>) -> Self {
+        self.width = width;
+        self.height = height;
+        self.depth = depth;
+        self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header.
+    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Self {
+        self.mipmap_count = mipmap_count;
+        self
+    }
+    /// A builder-pattern-style method to set the DXGI format of the header.
+    ///
+    /// The alpha mode will be set to `AlphaMode::Straight` if the format has
+    /// alpha, and `AlphaMode::Unknown` otherwise.
+    pub fn with_dxgi_format(mut self, dxgi_format: DxgiFormat) -> Self {
+        self.dxgi_format = dxgi_format;
+        self.alpha_mode = Self::pick_alpha_mode(dxgi_format);
+        self
+    }
+    /// A builder-pattern-style method to set the resource dimension of the
+    /// header.
+    pub fn with_resource_dimension(mut self, resource_dimension: ResourceDimension) -> Self {
+        self.resource_dimension = resource_dimension;
+        self
+    }
+    /// A builder-pattern-style method to set the misc flags of the header.
+    /// This will overwrite all current flags.
+    pub fn with_misc_flags(mut self, misc_flags: MiscFlags) -> Self {
+        self.misc_flag = misc_flags;
+        self
+    }
+    /// A builder-pattern-style method to set the array size of the header.
+    pub fn with_array_size(mut self, array_size: u32) -> Self {
+        self.array_size = array_size;
+        self
+    }
+    /// A builder-pattern-style method to set the alpha mode of the header.
+    pub fn with_alpha_mode(mut self, alpha_mode: AlphaMode) -> Self {
+        self.alpha_mode = alpha_mode;
+        self
     }
 
     pub fn to_dx9(&self) -> Option<Dx9Header> {
@@ -1193,7 +1331,7 @@ impl Dx10Header {
 
             dxgi_to_four_cc(dxgi_format)
                 .map(Dx9PixelFormat::FourCC)
-                .or_else(|| dxgi_to_pixel_format(dxgi_format).map(Dx9PixelFormat::Mask))
+                .or_else(|| dxgi_to_masked(dxgi_format).map(Dx9PixelFormat::Mask))
         }
 
         if self.array_size != 1 {
@@ -1207,12 +1345,12 @@ impl Dx10Header {
             return None;
         }
 
-        let mut caps2 = DdsCaps2::empty();
+        let mut caps2 = Caps2::empty();
         if self.resource_dimension == ResourceDimension::Texture3D {
-            caps2 |= DdsCaps2::VOLUME;
+            caps2 |= Caps2::VOLUME;
         }
         if self.misc_flag.contains(MiscFlags::TEXTURE_CUBE) {
-            caps2 |= DdsCaps2::CUBE_MAP | DdsCaps2::CUBE_MAP_ALL_FACES;
+            caps2 |= Caps2::CUBE_MAP | Caps2::CUBE_MAP_ALL_FACES;
         }
 
         let format = to_dx9_format(self.dxgi_format, self.alpha_mode)?;
@@ -1256,7 +1394,7 @@ bitflags! {
     }
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-    pub struct DdsCaps: u32 {
+    pub struct Caps: u32 {
         /// Optional; must be used on any file that contains more than one surface (a mipmap, a cubic environment map, or mipmapped volume texture).
         const COMPLEX = 0x8;
         /// Optional; should be used for a mipmap.
@@ -1269,7 +1407,7 @@ bitflags! {
     }
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-    pub struct DdsCaps2: u32 {
+    pub struct Caps2: u32 {
         /// Required for a cube map.
         const CUBE_MAP = 0x200;
         /// Required when these surfaces are stored in a cube map.
@@ -1709,3 +1847,24 @@ define_dxgi_formats!(
     V408 = 132,
     A4B4G4R4_UNORM = 191
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dxgi_format_srgb() {
+        for dxgi in DxgiFormat::all() {
+            assert_eq!(dxgi.to_linear(), dxgi.to_srgb().to_linear());
+            assert_eq!(dxgi.to_srgb(), dxgi.to_linear().to_srgb());
+            assert!(!dxgi.to_linear().is_srgb());
+
+            if dxgi.is_srgb() {
+                assert_eq!(dxgi, dxgi.to_srgb());
+                assert_ne!(dxgi, dxgi.to_linear());
+            } else {
+                assert_eq!(dxgi, dxgi.to_linear());
+            }
+        }
+    }
+}

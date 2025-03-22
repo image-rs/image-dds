@@ -53,7 +53,7 @@ into_dx10 Header:
 Header:
     w/h: 32 x 32
     mipmap_count: 1
-    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
     format: FourCC(0x71)
 
 into_dx10 Header:
@@ -175,6 +175,68 @@ into_dx10 Header:
 
 
 Header:
+    w/h: 64 x 64
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X)
+    format: FourCC(DXT1)
+
+Can't be converted to DX10
+
+
+
+Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z | VOLUME)
+    format: FourCC(DXT1)
+
+Can't be converted to DX10
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+
+
+Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    caps2: Caps2(VOLUME)
+    format: FourCC(DXT1)
+
+into_dx10 Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
     w/h: 120 x 120
     mipmap_count: 1
     format: FourCC(DXT1)
@@ -203,7 +265,7 @@ into_dx10 Header:
 Header:
     w/h: 128 x 128
     mipmap_count: 8
-    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
     format: FourCC(DXT1)
 
 into_dx10 Header:
@@ -409,7 +471,7 @@ Header:
     mipmap_count: 7
     format: FourCC(RXGB)
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -418,7 +480,7 @@ Header:
     mipmap_count: 8
     format: FourCC(RXGB)
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -479,7 +541,7 @@ Header:
     mipmap_count: 8
     format: FourCC(UYVY)
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -502,7 +564,7 @@ into_dx10 Header:
 Header:
     w/h: 128 x 128
     mipmap_count: 1
-    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
     format: masked
         flags: PixelFormatFlags(RGB)
         rgb_bit_count: 16
@@ -541,7 +603,7 @@ Header:
         rgb_bit_count: 24
         bit_mask: r:0xff g:0xff00 b:0xff0000 a:0x0
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -553,7 +615,7 @@ Header:
         rgb_bit_count: 24
         bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -565,7 +627,7 @@ Header:
         rgb_bit_count: 24
         bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -577,7 +639,7 @@ Header:
         rgb_bit_count: 24
         bit_mask: r:0xff0000 g:0xff00 b:0xff a:0x0
 
-Can't be converted
+Can't be converted to DX10
 
 
 
@@ -854,6 +916,16 @@ into_dx10 Header:
 
 
 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: UNKNOWN (0)
+
+Can't be converted to DX9
+
+
+
+Header:
     w/h: 129 x 66
     mipmap_count: 8
     DX10: Texture2D
@@ -879,7 +951,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R32G32B32_FLOAT (6)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1005,7 +1077,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R11G11B10_FLOAT (26)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1263,7 +1335,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R16_SNORM (58)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1312,7 +1384,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R8_SNORM (63)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1361,7 +1433,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R1_UNORM (66)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1371,7 +1443,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R9G9B9E5_SHAREDEXP (67)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1398,6 +1470,66 @@ into_dx9 Header:
     w/h: 129 x 66
     mipmap_count: 8
     format: FourCC(GRGB)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Premultiplied
+
+into_dx9 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Opaque
+
+into_dx9 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        alpha_mode: Custom
+
+into_dx9 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
 
 
 
@@ -1442,6 +1574,18 @@ Changed when converted back Header:
 
 
 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        array_size: 3
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
     w/h: 32 x 32
     mipmap_count: 1
     DX10: Texture2D
@@ -1454,6 +1598,26 @@ into_dx9 Header:
 
 Changed when converted back Header:
     w/h: 32 x 32
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 100 x 100
     mipmap_count: 1
     DX10: Texture2D
         dxgi_format: BC1_UNORM (71)
@@ -1779,7 +1943,7 @@ Header:
         dxgi_format: R10G10B10_XR_BIAS_A2_UNORM (89)
         alpha_mode: Straight
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1834,7 +1998,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC6H_UF16 (95)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1844,7 +2008,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC6H_UF16 (95)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1854,7 +2018,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC6H_UF16 (95)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1864,7 +2028,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC6H_SF16 (96)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1874,7 +2038,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC6H_SF16 (96)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1884,7 +2048,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC7_UNORM (98)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1895,7 +2059,7 @@ Header:
         dxgi_format: BC7_UNORM (98)
         alpha_mode: Straight
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1905,7 +2069,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC7_UNORM (98)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1915,7 +2079,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC7_UNORM (98)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1925,7 +2089,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC7_UNORM (98)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1935,7 +2099,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC7_UNORM (98)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1945,7 +2109,7 @@ Header:
     DX10: Texture2D
         dxgi_format: BC7_UNORM (98)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1956,7 +2120,7 @@ Header:
         dxgi_format: BC7_UNORM_SRGB (99)
         alpha_mode: Straight
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1966,7 +2130,7 @@ Header:
     DX10: Texture2D
         dxgi_format: AYUV (100)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1976,7 +2140,7 @@ Header:
     DX10: Texture2D
         dxgi_format: Y410 (101)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1986,7 +2150,7 @@ Header:
     DX10: Texture2D
         dxgi_format: Y416 (102)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -1996,7 +2160,7 @@ Header:
     DX10: Texture2D
         dxgi_format: NV12 (103)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -2006,7 +2170,7 @@ Header:
     DX10: Texture2D
         dxgi_format: P010 (104)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -2016,7 +2180,7 @@ Header:
     DX10: Texture2D
         dxgi_format: P016 (105)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -2026,7 +2190,7 @@ Header:
     DX10: Texture2D
         dxgi_format: Y210 (108)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -2036,7 +2200,7 @@ Header:
     DX10: Texture2D
         dxgi_format: Y216 (109)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -2069,7 +2233,7 @@ Header:
     DX10: Texture2D
         dxgi_format: A4B4G4R4_UNORM (191)
 
-Can't be converted
+Can't be converted to DX9
 
 
 
@@ -2084,12 +2248,35 @@ Header:
 into_dx9 Header:
     w/h: 128 x 128
     mipmap_count: 8
-    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
     format: FourCC(DXT1)
 
 Changed when converted back Header:
     w/h: 128 x 128
     mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+
+
+
+Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    DX10: Texture2D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h: 100 x 100
+    mipmap_count: 1
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h: 100 x 100
+    mipmap_count: 1
     DX10: Texture2D
         dxgi_format: BC1_UNORM (71)
         misc_flag: MiscFlags(TEXTURE_CUBE)
@@ -2106,7 +2293,7 @@ Header:
 into_dx9 Header:
     w/h: 128 x 128
     mipmap_count: 1
-    caps2: DdsCaps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
+    caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
     format: masked
         flags: PixelFormatFlags(RGB)
         rgb_bit_count: 16
@@ -2124,7 +2311,7 @@ Header:
 into_dx9 Header:
     w/h/d: 64 x 64 x 64
     mipmap_count: 7
-    caps2: DdsCaps2(VOLUME)
+    caps2: Caps2(VOLUME)
     format: FourCC(DXT1)
 
 Changed when converted back Header:
@@ -2132,6 +2319,39 @@ Changed when converted back Header:
     mipmap_count: 7
     DX10: Texture3D
         dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM_SRGB (72)
+        alpha_mode: Straight
+
+into_dx9 Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    caps2: Caps2(VOLUME)
+    format: FourCC(DXT1)
+
+Changed when converted back Header:
+    w/h/d: 100 x 100 x 100
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+
+
+
+Header:
+    w/h/d: 64 x 64 x 64
+    mipmap_count: 1
+    DX10: Texture3D
+        dxgi_format: BC1_UNORM (71)
+        misc_flag: MiscFlags(TEXTURE_CUBE)
+        alpha_mode: Straight
+
+Can't be converted to DX9
 
 
 

@@ -1,8 +1,6 @@
 use std::num::NonZeroU8;
 
-use crate::header::{
-    Dx9PixelFormat, DxgiFormat, FourCC, Header, MaskPixelFormat, PixelFormatFlags, RgbBitCount,
-};
+use crate::header::{Dx9PixelFormat, DxgiFormat, FourCC, Header, MaskPixelFormat};
 use crate::{
     decode::get_decoders, detect, encode::get_encoders, Channels, ColorFormat, Dithering,
     FormatError, Precision, SizeMultiple,
@@ -96,10 +94,8 @@ impl Format {
             Header::Dx9(dx9) => match &dx9.pixel_format {
                 Dx9PixelFormat::FourCC(four_cc) => detect::four_cc_to_supported(*four_cc)
                     .ok_or(FormatError::UnsupportedFourCC(*four_cc)),
-                Dx9PixelFormat::Mask(pixel_format) => {
-                    detect::pixel_format_to_supported(pixel_format)
-                        .ok_or(FormatError::UnsupportedPixelFormat)
-                }
+                Dx9PixelFormat::Mask(pixel_format) => detect::masked_to_supported(pixel_format)
+                    .ok_or(FormatError::UnsupportedPixelFormat),
             },
             Header::Dx10(dx10) => {
                 if let Some(format) = detect::special_cases(dx10) {
@@ -271,6 +267,13 @@ impl TryFrom<Format> for FourCC {
         }
     }
 }
+impl TryFrom<Format> for MaskPixelFormat {
+    type Error = ();
+
+    fn try_from(value: Format) -> Result<Self, Self::Error> {
+        detect::supported_to_masked(value).ok_or(())
+    }
+}
 impl TryFrom<Format> for Dx9PixelFormat {
     type Error = ();
 
@@ -278,28 +281,10 @@ impl TryFrom<Format> for Dx9PixelFormat {
         if let Ok(four_cc) = FourCC::try_from(value) {
             return Ok(four_cc.into());
         }
-
-        // TODO: more formats
-        match value {
-            Format::B8G8R8_UNORM => Ok(Self::Mask(MaskPixelFormat {
-                flags: PixelFormatFlags::RGB,
-                rgb_bit_count: RgbBitCount::Count24,
-                r_bit_mask: 0x00FF0000,
-                g_bit_mask: 0x0000FF00,
-                b_bit_mask: 0x000000FF,
-                a_bit_mask: 0,
-            })),
-            Format::R8G8B8_UNORM => Ok(Self::Mask(MaskPixelFormat {
-                flags: PixelFormatFlags::RGB,
-                rgb_bit_count: RgbBitCount::Count24,
-                r_bit_mask: 0x000000FF,
-                g_bit_mask: 0x0000FF00,
-                b_bit_mask: 0x00FF0000,
-                a_bit_mask: 0,
-            })),
-
-            _ => Err(()),
+        if let Ok(masked) = MaskPixelFormat::try_from(value) {
+            return Ok(masked.into());
         }
+        Err(())
     }
 }
 

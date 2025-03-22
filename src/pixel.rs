@@ -164,14 +164,14 @@ impl std::fmt::Debug for PixelInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Fixed { bytes_per_pixel } => {
-                write!(f, "Fixed({} bytes per pixel)", bytes_per_pixel)
+                write!(f, "Fixed({} bytes/px)", bytes_per_pixel)
             }
             Self::Block {
                 bytes_per_block,
                 block_size,
             } => write!(
                 f,
-                "Block({} bytes per {}x{} block)",
+                "Block({} bytes/{}x{}px)",
                 bytes_per_block, block_size.0, block_size.1
             ),
             Self::BiPlanar {
@@ -180,7 +180,7 @@ impl std::fmt::Debug for PixelInfo {
                 plane2_sub_sampling,
             } => write!(
                 f,
-                "BiPlanar(plane1: {} bytes per pixel, plane2: {} bytes per sample {}x{} sub-sampled)",
+                "BiPlanar(plane1: {} bytes/px, plane2: {} bytes/{}x{}px)",
                 plane1_bytes_per_pixel,
                 plane2_bytes_per_sample,
                 plane2_sub_sampling.0,
@@ -195,72 +195,24 @@ impl From<Format> for PixelInfo {
         use Format as F;
 
         match value {
-            // 1 bytes per pixel
-            F::R8_UNORM | F::R8_SNORM | F::A8_UNORM => Self::fixed(1),
-            // 2 bytes per pixel
-            F::B5G6R5_UNORM
-            | F::B5G5R5A1_UNORM
-            | F::B4G4R4A4_UNORM
-            | F::A4B4G4R4_UNORM
-            | F::R8G8_UNORM
-            | F::R8G8_SNORM
-            | F::R16_UNORM
-            | F::R16_SNORM
-            | F::R16_FLOAT => Self::fixed(2),
             // 3 bytes per pixel
             F::R8G8B8_UNORM | F::B8G8R8_UNORM => Self::fixed(3),
-            // 4 bytes per pixel
-            F::R8G8B8A8_UNORM
-            | F::R8G8B8A8_SNORM
-            | F::B8G8R8A8_UNORM
-            | F::B8G8R8X8_UNORM
-            | F::R16G16_UNORM
-            | F::R16G16_SNORM
-            | F::R10G10B10A2_UNORM
-            | F::R11G11B10_FLOAT
-            | F::R9G9B9E5_SHAREDEXP
-            | F::R16G16_FLOAT
-            | F::R32_FLOAT
-            | F::R10G10B10_XR_BIAS_A2_UNORM
-            | F::AYUV
-            | F::Y410 => Self::fixed(4),
-            // 8 bytes per pixel
-            F::R16G16B16A16_UNORM
-            | F::R16G16B16A16_SNORM
-            | F::R16G16B16A16_FLOAT
-            | F::R32G32_FLOAT
-            | F::Y416 => Self::fixed(8),
-            // 12 bytes per pixel
-            F::R32G32B32_FLOAT => Self::fixed(12),
-            // 16 bytes per pixel
-            F::R32G32B32A32_FLOAT => Self::fixed(16),
 
             // sub-sampled formats
             // 4 bytes per one 2x1 block
-            F::R8G8_B8G8_UNORM | F::G8R8_G8B8_UNORM | F::UYVY | F::YUY2 => Self::block(4, (2, 1)),
-            // 8 bytes per one 2x1 block
-            F::Y210 | F::Y216 => Self::block(8, (2, 1)),
-            // 1 byte per one 8x1 block
-            F::R1_UNORM => Self::block(1, (8, 1)),
-
-            // bi-planar formats
-            F::NV12 => Self::bi_planar(1, 2, (2, 2)),
-            F::P010 | F::P016 => Self::bi_planar(2, 4, (2, 2)),
+            F::UYVY => Self::block(4, (2, 1)),
 
             // block compression formats
-            // 8 bytes per one 4x4 block
-            F::BC1_UNORM | F::BC4_UNORM | F::BC4_SNORM => Self::block(8, (4, 4)),
             // 16 bytes per one 4x4 block
-            F::BC2_UNORM
-            | F::BC2_UNORM_PREMULTIPLIED_ALPHA
-            | F::BC3_UNORM
+            F::BC2_UNORM_PREMULTIPLIED_ALPHA
             | F::BC3_UNORM_PREMULTIPLIED_ALPHA
-            | F::BC3_UNORM_RXGB
-            | F::BC5_UNORM
-            | F::BC5_SNORM
-            | F::BC6H_SF16
-            | F::BC6H_UF16
-            | F::BC7_UNORM => Self::block(16, (4, 4)),
+            | F::BC3_UNORM_RXGB => Self::block(16, (4, 4)),
+
+            _ => {
+                // All other formats should have a DXGI equivalent with known pixel info.
+                let dxgi = DxgiFormat::try_from(value).unwrap();
+                PixelInfo::try_from(dxgi).unwrap()
+            }
         }
     }
 }

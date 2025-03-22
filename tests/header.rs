@@ -5,7 +5,7 @@ use dds::{header::*, *};
 mod util;
 
 fn get_headers() -> Vec<Header> {
-    let header_set: HashSet<Header> = util::example_dds_files()
+    let mut header_set: HashSet<Header> = util::example_dds_files()
         .into_iter()
         .map(|p| {
             let mut file = File::open(p)?;
@@ -17,6 +17,11 @@ fn get_headers() -> Vec<Header> {
         .filter_map(Result::ok)
         .collect();
 
+    add_more_header(|header| {
+        header_set.insert(header.clone());
+    });
+
+    // sort header
     let mut headers: Vec<Header> = header_set.into_iter().collect();
     headers.sort_by(|a, b| {
         let cmp = a
@@ -79,6 +84,56 @@ fn get_headers() -> Vec<Header> {
 
     headers
 }
+fn add_more_header(mut add: impl FnMut(&Header)) {
+    // create some simple headers
+    add(&Header::new_image(100, 100, DxgiFormat::BC1_UNORM_SRGB));
+    add(&Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM_SRGB));
+    add(&Header::new_volume(
+        100,
+        100,
+        100,
+        DxgiFormat::BC1_UNORM_SRGB,
+    ));
+    add(&Dx9Header::new_image(100, 100, FourCC::DXT1.into()).into());
+    add(&Dx9Header::new_cube_map(100, 100, FourCC::DXT1.into()).into());
+    add(&Dx9Header::new_volume(100, 100, 100, FourCC::DXT1.into()).into());
+
+    // DX9 partial cube map
+    let partial_cube_map = Dx9Header::new_cube_map(64, 64, FourCC::DXT1.into())
+        .with_cube_map_faces(CubeMapFaces::POSITIVE_X);
+    assert!(partial_cube_map.is_cube_map());
+    assert!(partial_cube_map.cube_map_faces().unwrap().count() == 1);
+    add(&partial_cube_map.into());
+
+    let mut dx9_volume_cube = Dx9Header::new_volume(64, 64, 64, FourCC::DXT1.into());
+    dx9_volume_cube.caps2 = Caps2::VOLUME | Caps2::CUBE_MAP | Caps2::CUBE_MAP_ALL_FACES;
+    assert!(dx9_volume_cube.is_volume());
+    assert!(dx9_volume_cube.is_cube_map());
+    add(&dx9_volume_cube.into());
+
+    // Fun DX10
+    add(&Header::new_image(100, 100, DxgiFormat::UNKNOWN));
+
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_array_size(3)
+        .into());
+
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_alpha_mode(AlphaMode::Premultiplied)
+        .into());
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_alpha_mode(AlphaMode::Opaque)
+        .into());
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
+        .with_alpha_mode(AlphaMode::Custom)
+        .into());
+
+    let dx10_volume_cube = Dx10Header::new_volume(64, 64, 64, DxgiFormat::BC1_UNORM)
+        .with_misc_flags(MiscFlags::TEXTURE_CUBE);
+    assert!(dx10_volume_cube.is_volume());
+    assert!(dx10_volume_cube.is_cube_map());
+    add(&dx10_volume_cube.into());
+}
 
 #[test]
 fn raw_header_snapshot() {
@@ -125,12 +180,14 @@ fn convert_header_snapshot() {
 
         // Convert header
         let converted: Option<(Header, Header)> = if header.dx10().is_some() {
-            header.clone().into_dx9().and_then(|h| {
+            assert_eq!(header.dx10(), header.to_dx10().as_ref());
+            header.to_dx9().and_then(|h| {
                 let back = h.to_dx10()?;
                 Some((h.into(), back.into()))
             })
         } else {
-            header.clone().into_dx10().and_then(|h| {
+            assert_eq!(header.dx9(), header.to_dx9().as_ref());
+            header.to_dx10().and_then(|h| {
                 let back = h.to_dx9()?;
                 Some((h.into(), back.into()))
             })
@@ -165,7 +222,14 @@ fn convert_header_snapshot() {
                 }
             }
         } else {
-            output.push_str("\nCan't be converted\n");
+            output.push_str(&format!(
+                "\nCan't be converted to {}\n",
+                if header.dx10().is_some() {
+                    "DX9"
+                } else {
+                    "DX10"
+                }
+            ));
         }
 
         output
@@ -237,6 +301,22 @@ fn raw_header_read_write() {
 }
 
 #[test]
+fn header_write_read() {
+    for header in get_headers() {
+        let mut bytes = Vec::new();
+        header.write(&mut bytes).unwrap();
+
+        let mut options = ParseOptions::default();
+        let parsed_strict = Header::read(&mut &bytes[..], &options).unwrap();
+        assert_eq!(header, parsed_strict);
+
+        options.permissive = true;
+        let parsed_permissive = Header::read(&mut &bytes[..], &options).unwrap();
+        assert_eq!(header, parsed_permissive);
+    }
+}
+
+#[test]
 fn magic_bytes() {
     let original_header = Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
 
@@ -281,8 +361,8 @@ fn weird_and_invalid_headers() {
         .to_raw()
     }
     fn valid_dx10() -> RawHeader {
-        let mut header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
-        header.alpha_mode = AlphaMode::Unknown;
+        let header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM)
+            .with_alpha_mode(AlphaMode::Unknown);
         Header::from(header).to_raw()
     }
 

@@ -29,7 +29,7 @@ fn decode_all_dds_files() {
         let (image, _) = util::read_dds_png_compatible(dds_path)?;
 
         // compare to PNG
-        _ = util::compare_snapshot_png_u8(png_path, &image);
+        _ = util::update_snapshot_png_u8(png_path, &image)?;
 
         let hex = util::hash_hex(&image.data);
         Ok(hex)
@@ -108,6 +108,7 @@ fn decode_rect() {
         "images/uncompressed/DX10 R8_UNORM.dds",
         // Sub-sampled formats
         "images/sub-sampled/DX9 R8G8_B8G8_UNORM.dds",
+        "images/uncompressed/DX10 R1_UNORM.dds",
         // Bi-planar formats
         "images/bi-planar/DX10 NV12.dds",
         // Block-compressed formats
@@ -142,11 +143,8 @@ fn decode_rect() {
     fn patchwork(dds_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let width = 200;
         let height = 100;
-        let mut image = util::Image {
-            data: vec![0_u8; width * height * 4],
-            channels: Channels::Rgba,
-            size: Size::new(width as u32, height as u32),
-        };
+        let mut image =
+            util::Image::new_empty(Channels::Rgba, Size::new(width as u32, height as u32));
 
         // read dds
         let mut file = File::open(dds_path)?;
@@ -231,6 +229,10 @@ fn decode_rect() {
     }
 }
 
+/// Checks that all color formats are decoded correctly.
+///
+/// The idea here is that if you decode as u8, you should get same result as
+/// decoding as u16/f32 and then converting to u8.
 #[test]
 fn decode_all_color_formats() {
     fn u16_to_u8(data: &[u16]) -> Vec<u8> {
@@ -247,7 +249,8 @@ fn decode_all_color_formats() {
     }
 
     fn test_color_formats(dds_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let (reference, _) = util::read_dds::<u8>(dds_path)?;
+        let (reference, _) =
+            util::read_dds_with_settings::<u8>(dds_path, util::ReadSettings::no_cube_map())?;
 
         let all_channels = [
             Channels::Alpha,
@@ -325,7 +328,7 @@ fn neg_infinity_bc6_blocks() {
         // decode it
         let (image, _) = util::decode_dds_with_channels::<f32>(
             &ParseOptions::default(),
-            dds_file.as_slice(),
+            std::io::Cursor::new(dds_file.as_slice()),
             Channels::Rgb,
         )
         .unwrap();

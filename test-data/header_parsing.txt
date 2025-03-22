@@ -4,8 +4,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing Header:
     w/h: 123 x 345
@@ -25,8 +25,8 @@ Raw Header:
         flags: PixelFormatFlags(RGB)
         rgb_bit_count: 32
         bit_mask: r:0xff g:0xff b:0xff a:0xff
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing Header:
     w/h: 123 x 345
@@ -46,8 +46,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: Texture2D
@@ -72,8 +72,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header size of 0, expected 124
 
@@ -88,8 +88,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header size of 123, expected 124
 
@@ -104,8 +104,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header size of 24, expected 124
 
@@ -122,8 +122,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header pixel format size of 0, expected 32
 
@@ -140,8 +140,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header pixel format size of 123, expected 32
 
@@ -156,8 +156,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DXT1)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header size of 24, expected 124
 
@@ -178,8 +178,8 @@ Raw Header:
         four_cc: FourCC(DXT1)
         rgb_bit_count: 0
         bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header pixel format rgb_bit_count of 0, expected 8, 16, 24, or 32
 
@@ -199,8 +199,8 @@ Raw Header:
         flags: PixelFormatFlags(RGB)
         rgb_bit_count: 7
         bit_mask: r:0xff g:0xff b:0xff a:0xff
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
 
 Strict parsing error: Invalid DDS header pixel format rgb_bit_count of 7, expected 8, 16, 24, or 32
 
@@ -214,8 +214,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: UNKNOWN (0)
         resource_dimension: Texture2D
@@ -239,8 +239,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: 1234
         resource_dimension: Texture2D
@@ -260,8 +260,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: 4294967295
         resource_dimension: Texture2D
@@ -281,8 +281,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: 0
@@ -302,8 +302,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: 1
@@ -323,8 +323,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: Texture1D
@@ -348,8 +348,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: 123
@@ -369,8 +369,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: Texture2D
@@ -394,8 +394,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: Texture3D
@@ -419,8 +419,8 @@ Raw Header:
     linear_size: 21576
     mipmap_count: 1
     pixel_format: FourCC(DX10)
-    caps: DdsCaps(TEXTURE)
-    caps2: DdsCaps2(0x0)
+    caps: Caps(TEXTURE)
+    caps2: Caps2(0x0)
     DX10:
         dxgi_format: BC1_UNORM (71)
         resource_dimension: Texture3D

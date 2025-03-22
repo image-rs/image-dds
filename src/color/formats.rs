@@ -462,8 +462,30 @@ pub(crate) mod s16 {
         (norm + 1).wrapping_sub(32768)
     }
     pub fn from_uf32(x: f32) -> u16 {
-        let norm = (x.min(1.0) * 65534.0 + 0.5) as u16;
+        let x = x.min(1.0) as f64;
+        // f32 unfortunately doesn't not have enough precision to do this
+        // calculation correctly.
+        let norm = (x * 65534.0 + 0.5) as u16;
         (norm + 1).wrapping_sub(32768)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        #[test]
+        fn test_from() {
+            for x in 0..=65535_u16 {
+                let reference = {
+                    let norm = (x as u64 * 65534 + (65535 / 2)) / 65535;
+                    (norm as u16 + 1).wrapping_sub(32768)
+                };
+
+                let a = super::from_n16(x);
+                assert_eq!(reference, a);
+
+                let b = super::from_uf32(super::super::n16::f32(x));
+                assert_eq!(reference, b);
+            }
+        }
     }
 }
 
