@@ -166,7 +166,7 @@ impl DecoderSet {
     }
     #[cfg(debug_assertions)]
     const fn verify(decoders: &'static [Decoder]) {
-        assert!(!decoders.is_empty());
+        debug_assert!(!decoders.is_empty());
 
         let mut supported_colors = ColorFormatSet::EMPTY;
         let mut native_colors = ColorFormatSet::EMPTY;
@@ -179,8 +179,8 @@ impl DecoderSet {
             i += 1;
         }
 
-        assert!(supported_colors.is_all(), "All colors must be supported");
-        assert!(
+        debug_assert!(supported_colors.is_all(), "All colors must be supported");
+        debug_assert!(
             native_colors.len() as usize == decoders.len(),
             "There should only be one decoder per native color."
         );
@@ -191,7 +191,7 @@ impl DecoderSet {
         precision: Precision,
         decode_fn: DecodeFn,
     ) -> Self {
-        assert!(self.optimized.is_none());
+        debug_assert!(self.optimized.is_none());
         Self {
             decoders: self.decoders,
             optimized: Some(SpecializedDecodeFn {
@@ -275,7 +275,7 @@ impl DecoderSet {
             },
         )?;
 
-        // never decode empty rects
+        // never decode empty rectangles
         if rect.size().is_empty() {
             return Ok(());
         }

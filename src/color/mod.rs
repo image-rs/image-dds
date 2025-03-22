@@ -54,9 +54,6 @@ pub enum Precision {
     F32,
 }
 impl Precision {
-    /// The number of different precisions.
-    pub(crate) const COUNT: usize = 3;
-
     /// Returns the size of a single value of this precision in bytes.
     pub const fn size(&self) -> u8 {
         match self {
@@ -158,27 +155,6 @@ impl ColorFormatSet {
         ColorFormat::RGBA_F32,
     ]);
 
-    pub const GRAYSCALE: Self = Self::from_slice(&[
-        ColorFormat::GRAYSCALE_U8,
-        ColorFormat::GRAYSCALE_U16,
-        ColorFormat::GRAYSCALE_F32,
-    ]);
-    pub const ALPHA: Self = Self::from_slice(&[
-        ColorFormat::ALPHA_U8,
-        ColorFormat::ALPHA_U16,
-        ColorFormat::ALPHA_F32,
-    ]);
-    pub const RGB: Self = Self::from_slice(&[
-        ColorFormat::RGB_U8,
-        ColorFormat::RGB_U16,
-        ColorFormat::RGB_F32,
-    ]);
-    pub const RGBA: Self = Self::from_slice(&[
-        ColorFormat::RGBA_U8,
-        ColorFormat::RGBA_U16,
-        ColorFormat::RGBA_F32,
-    ]);
-
     pub const EMPTY: Self = Self { data: 0 };
     pub const ALL: Self = Self {
         data: Self::U8.data | Self::U16.data | Self::F32.data,
@@ -228,27 +204,12 @@ impl ColorFormatSet {
         (self.data & other.data) != 0
     }
 
-    pub const fn contains_any_with_channels(&self, channels: Channels) -> bool {
-        self.contains_any(match channels {
-            Channels::Grayscale => Self::GRAYSCALE,
-            Channels::Alpha => Self::ALPHA,
-            Channels::Rgb => Self::RGB,
-            Channels::Rgba => Self::RGBA,
-        })
-    }
-    pub const fn contains_any_with_precision(&self, precision: Precision) -> bool {
-        self.contains_any(match precision {
-            Precision::U8 => Self::U8,
-            Precision::U16 => Self::U16,
-            Precision::F32 => Self::F32,
-        })
-    }
-
     pub const fn union(self, other: Self) -> Self {
         Self {
             data: self.data | other.data,
         }
     }
+    #[allow(dead_code)]
     pub const fn intersection(self, other: Self) -> Self {
         Self {
             data: self.data & other.data,
