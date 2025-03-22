@@ -3,7 +3,7 @@ Header:
     mipmap_count: 1
     format: FourCC(DXT1)
 
-Layout: Texture (5000 bytes)
+Layout: Texture (5000 bytes @ Block(8 bytes/4x4px))
     Surface[0] 100x100 (5000 bytes)
 
 
@@ -14,7 +14,7 @@ Header:
     caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_X | CUBE_MAP_POSITIVE_Y | CUBE_MAP_NEGATIVE_Y | CUBE_MAP_POSITIVE_Z | CUBE_MAP_NEGATIVE_Z)
     format: FourCC(DXT1)
 
-Layout: TextureArray len:6 kind:CubeMaps (30000 bytes)
+Layout: TextureArray len:6 kind:CubeMaps (30000 bytes @ Block(8 bytes/4x4px))
     Texture[0] (5000 bytes)
         Surface[0] 100x100 (5000 bytes)
     Texture[1] (5000 bytes)
@@ -36,7 +36,7 @@ Header:
     caps2: Caps2(CUBE_MAP | CUBE_MAP_POSITIVE_X | CUBE_MAP_NEGATIVE_Y)
     format: FourCC(DXT1)
 
-Layout: TextureArray len:2 kind:PartialCubeMap(CubeMapFaces(POSITIVE_X | NEGATIVE_Y)) (10000 bytes)
+Layout: TextureArray len:2 kind:PartialCubeMap(CubeMapFaces(POSITIVE_X | NEGATIVE_Y)) (10000 bytes @ Block(8 bytes/4x4px))
     Texture[0] (5000 bytes)
         Surface[0] 100x100 (5000 bytes)
     Texture[1] (5000 bytes)
@@ -50,7 +50,7 @@ Header:
     caps2: Caps2(VOLUME)
     format: FourCC(DXT1)
 
-Layout: Volume (20000 bytes)
+Layout: Volume (20000 bytes @ Block(8 bytes/4x4px))
     Volume[0] 100x100x4 (20000 bytes)
         Surface[0] 100x100 (5000 bytes)
         Surface[1] 100x100 (5000 bytes)
@@ -66,7 +66,7 @@ Header:
         dxgi_format: BC1_UNORM (71)
         alpha_mode: Straight
 
-Layout: Texture (5000 bytes)
+Layout: Texture (5000 bytes @ Block(8 bytes/4x4px))
     Surface[0] 100x100 (5000 bytes)
 
 
@@ -79,7 +79,7 @@ Header:
         misc_flag: MiscFlags(TEXTURE_CUBE)
         alpha_mode: Straight
 
-Layout: TextureArray len:6 kind:CubeMaps (30000 bytes)
+Layout: TextureArray len:6 kind:CubeMaps (30000 bytes @ Block(8 bytes/4x4px))
     Texture[0] (5000 bytes)
         Surface[0] 100x100 (5000 bytes)
     Texture[1] (5000 bytes)
@@ -104,7 +104,7 @@ Header:
         array_size: 4
         alpha_mode: Straight
 
-Layout: TextureArray len:24 kind:CubeMaps (120000 bytes)
+Layout: TextureArray len:24 kind:CubeMaps (120000 bytes @ Block(8 bytes/4x4px))
     Texture[0] (5000 bytes)
         Surface[0] 100x100 (5000 bytes)
     Texture[1] (5000 bytes)
@@ -163,7 +163,7 @@ Header:
         dxgi_format: BC1_UNORM (71)
         alpha_mode: Straight
 
-Layout: Volume (20000 bytes)
+Layout: Volume (20000 bytes @ Block(8 bytes/4x4px))
     Volume[0] 100x100x4 (20000 bytes)
         Surface[0] 100x100 (5000 bytes)
         Surface[1] 100x100 (5000 bytes)
@@ -178,7 +178,7 @@ Header:
     DX10: Texture1D
         dxgi_format: R8_UNORM (61)
 
-Layout: Texture (100 bytes)
+Layout: Texture (100 bytes @ Fixed(1 bytes/px))
     Surface[0] 100x1 (100 bytes)
 
 
@@ -224,7 +224,7 @@ Header:
         rgb_bit_count: 16
         bit_mask: r:0x0 g:0x0 b:0x0 a:0x0
 
-Layout: Texture (20000 bytes)
+Layout: Texture (20000 bytes @ Fixed(2 bytes/px))
     Surface[0] 100x100 (20000 bytes)
 
 
@@ -310,7 +310,7 @@ Header:
     DX10: Texture2D
         dxgi_format: R8_UNORM (61)
 
-Layout: Texture (18446744065119617025 bytes)
+Layout: Texture (18446744065119617025 bytes @ Fixed(1 bytes/px))
     Surface[0] 4294967295x4294967295 (18446744065119617025 bytes)
 
 
@@ -355,7 +355,7 @@ Header:
     DX10: Texture3D
         dxgi_format: R8_UNORM (61)
 
-Layout: Volume (18446744065119617025 bytes)
+Layout: Volume (18446744065119617025 bytes @ Fixed(1 bytes/px))
     Volume[0] 4294967295x4294967295x1 (18446744065119617025 bytes)
         Surface[0] 4294967295x4294967295 (18446744065119617025 bytes)
 

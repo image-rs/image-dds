@@ -22,9 +22,9 @@ images/bc fuzz/bc6 SF16 mode one 00011.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -53,9 +53,9 @@ images/bc fuzz/bc6 SF16 mode one 00111.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -84,9 +84,9 @@ images/bc fuzz/bc6 SF16 mode one 01011.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -115,9 +115,9 @@ images/bc fuzz/bc6 SF16 mode one 01111.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -146,9 +146,9 @@ images/bc fuzz/bc6 SF16 mode two 00.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -177,9 +177,9 @@ images/bc fuzz/bc6 SF16 mode two 00010.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -208,9 +208,9 @@ images/bc fuzz/bc6 SF16 mode two 00110.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -239,9 +239,9 @@ images/bc fuzz/bc6 SF16 mode two 01.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -270,9 +270,9 @@ images/bc fuzz/bc6 SF16 mode two 01010.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -301,9 +301,9 @@ images/bc fuzz/bc6 SF16 mode two 01110.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -332,9 +332,9 @@ images/bc fuzz/bc6 SF16 mode two 10010.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -363,9 +363,9 @@ images/bc fuzz/bc6 SF16 mode two 10110.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -394,9 +394,9 @@ images/bc fuzz/bc6 SF16 mode two 11010.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -425,9 +425,9 @@ images/bc fuzz/bc6 SF16 mode two 11110.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -456,9 +456,9 @@ images/bc fuzz/bc6 UF16 mode one 00011.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -487,9 +487,9 @@ images/bc fuzz/bc6 UF16 mode one 00111.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -518,9 +518,9 @@ images/bc fuzz/bc6 UF16 mode one 01011.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -549,9 +549,9 @@ images/bc fuzz/bc6 UF16 mode one 01111.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -580,9 +580,9 @@ images/bc fuzz/bc6 UF16 mode two 00.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -611,9 +611,9 @@ images/bc fuzz/bc6 UF16 mode two 00010.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -642,9 +642,9 @@ images/bc fuzz/bc6 UF16 mode two 00110.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -673,9 +673,9 @@ images/bc fuzz/bc6 UF16 mode two 01.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -704,9 +704,9 @@ images/bc fuzz/bc6 UF16 mode two 01010.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -735,9 +735,9 @@ images/bc fuzz/bc6 UF16 mode two 01110.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -766,9 +766,9 @@ images/bc fuzz/bc6 UF16 mode two 10010.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -797,9 +797,9 @@ images/bc fuzz/bc6 UF16 mode two 10110.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -828,9 +828,9 @@ images/bc fuzz/bc6 UF16 mode two 11010.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -859,9 +859,9 @@ images/bc fuzz/bc6 UF16 mode two 11110.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x128 (32768 bytes)
 
 
@@ -890,9 +890,9 @@ images/bc fuzz/bc7 mode 0.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (65536 bytes)
+    Layout: Texture (65536 bytes @ Block(16 bytes/4x4px))
         Surface[0] 1024x64 (65536 bytes)
 
 
@@ -921,9 +921,9 @@ images/bc fuzz/bc7 mode 1.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (131072 bytes)
+    Layout: Texture (131072 bytes @ Block(16 bytes/4x4px))
         Surface[0] 512x256 (131072 bytes)
 
 
@@ -952,9 +952,9 @@ images/bc fuzz/bc7 mode 2.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (131072 bytes)
+    Layout: Texture (131072 bytes @ Block(16 bytes/4x4px))
         Surface[0] 512x256 (131072 bytes)
 
 
@@ -983,9 +983,9 @@ images/bc fuzz/bc7 mode 3.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (131072 bytes)
+    Layout: Texture (131072 bytes @ Block(16 bytes/4x4px))
         Surface[0] 512x256 (131072 bytes)
 
 
@@ -1014,9 +1014,9 @@ images/bc fuzz/bc7 mode 4.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (32768 bytes)
+    Layout: Texture (32768 bytes @ Block(16 bytes/4x4px))
         Surface[0] 1024x32 (32768 bytes)
 
 
@@ -1045,9 +1045,9 @@ images/bc fuzz/bc7 mode 5.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (16384 bytes)
+    Layout: Texture (16384 bytes @ Block(16 bytes/4x4px))
         Surface[0] 1024x16 (16384 bytes)
 
 
@@ -1076,9 +1076,9 @@ images/bc fuzz/bc7 mode 6.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (65536 bytes)
+    Layout: Texture (65536 bytes @ Block(16 bytes/4x4px))
         Surface[0] 256x256 (65536 bytes)
 
 
@@ -1107,9 +1107,9 @@ images/bc fuzz/bc7 mode 7.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (131072 bytes)
+    Layout: Texture (131072 bytes @ Block(16 bytes/4x4px))
         Surface[0] 512x256 (131072 bytes)
 
 
@@ -1139,9 +1139,9 @@ images/bc/DX10 BC1_UNORM.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1178,9 +1178,9 @@ images/bc/DX10 BC1_UNORM_SRGB.dds
 
     Pixel Format:
         format: BC1_UNORM (sRGB)
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1217,9 +1217,9 @@ images/bc/DX10 BC2_UNORM.dds
 
     Pixel Format:
         format: BC2_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1256,9 +1256,9 @@ images/bc/DX10 BC2_UNORM_SRGB.dds
 
     Pixel Format:
         format: BC2_UNORM (sRGB)
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1295,9 +1295,9 @@ images/bc/DX10 BC3_UNORM.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1334,9 +1334,9 @@ images/bc/DX10 BC3_UNORM_SRGB.dds
 
     Pixel Format:
         format: BC3_UNORM (sRGB)
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1372,9 +1372,9 @@ images/bc/DX10 BC4_SNORM.dds
 
     Pixel Format:
         format: BC4_SNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1410,9 +1410,9 @@ images/bc/DX10 BC4_UNORM.dds
 
     Pixel Format:
         format: BC4_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1448,9 +1448,9 @@ images/bc/DX10 BC5_SNORM.dds
 
     Pixel Format:
         format: BC5_SNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1486,9 +1486,9 @@ images/bc/DX10 BC5_UNORM.dds
 
     Pixel Format:
         format: BC5_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1524,9 +1524,9 @@ images/bc/DX10 BC6H_SF16.dds
 
     Pixel Format:
         format: BC6H_SF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1562,9 +1562,9 @@ images/bc/DX10 BC6H_UF16.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1601,9 +1601,9 @@ images/bc/DX10 BC7_UNORM.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1640,9 +1640,9 @@ images/bc/DX10 BC7_UNORM_SRGB.dds
 
     Pixel Format:
         format: BC7_UNORM (sRGB)
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1671,9 +1671,9 @@ images/bc/DX9 BC1_UNORM.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1702,9 +1702,9 @@ images/bc/DX9 BC2_UNORM.dds
 
     Pixel Format:
         format: BC2_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1733,9 +1733,9 @@ images/bc/DX9 BC3_UNORM.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1764,9 +1764,9 @@ images/bc/DX9 BC3n (DXT5nm).dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1795,9 +1795,9 @@ images/bc/DX9 BC4_SNORM.dds
 
     Pixel Format:
         format: BC4_SNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1826,9 +1826,9 @@ images/bc/DX9 BC4_UNORM.dds
 
     Pixel Format:
         format: BC4_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -1857,9 +1857,9 @@ images/bc/DX9 BC5_SNORM.dds
 
     Pixel Format:
         format: BC5_SNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1888,9 +1888,9 @@ images/bc/DX9 BC5_UNORM.dds
 
     Pixel Format:
         format: BC5_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1919,9 +1919,9 @@ images/bc/DX9 DXT2.dds
 
     Pixel Format:
         format: BC2_UNORM_PREMULTIPLIED_ALPHA
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1950,9 +1950,9 @@ images/bc/DX9 DXT4.dds
 
     Pixel Format:
         format: BC3_UNORM_PREMULTIPLIED_ALPHA
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -1981,9 +1981,9 @@ images/bc/dxt1-alpha.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (5480 bytes)
+    Layout: Texture (5480 bytes @ Block(8 bytes/4x4px))
         Surface[0] 128x64 (4096 bytes)
         Surface[1] 64x32 (1024 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -2012,9 +2012,9 @@ images/bc/dxt1-simple.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (2048 bytes)
+    Layout: Texture (2048 bytes @ Block(8 bytes/4x4px))
         Surface[0] 64x64 (2048 bytes)
 
 
@@ -2036,9 +2036,9 @@ images/bc/dxt1.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (7200 bytes)
+    Layout: Texture (7200 bytes @ Block(8 bytes/4x4px))
         Surface[0] 120x120 (7200 bytes)
 
 
@@ -2060,9 +2060,9 @@ images/bc/dxt3-simple.dds
 
     Pixel Format:
         format: BC2_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (4096 bytes)
+    Layout: Texture (4096 bytes @ Block(16 bytes/4x4px))
         Surface[0] 64x64 (4096 bytes)
 
 
@@ -2084,9 +2084,9 @@ images/bc/dxt3.dds
 
     Pixel Format:
         format: BC2_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (14400 bytes)
+    Layout: Texture (14400 bytes @ Block(16 bytes/4x4px))
         Surface[0] 120x120 (14400 bytes)
 
 
@@ -2108,9 +2108,9 @@ images/bc/dxt5-simple.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (4096 bytes)
+    Layout: Texture (4096 bytes @ Block(16 bytes/4x4px))
         Surface[0] 64x64 (4096 bytes)
 
 
@@ -2132,9 +2132,9 @@ images/bc/dxt5.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (14400 bytes)
+    Layout: Texture (14400 bytes @ Block(16 bytes/4x4px))
         Surface[0] 120x120 (14400 bytes)
 
 
@@ -2163,9 +2163,9 @@ images/bi-planar/DX10 NV12.dds
 
     Pixel Format:
         format: NV12
-        pixel_info: BiPlanar(plane1: 1 bytes per pixel, plane2: 2 bytes per sample 2x2 sub-sampled)
+        pixel_info: BiPlanar(plane1: 1 bytes/px, plane2: 2 bytes/2x2px)
 
-    Layout: Texture (12672 bytes)
+    Layout: Texture (12672 bytes @ BiPlanar(plane1: 1 bytes/px, plane2: 2 bytes/2x2px))
         Surface[0] 128x66 (12672 bytes)
 
 
@@ -2194,9 +2194,9 @@ images/bi-planar/DX10 P010.dds
 
     Pixel Format:
         format: P010
-        pixel_info: BiPlanar(plane1: 2 bytes per pixel, plane2: 4 bytes per sample 2x2 sub-sampled)
+        pixel_info: BiPlanar(plane1: 2 bytes/px, plane2: 4 bytes/2x2px)
 
-    Layout: Texture (25344 bytes)
+    Layout: Texture (25344 bytes @ BiPlanar(plane1: 2 bytes/px, plane2: 4 bytes/2x2px))
         Surface[0] 128x66 (25344 bytes)
 
 
@@ -2225,9 +2225,9 @@ images/bi-planar/DX10 P016.dds
 
     Pixel Format:
         format: P016
-        pixel_info: BiPlanar(plane1: 2 bytes per pixel, plane2: 4 bytes per sample 2x2 sub-sampled)
+        pixel_info: BiPlanar(plane1: 2 bytes/px, plane2: 4 bytes/2x2px)
 
-    Layout: Texture (25344 bytes)
+    Layout: Texture (25344 bytes @ BiPlanar(plane1: 2 bytes/px, plane2: 4 bytes/2x2px))
         Surface[0] 128x66 (25344 bytes)
 
 
@@ -2258,9 +2258,9 @@ images/cube/BC1 Pretoria Gardens DX10.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: TextureArray len:6 kind:CubeMaps (65616 bytes)
+    Layout: TextureArray len:6 kind:CubeMaps (65616 bytes @ Block(8 bytes/4x4px))
         Texture[0] (10936 bytes)
             Surface[0] 128x128 (8192 bytes)
             Surface[1] 64x64 (2048 bytes)
@@ -2336,9 +2336,9 @@ images/cube/DXT1 Pretoria Gardens DX9.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: TextureArray len:6 kind:CubeMaps (65616 bytes)
+    Layout: TextureArray len:6 kind:CubeMaps (65616 bytes @ Block(8 bytes/4x4px))
         Texture[0] (10936 bytes)
             Surface[0] 128x128 (8192 bytes)
             Surface[1] 64x64 (2048 bytes)
@@ -2421,9 +2421,9 @@ images/cube/Pretoria Gardens DX10.dds
 
     Pixel Format:
         format: B5G6R5_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: TextureArray len:6 kind:CubeMaps (196608 bytes)
+    Layout: TextureArray len:6 kind:CubeMaps (196608 bytes @ Fixed(2 bytes/px))
         Texture[0] (32768 bytes)
             Surface[0] 128x128 (32768 bytes)
         Texture[1] (32768 bytes)
@@ -2463,9 +2463,9 @@ images/cube/Pretoria Gardens DX9.dds
 
     Pixel Format:
         format: B5G6R5_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: TextureArray len:6 kind:CubeMaps (196608 bytes)
+    Layout: TextureArray len:6 kind:CubeMaps (196608 bytes @ Fixed(2 bytes/px))
         Texture[0] (32768 bytes)
             Surface[0] 128x128 (32768 bytes)
         Texture[1] (32768 bytes)
@@ -2499,9 +2499,9 @@ images/cube/SYSTEX_ENVLIGHT.dds
 
     Pixel Format:
         format: R16G16B16A16_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: TextureArray len:6 kind:CubeMaps (49152 bytes)
+    Layout: TextureArray len:6 kind:CubeMaps (49152 bytes @ Fixed(8 bytes/px))
         Texture[0] (8192 bytes)
             Surface[0] 32x32 (8192 bytes)
         Texture[1] (8192 bytes)
@@ -2546,9 +2546,9 @@ images/nvtt/16.16f RG DX10.dds
 
     Pixel Format:
         format: R16G16_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -2581,9 +2581,9 @@ images/nvtt/16.16f RG.dds
 
     Pixel Format:
         format: R16G16_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -2624,9 +2624,9 @@ images/nvtt/16f R DX10.dds
 
     Pixel Format:
         format: R16_FLOAT
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -2659,9 +2659,9 @@ images/nvtt/16f R.dds
 
     Pixel Format:
         format: R16_FLOAT
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -2702,9 +2702,9 @@ images/nvtt/16x4f RGBA DX10.dds
 
     Pixel Format:
         format: R16G16B16A16_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -2737,9 +2737,9 @@ images/nvtt/16x4f RGBA.dds
 
     Pixel Format:
         format: R16G16B16A16_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -2780,9 +2780,9 @@ images/nvtt/32.32f RG DX10.dds
 
     Pixel Format:
         format: R32G32_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -2815,9 +2815,9 @@ images/nvtt/32.32f RG.dds
 
     Pixel Format:
         format: R32G32_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -2858,9 +2858,9 @@ images/nvtt/32f R DX10.dds
 
     Pixel Format:
         format: R32_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -2893,9 +2893,9 @@ images/nvtt/32f R.dds
 
     Pixel Format:
         format: R32_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -2936,9 +2936,9 @@ images/nvtt/32x4f RGBA DX10.dds
 
     Pixel Format:
         format: R32G32B32A32_FLOAT
-        pixel_info: Fixed(16 bytes per pixel)
+        pixel_info: Fixed(16 bytes/px)
 
-    Layout: Texture (180944 bytes)
+    Layout: Texture (180944 bytes @ Fixed(16 bytes/px))
         Surface[0] 129x66 (136224 bytes)
         Surface[1] 64x33 (33792 bytes)
         Surface[2] 32x16 (8192 bytes)
@@ -2971,9 +2971,9 @@ images/nvtt/32x4f RGBA.dds
 
     Pixel Format:
         format: R32G32B32A32_FLOAT
-        pixel_info: Fixed(16 bytes per pixel)
+        pixel_info: Fixed(16 bytes/px)
 
-    Layout: Texture (180944 bytes)
+    Layout: Texture (180944 bytes @ Fixed(16 bytes/px))
         Surface[0] 129x66 (136224 bytes)
         Surface[1] 64x33 (33792 bytes)
         Surface[2] 32x16 (8192 bytes)
@@ -3014,9 +3014,9 @@ images/nvtt/8 A DX10.dds
 
     Pixel Format:
         format: A8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3055,9 +3055,9 @@ images/nvtt/8 A.dds
 
     Pixel Format:
         format: A8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3098,9 +3098,9 @@ images/nvtt/8 L DX10.dds
 
     Pixel Format:
         format: R8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3139,9 +3139,9 @@ images/nvtt/8 L.dds
 
     Pixel Format:
         format: R8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3180,9 +3180,9 @@ images/nvtt/8.8.8 BGR.dds
 
     Pixel Format:
         format: B8G8R8_UNORM
-        pixel_info: Fixed(3 bytes per pixel)
+        pixel_info: Fixed(3 bytes/px)
 
-    Layout: Texture (33927 bytes)
+    Layout: Texture (33927 bytes @ Fixed(3 bytes/px))
         Surface[0] 129x66 (25542 bytes)
         Surface[1] 64x33 (6336 bytes)
         Surface[2] 32x16 (1536 bytes)
@@ -3221,9 +3221,9 @@ images/nvtt/8.8.8 RGB.dds
 
     Pixel Format:
         format: R8G8B8_UNORM
-        pixel_info: Fixed(3 bytes per pixel)
+        pixel_info: Fixed(3 bytes/px)
 
-    Layout: Texture (33927 bytes)
+    Layout: Texture (33927 bytes @ Fixed(3 bytes/px))
         Surface[0] 129x66 (25542 bytes)
         Surface[1] 64x33 (6336 bytes)
         Surface[2] 32x16 (1536 bytes)
@@ -3264,9 +3264,9 @@ images/nvtt/8.8.8.8 BGRA DX10.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -3305,9 +3305,9 @@ images/nvtt/8.8.8.8 BGRA.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -3348,9 +3348,9 @@ images/nvtt/8.8.8.8 RGBA DX10.dds
 
     Pixel Format:
         format: R8G8B8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -3389,9 +3389,9 @@ images/nvtt/8.8.8.X BGRX.dds
 
     Pixel Format:
         format: B8G8R8X8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -3432,9 +3432,9 @@ images/nvtt/8.8.8.x BGRX DX10.dds
 
     Pixel Format:
         format: B8G8R8X8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -3475,9 +3475,9 @@ images/nvtt/BC1 RGB DX10.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -3510,9 +3510,9 @@ images/nvtt/BC1 RGB.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -3553,9 +3553,9 @@ images/nvtt/BC1a RGBA DX10.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -3588,9 +3588,9 @@ images/nvtt/BC1a RGBA.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -3631,9 +3631,9 @@ images/nvtt/BC2 RGB DX10.dds
 
     Pixel Format:
         format: BC2_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3666,9 +3666,9 @@ images/nvtt/BC2 RGBA.dds
 
     Pixel Format:
         format: BC2_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3709,9 +3709,9 @@ images/nvtt/BC3 RGBA DX10.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3744,9 +3744,9 @@ images/nvtt/BC3 RGBA.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3783,9 +3783,9 @@ images/nvtt/BC3n AGBR.dds
 
     Pixel Format:
         format: BC3_UNORM_RXGB
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3830,9 +3830,9 @@ images/nvtt/BC3n Normals.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3873,9 +3873,9 @@ images/nvtt/BC4u R.dds
 
     Pixel Format:
         format: BC4_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (6000 bytes)
+    Layout: Texture (6000 bytes @ Block(8 bytes/4x4px))
         Surface[0] 129x66 (4488 bytes)
         Surface[1] 64x33 (1152 bytes)
         Surface[2] 32x16 (256 bytes)
@@ -3916,9 +3916,9 @@ images/nvtt/BC5u RG DX10.dds
 
     Pixel Format:
         format: BC5_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3951,9 +3951,9 @@ images/nvtt/BC5u RG.dds
 
     Pixel Format:
         format: BC5_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -3988,9 +3988,9 @@ images/other/24-bit-uncompressed-odd.dds
 
     Pixel Format:
         format: B8G8R8_UNORM
-        pixel_info: Fixed(3 bytes per pixel)
+        pixel_info: Fixed(3 bytes/px)
 
-    Layout: Texture (9 bytes)
+    Layout: Texture (9 bytes @ Fixed(3 bytes/px))
         Surface[0] 1x3 (9 bytes)
 
 
@@ -4018,9 +4018,9 @@ images/other/32-bit-uncompressed-odd.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (180 bytes)
+    Layout: Texture (180 bytes @ Fixed(4 bytes/px))
         Surface[0] 5x9 (180 bytes)
 
 
@@ -4048,9 +4048,9 @@ images/other/32-bit-uncompressed.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (16384 bytes)
+    Layout: Texture (16384 bytes @ Fixed(4 bytes/px))
         Surface[0] 64x64 (16384 bytes)
 
 
@@ -4079,9 +4079,9 @@ images/other/BC1_UNORM_SRGB-47.dds
 
     Pixel Format:
         format: BC1_UNORM (sRGB)
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (43704 bytes)
+    Layout: Texture (43704 bytes @ Block(8 bytes/4x4px))
         Surface[0] 256x256 (32768 bytes)
         Surface[1] 128x128 (8192 bytes)
         Surface[2] 64x64 (2048 bytes)
@@ -4115,9 +4115,9 @@ images/other/RXGB (no alpha).dds
 
     Pixel Format:
         format: BC3_UNORM_RXGB
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (5488 bytes)
+    Layout: Texture (5488 bytes @ Block(16 bytes/4x4px))
         Surface[0] 64x64 (4096 bytes)
         Surface[1] 32x32 (1024 bytes)
         Surface[2] 16x16 (256 bytes)
@@ -4153,9 +4153,9 @@ images/other/ati2-custom-flags.dds
 
     Pixel Format:
         format: BC5_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (12000 bytes)
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
         Surface[0] 129x66 (8976 bytes)
         Surface[1] 64x33 (2304 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -4191,9 +4191,9 @@ images/other/bc6h-simple.dds
 
     Pixel Format:
         format: BC6H_UF16
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (4096 bytes)
+    Layout: Texture (4096 bytes @ Block(16 bytes/4x4px))
         Surface[0] 64x64 (4096 bytes)
 
 
@@ -4222,9 +4222,9 @@ images/other/bc7-simple.dds
 
     Pixel Format:
         format: BC7_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (4096 bytes)
+    Layout: Texture (4096 bytes @ Block(16 bytes/4x4px))
         Surface[0] 64x64 (4096 bytes)
 
 
@@ -4257,9 +4257,9 @@ images/other/both-dx10-and-pixel-format.dds
 
     Pixel Format:
         format: B8G8R8X8_UNORM (sRGB)
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -4288,9 +4288,9 @@ images/other/dxt5-simple-1x1.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (16 bytes)
+    Layout: Texture (16 bytes @ Block(16 bytes/4x4px))
         Surface[0] 1x1 (16 bytes)
 
 
@@ -4312,9 +4312,9 @@ images/other/dxt5-simple-odd.dds
 
     Pixel Format:
         format: BC3_UNORM
-        pixel_info: Block(16 bytes per 4x4 block)
+        pixel_info: Block(16 bytes/4x4px)
 
-    Layout: Texture (96 bytes)
+    Layout: Texture (96 bytes @ Block(16 bytes/4x4px))
         Surface[0] 5x9 (96 bytes)
 
 
@@ -4342,9 +4342,9 @@ images/other/non-standard header flag.dds
 
     Pixel Format:
         format: B8G8R8_UNORM
-        pixel_info: Fixed(3 bytes per pixel)
+        pixel_info: Fixed(3 bytes/px)
 
-    Layout: Texture (63 bytes)
+    Layout: Texture (63 bytes @ Fixed(3 bytes/px))
         Surface[0] 4x4 (48 bytes)
         Surface[1] 2x2 (12 bytes)
         Surface[2] 1x1 (3 bytes)
@@ -4374,9 +4374,9 @@ images/other/restricted-header.dds
 
     Pixel Format:
         format: B5G5R5A1_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -4416,9 +4416,9 @@ images/permissive/BC1 Pretoria Gardens DX10 - array_size=6 issue4.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: TextureArray len:6 kind:CubeMaps (65616 bytes)
+    Layout: TextureArray len:6 kind:CubeMaps (65616 bytes @ Block(8 bytes/4x4px))
         Texture[0] (10936 bytes)
             Surface[0] 128x128 (8192 bytes)
             Surface[1] 64x64 (2048 bytes)
@@ -4502,9 +4502,9 @@ images/permissive/array_size 0.dds
 
     Pixel Format:
         format: BC1_UNORM (sRGB)
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4529,9 +4529,9 @@ images/permissive/dds header_size 24.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4555,9 +4555,9 @@ images/permissive/dds pixel_format size 0.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4581,9 +4581,9 @@ images/permissive/dds pixel_format size 24.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4611,9 +4611,9 @@ images/permissive/no pixel_format flags.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4635,9 +4635,9 @@ images/permissive/wrong mipmap count 1.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4661,9 +4661,9 @@ images/permissive/wrong mipmap count 2.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (696 bytes)
+    Layout: Texture (696 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
         Surface[1] 16x16 (128 bytes)
         Surface[2] 8x8 (32 bytes)
@@ -4692,9 +4692,9 @@ images/permissive/wrong mipmap count 3.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4718,9 +4718,9 @@ images/permissive/wrong mipmap count 4.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (696 bytes)
+    Layout: Texture (696 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
         Surface[1] 16x16 (128 bytes)
         Surface[2] 8x8 (32 bytes)
@@ -4749,9 +4749,9 @@ images/permissive/wrong mipmap count 5.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (512 bytes)
+    Layout: Texture (512 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
 
 
@@ -4775,9 +4775,9 @@ images/permissive/wrong mipmap count 6.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Texture (696 bytes)
+    Layout: Texture (696 bytes @ Block(8 bytes/4x4px))
         Surface[0] 32x32 (512 bytes)
         Surface[1] 16x16 (128 bytes)
         Surface[2] 8x8 (32 bytes)
@@ -4811,9 +4811,9 @@ images/sub-sampled/DX10 G8R8_G8B8_UNORM.dds
 
     Pixel Format:
         format: G8R8_G8B8_UNORM
-        pixel_info: Block(4 bytes per 2x1 block)
+        pixel_info: Block(4 bytes/2x1px)
 
-    Layout: Texture (22752 bytes)
+    Layout: Texture (22752 bytes @ Block(4 bytes/2x1px))
         Surface[0] 129x66 (17160 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -4849,9 +4849,9 @@ images/sub-sampled/DX10 R8G8_B8G8_UNORM.dds
 
     Pixel Format:
         format: R8G8_B8G8_UNORM
-        pixel_info: Block(4 bytes per 2x1 block)
+        pixel_info: Block(4 bytes/2x1px)
 
-    Layout: Texture (22752 bytes)
+    Layout: Texture (22752 bytes @ Block(4 bytes/2x1px))
         Surface[0] 129x66 (17160 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -4887,9 +4887,9 @@ images/sub-sampled/DX10 Y210.dds
 
     Pixel Format:
         format: Y210
-        pixel_info: Block(8 bytes per 2x1 block)
+        pixel_info: Block(8 bytes/2x1px)
 
-    Layout: Texture (45504 bytes)
+    Layout: Texture (45504 bytes @ Block(8 bytes/2x1px))
         Surface[0] 129x66 (34320 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -4925,9 +4925,9 @@ images/sub-sampled/DX10 Y216.dds
 
     Pixel Format:
         format: Y216
-        pixel_info: Block(8 bytes per 2x1 block)
+        pixel_info: Block(8 bytes/2x1px)
 
-    Layout: Texture (45504 bytes)
+    Layout: Texture (45504 bytes @ Block(8 bytes/2x1px))
         Surface[0] 129x66 (34320 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -4956,9 +4956,9 @@ images/sub-sampled/DX9 G8R8_G8B8_UNORM.dds
 
     Pixel Format:
         format: G8R8_G8B8_UNORM
-        pixel_info: Block(4 bytes per 2x1 block)
+        pixel_info: Block(4 bytes/2x1px)
 
-    Layout: Texture (22752 bytes)
+    Layout: Texture (22752 bytes @ Block(4 bytes/2x1px))
         Surface[0] 129x66 (17160 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -4987,9 +4987,9 @@ images/sub-sampled/DX9 R8G8_B8G8_UNORM.dds
 
     Pixel Format:
         format: R8G8_B8G8_UNORM
-        pixel_info: Block(4 bytes per 2x1 block)
+        pixel_info: Block(4 bytes/2x1px)
 
-    Layout: Texture (22752 bytes)
+    Layout: Texture (22752 bytes @ Block(4 bytes/2x1px))
         Surface[0] 129x66 (17160 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5018,9 +5018,9 @@ images/sub-sampled/DX9 UYVY.dds
 
     Pixel Format:
         format: UYVY
-        pixel_info: Block(4 bytes per 2x1 block)
+        pixel_info: Block(4 bytes/2x1px)
 
-    Layout: Texture (22752 bytes)
+    Layout: Texture (22752 bytes @ Block(4 bytes/2x1px))
         Surface[0] 129x66 (17160 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5049,9 +5049,9 @@ images/sub-sampled/DX9 YUY2.dds
 
     Pixel Format:
         format: YUY2
-        pixel_info: Block(4 bytes per 2x1 block)
+        pixel_info: Block(4 bytes/2x1px)
 
-    Layout: Texture (22752 bytes)
+    Layout: Texture (22752 bytes @ Block(4 bytes/2x1px))
         Surface[0] 129x66 (17160 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5087,9 +5087,9 @@ images/uncompressed/DX10 A4B4G4R4_UNORM.dds
 
     Pixel Format:
         format: A4B4G4R4_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5125,9 +5125,9 @@ images/uncompressed/DX10 A8_UNORM.dds
 
     Pixel Format:
         format: A8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -5163,9 +5163,9 @@ images/uncompressed/DX10 AYUV.dds
 
     Pixel Format:
         format: AYUV
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5202,9 +5202,9 @@ images/uncompressed/DX10 B4G4R4A4_UNORM.dds
 
     Pixel Format:
         format: B4G4R4A4_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5241,9 +5241,9 @@ images/uncompressed/DX10 B5G5R5A1_UNORM.dds
 
     Pixel Format:
         format: B5G5R5A1_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5279,9 +5279,9 @@ images/uncompressed/DX10 B5G6R5_UNORM.dds
 
     Pixel Format:
         format: B5G6R5_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5318,9 +5318,9 @@ images/uncompressed/DX10 B8G8R8A8_UNORM.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5357,9 +5357,9 @@ images/uncompressed/DX10 B8G8R8A8_UNORM_SRGB.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM (sRGB)
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5395,9 +5395,9 @@ images/uncompressed/DX10 B8G8R8X8_UNORM.dds
 
     Pixel Format:
         format: B8G8R8X8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5433,9 +5433,9 @@ images/uncompressed/DX10 B8G8R8X8_UNORM_SRGB.dds
 
     Pixel Format:
         format: B8G8R8X8_UNORM (sRGB)
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5472,9 +5472,9 @@ images/uncompressed/DX10 R10G10B10A2_UNORM.dds
 
     Pixel Format:
         format: R10G10B10A2_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5511,9 +5511,9 @@ images/uncompressed/DX10 R10G10B10_XR_BIAS_A2_UNORM.dds
 
     Pixel Format:
         format: R10G10B10_XR_BIAS_A2_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5549,9 +5549,9 @@ images/uncompressed/DX10 R11G11B10_FLOAT.dds
 
     Pixel Format:
         format: R11G11B10_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5588,9 +5588,9 @@ images/uncompressed/DX10 R16G16B16A16_FLOAT.dds
 
     Pixel Format:
         format: R16G16B16A16_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -5627,9 +5627,9 @@ images/uncompressed/DX10 R16G16B16A16_SNORM.dds
 
     Pixel Format:
         format: R16G16B16A16_SNORM
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -5666,9 +5666,9 @@ images/uncompressed/DX10 R16G16B16A16_UNORM.dds
 
     Pixel Format:
         format: R16G16B16A16_UNORM
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -5704,9 +5704,9 @@ images/uncompressed/DX10 R16G16_FLOAT.dds
 
     Pixel Format:
         format: R16G16_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5742,9 +5742,9 @@ images/uncompressed/DX10 R16G16_SNORM.dds
 
     Pixel Format:
         format: R16G16_SNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5780,9 +5780,9 @@ images/uncompressed/DX10 R16G16_UNORM.dds
 
     Pixel Format:
         format: R16G16_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -5818,9 +5818,9 @@ images/uncompressed/DX10 R16_FLOAT.dds
 
     Pixel Format:
         format: R16_FLOAT
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5856,9 +5856,9 @@ images/uncompressed/DX10 R16_SNORM.dds
 
     Pixel Format:
         format: R16_SNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5894,9 +5894,9 @@ images/uncompressed/DX10 R16_UNORM.dds
 
     Pixel Format:
         format: R16_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -5932,9 +5932,9 @@ images/uncompressed/DX10 R1_UNORM.dds
 
     Pixel Format:
         format: R1_UNORM
-        pixel_info: Block(1 bytes per 8x1 block)
+        pixel_info: Block(1 bytes/8x1px)
 
-    Layout: Texture (1122 bytes)
+    Layout: Texture (1122 bytes @ Block(1 bytes/8x1px))
         Surface[0] 129x66 (1122 bytes)
 
 
@@ -5964,9 +5964,9 @@ images/uncompressed/DX10 R32G32B32A32_FLOAT.dds
 
     Pixel Format:
         format: R32G32B32A32_FLOAT
-        pixel_info: Fixed(16 bytes per pixel)
+        pixel_info: Fixed(16 bytes/px)
 
-    Layout: Texture (180944 bytes)
+    Layout: Texture (180944 bytes @ Fixed(16 bytes/px))
         Surface[0] 129x66 (136224 bytes)
         Surface[1] 64x33 (33792 bytes)
         Surface[2] 32x16 (8192 bytes)
@@ -6002,9 +6002,9 @@ images/uncompressed/DX10 R32G32B32_FLOAT.dds
 
     Pixel Format:
         format: R32G32B32_FLOAT
-        pixel_info: Fixed(12 bytes per pixel)
+        pixel_info: Fixed(12 bytes/px)
 
-    Layout: Texture (135708 bytes)
+    Layout: Texture (135708 bytes @ Fixed(12 bytes/px))
         Surface[0] 129x66 (102168 bytes)
         Surface[1] 64x33 (25344 bytes)
         Surface[2] 32x16 (6144 bytes)
@@ -6040,9 +6040,9 @@ images/uncompressed/DX10 R32G32_FLOAT.dds
 
     Pixel Format:
         format: R32G32_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -6078,9 +6078,9 @@ images/uncompressed/DX10 R32_FLOAT.dds
 
     Pixel Format:
         format: R32_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6117,9 +6117,9 @@ images/uncompressed/DX10 R8G8B8A8_SNORM.dds
 
     Pixel Format:
         format: R8G8B8A8_SNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6156,9 +6156,9 @@ images/uncompressed/DX10 R8G8B8A8_UNORM.dds
 
     Pixel Format:
         format: R8G8B8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6195,9 +6195,9 @@ images/uncompressed/DX10 R8G8B8A8_UNORM_SRGB.dds
 
     Pixel Format:
         format: R8G8B8A8_UNORM (sRGB)
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6233,9 +6233,9 @@ images/uncompressed/DX10 R8G8_SNORM.dds
 
     Pixel Format:
         format: R8G8_SNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -6271,9 +6271,9 @@ images/uncompressed/DX10 R8G8_UNORM.dds
 
     Pixel Format:
         format: R8G8_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -6309,9 +6309,9 @@ images/uncompressed/DX10 R8_SNORM.dds
 
     Pixel Format:
         format: R8_SNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -6347,9 +6347,9 @@ images/uncompressed/DX10 R8_UNORM.dds
 
     Pixel Format:
         format: R8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -6385,9 +6385,9 @@ images/uncompressed/DX10 R9G9B9E5_SHAREDEXP.dds
 
     Pixel Format:
         format: R9G9B9E5_SHAREDEXP
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6423,9 +6423,9 @@ images/uncompressed/DX10 Y410.dds
 
     Pixel Format:
         format: Y410
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6461,9 +6461,9 @@ images/uncompressed/DX10 Y416.dds
 
     Pixel Format:
         format: Y416
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -6498,9 +6498,9 @@ images/uncompressed/DX9 A8_UNORM.dds
 
     Pixel Format:
         format: A8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -6535,9 +6535,9 @@ images/uncompressed/DX9 B4G4R4A4_UNORM.dds
 
     Pixel Format:
         format: B4G4R4A4_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -6572,9 +6572,9 @@ images/uncompressed/DX9 B5G5R5A1_UNORM.dds
 
     Pixel Format:
         format: B5G5R5A1_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -6609,9 +6609,9 @@ images/uncompressed/DX9 B5G6R5_UNORM.dds
 
     Pixel Format:
         format: B5G6R5_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -6646,9 +6646,9 @@ images/uncompressed/DX9 B8G8R8A8_UNORM.dds
 
     Pixel Format:
         format: B8G8R8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6683,9 +6683,9 @@ images/uncompressed/DX9 B8G8R8X8_UNORM.dds
 
     Pixel Format:
         format: B8G8R8X8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6720,9 +6720,9 @@ images/uncompressed/DX9 R10G10B10A2_UNORM.dds
 
     Pixel Format:
         format: R10G10B10A2_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6751,9 +6751,9 @@ images/uncompressed/DX9 R16G16B16A16_FLOAT.dds
 
     Pixel Format:
         format: R16G16B16A16_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -6782,9 +6782,9 @@ images/uncompressed/DX9 R16G16B16A16_SNORM.dds
 
     Pixel Format:
         format: R16G16B16A16_SNORM
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -6813,9 +6813,9 @@ images/uncompressed/DX9 R16G16B16A16_UNORM.dds
 
     Pixel Format:
         format: R16G16B16A16_UNORM
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -6844,9 +6844,9 @@ images/uncompressed/DX9 R16G16_FLOAT.dds
 
     Pixel Format:
         format: R16G16_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6881,9 +6881,9 @@ images/uncompressed/DX9 R16G16_SNORM.dds
 
     Pixel Format:
         format: R16G16_SNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6918,9 +6918,9 @@ images/uncompressed/DX9 R16G16_UNORM.dds
 
     Pixel Format:
         format: R16G16_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -6949,9 +6949,9 @@ images/uncompressed/DX9 R16_FLOAT.dds
 
     Pixel Format:
         format: R16_FLOAT
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -6986,9 +6986,9 @@ images/uncompressed/DX9 R16_UNORM.dds
 
     Pixel Format:
         format: R16_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -7017,9 +7017,9 @@ images/uncompressed/DX9 R32G32B32A32_FLOAT.dds
 
     Pixel Format:
         format: R32G32B32A32_FLOAT
-        pixel_info: Fixed(16 bytes per pixel)
+        pixel_info: Fixed(16 bytes/px)
 
-    Layout: Texture (180944 bytes)
+    Layout: Texture (180944 bytes @ Fixed(16 bytes/px))
         Surface[0] 129x66 (136224 bytes)
         Surface[1] 64x33 (33792 bytes)
         Surface[2] 32x16 (8192 bytes)
@@ -7048,9 +7048,9 @@ images/uncompressed/DX9 R32G32_FLOAT.dds
 
     Pixel Format:
         format: R32G32_FLOAT
-        pixel_info: Fixed(8 bytes per pixel)
+        pixel_info: Fixed(8 bytes/px)
 
-    Layout: Texture (90472 bytes)
+    Layout: Texture (90472 bytes @ Fixed(8 bytes/px))
         Surface[0] 129x66 (68112 bytes)
         Surface[1] 64x33 (16896 bytes)
         Surface[2] 32x16 (4096 bytes)
@@ -7079,9 +7079,9 @@ images/uncompressed/DX9 R32_FLOAT.dds
 
     Pixel Format:
         format: R32_FLOAT
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -7116,9 +7116,9 @@ images/uncompressed/DX9 R8G8B8A8_SNORM.dds
 
     Pixel Format:
         format: R8G8B8A8_SNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -7153,9 +7153,9 @@ images/uncompressed/DX9 R8G8B8A8_UNORM.dds
 
     Pixel Format:
         format: R8G8B8A8_UNORM
-        pixel_info: Fixed(4 bytes per pixel)
+        pixel_info: Fixed(4 bytes/px)
 
-    Layout: Texture (45236 bytes)
+    Layout: Texture (45236 bytes @ Fixed(4 bytes/px))
         Surface[0] 129x66 (34056 bytes)
         Surface[1] 64x33 (8448 bytes)
         Surface[2] 32x16 (2048 bytes)
@@ -7190,9 +7190,9 @@ images/uncompressed/DX9 R8G8_SNORM.dds
 
     Pixel Format:
         format: R8G8_SNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -7227,9 +7227,9 @@ images/uncompressed/DX9 R8G8_UNORM.dds
 
     Pixel Format:
         format: R8G8_UNORM
-        pixel_info: Fixed(2 bytes per pixel)
+        pixel_info: Fixed(2 bytes/px)
 
-    Layout: Texture (22618 bytes)
+    Layout: Texture (22618 bytes @ Fixed(2 bytes/px))
         Surface[0] 129x66 (17028 bytes)
         Surface[1] 64x33 (4224 bytes)
         Surface[2] 32x16 (1024 bytes)
@@ -7264,9 +7264,9 @@ images/uncompressed/DX9 R8_UNORM.dds
 
     Pixel Format:
         format: R8_UNORM
-        pixel_info: Fixed(1 bytes per pixel)
+        pixel_info: Fixed(1 bytes/px)
 
-    Layout: Texture (11309 bytes)
+    Layout: Texture (11309 bytes @ Fixed(1 bytes/px))
         Surface[0] 129x66 (8514 bytes)
         Surface[1] 64x33 (2112 bytes)
         Surface[2] 32x16 (512 bytes)
@@ -7303,9 +7303,9 @@ images/volume/TestVolume_Noise3D BC1.dds
 
     Pixel Format:
         format: BC1_UNORM
-        pixel_info: Block(8 bytes per 4x4 block)
+        pixel_info: Block(8 bytes/4x4px)
 
-    Layout: Volume (149816 bytes)
+    Layout: Volume (149816 bytes @ Block(8 bytes/4x4px))
         Volume[0] 64x64x64 (131072 bytes)
             Surface[0] 64x64 (2048 bytes)
             Surface[1] 64x64 (2048 bytes)

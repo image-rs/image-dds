@@ -798,9 +798,14 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
 
 pub fn pretty_print_data_layout(out: &mut String, layout: &DataLayout) {
     out.push_str("Layout: ");
+    let pixels = layout.pixel_info();
     match layout {
         DataLayout::Texture(texture) => {
-            out.push_str(&format!("Texture ({} bytes)\n", texture.data_len()));
+            out.push_str(&format!(
+                "Texture ({} bytes @ {:?})\n",
+                texture.data_len(),
+                pixels
+            ));
             for (i, surface) in texture.iter_mips().enumerate() {
                 out.push_str(&format!(
                     "    Surface[{i}] {}x{} ({} bytes)\n",
@@ -811,7 +816,11 @@ pub fn pretty_print_data_layout(out: &mut String, layout: &DataLayout) {
             }
         }
         DataLayout::Volume(volume) => {
-            out.push_str(&format!("Volume ({} bytes)\n", volume.data_len()));
+            out.push_str(&format!(
+                "Volume ({} bytes @ {:?})\n",
+                volume.data_len(),
+                pixels
+            ));
             for (i, volume) in volume.iter_mips().enumerate() {
                 out.push_str(&format!(
                     "    Volume[{i}] {}x{}x{} ({} bytes)\n",
@@ -832,10 +841,11 @@ pub fn pretty_print_data_layout(out: &mut String, layout: &DataLayout) {
         }
         DataLayout::TextureArray(texture_array) => {
             out.push_str(&format!(
-                "TextureArray len:{} kind:{:?} ({} bytes)\n",
+                "TextureArray len:{} kind:{:?} ({} bytes @ {:?})\n",
                 texture_array.len(),
                 texture_array.kind(),
-                texture_array.data_len()
+                texture_array.data_len(),
+                pixels
             ));
             for (i, texture) in texture_array.iter().enumerate() {
                 out.push_str(&format!(

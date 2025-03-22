@@ -164,14 +164,14 @@ impl std::fmt::Debug for PixelInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Fixed { bytes_per_pixel } => {
-                write!(f, "Fixed({} bytes per pixel)", bytes_per_pixel)
+                write!(f, "Fixed({} bytes/px)", bytes_per_pixel)
             }
             Self::Block {
                 bytes_per_block,
                 block_size,
             } => write!(
                 f,
-                "Block({} bytes per {}x{} block)",
+                "Block({} bytes/{}x{}px)",
                 bytes_per_block, block_size.0, block_size.1
             ),
             Self::BiPlanar {
@@ -180,7 +180,7 @@ impl std::fmt::Debug for PixelInfo {
                 plane2_sub_sampling,
             } => write!(
                 f,
-                "BiPlanar(plane1: {} bytes per pixel, plane2: {} bytes per sample {}x{} sub-sampled)",
+                "BiPlanar(plane1: {} bytes/px, plane2: {} bytes/{}x{}px)",
                 plane1_bytes_per_pixel,
                 plane2_bytes_per_sample,
                 plane2_sub_sampling.0,
