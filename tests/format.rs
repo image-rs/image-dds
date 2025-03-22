@@ -116,7 +116,11 @@ fn format_conversion() {
 
         if let Ok(four_cc) = FourCC::try_from(format) {
             let roundtrip = Format::from_four_cc(four_cc).unwrap();
-            assert_eq!(format, roundtrip, "FourCC -> Format -> FourCC: {:?}", format);
+            assert_eq!(
+                format, roundtrip,
+                "FourCC -> Format -> FourCC: {:?}",
+                format
+            );
         }
     }
 }
