@@ -91,10 +91,14 @@ impl<'a, 'b> RArgs<'a, 'b> {
         }
 
         // Check row pitch
-        let min_row_pitch = usize::saturating_mul(
-            rect.width as usize,
-            context.color.bytes_per_pixel() as usize,
-        );
+        let min_row_pitch = if rect.size().is_empty() {
+            0
+        } else {
+            usize::saturating_mul(
+                rect.width as usize,
+                context.color.bytes_per_pixel() as usize,
+            )
+        };
         if row_pitch < min_row_pitch {
             return Err(DecodeError::RowPitchTooSmall {
                 required_minimum: min_row_pitch,
@@ -103,7 +107,12 @@ impl<'a, 'b> RArgs<'a, 'b> {
 
         // Check that the buffer is long enough
         // saturate to usize::MAX on overflow
-        let required_bytes = usize::saturating_mul(row_pitch, rect.height as usize);
+        let required_bytes = if rect.size().is_empty() {
+            0
+        } else {
+            usize::saturating_mul(row_pitch, (rect.height - 1) as usize)
+                .saturating_add(min_row_pitch)
+        };
         if output.len() < required_bytes {
             return Err(DecodeError::RectBufferTooSmall {
                 required_minimum: required_bytes,

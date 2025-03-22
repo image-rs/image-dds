@@ -29,7 +29,7 @@ fn decode_all_dds_files() {
         let (image, _) = util::read_dds_png_compatible(dds_path)?;
 
         // compare to PNG
-        _ = util::compare_snapshot_png_u8(png_path, &image);
+        _ = util::update_snapshot_png_u8(png_path, &image)?;
 
         let hex = util::hash_hex(&image.data);
         Ok(hex)
@@ -330,7 +330,7 @@ fn neg_infinity_bc6_blocks() {
         // decode it
         let (image, _) = util::decode_dds_with_channels::<f32>(
             &ParseOptions::default(),
-            dds_file.as_slice(),
+            std::io::Cursor::new(dds_file.as_slice()),
             Channels::Rgb,
         )
         .unwrap();

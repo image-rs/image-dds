@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
     fs::File,
+    io::Seek,
     path::{Path, PathBuf},
 };
 use zerocopy::{FromBytes, Immutable, IntoBytes, Ref};
@@ -282,19 +283,53 @@ pub fn read_dds_with_channels_select<T: WithPrecision + Default + Copy + Castabl
 
 pub fn decode_dds_with_channels<T: WithPrecision + Default + Copy + Castable>(
     options: &ParseOptions,
-    reader: impl std::io::Read,
+    reader: impl std::io::Read + Seek,
     channels: Channels,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     decode_dds_with_channels_select(options, reader, |_| channels)
 }
 pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Castable>(
     options: &ParseOptions,
-    mut reader: impl std::io::Read,
+    mut reader: impl std::io::Read + Seek,
     select_channels: impl FnOnce(Format) -> Channels,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
     let mut decoder = Decoder::new_with_options(reader, options)?;
     let size = decoder.main_size();
     let format = decoder.format();
+
+    if let Some(array) = decoder.layout().texture_array().cloned() {
+        if array.kind() == TextureArrayKind::CubeMaps {
+            let out_size = Size::new(size.width * 4, size.height * 3);
+
+            let mut image_data = vec![T::default(); out_size.pixels() as usize * 4];
+            let image_bytes = as_bytes_mut(&mut image_data);
+            let color = ColorFormat::new(Channels::Rgba, T::PRECISION);
+            let row_pitch = color.bytes_per_pixel() as usize * out_size.width as usize;
+            let rect = Rect::new(0, 0, size.width, size.height);
+
+            let mut read_face = |offset| {
+                decoder.read_surface_rect(&mut image_bytes[offset..], row_pitch, rect, color)?;
+                decoder.skip_mipmaps()
+            };
+
+            let face_offsets = [(2, 1), (0, 1), (1, 0), (1, 2), (1, 1), (3, 1)]
+                .map(|(x, y)| (x * size.width, y * size.height));
+            for (offset_x, offset_y) in face_offsets {
+                read_face(
+                    offset_y as usize * row_pitch
+                        + offset_x as usize * color.bytes_per_pixel() as usize,
+                )?;
+            }
+
+            let image = Image {
+                data: image_data,
+                channels: Channels::Rgba,
+                size: out_size,
+            };
+
+            return Ok((image, decoder.info().clone()));
+        }
+    };
 
     let channels = select_channels(format);
 
@@ -309,6 +344,7 @@ pub fn decode_dds_with_channels_select<T: WithPrecision + Default + Copy + Casta
         channels,
         size,
     };
+
     Ok((image, decoder.info().clone()))
 }
 
@@ -381,6 +417,21 @@ pub fn compare_snapshot_png_u8(
     png_path: &Path,
     image: &Image<u8>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    match update_snapshot_png_u8(png_path, image)? {
+        UpdateResult::Unchanged => Ok(()),
+        UpdateResult::Created => Err("Output PNG didn't exist".into()),
+        UpdateResult::Updated => Err("Output PNG didn't match".into()),
+    }
+}
+pub enum UpdateResult {
+    Unchanged,
+    Created,
+    Updated,
+}
+pub fn update_snapshot_png_u8(
+    png_path: &Path,
+    image: &Image<u8>,
+) -> Result<UpdateResult, Box<dyn std::error::Error>> {
     let (channels, color) = to_png_compatible_channels(image.channels);
     assert!(channels == image.channels);
 
@@ -397,7 +448,7 @@ pub fn compare_snapshot_png_u8(
 
         if png.data == image.data {
             // all good
-            return Ok(());
+            return Ok(UpdateResult::Unchanged);
         }
 
         if image.channels != png.channels {
@@ -421,9 +472,9 @@ pub fn compare_snapshot_png_u8(
     }
 
     if !png_exists {
-        return Err("Output PNG didn't exist".into());
+        return Ok(UpdateResult::Created);
     }
-    Err("Output PNG didn't match".into())
+    Ok(UpdateResult::Updated)
 }
 
 pub fn compare_snapshot_dds_f32(
