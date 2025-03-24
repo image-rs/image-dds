@@ -406,8 +406,8 @@ fn encode_measure_quality() {
                             opt_name.to_string()
                         },
                         format!("{:?}", m.channel),
-                        format!("{:.4}", m.psnr),
-                        format!("{:.4}", m.psnr_blur),
+                        format!("{:.2}", m.psnr),
+                        format!("{:.2}", m.psnr_blur),
                         format!("{:.5}", m.region_error * 255.),
                         if opt_mentioned {
                             String::new()
