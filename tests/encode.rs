@@ -105,7 +105,8 @@ fn encode_base() {
 
         let mut output = write_dds_header(size, format);
 
-        let options = EncodeOptions::default();
+        let mut options = EncodeOptions::default();
+        options.quality = CompressionQuality::High;
 
         // and now the image data
         if format.precision() == Precision::U16 {
@@ -148,6 +149,7 @@ fn encode_dither() {
         let mut output = write_dds_header(image.size, format);
 
         let mut options = EncodeOptions::default();
+        options.quality = CompressionQuality::High;
         options.dithering = Dithering::ColorAndAlpha;
         encode_image(image, format, &mut output, &options)?;
 
