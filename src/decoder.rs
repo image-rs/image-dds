@@ -62,8 +62,8 @@ impl DdsInfo {
     pub fn format(&self) -> Format {
         self.format
     }
-    pub fn layout(&self) -> &DataLayout {
-        &self.layout
+    pub fn layout(&self) -> DataLayout {
+        self.layout
     }
 }
 
@@ -106,7 +106,7 @@ impl<R> Decoder<R> {
     pub fn format(&self) -> Format {
         self.info.format()
     }
-    pub fn layout(&self) -> &DataLayout {
+    pub fn layout(&self) -> DataLayout {
         self.info.layout()
     }
 
@@ -265,20 +265,17 @@ enum SurfaceIterator {
     Volume(VolumeSurfaceIterator),
 }
 impl SurfaceIterator {
-    fn new(layout: &DataLayout) -> Self {
+    fn new(layout: DataLayout) -> Self {
         match layout {
             DataLayout::Texture(texture) => {
-                SurfaceIterator::Texture(TextureSurfaceIterator::new(texture.clone(), 1))
+                SurfaceIterator::Texture(TextureSurfaceIterator::new(texture, 1))
             }
             DataLayout::Volume(volume) => {
-                SurfaceIterator::Volume(VolumeSurfaceIterator::new(volume.clone()))
+                SurfaceIterator::Volume(VolumeSurfaceIterator::new(volume))
             }
-            DataLayout::TextureArray(texture_array) => {
-                SurfaceIterator::Texture(TextureSurfaceIterator::new(
-                    texture_array.first.clone(),
-                    texture_array.len() as u32,
-                ))
-            }
+            DataLayout::TextureArray(texture_array) => SurfaceIterator::Texture(
+                TextureSurfaceIterator::new(texture_array.first(), texture_array.len() as u32),
+            ),
         }
     }
 

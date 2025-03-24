@@ -147,7 +147,7 @@ fn full_layout_snapshot() {
         let header = info.header();
         let format = info.format();
         let layout = info.layout();
-        validate_region(layout);
+        validate_region(&layout);
 
         let mut output = String::new();
 
@@ -186,7 +186,7 @@ fn full_layout_snapshot() {
 
         // LAYOUT
         output.push('\n');
-        util::pretty_print_data_layout(&mut output, layout);
+        util::pretty_print_data_layout(&mut output, &layout);
 
         Ok(output)
     }

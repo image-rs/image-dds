@@ -163,12 +163,35 @@ impl DataRegion for VolumeDescriptor {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Texture {
-    main: SurfaceDescriptor,
+fn to_short_len(len: u64) -> Option<NonZeroU32> {
+    len.try_into().ok().and_then(NonZeroU32::new)
+}
+fn get_texture_len(
+    width: NonZeroU32,
+    height: NonZeroU32,
     mipmaps: NonZeroU8,
     pixels: PixelInfo,
-    len: u64,
+) -> Option<u64> {
+    let size = Size::new(width.get(), height.get());
+
+    let mut len: u64 = 0;
+    for level in 0..mipmaps.get() {
+        let mip_len = pixels.surface_bytes(size.get_mipmap(level))?;
+        len = len.checked_add(mip_len)?;
+    }
+    Some(len)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Texture {
+    width: NonZeroU32,
+    height: NonZeroU32,
+    mipmaps: NonZeroU8,
+    pixels: PixelInfo,
+    offset_index: u32,
+    // A cache for data length. This is used to avoid recomputing the length
+    // when the length is isn't too large.
+    short_len: Option<NonZeroU32>,
 }
 impl Texture {
     /// Creates a new texture at offset 0.
@@ -178,35 +201,17 @@ impl Texture {
         mipmaps: NonZeroU8,
         pixels: PixelInfo,
     ) -> Result<Self, DecodeError> {
-        // create main surface
-        let main = SurfaceDescriptor::new(
-            width,
-            height,
-            0,
-            pixels
-                .surface_bytes(Size::new(width.get(), height.get()))
-                .ok_or(DecodeError::DataLayoutTooBig)?,
-        );
-
-        // compute len
-        let mut len = main.data_len();
-        for level in 1..mipmaps.get() {
-            // this technically cannot overflow, because mip_len <= main.len,
-            // but being conservative is better here
-            let mip_len = pixels
-                .surface_bytes(main.size().get_mipmap(level))
-                .ok_or(DecodeError::DataLayoutTooBig)?;
-            // this might overflow, so we check it
-            len = len
-                .checked_add(mip_len)
-                .ok_or(DecodeError::DataLayoutTooBig)?;
-        }
+        // Check that length and all other calculations do not overflow
+        let len =
+            get_texture_len(width, height, mipmaps, pixels).ok_or(DecodeError::DataLayoutTooBig)?;
 
         Ok(Self {
-            main,
+            width,
+            height,
             mipmaps,
             pixels,
-            len,
+            offset_index: 0,
+            short_len: to_short_len(len),
         })
     }
 
@@ -214,9 +219,16 @@ impl Texture {
         self.pixels
     }
 
+    /// The level 0 size of this texture.
+    fn size(&self) -> Size {
+        Size::new(self.width.get(), self.height.get())
+    }
+
     /// The level 0 mipmap of this texture.
     pub fn main(&self) -> SurfaceDescriptor {
-        self.main
+        // PANIC SAFETY: This cannot overflow, because we already checked in the constructor
+        let len = self.pixels.surface_bytes(self.size()).unwrap();
+        SurfaceDescriptor::new(self.width, self.height, self.data_offset(), len)
     }
     pub fn mipmaps(&self) -> u8 {
         self.mipmaps.get()
@@ -225,8 +237,8 @@ impl Texture {
         self.iter_mips().nth(level as usize)
     }
     pub fn iter_mips(&self) -> impl Iterator<Item = SurfaceDescriptor> {
-        let mut offset = self.main.data_offset();
-        let size_0 = self.main.size();
+        let mut offset = self.data_offset();
+        let size_0 = self.size();
         let pixels = self.pixels;
         (0..self.mipmaps.get()).map(move |level| {
             let width = get_mipmap_size(size_0.width, level);
@@ -241,25 +253,57 @@ impl Texture {
     }
 
     /// Internal method. This **assumes** that `offset + len` does not overflow.
-    fn set_offset(&mut self, offset: u64) {
-        self.main.offset = offset;
+    fn set_offset_index(&mut self, index: u32) {
+        self.offset_index = index;
     }
 }
 impl DataRegion for Texture {
     fn data_len(&self) -> u64 {
-        self.len
+        if let Some(short_len) = self.short_len {
+            short_len.get() as u64
+        } else {
+            // Panic Safety: This cannot overflow, because we already checked in the constructor
+            get_texture_len(self.width, self.height, self.mipmaps, self.pixels).unwrap()
+        }
     }
     fn data_offset(&self) -> u64 {
-        self.main.data_offset()
+        self.offset_index as u64 * self.data_len()
+    }
+    fn data_end(&self) -> u64 {
+        (self.offset_index as u64 + 1) * self.data_len()
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Volume {
-    main: VolumeDescriptor,
+fn get_volume_len(
+    width: NonZeroU32,
+    height: NonZeroU32,
+    depth: NonZeroU32,
     mipmaps: NonZeroU8,
     pixels: PixelInfo,
-    len: u64,
+) -> Option<u64> {
+    let mut len: u64 = 0;
+    for level in 0..mipmaps.get() {
+        let width = get_mipmap_size(width.get(), level);
+        let height = get_mipmap_size(height.get(), level);
+        let depth = get_mipmap_size(depth.get(), level);
+
+        let slice_size = Size::new(width.get(), height.get());
+        let slice_len = pixels.surface_bytes(slice_size)?;
+        let mip_len = slice_len.checked_mul(depth.get() as u64)?;
+
+        len = len.checked_add(mip_len)?;
+    }
+
+    Some(len)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Volume {
+    width: NonZeroU32,
+    height: NonZeroU32,
+    depth: NonZeroU32,
+    mipmaps: NonZeroU8,
+    pixels: PixelInfo,
 }
 impl Volume {
     /// Creates a new volume at offset 0.
@@ -270,40 +314,17 @@ impl Volume {
         mipmaps: NonZeroU8,
         pixels: PixelInfo,
     ) -> Result<Self, DecodeError> {
-        // create main volume
-        let main_slice_len = pixels
-            .surface_bytes(Size::new(width.get(), height.get()))
+        // compute the length of the entire volume (including mips) to check
+        // for overflows, so we can assume no overflows in the rest of the code
+        _ = get_volume_len(width, height, depth, mipmaps, pixels)
             .ok_or(DecodeError::DataLayoutTooBig)?;
-        if main_slice_len.checked_mul(depth.get() as u64).is_none() {
-            return Err(DecodeError::DataLayoutTooBig);
-        }
-        let main = VolumeDescriptor::new(width, height, depth, 0, main_slice_len);
-
-        // compute len
-        let mut len = main.data_len();
-        for level in 1..mipmaps.get() {
-            let width = get_mipmap_size(main.width(), level);
-            let height = get_mipmap_size(main.height(), level);
-            let depth = get_mipmap_size(main.height(), level);
-            // this technically cannot overflow, because mip_len <= main.len,
-            // but being conservative is better here
-            let mip_slice_len = pixels
-                .surface_bytes(Size::new(width.get(), height.get()))
-                .ok_or(DecodeError::DataLayoutTooBig)?;
-            let mip_len = mip_slice_len
-                .checked_mul(depth.get() as u64)
-                .ok_or(DecodeError::DataLayoutTooBig)?;
-            // this might overflow, so we check it
-            len = len
-                .checked_add(mip_len)
-                .ok_or(DecodeError::DataLayoutTooBig)?;
-        }
 
         Ok(Self {
-            main,
+            width,
+            height,
+            depth,
             mipmaps,
             pixels,
-            len,
         })
     }
 
@@ -312,7 +333,17 @@ impl Volume {
     }
 
     pub fn main(&self) -> VolumeDescriptor {
-        self.main
+        let slice_size = Size::new(self.width.get(), self.height.get());
+        // Panic Safety: This cannot overflow, because we already checked in the constructor
+        let slice_len = self.pixels.surface_bytes(slice_size).unwrap();
+
+        VolumeDescriptor {
+            width: self.width,
+            height: self.height,
+            depth: self.depth,
+            offset: 0,
+            slice_len,
+        }
     }
     pub fn mipmaps(&self) -> u8 {
         self.mipmaps.get()
@@ -321,19 +352,18 @@ impl Volume {
         self.iter_mips().nth(level as usize)
     }
     pub fn iter_mips(&self) -> impl Iterator<Item = VolumeDescriptor> {
-        let mut offset = self.main.data_offset();
-        let width_0 = self.main.width();
-        let height_0 = self.main.height();
-        let depth_0 = self.main.depth();
+        let mut offset = 0;
+        let width_0 = self.width.get();
+        let height_0 = self.height.get();
+        let depth_0 = self.depth.get();
         let pixels = self.pixels;
         (0..self.mipmaps.get()).map(move |level| {
             let width = get_mipmap_size(width_0, level);
             let height = get_mipmap_size(height_0, level);
             let depth = get_mipmap_size(depth_0, level);
+            let slice_size = Size::new(width.get(), height.get());
             // Panic Safety: This cannot overflow, because we already checked in the constructor
-            let slice_len = pixels
-                .surface_bytes(Size::new(width.get(), height.get()))
-                .unwrap();
+            let slice_len = pixels.surface_bytes(slice_size).unwrap();
             let volume = VolumeDescriptor::new(width, height, depth, offset, slice_len);
             offset += depth.get() as u64 * slice_len;
             volume
@@ -342,7 +372,15 @@ impl Volume {
 }
 impl DataRegion for Volume {
     fn data_len(&self) -> u64 {
-        self.len
+        // Panic Safety: This cannot overflow, because we already checked in the constructor
+        get_volume_len(
+            self.width,
+            self.height,
+            self.depth,
+            self.mipmaps,
+            self.pixels,
+        )
+        .unwrap()
     }
     fn data_offset(&self) -> u64 {
         // if there is a volume, it is the only object in the data section
@@ -393,33 +431,42 @@ impl CubeMapFaces {
 }
 
 /// An array of textures or (partial) cube maps.
-///
-/// The array is guaranteed to have at least one texture.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureArray {
     kind: TextureArrayKind,
     array_len: u32,
-    pub(crate) first: Texture,
+
+    width: NonZeroU32,
+    height: NonZeroU32,
+    mipmaps: NonZeroU8,
+    pixels: PixelInfo,
+    texture_short_len: Option<NonZeroU32>,
 }
 impl TextureArray {
     fn new(kind: TextureArrayKind, array_len: u32, first: Texture) -> Result<Self, DecodeError> {
         // must start at offset 0
         debug_assert_eq!(first.data_offset(), 0);
 
-        let total_len = first.data_len().checked_mul(array_len as u64);
-        if total_len.is_none() {
-            return Err(DecodeError::DataLayoutTooBig);
-        }
+        // Check that the entire array does not overflow
+        _ = first
+            .data_len()
+            .checked_mul(array_len as u64)
+            .ok_or(DecodeError::DataLayoutTooBig)?;
 
         Ok(Self {
             kind,
             array_len,
-            first,
+
+            width: first.width,
+            height: first.height,
+            mipmaps: first.mipmaps,
+            pixels: first.pixels,
+            texture_short_len: first.short_len,
         })
     }
 
     pub fn pixel_info(&self) -> PixelInfo {
-        self.first.pixel_info()
+        self.pixels
     }
 
     pub fn kind(&self) -> TextureArrayKind {
@@ -433,30 +480,37 @@ impl TextureArray {
         self.array_len as usize
     }
 
+    pub(crate) fn first(&self) -> Texture {
+        Texture {
+            width: self.width,
+            height: self.height,
+            mipmaps: self.mipmaps,
+            pixels: self.pixels,
+            offset_index: 0,
+            short_len: self.texture_short_len,
+        }
+    }
     pub fn get(&self, index: usize) -> Option<Texture> {
         if index < self.array_len as usize {
-            let mut texture = self.first.clone();
-            // Panic Safety: this can't overflow, because we checked in the constructor
-            texture.set_offset(index as u64 * texture.data_len());
+            let mut texture = self.first();
+            texture.set_offset_index(index as u32);
             Some(texture)
         } else {
             None
         }
     }
     pub fn iter(&self) -> impl Iterator<Item = Texture> {
-        let mut texture = self.first.clone();
-        let texture_len = texture.data_len();
-        (0..self.array_len).map(move |i| {
-            // Panic Safety: this can't overflow, because we checked in the constructor
-            texture.set_offset(i as u64 * texture_len);
-            texture.clone()
+        let mut texture = self.first();
+        (0..self.array_len).map(move |index| {
+            texture.set_offset_index(index);
+            texture
         })
     }
 }
 impl DataRegion for TextureArray {
     fn data_len(&self) -> u64 {
         // Panic Safety: this can't overflow, because we checked in the constructor
-        self.first.data_len() * self.array_len as u64
+        self.first().data_len() * self.array_len as u64
     }
     fn data_offset(&self) -> u64 {
         0
@@ -464,7 +518,7 @@ impl DataRegion for TextureArray {
 }
 
 /// The type and layout of the surfaces/volumes in the data section of a DDS file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DataLayout {
     Texture(Texture),
     Volume(Volume),

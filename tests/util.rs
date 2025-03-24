@@ -365,7 +365,7 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
     let size = decoder.main_size();
     let format = decoder.format();
 
-    if let Some(array) = decoder.layout().texture_array().cloned() {
+    if let Some(array) = decoder.layout().texture_array() {
         if array.kind() == TextureArrayKind::CubeMaps && settings.allow_cube_map() {
             let out_size = Size::new(size.width * 4, size.height * 3);
 
