@@ -245,7 +245,18 @@ fn encode_measure_quality() {
         TestCase {
             format: Format::BC1_UNORM,
             options: vec![
-                ("default", EncodeOptions::default()),
+                (
+                    "fast",
+                    new_options(|options| options.quality = CompressionQuality::Fast),
+                ),
+                (
+                    "normal",
+                    new_options(|options| options.quality = CompressionQuality::Normal),
+                ),
+                (
+                    "high",
+                    new_options(|options| options.quality = CompressionQuality::High),
+                ),
                 (
                     "dither",
                     new_options(|options| {
@@ -282,10 +293,22 @@ fn encode_measure_quality() {
         TestCase {
             format: Format::BC4_UNORM,
             options: vec![
-                ("default", EncodeOptions::default()),
+                (
+                    "fast",
+                    new_options(|options| options.quality = CompressionQuality::Fast),
+                ),
+                (
+                    "normal",
+                    new_options(|options| options.quality = CompressionQuality::Normal),
+                ),
+                (
+                    "high",
+                    new_options(|options| options.quality = CompressionQuality::High),
+                ),
                 (
                     "dither",
                     new_options(|options| {
+                        options.quality = CompressionQuality::High;
                         options.dithering = Dithering::ColorAndAlpha;
                     }),
                 ),
