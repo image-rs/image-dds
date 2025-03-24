@@ -345,8 +345,15 @@ fn encode_measure_quality() {
         }
         output.push('\n');
 
-        let mut table =
-            util::PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR blur", "↓Region error"]);
+        let mut table = util::PrettyTable::from_header(&[
+            "",
+            "",
+            "",
+            "↑PSNR",
+            "↑PSNR blur",
+            "↓Region err",
+            "↓Compress",
+        ]);
 
         for image in case.images {
             let hash_alpha = matches!(image.image.channels, Channels::Rgba | Channels::Alpha);
@@ -374,9 +381,11 @@ fn encode_measure_quality() {
                 output_summaries.add_output_file(&output_file, &hash);
 
                 let compression = compression_ratio(&encoded_bytes);
+                let compression = format!("{:.1}%", compression * 100.);
 
                 let metrics = util::measure_compression_quality(&image, &encoded_image);
                 let mut opt_mentioned = false;
+                let mut printed_metrics = 0;
                 for m in metrics {
                     if m.channel == util::MetricChannel::A && !hash_alpha {
                         continue;
@@ -396,19 +405,19 @@ fn encode_measure_quality() {
                         format!("{:.4}", m.psnr),
                         format!("{:.4}", m.psnr_blur),
                         format!("{:.5}", m.region_error * 255.),
+                        if opt_mentioned {
+                            String::new()
+                        } else {
+                            compression.to_string()
+                        },
                     ]);
                     name_mentioned = true;
                     opt_mentioned = true;
+                    printed_metrics += 1;
                 }
-
-                table.add_row(&[
-                    String::new(),
-                    String::new(),
-                    String::new(),
-                    String::new(),
-                    "compressed".to_string(),
-                    format!("{:.2}%", compression * 100.),
-                ]);
+                if printed_metrics >= 2 {
+                    table.add_empty_row();
+                }
             }
         }
 
