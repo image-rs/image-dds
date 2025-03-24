@@ -1,7 +1,7 @@
 //! An internal module with helper methods for reading bytes from a reader, and
 //! writing decoded pixels to the output buffer.
 
-use std::io::{Read, SeekFrom};
+use std::io::Read;
 use std::mem::size_of;
 
 use crate::util::round_down_to_multiple;
@@ -168,17 +168,17 @@ pub(crate) fn for_each_pixel_rect_untyped(
             .map(|bytes| bytes <= i64::MAX as u64)
             .unwrap_or(false));
 
-        let encoded_bytes_per_row = size.width as i64 * size_of_in as i64;
-        let encoded_bytes_before_rect = rect.x as i64 * size_of_in as i64;
+        let encoded_bytes_per_row = size.width as u64 * size_of_in as u64;
+        let encoded_bytes_before_rect = rect.x as u64 * size_of_in as u64;
         let encoded_bytes_after_rect =
-            (size.width - rect.x - rect.width) as i64 * size_of_in as i64;
+            (size.width - rect.x - rect.width) as u64 * size_of_in as u64;
 
         let buffer_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
 
         // jump to the first pixel
-        seek_relative(
+        util::io_skip_exact(
             r,
-            encoded_bytes_per_row * rect.y as i64 + encoded_bytes_before_rect,
+            encoded_bytes_per_row * rect.y as u64 + encoded_bytes_before_rect,
         )?;
 
         let pixels_per_line = rect.width as usize;
@@ -188,7 +188,7 @@ pub(crate) fn for_each_pixel_rect_untyped(
             if y > 0 {
                 // jump to the first pixel in the next row
                 // (this has already been done for the first row; see above)
-                seek_relative(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
+                util::io_skip_exact(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
             }
 
             // read next line
@@ -203,10 +203,10 @@ pub(crate) fn for_each_pixel_rect_untyped(
         }
 
         // jump to the end of the surface to put the reader into a known position
-        seek_relative(
+        util::io_skip_exact(
             r,
             encoded_bytes_after_rect
-                + (size.height - rect.y - rect.height) as i64 * encoded_bytes_per_row,
+                + (size.height - rect.y - rect.height) as u64 * encoded_bytes_per_row,
         )?;
 
         Ok(())
@@ -225,13 +225,6 @@ pub(crate) fn for_each_pixel_rect_untyped(
         pixel_size.encoded_size as usize,
         process_pixels,
     )
-}
-
-fn seek_relative(r: &mut dyn ReadSeek, offset: i64) -> std::io::Result<()> {
-    if offset != 0 {
-        r.seek(SeekFrom::Current(offset))?;
-    }
-    Ok(())
 }
 
 /// A function that processes a row of blocks.
@@ -665,9 +658,9 @@ pub(crate) fn for_each_block_rect_untyped<
             - block_lines_to_read;
 
         // jump to the first line of blocks
-        seek_relative(
+        util::io_skip_exact(
             r,
-            (blocks_per_line * skip_block_lines_before * bytes_per_block) as i64,
+            blocks_per_line as u64 * skip_block_lines_before as u64 * bytes_per_block as u64,
         )?;
 
         let mut line_buffer = UntypedLineBuffer::new(
@@ -724,9 +717,9 @@ pub(crate) fn for_each_block_rect_untyped<
         }
 
         // jump to the end of the surface to put the reader into a known position
-        seek_relative(
+        util::io_skip_exact(
             r,
-            (blocks_per_line * skip_block_lines_after * bytes_per_block) as i64,
+            blocks_per_line as u64 * skip_block_lines_after as u64 * bytes_per_block as u64,
         )?;
 
         Ok(())
@@ -1261,13 +1254,13 @@ pub(crate) fn for_each_bi_planar_rect(
 
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
-    seek_relative(r, (plain1_bytes_per_line * rect.y as usize) as i64)?;
+    util::io_skip_exact(r, plain1_bytes_per_line as u64 * rect.y as u64)?;
     let plane1_bytes = plain1_bytes_per_line * rect.height as usize;
     let mut plane1 = context.alloc_capacity(plane1_bytes)?;
     read_exact_into(r, &mut plane1, plane1_bytes)?;
-    seek_relative(
+    util::io_skip_exact(
         r,
-        (plain1_bytes_per_line * (size.height - rect.y - rect.height) as usize) as i64,
+        plain1_bytes_per_line as u64 * (size.height - rect.y - rect.height) as u64,
     )?;
 
     // Step 2: Go through plane 2
@@ -1282,7 +1275,7 @@ pub(crate) fn for_each_bi_planar_rect(
         util::div_ceil(size.height as usize, info.sub_sampling.1 as usize) - uv_before - uv_after;
     let uv_bytes_per_line = uv_width * info.plane2_element_size as usize;
 
-    seek_relative(r, uv_before as i64 * uv_bytes_per_line as i64)?;
+    util::io_skip_exact(r, uv_before as u64 * uv_bytes_per_line as u64)?;
 
     let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines, &mut context)?;
     let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
@@ -1334,7 +1327,7 @@ pub(crate) fn for_each_bi_planar_rect(
         }
     }
 
-    seek_relative(r, uv_after as i64 * uv_bytes_per_line as i64)?;
+    util::io_skip_exact(r, uv_after as u64 * uv_bytes_per_line as u64)?;
 
     Ok(())
 }
@@ -1342,21 +1335,18 @@ pub(crate) fn for_each_bi_planar_rect(
 fn read_exact_into<R: Read + ?Sized>(
     r: &mut R,
     buf: &mut Vec<u8>,
-    mut count: usize,
+    count: usize,
 ) -> Result<(), std::io::Error> {
     buf.clear();
     buf.reserve(count);
 
-    let mut temp = [0_u8; 4096];
-    while count >= temp.len() {
-        r.read_exact(&mut temp)?;
-        buf.extend_from_slice(&temp);
-        count -= temp.len();
-    }
-
-    if count > 0 {
-        r.read_exact(&mut temp[..count])?;
-        buf.extend_from_slice(&temp[..count]);
+    let take = count as u64;
+    let copied = std::io::copy(&mut r.take(take), buf)?;
+    if copied < take {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "Failed to read enough bytes",
+        ));
     }
 
     Ok(())

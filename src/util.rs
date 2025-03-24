@@ -91,6 +91,41 @@ pub(crate) fn closure_types3<A1, A2, A3, B, F: Fn(A1, A2, A3) -> B>(f: F) -> F {
 #[inline]
 pub(crate) fn unlikely_branch() {}
 
+/// Skips the exact number of bytes from the reader.
+///
+/// If it seeks past the end of the file, it will return an EOF error.
+pub(crate) fn io_skip_exact<R: std::io::Seek + ?Sized>(
+    reader: &mut R,
+    count: u64,
+) -> std::io::Result<()> {
+    if count > i64::MAX as u64 {
+        // we will conservatively assume that such large files do not exist
+        // and error out with an EOF
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "seeking past end of file",
+        ));
+    }
+
+    // don't invoke the reader at all if we don't need to skip
+    if count == 0 {
+        return Ok(());
+    }
+
+    let current = reader.stream_position()?;
+    // TODO: Use `seek_relative` once the MSRV allows it.
+    let actual = reader.seek(std::io::SeekFrom::Current(count as i64))?;
+
+    if actual != current.saturating_add(count) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::UnexpectedEof,
+            "seeking past end of file",
+        ));
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod test {
     #[test]

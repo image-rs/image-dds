@@ -3,7 +3,7 @@ use std::io::{Read, Seek};
 use crate::{
     decode, decode_rect,
     header::{Header, ParseOptions},
-    ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format, Rect, Size,
+    util, ColorFormat, DataLayout, DataRegion, DecodeError, DecodeOptions, Format, Rect, Size,
     SurfaceDescriptor, Texture, Volume,
 };
 
@@ -191,6 +191,18 @@ impl<R> Decoder<R> {
             row_pitch,
             &self.options,
         )?;
+
+        self.iter.advance();
+        Ok(())
+    }
+
+    pub fn skip_surface(&mut self) -> Result<(), DecodeError>
+    where
+        R: Seek,
+    {
+        let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+
+        util::io_skip_exact(&mut self.reader, current.data_len())?;
 
         self.iter.advance();
         Ok(())
