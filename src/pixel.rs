@@ -210,6 +210,9 @@ impl From<Format> for PixelInfo {
 
             _ => {
                 // All other formats should have a DXGI equivalent with known pixel info.
+                // PANIC SAFETY: `tests/format.rs` contains a test that
+                // exhaustively verifies that all formats have a pixel info.
+                // This test would fail if the `unwrap` were to panic.
                 let dxgi = DxgiFormat::try_from(value).unwrap();
                 PixelInfo::try_from(dxgi).unwrap()
             }

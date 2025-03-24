@@ -337,3 +337,92 @@ fn neg_infinity_bc6_blocks() {
         assert!(has_non_finite, "Block {:#x} did not decode to -INF", block);
     }
 }
+
+#[test]
+fn test_unexpected_buffer_size() {
+    // decodes a dummy 1x1 image to GRAY U8
+    let decode_dummy = |output: &mut [u8]| {
+        let data: &[u8] = &[0_u8];
+        decode(
+            &mut &data[..],
+            Format::R8_UNORM,
+            Size::new(1, 1),
+            ColorFormat::GRAYSCALE_U8,
+            output,
+            &DecodeOptions::default(),
+        )
+    };
+
+    // buffer too small
+    let result = decode_dummy(&mut []);
+    assert!(matches!(
+        result,
+        Err(DecodeError::UnexpectedBufferSize { expected: 1 })
+    ));
+    assert_eq!(
+        format!("{}", result.unwrap_err()),
+        "Unexpected buffer size: expected 1 bytes"
+    );
+
+    // buffer is just right
+    let result = decode_dummy(&mut [0]);
+    assert!(matches!(result, Ok(())));
+
+    // buffer too large
+    let result = decode_dummy(&mut [0, 0]);
+    assert!(matches!(
+        result,
+        Err(DecodeError::UnexpectedBufferSize { expected: 1 })
+    ));
+
+    // expected buffer size overflows `usize::MAX`
+    let result = decode(
+        &mut &[][..],
+        Format::R8_UNORM,
+        Size::new(u32::MAX, u32::MAX),
+        ColorFormat::RGBA_F32,
+        &mut [],
+        &DecodeOptions::default(),
+    );
+    assert!(matches!(
+        result,
+        Err(DecodeError::UnexpectedBufferSize {
+            expected: usize::MAX
+        })
+    ));
+}
+
+#[test]
+fn test_rect_out_of_bounds() {
+    // decodes a dummy 2x3 image to GRAY U8
+    let decode_dummy = |rect: Rect, output: &mut [u8], row_pitch: usize| {
+        let data: &[u8] = &[0, 0, 0, 0, 0, 0];
+        dds::decode_rect(
+            &mut std::io::Cursor::new(data),
+            Format::R8_UNORM,
+            Size::new(2, 3),
+            rect,
+            ColorFormat::GRAYSCALE_U8,
+            output,
+            row_pitch,
+            &DecodeOptions::default(),
+        )
+    };
+
+    let result = decode_dummy(Rect::new(0, 0, 100, 100), &mut [], 0);
+    assert!(matches!(result, Err(DecodeError::RectOutOfBounds)));
+    assert_eq!(
+        format!("{}", result.unwrap_err()),
+        "Rectangle is out of bounds of the image size"
+    );
+
+    let result = decode_dummy(Rect::new(2, 2, 1, 1), &mut [], 0);
+    assert!(matches!(result, Err(DecodeError::RectOutOfBounds)));
+
+    // even empty rect can be OoB
+    let result = decode_dummy(Rect::new(4, 0, 0, 0), &mut [], 0);
+    assert!(matches!(result, Err(DecodeError::RectOutOfBounds)));
+    // edge case: empty rect at the end of the image
+    let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
+    assert!(matches!(result, Ok(())));
+}

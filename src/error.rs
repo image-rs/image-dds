@@ -32,7 +32,8 @@ impl std::error::Error for FormatError {}
 pub enum DecodeError {
     /// The decoder only supports up to 255 mipmaps.
     ///
-    /// For all practical purposes, 32 should be the maximum number of mipmaps.
+    /// In practice, texture will have at most 32 mipmaps, so this limitation
+    /// should only affect invalid/malicious files.
     TooManyMipMaps(u32),
     /// A volume/texture 3D without a depth.
     MissingDepth,
@@ -49,6 +50,14 @@ pub enum DecodeError {
     DataLayoutTooBig,
     /// The faces of a cube map must always be 2D textures.
     InvalidCubeMapDimensions,
+
+    /// [`crate::decode()`] requires that the buffer size is exactly the size
+    /// of the image data. No more, no less.
+    ///
+    /// This is different from [`crate::decode_rect()`], which allows the buffer
+    /// to be larger than necessary.
+    ///
+    /// This error can only occur when using [`crate::decode()`].
     UnexpectedBufferSize {
         expected: usize,
     },
@@ -113,7 +122,6 @@ impl std::fmt::Display for DecodeError {
             DecodeError::UnexpectedBufferSize { expected } => {
                 write!(f, "Unexpected buffer size: expected {} bytes", expected)
             }
-
             DecodeError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
             }

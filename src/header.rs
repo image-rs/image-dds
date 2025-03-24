@@ -797,7 +797,7 @@ impl Header {
         } else {
             1
         };
-        let mipmap_count = NonZeroU32::new(mipmap_count.max(1)).unwrap();
+        let mipmap_count = NonZeroU32::new(mipmap_count).unwrap_or(NON_ZERO_U32_ONE);
 
         // this always has to be parsed to throw an error if it's invalid
         let pixel_format = Dx9PixelFormat::from_raw(&raw.pixel_format, options)?;
