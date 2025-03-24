@@ -268,12 +268,14 @@ fn encode_measure_quality() {
                 (
                     "perc",
                     new_options(|options| {
+                        options.quality = CompressionQuality::High;
                         options.error_metric = ErrorMetric::Perceptual;
                     }),
                 ),
                 (
                     "perc d",
                     new_options(|options| {
+                        options.quality = CompressionQuality::High;
                         options.dithering = Dithering::Color;
                         options.error_metric = ErrorMetric::Perceptual;
                     }),

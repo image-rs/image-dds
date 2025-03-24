@@ -144,12 +144,12 @@ impl RefinementOptions {
             max_iter: 3,
         }
     }
-    pub fn new_bc1(dist: f32) -> Self {
+    pub fn new_bc1(dist: f32, max_iter: u32) -> Self {
         Self {
             step_initial: 0.5 * dist,
             step_decay: 0.5,
             step_min: 1. / 64.,
-            max_iter: 10,
+            max_iter,
         }
     }
 }
@@ -161,8 +161,12 @@ pub(crate) fn refine_endpoints<T: RefinementSteps>(
 ) -> (T, T) {
     let mut step = options.step_initial;
     let mut best = (min, max);
-    let mut error = compute_error((min, max));
     let mut iters = 0;
+    if !(step > options.step_min && iters < options.max_iter) {
+        return best;
+    }
+
+    let mut error = compute_error((min, max));
     while step > options.step_min && iters < options.max_iter {
         RefinementSteps::for_each_endpoint(best, step, |current| {
             let new_error = compute_error(current);
