@@ -170,25 +170,37 @@ pub fn encode_compressed(c: &mut Criterion) {
     let random_tiny: Image<f32> = Image::random(Size::new(16, 16), Rgba);
 
     // options
-    let def = EncodeOptions::default();
+    let mut fast = EncodeOptions::default();
+    fast.quality = CompressionQuality::Fast;
+    let mut normal = EncodeOptions::default();
+    normal.quality = CompressionQuality::Normal;
+    let mut high = EncodeOptions::default();
+    high.quality = CompressionQuality::High;
     let mut dither = EncodeOptions::default();
+    dither.quality = CompressionQuality::High;
     dither.dithering = Dithering::ColorAndAlpha;
     let mut perceptual = EncodeOptions::default();
     perceptual.error_metric = ErrorMetric::Perceptual;
     let mut unreasonable = EncodeOptions::default();
     unreasonable.quality = CompressionQuality::Unreasonable;
 
-    let def = &def;
+    let fast = &fast;
+    let normal = &normal;
+    let high = &high;
     let dither = &dither;
     let perceptual = &perceptual;
     let unreasonable = &unreasonable;
 
     // uncompressed formats
-    bench_encoder(c, Format::BC1_UNORM, def, &random_rgb);
+    bench_encoder(c, Format::BC1_UNORM, fast, &random_rgb);
+    bench_encoder(c, Format::BC1_UNORM, normal, &random_rgb);
+    bench_encoder(c, Format::BC1_UNORM, high, &random_rgb);
     bench_encoder(c, Format::BC1_UNORM, dither, &random_rgb);
     bench_encoder(c, Format::BC1_UNORM, perceptual, &random_rgb);
 
-    bench_encoder(c, Format::BC4_UNORM, def, &random_rgb);
+    bench_encoder(c, Format::BC4_UNORM, fast, &random_rgb);
+    bench_encoder(c, Format::BC4_UNORM, normal, &random_rgb);
+    bench_encoder(c, Format::BC4_UNORM, high, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
 }

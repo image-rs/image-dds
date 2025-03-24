@@ -135,6 +135,12 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
     bc1::Bc1Options {
         dither: options.dithering.color(),
         perceptual: options.error_metric == ErrorMetric::Perceptual,
+        opaque_always_p4: options.quality <= CompressionQuality::Normal,
+        refine_max_iter: match options.quality {
+            CompressionQuality::Fast => 0,
+            CompressionQuality::Normal => 3,
+            CompressionQuality::High | CompressionQuality::Unreasonable => 10,
+        },
         ..bc1::Bc1Options::default()
     }
 }
@@ -297,6 +303,10 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
         dither: options.dithering.color(),
         snorm: false,
         brute_force: options.quality == CompressionQuality::Unreasonable,
+        use_inter4: options.quality > CompressionQuality::Fast,
+        use_inter4_heuristic: true,
+        high_quality_quantize: options.quality >= CompressionQuality::High,
+        fast_iter: options.quality <= CompressionQuality::Normal,
     }
 }
 

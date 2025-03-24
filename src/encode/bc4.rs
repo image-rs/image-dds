@@ -9,6 +9,10 @@ pub struct Bc4Options {
     pub dither: bool,
     pub snorm: bool,
     pub brute_force: bool,
+    pub use_inter4: bool,
+    pub use_inter4_heuristic: bool,
+    pub high_quality_quantize: bool,
+    pub fast_iter: bool,
 }
 
 /// The smallest non-zero value that can be represented in a BC4 block.
@@ -44,7 +48,8 @@ pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [
     // If the colors are far away from 0 and 1, then inter6 should always be better
     // than inter4
     const INTER6_THRESHOLD: f32 = 1. / 7.;
-    if 0. < min - diff * INTER6_THRESHOLD && max + diff * INTER6_THRESHOLD < 1. {
+    let heuristic = 0. < min - diff * INTER6_THRESHOLD && max + diff * INTER6_THRESHOLD < 1.;
+    if !options.use_inter4 || options.use_inter4_heuristic && heuristic {
         return compress_inter6(&block, min, max, options).0;
     }
 
@@ -138,16 +143,25 @@ fn refine_endpoints(
     mut max: f32,
     mut compute_error: impl Copy + FnMut((f32, f32)) -> f32,
     mut quantize: impl FnMut((f32, f32)) -> (f32, f32),
+    options: Bc4Options,
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
     (min, max) = bcn_util::refine_endpoints(
         min,
         max,
-        bcn_util::RefinementOptions::new_bc4(min, max),
+        if options.fast_iter {
+            bcn_util::RefinementOptions::new_bc4_fast(min, max)
+        } else {
+            bcn_util::RefinementOptions::new_bc4(min, max)
+        },
         compute_error,
     );
 
     // Step 2: Quantize the endpoints and select the best
+    if !options.high_quality_quantize {
+        return (min, max);
+    }
+
     const QUANT_STEP: f32 = 1. / 254. + 0.0001;
     let mut error = compute_error(quantize((min, max)));
     for pair in [
@@ -191,6 +205,7 @@ fn compress_inter6(
             let endpoints = EndPoints::new_inter6(min, max, options.snorm);
             (endpoints.c0_f, endpoints.c1_f)
         },
+        options,
     );
 
     let endpoints = EndPoints::new_inter6(min, max, options.snorm);
@@ -225,6 +240,7 @@ fn compress_inter4(block: &[f32; 16], options: Bc4Options) -> ([u8; 8], f32) {
             let endpoints = EndPoints::new_inter4(min, max, options.snorm);
             (endpoints.c0_f, endpoints.c1_f)
         },
+        options,
     );
 
     let endpoints = EndPoints::new_inter4(min, max, options.snorm);

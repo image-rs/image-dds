@@ -14,6 +14,8 @@ pub struct Bc1Options {
     pub no_default: bool,
     pub alpha_threshold: f32,
     pub perceptual: bool,
+    pub opaque_always_p4: bool,
+    pub refine_max_iter: u8,
 }
 impl Default for Bc1Options {
     fn default() -> Self {
@@ -22,6 +24,8 @@ impl Default for Bc1Options {
             no_default: false,
             alpha_threshold: 0.5,
             perceptual: false,
+            opaque_always_p4: false,
+            refine_max_iter: 10,
         }
     }
 }
@@ -65,11 +69,17 @@ fn compress(block: [[f32; 4]; 16], error_metric: impl ErrorMetric, options: Bc1O
         return TRANSPARENT_BLOCK;
     }
 
+    // transparent pixels always require P3
     if alpha_map != AlphaMap::ALL_OPAQUE {
         return compress_p3_default(colors, alpha_map, error_metric, options).0;
     }
 
-    // We have a choice to make. So just try both and pick whichever is better
+    // We have a choice to make. P3 or P4?
+    if options.opaque_always_p4 {
+        return compress_p4(colors, error_metric, options).0;
+    }
+
+    // Just try both and pick whichever is better
     let (p4, p4_error) = compress_p4(colors, error_metric, options);
     let (p3, p3_error) = compress_p3_default(colors, alpha_map, error_metric, options);
     if p4_error < p3_error {
@@ -96,7 +106,7 @@ fn compress_p4(
     (min, max) = bcn_util::refine_endpoints(
         min,
         max,
-        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0)),
+        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0), options.refine_max_iter as u32),
         |(min, max)| {
             let min = error_metric.color_space_to_srgb(min);
             let max = error_metric.color_space_to_srgb(max);
@@ -111,15 +121,6 @@ fn compress_p4(
 
     let endpoints = pick_best_quantization_p4(min, max, &block, error_metric);
     let palette = P4Palette::from(&endpoints, error_metric);
-
-    // let weights = palette.block_weights(&block);
-    // if let Some(ideal) = get_optimal_weighted_endpoints(&block, &weights) {
-    //     let endpoints = EndPoints::new_p4(
-    //         R5G6B5Color::from_color_round(ideal.0),
-    //         R5G6B5Color::from_color_round(ideal.1),
-    //     );
-    //     palette = P4Palette::from(&endpoints, error_metric);
-    // }
 
     let (indexes, error) = if options.dither {
         palette.block_dither(&block)
@@ -155,7 +156,7 @@ fn compress_p3_default(
     (min, max) = bcn_util::refine_endpoints(
         min,
         max,
-        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0)),
+        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0), options.refine_max_iter as u32),
         |(min, max)| {
             let min = error_metric.color_space_to_srgb(min);
             let max = error_metric.color_space_to_srgb(max);
@@ -444,6 +445,14 @@ fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
         min_t = min_t.min(t);
         max_t = max_t.max(t);
     }
+
+    // Instead of using min_t and max_t directly, it's better to slightly nudge
+    // them towards the midpoint. This prevent extreme endpoints and makes the
+    // refinement converge faster.
+    let nudge_factor = 0.90;
+    let mid_t = (min_t + max_t) * 0.5;
+    min_t = mid_t + (min_t - mid_t) * nudge_factor;
+    max_t = mid_t + (max_t - mid_t) * nudge_factor;
 
     // select initial points along the line
     (line.at(min_t), line.at(max_t))
