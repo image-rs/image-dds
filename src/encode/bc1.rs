@@ -446,6 +446,14 @@ fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
         max_t = max_t.max(t);
     }
 
+    // Instead of using min_t and max_t directly, it's better to slightly nudge
+    // them towards the midpoint. This prevent extreme endpoints and makes the
+    // refinement converge faster.
+    let nudge_factor = 0.90;
+    let mid_t = (min_t + max_t) * 0.5;
+    min_t = mid_t + (min_t - mid_t) * nudge_factor;
+    max_t = mid_t + (max_t - mid_t) * nudge_factor;
+
     // select initial points along the line
     (line.at(min_t), line.at(max_t))
 }
