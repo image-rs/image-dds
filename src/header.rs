@@ -14,7 +14,7 @@ use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_masked, four_cc_to_dxgi, masked_to_dxgi},
     util::{read_u32_le_array, NON_ZERO_U32_ONE},
-    CubeMapFaces, DataLayout, DataRegion, HeaderError, PixelInfo, Size,
+    CubeMapFaces, DataLayout, DataRegion, Format, HeaderError, PixelInfo, Size,
 };
 use bitflags::bitflags;
 use std::{
@@ -560,26 +560,57 @@ impl Header {
         size as usize
     }
 
-    /// Creates a new header for DX10 texture 2D with the given dimensions and
+    /// Creates a new header for a 2D texture with the given dimensions and
     /// format.
     ///
-    /// The mipmap count is set to 1 and the alpha mode is set to unknown.
-    pub const fn new_image(width: u32, height: u32, format: DxgiFormat) -> Self {
-        Self::Dx10(Dx10Header::new_image(width, height, format))
+    /// This will prefer DX10 headers if the format is supported by DX10.
+    ///
+    /// The mipmap count is set to 1.
+    pub fn new_image(width: u32, height: u32, format: Format) -> Self {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            Self::Dx10(Dx10Header::new_image(width, height, dxgi))
+        } else {
+            Self::Dx9(Dx9Header::new_image(
+                width,
+                height,
+                format.try_into().unwrap(),
+            ))
+        }
     }
-    /// Creates a new header for DX10 texture 3D with the given dimensions and
+    /// Creates a new header for a 3D texture with the given dimensions and
     /// format.
     ///
-    /// The mipmap count is set to 1 and the alpha mode is set to unknown.
-    pub const fn new_volume(width: u32, height: u32, depth: u32, format: DxgiFormat) -> Self {
-        Self::Dx10(Dx10Header::new_volume(width, height, depth, format))
+    /// This will prefer DX10 headers if the format is supported by DX10.
+    ///
+    /// The mipmap count is set to 1.
+    pub fn new_volume(width: u32, height: u32, depth: u32, format: Format) -> Self {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            Self::Dx10(Dx10Header::new_volume(width, height, depth, dxgi))
+        } else {
+            Self::Dx9(Dx9Header::new_volume(
+                width,
+                height,
+                depth,
+                format.try_into().unwrap(),
+            ))
+        }
     }
-    /// Creates a new header for DX10 cube map with the given dimensions and
+    /// Creates a new header for a cube map with the given dimensions and
     /// format.
     ///
-    /// The mipmap count is set to 1 and the alpha mode is set to unknown.
-    pub const fn new_cube_map(width: u32, height: u32, format: DxgiFormat) -> Self {
-        Self::Dx10(Dx10Header::new_cube_map(width, height, format))
+    /// This will prefer DX10 headers if the format is supported by DX10.
+    ///
+    /// The mipmap count is set to 1.
+    pub fn new_cube_map(width: u32, height: u32, format: Format) -> Self {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            Self::Dx10(Dx10Header::new_cube_map(width, height, dxgi))
+        } else {
+            Self::Dx9(Dx9Header::new_cube_map(
+                width,
+                height,
+                format.try_into().unwrap(),
+            ))
+        }
     }
 
     /// A builder-pattern-style method to set the width and height of the

@@ -31,7 +31,7 @@ fn format_metadata() {
             conv_table.add_empty_row();
         }
 
-        let encoding = if let Some(encoding) = format.encoding() {
+        let encoding = if let Some(encoding) = format.encoding_support() {
             let mut out = "✔️ ".to_string();
 
             if let Some(block_height) = encoding.split_height {

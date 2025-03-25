@@ -99,8 +99,8 @@ fn encode_base() {
     }
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
         let mut size = base_u8.size;
-        if let Some(encoding) = format.encoding() {
-            size = size.round_down_to_multiple(encoding.size_multiple);
+        if let Some(support) = format.encoding_support() {
+            size = size.round_down_to_multiple(support.size_multiple);
         };
 
         let mut output = write_dds_header(size, format);
@@ -174,7 +174,7 @@ fn encode_dither() {
         .iter()
         .copied()
         .filter(|f| !ignore.contains(f))
-        .filter_map(|f| f.encoding().map(|e| (f, e)))
+        .filter_map(|f| f.encoding_support().map(|e| (f, e)))
         .filter(|(_, e)| e.dithering != Dithering::None)
     {
         let mut test_and_summarize = |image, name| {
@@ -533,7 +533,7 @@ fn encode_all_color_formats() {
     let mut failures = String::new();
 
     for &format in util::ALL_FORMATS {
-        if let Some(support) = format.encoding() {
+        if let Some(support) = format.encoding_support() {
             if support.size_multiple != SizeMultiple::ONE {
                 continue;
             }

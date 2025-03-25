@@ -86,14 +86,9 @@ fn get_headers() -> Vec<Header> {
 }
 fn add_more_header(mut add: impl FnMut(&Header)) {
     // create some simple headers
-    add(&Header::new_image(100, 100, DxgiFormat::BC1_UNORM_SRGB));
-    add(&Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM_SRGB));
-    add(&Header::new_volume(
-        100,
-        100,
-        100,
-        DxgiFormat::BC1_UNORM_SRGB,
-    ));
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM_SRGB).into());
+    add(&Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM_SRGB).into());
+    add(&Dx10Header::new_volume(100, 100, 100, DxgiFormat::BC1_UNORM_SRGB).into());
     add(&Dx9Header::new_image(100, 100, FourCC::DXT1.into()).into());
     add(&Dx9Header::new_cube_map(100, 100, FourCC::DXT1.into()).into());
     add(&Dx9Header::new_volume(100, 100, 100, FourCC::DXT1.into()).into());
@@ -112,7 +107,7 @@ fn add_more_header(mut add: impl FnMut(&Header)) {
     add(&dx9_volume_cube.into());
 
     // Fun DX10
-    add(&Header::new_image(100, 100, DxgiFormat::UNKNOWN));
+    add(&Dx10Header::new_image(100, 100, DxgiFormat::UNKNOWN).into());
 
     add(&Dx10Header::new_image(100, 100, DxgiFormat::BC1_UNORM)
         .with_array_size(3)
@@ -318,7 +313,7 @@ fn header_write_read() {
 
 #[test]
 fn magic_bytes() {
-    let original_header = Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
+    let original_header = Header::new_image(123, 345, Format::BC1_UNORM);
 
     let mut bytes = Vec::new();
     original_header.write(&mut bytes).unwrap();

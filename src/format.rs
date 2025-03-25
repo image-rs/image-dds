@@ -157,7 +157,7 @@ impl Format {
     /// Returns information about the encoding support of this format.
     ///
     /// If the format does not support encoding, `None` is returned.
-    pub const fn encoding(self) -> Option<EncodingSupport> {
+    pub const fn encoding_support(self) -> Option<EncodingSupport> {
         if let Some(encoders) = get_encoders(self) {
             Some(EncodingSupport {
                 dithering: encoders.supported_dithering(),

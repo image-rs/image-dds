@@ -665,12 +665,10 @@ pub fn write_simple_dds_header(
     size: Size,
     format: DxgiFormat,
 ) -> std::io::Result<()> {
-    let mut header = Header::new_image(size.width, size.height, format);
-    if let Header::Dx10(dx10) = &mut header {
-        dx10.alpha_mode = AlphaMode::Unknown;
-    }
+    let mut header = Dx10Header::new_image(size.width, size.height, format);
+    header.alpha_mode = AlphaMode::Unknown;
 
-    header.write(w)?;
+    Header::from(header).write(w)?;
 
     Ok(())
 }
