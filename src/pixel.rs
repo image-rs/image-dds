@@ -25,16 +25,16 @@ use crate::{util::div_ceil, Format, FormatError, Size};
 pub enum PixelInfo {
     /// Each pixel has a fixed number of bytes, regardless of the dimensions of
     /// the surface.
+    ///
+    /// This is only the case for uncompressed image formats. E.g.
+    /// `R8G8B8A8_UNORM`.
     Fixed { bytes_per_pixel: u8 },
     /// Pixels are grouped into blocks of constant byte size.
     ///
     /// This is used for block-compressed and channel-packed sub-sampled pixel
     /// formats. E.g. `BC1_UNORM` (`DXT1`) has 8 bytes per 4x4 block, and
     /// `R8G8B8G8_UNORM` has 4 bytes per pair (2x1 block).
-    Block {
-        bytes_per_block: u8,
-        block_size: (u8, u8),
-    },
+    Block(BlockPixelInfo),
     /// Pixels are stored as sub-sampled YUV (or YCbCr) samples in separate
     /// planes.
     ///
@@ -54,28 +54,89 @@ pub enum PixelInfo {
     ///
     /// The Y samples are stored in one plane, while the U and V samples are
     /// channel-packed in a second plane.
-    BiPlanar {
+    BiPlanar(BiPlanarPixelInfo),
+}
+const fn pack_2_u4((a, b): (u8, u8)) -> u8 {
+    debug_assert!(a < 16);
+    debug_assert!(b < 16);
+    a | b << 4
+}
+const fn unpack_2_u4(packed: u8) -> (u8, u8) {
+    (packed & 0x0F, packed >> 4)
+}
+/// See [`PixelInfo::Block`].
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BlockPixelInfo {
+    bytes_per_block: u8,
+    size: u8,
+}
+impl BlockPixelInfo {
+    const fn new(bytes_per_block: u8, block_size: (u8, u8)) -> Self {
+        Self {
+            bytes_per_block,
+            size: pack_2_u4(block_size),
+        }
+    }
+
+    pub const fn bytes_per_block(&self) -> u8 {
+        self.bytes_per_block
+    }
+    /// Returns the `(width, height)` of a block.
+    pub const fn size(&self) -> (u8, u8) {
+        unpack_2_u4(self.size)
+    }
+    /// Returns the number of pixels in a block.
+    pub const fn pixels(&self) -> u8 {
+        let (x, y) = self.size();
+        x * y
+    }
+}
+/// See [`PixelInfo::BiPlanar`].
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BiPlanarPixelInfo {
+    bytes: u8,
+    plane2_sub_sampling: u8,
+}
+impl BiPlanarPixelInfo {
+    const fn new(
         plane1_bytes_per_pixel: u8,
         plane2_bytes_per_sample: u8,
         plane2_sub_sampling: (u8, u8),
-    },
+    ) -> Self {
+        Self {
+            bytes: pack_2_u4((plane1_bytes_per_pixel, plane2_bytes_per_sample)),
+            plane2_sub_sampling: pack_2_u4(plane2_sub_sampling),
+        }
+    }
+
+    pub const fn plane1_bytes_per_pixel(&self) -> u8 {
+        unpack_2_u4(self.bytes).0
+    }
+    pub const fn plane2_bytes_per_sample(&self) -> u8 {
+        unpack_2_u4(self.bytes).1
+    }
+    pub const fn plane2_sub_sampling(&self) -> (u8, u8) {
+        unpack_2_u4(self.plane2_sub_sampling)
+    }
 }
+
 impl PixelInfo {
-    pub fn fixed(bytes_per_pixel: u8) -> Self {
+    pub const fn fixed(bytes_per_pixel: u8) -> Self {
         Self::Fixed { bytes_per_pixel }
     }
-    pub fn block(bytes_per_block: u8, block_size: (u8, u8)) -> Self {
-        Self::Block {
-            bytes_per_block,
-            block_size,
-        }
+    pub const fn block(bytes_per_block: u8, block_size: (u8, u8)) -> Self {
+        Self::Block(BlockPixelInfo::new(bytes_per_block, block_size))
     }
-    pub fn bi_planar(bytes_per_pixel: u8, bytes_per_sample: u8, sub_sampling: (u8, u8)) -> Self {
-        Self::BiPlanar {
-            plane1_bytes_per_pixel: bytes_per_pixel,
-            plane2_bytes_per_sample: bytes_per_sample,
-            plane2_sub_sampling: sub_sampling,
-        }
+    pub const fn bi_planar(
+        bytes_per_pixel: u8,
+        bytes_per_sample: u8,
+        sub_sampling: (u8, u8),
+    ) -> Self {
+        Self::BiPlanar(BiPlanarPixelInfo::new(
+            bytes_per_pixel,
+            bytes_per_sample,
+            sub_sampling,
+        ))
     }
 
     pub fn from_header(header: &Header) -> Result<Self, FormatError> {
@@ -102,22 +163,16 @@ impl PixelInfo {
     pub fn bits_per_pixel(&self) -> u32 {
         match *self {
             Self::Fixed { bytes_per_pixel } => bytes_per_pixel as u32 * 8,
-            Self::Block {
-                bytes_per_block,
-                block_size,
-            } => {
-                let bits_per_block = bytes_per_block as u32 * 8;
-                let pixels_per_block = block_size.0 as u32 * block_size.1 as u32;
-                div_ceil(bits_per_block, pixels_per_block)
+            Self::Block(block) => {
+                let bits_per_block = block.bytes_per_block() as u32 * 8;
+                div_ceil(bits_per_block, block.pixels() as u32)
             }
-            Self::BiPlanar {
-                plane1_bytes_per_pixel,
-                plane2_bytes_per_sample,
-                plane2_sub_sampling,
-            } => {
-                let plane1_bits_per_pixel = plane1_bytes_per_pixel as u32 * 8;
+            Self::BiPlanar(bi_planar) => {
+                let plane1_bits_per_pixel = bi_planar.plane1_bytes_per_pixel() as u32 * 8;
+                let plane2_sub_sampling = bi_planar.plane2_sub_sampling();
                 let sub_sampling = plane2_sub_sampling.0 as u32 * plane2_sub_sampling.1 as u32;
-                plane1_bits_per_pixel + div_ceil(plane2_bytes_per_sample as u32 * 8, sub_sampling)
+                plane1_bits_per_pixel
+                    + div_ceil(bi_planar.plane2_bytes_per_sample() as u32 * 8, sub_sampling)
             }
         }
     }
@@ -131,28 +186,26 @@ impl PixelInfo {
     pub fn surface_bytes(&self, size: Size) -> Option<u64> {
         match *self {
             Self::Fixed { bytes_per_pixel } => size.pixels().checked_mul(bytes_per_pixel as u64),
-            Self::Block {
-                bytes_per_block,
-                block_size,
-            } => {
+            Self::Block(block) => {
+                let block_size = block.size();
                 let blocks_x = div_ceil(size.width, block_size.0 as u32);
                 let blocks_y = div_ceil(size.height, block_size.1 as u32);
                 // This cannot overflow, because both factors are u32.
                 let blocks = blocks_x as u64 * blocks_y as u64;
-                blocks.checked_mul(bytes_per_block as u64)
+                blocks.checked_mul(block.bytes_per_block() as u64)
             }
-            Self::BiPlanar {
-                plane1_bytes_per_pixel,
-                plane2_bytes_per_sample,
-                plane2_sub_sampling,
-            } => {
-                let plane1_bytes = size.pixels().checked_mul(plane1_bytes_per_pixel as u64)?;
+            Self::BiPlanar(bi_planar) => {
+                let plane1_bytes = size
+                    .pixels()
+                    .checked_mul(bi_planar.plane1_bytes_per_pixel() as u64)?;
 
+                let plane2_sub_sampling = bi_planar.plane2_sub_sampling();
                 let chroma_x = div_ceil(size.width, plane2_sub_sampling.0 as u32);
                 let chroma_y = div_ceil(size.height, plane2_sub_sampling.1 as u32);
                 // This cannot overflow, because both factors are u32.
                 let samples_chroma = chroma_x as u64 * chroma_y as u64;
-                let plane2_bytes = samples_chroma.checked_mul(plane2_bytes_per_sample as u64)?;
+                let plane2_bytes =
+                    samples_chroma.checked_mul(bi_planar.plane2_bytes_per_sample() as u64)?;
 
                 plane1_bytes.checked_add(plane2_bytes)
             }
@@ -166,25 +219,20 @@ impl std::fmt::Debug for PixelInfo {
             Self::Fixed { bytes_per_pixel } => {
                 write!(f, "Fixed({} bytes/px)", bytes_per_pixel)
             }
-            Self::Block {
-                bytes_per_block,
-                block_size,
-            } => write!(
+            Self::Block(block) => write!(
                 f,
                 "Block({} bytes/{}x{}px)",
-                bytes_per_block, block_size.0, block_size.1
+                block.bytes_per_block(),
+                block.size().0,
+                block.size().1
             ),
-            Self::BiPlanar {
-                plane1_bytes_per_pixel,
-                plane2_bytes_per_sample,
-                plane2_sub_sampling,
-            } => write!(
+            Self::BiPlanar(bi_planar) => write!(
                 f,
                 "BiPlanar(plane1: {} bytes/px, plane2: {} bytes/{}x{}px)",
-                plane1_bytes_per_pixel,
-                plane2_bytes_per_sample,
-                plane2_sub_sampling.0,
-                plane2_sub_sampling.1
+                bi_planar.plane1_bytes_per_pixel(),
+                bi_planar.plane2_bytes_per_sample(),
+                bi_planar.plane2_sub_sampling().0,
+                bi_planar.plane2_sub_sampling().1
             ),
         }
     }

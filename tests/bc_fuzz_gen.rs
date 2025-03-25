@@ -17,13 +17,9 @@ fn create_bc_data<const N: usize>(
     mut gen: impl FnMut(u32, u32) -> [u8; N],
 ) -> Result<(), std::io::Error> {
     let pixel_info = PixelInfo::try_from(format).unwrap();
-    if let PixelInfo::Block {
-        bytes_per_block,
-        block_size,
-    } = pixel_info
-    {
-        assert_eq!(N, bytes_per_block as usize);
-        assert_eq!((4, 4), block_size);
+    if let PixelInfo::Block(block) = pixel_info {
+        assert_eq!(N, block.bytes_per_block() as usize);
+        assert_eq!((4, 4), block.size());
     } else {
         panic!("Not a block format");
     }
