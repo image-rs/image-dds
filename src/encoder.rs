@@ -1,10 +1,13 @@
 use std::{io::Write, ops::Range};
 
+use fast_image_resize::images::ImageRef;
+
 use crate::{
-    encode,
+    cast, encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
-    ColorFormat, DataLayout, Dithering, EncodeError, EncodeOptions, Format, Size,
+    AsBytes, Channels, ColorFormat, DataLayout, Dithering, EncodeError, EncodeOptions, Format,
+    Precision, Size,
 };
 
 fn split_surface_into_lines(
@@ -52,6 +55,10 @@ impl<W> Encoder<W> {
     where
         W: Write,
     {
+        if format.encoding_support().is_none() {
+            return Err(EncodeError::UnsupportedFormat(format));
+        }
+
         let layout = DataLayout::from_header_with(header, format.into())?;
 
         header.write(&mut writer)?;
@@ -93,6 +100,21 @@ impl<W> Encoder<W> {
         self.writer
     }
 
+    /// Finishes writing the DDS file.
+    ///
+    /// This will verify that all surfaces have been written and flush the
+    /// writer.
+    pub fn finish(mut self) -> Result<(), EncodeError>
+    where
+        W: Write,
+    {
+        if self.surface_info().is_some() {
+            return Err(EncodeError::MissingSurfaces);
+        }
+        self.writer.flush()?;
+        Ok(())
+    }
+
     /// Returns information about the surface about to be written.
     ///
     /// The returned value is not valid after calling `write_surface`.
@@ -108,16 +130,17 @@ impl<W> Encoder<W> {
     /// volume textures, this function will write the next depth slice.
     ///
     /// See [`Self::surface_info`] for more information about the surface.
-    pub fn write_surface(
+    pub fn write_surface<B: AsBytes + ?Sized>(
         &mut self,
-        buffer: &mut [u8],
+        buffer: &B,
         color: ColorFormat,
     ) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
+        let buffer = buffer.as_bytes();
 
+        let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
         encode(
             &mut self.writer,
             self.format,
@@ -126,8 +149,8 @@ impl<W> Encoder<W> {
             buffer,
             &self.options,
         )?;
-
         self.iter.advance();
+
         Ok(())
     }
 
@@ -137,9 +160,9 @@ impl<W> Encoder<W> {
     /// volume textures, this function will write the next depth slice.
     ///
     /// See [`Self::surface_info`] for more information about the surface.
-    pub fn write_surface_with(
+    pub fn write_surface_with<B: AsBytes + ?Sized>(
         &mut self,
-        buffer: &mut [u8],
+        buffer: &B,
         color: ColorFormat,
         progress: impl FnMut(f32),
         options: WriteOptions,
@@ -147,18 +170,47 @@ impl<W> Encoder<W> {
     where
         W: Write,
     {
-        let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
+        let buffer = buffer.as_bytes();
 
+        let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
+        let size = current.size();
         encode(
             &mut self.writer,
             self.format,
-            current.size(),
+            size,
             color,
             buffer,
             &self.options,
         )?;
-
         self.iter.advance();
+
+        if options.generate_mipmaps {
+            while let Some(current) = self.iter.current() {
+                if !current.is_mipmap() {
+                    break;
+                }
+
+                let mipmap_size = current.size();
+                let mip = resize(
+                    buffer,
+                    color,
+                    size,
+                    mipmap_size,
+                    options.resize_straight_alpha,
+                );
+
+                encode(
+                    &mut self.writer,
+                    self.format,
+                    mipmap_size,
+                    color,
+                    mip.buffer(),
+                    &self.options,
+                )?;
+                self.iter.advance();
+            }
+        }
+
         Ok(())
     }
 }
@@ -168,6 +220,10 @@ pub struct WriteOptions {
     ///
     /// Since the encoder knows exactly how many mipmaps are needed, it will
     /// generate all mipmaps until the next level 0 object or EOF.
+    ///
+    /// Note: Generating mipmaps for volume depth slices is not supported. This
+    /// will **NOT** result in an error and instead the encoder will silently
+    /// ignore the option.
     pub generate_mipmaps: bool,
     /// Whether the alpha channel (if any) is straight alpha.
     ///
@@ -182,4 +238,67 @@ pub struct WriteOptions {
     /// If this option is set to `false`, all channels will be resized
     /// independently of each other.
     pub resize_straight_alpha: bool,
+}
+
+enum ResizeResult {
+    U8(Vec<u8>),
+    U16(Vec<u16>),
+    F32(Vec<f32>),
+}
+impl ResizeResult {
+    fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::U8(data) => data,
+            Self::U16(data) => cast::as_bytes(data),
+            Self::F32(data) => cast::as_bytes(data),
+        }
+    }
+}
+
+fn resize(
+    data: &[u8],
+    color: ColorFormat,
+    size: Size,
+    new_size: Size,
+    straight_alpha: bool,
+) -> fast_image_resize::images::Image<'static> {
+    use fast_image_resize::*;
+
+    let foo: pixels::U8x4 = Default::default();
+
+    fn to_pixel_type(color: ColorFormat) -> PixelType {
+        match (color.precision, color.channels) {
+            (Precision::U8, Channels::Grayscale | Channels::Alpha) => PixelType::U8,
+            (Precision::U8, Channels::Rgb) => PixelType::U8x3,
+            (Precision::U8, Channels::Rgba) => PixelType::U8x4,
+            (Precision::U16, Channels::Grayscale | Channels::Alpha) => PixelType::U16,
+            (Precision::U16, Channels::Rgb) => PixelType::U16x3,
+            (Precision::U16, Channels::Rgba) => PixelType::U16x4,
+            (Precision::F32, Channels::Grayscale | Channels::Alpha) => PixelType::F32,
+            (Precision::F32, Channels::Rgb) => PixelType::F32x3,
+            (Precision::F32, Channels::Rgba) => PixelType::F32x4,
+        }
+    }
+
+    // for testing
+    debug_assert_eq!(color, ColorFormat::RGBA_F32);
+
+    // TODO: alignment
+    let pixel_type = to_pixel_type(color);
+    let src = ImageRef::new(size.width, size.height, data, pixel_type).unwrap();
+    let mut dst =
+        fast_image_resize::images::Image::new(new_size.width, new_size.height, pixel_type);
+
+    // TODO: resize algorithm
+    let options = fast_image_resize::ResizeOptions {
+        mul_div_alpha: straight_alpha,
+        ..Default::default()
+    };
+
+    let mut resizer = Resizer::new();
+    resizer
+        .resize(&src, &mut dst, &options)
+        .expect("resize should always succeed");
+
+    dst
 }

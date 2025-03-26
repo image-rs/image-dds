@@ -27,6 +27,41 @@ pub use format::*;
 pub use layout::*;
 pub use pixel::*;
 
+pub trait AsBytes {
+    fn as_bytes(&self) -> &[u8];
+    fn as_bytes_mut(&mut self) -> &mut [u8];
+}
+macro_rules! for_slices {
+    ($($t:ty),*) => {
+        $(
+            impl AsBytes for [$t] {
+                fn as_bytes(&self) -> &[u8] {
+                    cast::as_bytes(self)
+                }
+                fn as_bytes_mut(&mut self) -> &mut [u8] {
+                    cast::as_bytes_mut(self)
+                }
+            }
+        )*
+    };
+}
+for_slices!(u8, u16, f32);
+macro_rules! for_array_slices {
+    ($($t:ty),*) => {
+        $(
+            impl<const N: usize> AsBytes for [[$t; N]] {
+                fn as_bytes(&self) -> &[u8] {
+                    cast::as_bytes(self)
+                }
+                fn as_bytes_mut(&mut self) -> &mut [u8] {
+                    cast::as_bytes_mut(self)
+                }
+            }
+        )*
+    };
+}
+for_array_slices!(u8, u16, f32);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Size {
     pub width: u32,

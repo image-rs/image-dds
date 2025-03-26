@@ -4,22 +4,36 @@ use crate::{DataLayout, DataRegion, Size, SurfaceDescriptor, Texture, Volume};
 pub struct SurfaceInfo<'a> {
     size: Size,
     len: u64,
+    mipmap_level: u8,
     valid_until: std::marker::PhantomData<&'a ()>,
 }
 impl SurfaceInfo<'_> {
-    fn from_descriptor(desc: SurfaceDescriptor) -> Self {
+    fn new(desc: SurfaceDescriptor, mipmap_level: u8) -> Self {
         Self {
             size: desc.size(),
             len: desc.data_len(),
+            mipmap_level,
             valid_until: std::marker::PhantomData,
         }
     }
 
+    /// The size of the surface.
     pub fn size(&self) -> Size {
         self.size
     }
+
+    /// The length in bytes on disk of the surface.
     pub fn data_len(&self) -> u64 {
         self.len
+    }
+
+    /// Whether this surface is has a mipmapping level greater than 0.
+    ///
+    /// For textures and texture arrays, this means that the texture is not
+    /// a level 0 texture. For volumes, this means that the surface is not a
+    /// depth slice of the level 0 volume.
+    pub fn is_mipmap(&self) -> bool {
+        self.mipmap_level != 0
     }
 }
 
@@ -84,7 +98,7 @@ impl TextureSurfaceIterator {
         if self.current_index < self.len {
             let desc = self.first.get(self.current_level);
             debug_assert!(desc.is_some());
-            Some(SurfaceInfo::from_descriptor(desc?))
+            Some(SurfaceInfo::new(desc?, self.current_level))
         } else {
             None
         }
@@ -140,7 +154,7 @@ impl VolumeSurfaceIterator {
         debug_assert!(self.current_depth < v.depth());
         let desc = v.get_depth_slice(self.current_depth);
         debug_assert!(desc.is_some());
-        Some(SurfaceInfo::from_descriptor(desc?))
+        Some(SurfaceInfo::new(desc?, self.current_level))
     }
 
     fn advance(&mut self) {

@@ -24,12 +24,12 @@ impl Default for BenchConfig {
         }
     }
 }
-fn bench_decoder(c: &mut Criterion, format: DxgiFormat, channels: Channels, precision: Precision) {
+fn bench_decoder(c: &mut Criterion, format: Format, channels: Channels, precision: Precision) {
     bench_decoder_with(c, format, channels, precision, |_| {});
 }
 fn bench_decoder_with(
     c: &mut Criterion,
-    format: DxgiFormat,
+    format: Format,
     channels: Channels,
     precision: Precision,
     create_config: impl FnOnce(&mut BenchConfig),
@@ -47,10 +47,10 @@ fn bench_decoder_with(
     c.bench_function(&name, |b| {
         let header = Header::new_image(config.size.width, config.size.height, format);
 
-        let reader = DdsInfo::new(header).unwrap();
-        let format = reader.format();
+        let info = DdsInfo::new(header).unwrap();
+        let format = info.format();
 
-        let surface = reader.layout().texture().unwrap().main();
+        let surface = info.layout().texture().unwrap().main();
         let mut bytes = random_bytes(surface.data_len() as usize).into_boxed_slice();
         (config.data_modifier)(&mut bytes);
         let mut output =
@@ -130,74 +130,74 @@ pub fn uncompressed(c: &mut Criterion) {
     use Precision::*;
 
     // uncompressed formats
-    bench_decoder(c, DxgiFormat::R8G8B8A8_UNORM, Rgba, U8);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_UNORM, Rgba, U16);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_UNORM, Rgba, F32);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_UNORM, Rgb, U8);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_UNORM, Rgb, U16);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_UNORM, Rgb, F32);
+    bench_decoder(c, Format::R8G8B8A8_UNORM, Rgba, U8);
+    bench_decoder(c, Format::R8G8B8A8_UNORM, Rgba, U16);
+    bench_decoder(c, Format::R8G8B8A8_UNORM, Rgba, F32);
+    bench_decoder(c, Format::R8G8B8A8_UNORM, Rgb, U8);
+    bench_decoder(c, Format::R8G8B8A8_UNORM, Rgb, U16);
+    bench_decoder(c, Format::R8G8B8A8_UNORM, Rgb, F32);
 
-    bench_decoder(c, DxgiFormat::R8G8B8A8_SNORM, Rgba, U8);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_SNORM, Rgba, U16);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_SNORM, Rgba, F32);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_SNORM, Rgb, U8);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_SNORM, Rgb, U16);
-    bench_decoder(c, DxgiFormat::R8G8B8A8_SNORM, Rgb, F32);
+    bench_decoder(c, Format::R8G8B8A8_SNORM, Rgba, U8);
+    bench_decoder(c, Format::R8G8B8A8_SNORM, Rgba, U16);
+    bench_decoder(c, Format::R8G8B8A8_SNORM, Rgba, F32);
+    bench_decoder(c, Format::R8G8B8A8_SNORM, Rgb, U8);
+    bench_decoder(c, Format::R8G8B8A8_SNORM, Rgb, U16);
+    bench_decoder(c, Format::R8G8B8A8_SNORM, Rgb, F32);
 
-    bench_decoder(c, DxgiFormat::R16G16_SNORM, Rgba, U8);
-    bench_decoder(c, DxgiFormat::B8G8R8X8_UNORM, Rgba, U8);
-    bench_decoder(c, DxgiFormat::R9G9B9E5_SHAREDEXP, Rgb, U8);
+    bench_decoder(c, Format::R16G16_SNORM, Rgba, U8);
+    bench_decoder(c, Format::B8G8R8X8_UNORM, Rgba, U8);
+    bench_decoder(c, Format::R9G9B9E5_SHAREDEXP, Rgb, U8);
 
-    bench_decoder(c, DxgiFormat::R16G16B16A16_FLOAT, Rgba, U8);
-    bench_decoder(c, DxgiFormat::R16G16B16A16_FLOAT, Rgba, U16);
-    bench_decoder(c, DxgiFormat::R16G16B16A16_FLOAT, Rgba, F32);
+    bench_decoder(c, Format::R16G16B16A16_FLOAT, Rgba, U8);
+    bench_decoder(c, Format::R16G16B16A16_FLOAT, Rgba, U16);
+    bench_decoder(c, Format::R16G16B16A16_FLOAT, Rgba, F32);
 
-    bench_decoder(c, DxgiFormat::R32G32B32A32_FLOAT, Rgba, U8);
-    bench_decoder(c, DxgiFormat::R32G32B32A32_FLOAT, Rgba, U16);
-    bench_decoder(c, DxgiFormat::R32G32B32A32_FLOAT, Rgba, F32);
+    bench_decoder(c, Format::R32G32B32A32_FLOAT, Rgba, U8);
+    bench_decoder(c, Format::R32G32B32A32_FLOAT, Rgba, U16);
+    bench_decoder(c, Format::R32G32B32A32_FLOAT, Rgba, F32);
 
-    bench_decoder(c, DxgiFormat::R11G11B10_FLOAT, Rgba, U8);
-    bench_decoder(c, DxgiFormat::R11G11B10_FLOAT, Rgba, U16);
-    bench_decoder(c, DxgiFormat::R11G11B10_FLOAT, Rgba, F32);
+    bench_decoder(c, Format::R11G11B10_FLOAT, Rgba, U8);
+    bench_decoder(c, Format::R11G11B10_FLOAT, Rgba, U16);
+    bench_decoder(c, Format::R11G11B10_FLOAT, Rgba, F32);
 
     // sub-sampled formats
-    bench_decoder(c, DxgiFormat::R8G8_B8G8_UNORM, Rgb, U8);
+    bench_decoder(c, Format::R8G8_B8G8_UNORM, Rgb, U8);
 
     // block-compressed formats
-    bench_decoder(c, DxgiFormat::BC1_UNORM, Rgba, U8);
-    bench_decoder_with(c, DxgiFormat::BC1_UNORM, Rgba, U8, |c| {
+    bench_decoder(c, Format::BC1_UNORM, Rgba, U8);
+    bench_decoder_with(c, Format::BC1_UNORM, Rgba, U8, |c| {
         c.size = (4095, 4095).into();
     });
-    bench_decoder(c, DxgiFormat::BC1_UNORM, Rgb, U8);
-    bench_decoder_with(c, DxgiFormat::BC1_UNORM, Rgb, U8, |c| {
+    bench_decoder(c, Format::BC1_UNORM, Rgb, U8);
+    bench_decoder_with(c, Format::BC1_UNORM, Rgb, U8, |c| {
         c.size = (4095, 4095).into();
     });
-    bench_decoder(c, DxgiFormat::BC4_UNORM, Grayscale, U8);
-    bench_decoder(c, DxgiFormat::BC4_SNORM, Grayscale, U8);
-    bench_decoder_with(c, DxgiFormat::BC7_UNORM, Rgba, U8, |c| {
+    bench_decoder(c, Format::BC4_UNORM, Grayscale, U8);
+    bench_decoder(c, Format::BC4_SNORM, Grayscale, U8);
+    bench_decoder_with(c, Format::BC7_UNORM, Rgba, U8, |c| {
         c.data_modifier = Box::new(random_bc7_modes);
     });
-    bench_decoder_with(c, DxgiFormat::BC6H_SF16, Rgb, U8, |c| {
+    bench_decoder_with(c, Format::BC6H_SF16, Rgb, U8, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
         c.size = (1024, 1024).into();
     });
-    bench_decoder_with(c, DxgiFormat::BC6H_SF16, Rgb, U16, |c| {
+    bench_decoder_with(c, Format::BC6H_SF16, Rgb, U16, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
         c.size = (1024, 1024).into();
     });
-    bench_decoder_with(c, DxgiFormat::BC6H_SF16, Rgb, F32, |c| {
+    bench_decoder_with(c, Format::BC6H_SF16, Rgb, F32, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
         c.size = (1024, 1024).into();
     });
-    bench_decoder_with(c, DxgiFormat::BC6H_UF16, Rgb, U8, |c| {
+    bench_decoder_with(c, Format::BC6H_UF16, Rgb, U8, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
         c.size = (1024, 1024).into();
     });
-    bench_decoder_with(c, DxgiFormat::BC6H_UF16, Rgb, U16, |c| {
+    bench_decoder_with(c, Format::BC6H_UF16, Rgb, U16, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
         c.size = (1024, 1024).into();
     });
-    bench_decoder_with(c, DxgiFormat::BC6H_UF16, Rgb, F32, |c| {
+    bench_decoder_with(c, Format::BC6H_UF16, Rgb, F32, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
         c.size = (1024, 1024).into();
     });
@@ -209,7 +209,7 @@ pub fn bc7_modes(c: &mut Criterion) {
 
     let modes = [0, 1, 2, 3, 4, 5, 6, 7];
     for mode in modes {
-        bench_decoder_with(c, DxgiFormat::BC7_UNORM, Rgba, U8, |c| {
+        bench_decoder_with(c, Format::BC7_UNORM, Rgba, U8, |c| {
             c.data_modifier = Box::new(move |data| {
                 set_bc7_modes(data, mode);
             });

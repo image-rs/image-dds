@@ -458,3 +458,15 @@ fn weird_and_invalid_headers() {
 
     util::compare_snapshot_text(&util::test_data_dir().join("header_parsing.txt"), output).unwrap()
 }
+
+/// If we create a header with a certain format, then we should detect exactly
+/// this format from the header.
+#[test]
+fn format_from_header() {
+    for &format in util::ALL_FORMATS {
+        let header = Header::new_image(123, 345, format);
+        let detect_format = Format::from_header(&header);
+        assert!(detect_format.is_ok());
+        assert_eq!(format, detect_format.unwrap());
+    }
+}

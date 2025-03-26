@@ -10,23 +10,6 @@ fn get_sample(name: &str) -> PathBuf {
     util::test_data_dir().join("samples").join(name)
 }
 
-fn create_header(size: Size, format: Format) -> Header {
-    if let Ok(dxgi_format) = format.try_into() {
-        Header::new_image(size.width, size.height, dxgi_format)
-    } else if let Ok(format) = format.try_into() {
-        Dx9Header::new_image(size.width, size.height, format).into()
-    } else {
-        unreachable!("unsupported format: {:?}", format);
-    }
-}
-fn write_dds_header(size: Size, format: Format) -> Vec<u8> {
-    let header = create_header(size, format);
-
-    let mut output = Vec::new();
-    header.write(&mut output).unwrap();
-
-    output
-}
 fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     image: &Image<T>,
     format: Format,
@@ -42,21 +25,35 @@ fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
         options,
     )
 }
+fn write_image<T: WithPrecision + util::Castable, W: std::io::Write>(
+    encoder: &mut Encoder<W>,
+    image: &Image<T>,
+) -> Result<(), EncodeError> {
+    encoder.write_surface(image.as_bytes(), image.color())
+}
 fn encode_decode(
     format: Format,
     options: &EncodeOptions,
     image: &Image<f32>,
 ) -> (Vec<u8>, Image<f32>) {
+    let color = image.color();
+
     // encode
-    let mut encoded = write_dds_header(image.size, format);
-    encode_image(image, format, &mut encoded, options).unwrap();
+    let mut encoded = Vec::new();
+    let mut encoder = Encoder::new(
+        &mut encoded,
+        format,
+        &Header::new_image(image.size.width, image.size.height, format),
+    )
+    .unwrap();
+    encoder.options = options.clone();
+    encoder.write_surface(image.as_bytes(), color).unwrap();
+    encoder.finish().unwrap();
 
     // decode
     let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
     let mut decoded = Image::new_empty(image.channels, image.size);
-    decoder
-        .read_surface(decoded.as_bytes_mut(), image.color())
-        .unwrap();
+    decoder.read_surface(decoded.as_bytes_mut(), color).unwrap();
 
     (encoded, decoded)
 }
@@ -103,19 +100,23 @@ fn encode_base() {
             size = size.round_down_to_multiple(support.size_multiple);
         };
 
-        let mut output = write_dds_header(size, format);
-
-        let mut options = EncodeOptions::default();
-        options.quality = CompressionQuality::High;
+        let mut output = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut output,
+            format,
+            &Header::new_image(size.width, size.height, format),
+        )?;
+        encoder.options.quality = CompressionQuality::High;
 
         // and now the image data
         if format.precision() == Precision::U16 {
-            encode_image(&base_u16.cropped(size), format, &mut output, &options)?;
+            write_image(&mut encoder, &base_u16.cropped(size))?;
         } else if format.precision() == Precision::F32 {
-            encode_image(&base_f32.cropped(size), format, &mut output, &options)?;
+            write_image(&mut encoder, &base_f32.cropped(size))?;
         } else {
-            encode_image(&base_u8.cropped(size), format, &mut output, &options)?;
+            write_image(&mut encoder, &base_u8.cropped(size))?;
         }
+        encoder.finish()?;
 
         // write to disk
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
@@ -146,12 +147,16 @@ fn encode_dither() {
         image: &Image<f32>,
         dds_path: &Path,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let mut output = write_dds_header(image.size, format);
-
-        let mut options = EncodeOptions::default();
-        options.quality = CompressionQuality::High;
-        options.dithering = Dithering::ColorAndAlpha;
-        encode_image(image, format, &mut output, &options)?;
+        let mut output = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut output,
+            format,
+            &Header::new_image(image.size.width, image.size.height, format),
+        )?;
+        encoder.options.quality = CompressionQuality::High;
+        encoder.options.dithering = Dithering::ColorAndAlpha;
+        encoder.write_surface(image.as_bytes(), image.color())?;
+        encoder.finish()?;
 
         // write to disk
         std::fs::create_dir_all(dds_path.parent().unwrap())?;

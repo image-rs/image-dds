@@ -298,8 +298,10 @@ impl std::error::Error for HeaderError {
 pub enum EncodeError {
     UnsupportedFormat(Format),
     InvalidSize(SizeMultiple),
+    // TODO: Replace this error with something that makes sense
     InvalidLines,
     TooManySurfaces,
+    MissingSurfaces,
 
     Layout(LayoutError),
     Io(std::io::Error),
@@ -315,7 +317,8 @@ impl std::fmt::Display for EncodeError {
                 write!(f, "Size is not a multiple of {:?}", size)
             }
             EncodeError::InvalidLines => write!(f, "Invalid lines"),
-            EncodeError::TooManySurfaces => write!(f, "Too many surfaces"),
+            EncodeError::TooManySurfaces => write!(f, "Too many surfaces are attempted to written"),
+            EncodeError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
 
             EncodeError::Layout(err) => write!(f, "Layout error: {}", err),
             EncodeError::Io(err) => write!(f, "IO error: {}", err),

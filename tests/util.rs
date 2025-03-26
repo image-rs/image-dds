@@ -547,7 +547,7 @@ pub fn compare_snapshot_dds_f32(
 
         let mut dds_image_data =
             vec![0.0_f32; size.pixels() as usize * image.channels.count() as usize];
-        decoder.read_surface(as_bytes_mut(&mut dds_image_data), image.color())?;
+        decoder.read_surface(dds_image_data.as_mut_slice(), image.color())?;
 
         assert!(dds_image_data.len() == image.data.len());
         if dds_image_data == image.data {
