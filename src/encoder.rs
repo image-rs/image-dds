@@ -165,7 +165,7 @@ impl<W> Encoder<W> {
         buffer: &B,
         color: ColorFormat,
         progress: impl FnMut(f32),
-        options: WriteOptions,
+        options: &WriteOptions,
     ) -> Result<(), EncodeError>
     where
         W: Write,
@@ -215,6 +215,7 @@ impl<W> Encoder<W> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct WriteOptions {
     /// Whether to generate mipmaps for the texture.
     ///
@@ -239,18 +240,11 @@ pub struct WriteOptions {
     /// independently of each other.
     pub resize_straight_alpha: bool,
 }
-
-enum ResizeResult {
-    U8(Vec<u8>),
-    U16(Vec<u16>),
-    F32(Vec<f32>),
-}
-impl ResizeResult {
-    fn as_bytes(&self) -> &[u8] {
-        match self {
-            Self::U8(data) => data,
-            Self::U16(data) => cast::as_bytes(data),
-            Self::F32(data) => cast::as_bytes(data),
+impl Default for WriteOptions {
+    fn default() -> Self {
+        Self {
+            generate_mipmaps: false,
+            resize_straight_alpha: true,
         }
     }
 }
@@ -263,8 +257,6 @@ fn resize(
     straight_alpha: bool,
 ) -> fast_image_resize::images::Image<'static> {
     use fast_image_resize::*;
-
-    let foo: pixels::U8x4 = Default::default();
 
     fn to_pixel_type(color: ColorFormat) -> PixelType {
         match (color.precision, color.channels) {
@@ -279,9 +271,6 @@ fn resize(
             (Precision::F32, Channels::Rgba) => PixelType::F32x4,
         }
     }
-
-    // for testing
-    debug_assert_eq!(color, ColorFormat::RGBA_F32);
 
     // TODO: alignment
     let pixel_type = to_pixel_type(color);

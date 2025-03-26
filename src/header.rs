@@ -13,7 +13,7 @@
 use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_masked, four_cc_to_dxgi, masked_to_dxgi},
-    util::{read_u32_le_array, NON_ZERO_U32_ONE},
+    util::{get_maximum_mipmap_count, read_u32_le_array, NON_ZERO_U32_ONE},
     CubeMapFaces, DataLayout, DataRegion, Format, HeaderError, PixelInfo, Size,
 };
 use bitflags::bitflags;
@@ -653,12 +653,30 @@ impl Header {
         self
     }
     /// A builder-pattern-style method to set the mipmap count of the header.
+    ///
+    /// For the an easier way to enable mipmapping, use
+    /// [`Header::with_maximum_mipmap_count`].
     pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
         match &mut self {
             Header::Dx9(header) => header.mipmap_count = mipmap_count,
             Header::Dx10(header) => header.mipmap_count = mipmap_count,
         }
         self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header
+    /// to its logical maximum.
+    ///
+    /// The logical maximum is the smallest mipmap count such that the last
+    /// mipmap level has the dimensions 1x1 (or 1x1x1). E.g. for 64x256 image,
+    /// the maximum mipmap count is 8.
+    pub fn with_maximum_mipmap_count(self) -> Header {
+        let max = get_maximum_mipmap_count(
+            self.width()
+                .max(self.height())
+                .max(self.depth().unwrap_or(1)),
+        );
+
+        self.with_mipmap_count(max)
     }
 
     /// Converts this header into a DX9 header if possible. If the header is a
@@ -741,15 +759,15 @@ impl Header {
         // Sometimes, the mipmap count is incorrect. We can try to fix this by
         // simply guessing the correct mipmap count.
         let mipmap = self.mipmap_count().get();
-        let max_dimension = self
-            .width()
-            .max(self.height())
-            .max(self.depth().unwrap_or(1));
-        let max_levels = 32 - max_dimension.leading_zeros();
+        let max_levels = get_maximum_mipmap_count(
+            self.width()
+                .max(self.height())
+                .max(self.depth().unwrap_or(1)),
+        );
         let guesses = [
-            1,          // it's very common for DDS images to have no mipmaps
-            max_levels, // or a full mipmap chain
-            mipmap - 1, // otherwise, it could be an off-by-one error
+            1,                // it's very common for DDS images to have no mipmaps
+            max_levels.get(), // or a full mipmap chain
+            mipmap - 1,       // otherwise, it could be an off-by-one error
             mipmap.saturating_add(1),
         ];
         for guess in guesses.into_iter().filter_map(NonZeroU32::new) {

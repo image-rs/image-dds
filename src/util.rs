@@ -66,6 +66,14 @@ pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> NonZeroU32 {
         NON_ZERO_U32_ONE
     }
 }
+pub(crate) const fn get_maximum_mipmap_count(size: u32) -> NonZeroU32 {
+    let count = 32 - size.leading_zeros();
+    if let Some(count) = NonZeroU32::new(count) {
+        count
+    } else {
+        NON_ZERO_U32_ONE
+    }
+}
 
 /// Computes `2^exponent` as a float.
 #[inline(always)]

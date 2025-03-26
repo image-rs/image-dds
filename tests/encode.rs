@@ -568,3 +568,90 @@ fn encode_all_color_formats() {
         panic!("Failed for formats:\n{}", failures);
     }
 }
+
+/// This tests mipmap generation.
+#[test]
+fn encode_mipmap() {
+    fn create_mipmap_image(
+        snap_path: &Path,
+        format: Format,
+        options: WriteOptions,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let base = util::read_png_u8(&get_sample("base.png"))?;
+        let width = base.size.width;
+        let height = base.size.height;
+
+        let mut encoded = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut encoded,
+            format,
+            &Header::new_image(width, height, format).with_maximum_mipmap_count(),
+        )?;
+        encoder.write_surface_with(base.as_bytes(), base.color(), |_| {}, &options)?;
+        encoder.finish()?;
+
+        let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
+        let mut decoded: Image<u8> =
+            Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
+        let color = ColorFormat::RGBA_U8;
+        let stride = decoded.size.width as usize * 4;
+        decoder.read_surface_rect(
+            decoded.as_bytes_mut(),
+            stride,
+            Rect::new(0, 0, width, height),
+            color,
+        )?;
+        let mut offset_y = 0;
+        while let Some(info) = decoder.surface_info() {
+            let mip_size = info.size();
+
+            decoder.read_surface_rect(
+                &mut decoded.as_bytes_mut()[offset_y * stride + (width as usize * 4)..],
+                stride,
+                Rect::new(0, 0, mip_size.width, mip_size.height),
+                color,
+            )?;
+
+            offset_y += mip_size.height as usize;
+        }
+
+        _ = util::update_snapshot_png_u8(snap_path, &decoded)?;
+
+        let hex = util::hash_hex(&decoded.data);
+        Ok(hex)
+    }
+
+    let options = [
+        WriteOptions {
+            resize_straight_alpha: true,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_straight_alpha: false,
+            ..WriteOptions::default()
+        },
+    ];
+
+    let mut summaries = util::OutputSummaries::new("_hashes");
+    for mut option in options {
+        option.generate_mipmaps = true;
+
+        let mut name = "base @ ".to_string();
+        name.push_str(if option.resize_straight_alpha {
+            "straight-alpha"
+        } else {
+            "no-straight-alpha"
+        });
+
+        let snapshot_file = util::test_data_dir()
+            .join("output-encode/mipmaps")
+            .join(format!("{}.png", name));
+
+        summaries.add_output_file_result(
+            &snapshot_file,
+            create_mipmap_image(&snapshot_file, Format::R8G8B8A8_UNORM, option),
+        );
+    }
+
+    summaries.snapshot_or_fail();
+}
