@@ -12,33 +12,46 @@ fn split_surface_into_lines(
     size: Size,
     format: Format,
     options: &EncodeOptions,
-) -> Vec<Range<u32>> {
+) -> Option<Vec<Range<u32>>> {
     if size.is_empty() {
-        return Vec::new();
+        return None;
     }
 
-    if let Some(support) = format.encoding_support() {
-        if let Some(split_height) = support.split_height {
-            // dithering destroys our ability to split the surface into lines,
-            // because it would create visible seams
-            if support.local_dithering
-                || options.dithering.intersect(support.dithering) == Dithering::None
-            {
-                let mut lines = Vec::new();
-                let mut y: u32 = 0;
-                while y < size.height {
-                    let end = (y + split_height.get() as u32).min(size.height);
-                    lines.push(y..end);
-                    y = end;
-                }
-                return lines;
-            }
-        }
+    let support = format.encoding_support()?;
+    let split_height = support.split_height()?;
+
+    // dithering destroys our ability to split the surface into lines,
+    // because it would create visible seams
+    if !support.local_dithering()
+        && options.dithering.intersect(support.dithering()) != Dithering::None
+    {
+        return None;
     }
 
-    // can't split the surface
-    let range = 0..size.height;
-    vec![range]
+    let group_pixels = support
+        .group_size()
+        .get_group_pixels(options.quality)
+        .max(1);
+    if group_pixels >= size.pixels() {
+        // the image is small enough that it's not worth splitting
+        return None;
+    }
+
+    let group_height = u64::clamp(
+        (group_pixels / size.width as u64) / split_height.get() as u64 * split_height.get() as u64,
+        split_height.get() as u64,
+        u32::MAX as u64,
+    ) as u32;
+
+    let mut lines = Vec::new();
+    let mut y: u32 = 0;
+    while y < size.height {
+        let end = y.saturating_add(group_height).min(size.height);
+        lines.push(y..end);
+        y = end;
+    }
+
+    Some(lines)
 }
 
 pub struct Encoder<W> {

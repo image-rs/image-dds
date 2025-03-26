@@ -235,11 +235,97 @@ impl Default for CompressionQuality {
     }
 }
 
+/// The preferred group size when splitting an image into chunks for parallel
+/// encoding.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum PreferredGroupSize {
+    EntireImage,
+    Group {
+        fast: u8,
+        high: u8,
+        unreasonable: u8,
+    },
+}
+impl PreferredGroupSize {
+    pub const fn group(fast: u64, high: u64, unreasonable: u64) -> Self {
+        const fn log2(x: u64) -> u8 {
+            64 - x.leading_zeros() as u8
+        }
+
+        Self::Group {
+            fast: log2(fast),
+            high: log2(high),
+            unreasonable: log2(unreasonable),
+        }
+    }
+
+    pub const fn combine(&self, other: Self) -> Self {
+        const fn u8_min(a: u8, b: u8) -> u8 {
+            if a > b {
+                b
+            } else {
+                a
+            }
+        }
+
+        match (*self, other) {
+            (PreferredGroupSize::EntireImage, _) => other,
+            (_, PreferredGroupSize::EntireImage) => *self,
+            (
+                PreferredGroupSize::Group {
+                    fast: a,
+                    high: b,
+                    unreasonable: c,
+                },
+                PreferredGroupSize::Group {
+                    fast: x,
+                    high: y,
+                    unreasonable: z,
+                },
+            ) => PreferredGroupSize::Group {
+                fast: u8_min(a, x),
+                high: u8_min(b, y),
+                unreasonable: u8_min(c, z),
+            },
+        }
+    }
+
+    pub fn get_group_pixels(&self, quality: CompressionQuality) -> u64 {
+        match *self {
+            PreferredGroupSize::EntireImage => u64::MAX,
+            PreferredGroupSize::Group {
+                fast,
+                high,
+                unreasonable,
+            } => {
+                let size_log2 = match quality {
+                    CompressionQuality::Fast => fast,
+                    CompressionQuality::Normal => ((fast as u16 + high as u16) / 2) as u8,
+                    CompressionQuality::High => high,
+                    CompressionQuality::Unreasonable => unreasonable,
+                };
+
+                1 << size_log2.min(63)
+            }
+        }
+    }
+}
+
 /// Describes the extent of support for encoding a format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct EncodingSupport {
+    dithering: Dithering,
+    split_height: Option<NonZeroU8>,
+    local_dithering: bool,
+    size_multiple: SizeMultiple,
+    group_size: PreferredGroupSize,
+}
+
+impl EncodingSupport {
     /// Whether and what type of dithering is supported.
-    pub dithering: Dithering,
+    pub const fn dithering(&self) -> Dithering {
+        self.dithering
+    }
     /// The split height for the image format.
     ///
     /// Encoding most formats is trivially parallelizable, by splitting the
@@ -256,8 +342,10 @@ pub struct EncodingSupport {
     /// incorrect) results if the image is split into chunks. However, all BCn
     /// formats implement block-based local dithering, meaning that the dithering
     /// is the same whether the image is split or not. See
-    /// [`EncodingSupport::local_dithering`].
-    pub split_height: Option<NonZeroU8>,
+    /// [`EncodingSupport::local_dithering()`].
+    pub const fn split_height(&self) -> Option<NonZeroU8> {
+        self.split_height
+    }
     /// Whether the format supports local dithering.
     ///
     /// Most formats implement global error diffusing dithering for best quality.
@@ -271,11 +359,19 @@ pub struct EncodingSupport {
     /// a 4x4 block. This allows the image to be split into chunks and encoded
     /// in parallel without revealing the chunk seams.
     ///
-    /// `self.dithering == Dithering::None` implies `self.local_dithering == false`.
-    pub local_dithering: bool,
+    /// `self.dithering() == Dithering::None` implies `self.local_dithering() == false`.
+    pub const fn local_dithering(&self) -> bool {
+        self.local_dithering
+    }
     /// The size multiple of the encoded image.
     ///
     /// If the dimensions of the image are not multiples of this size, the
     /// encoder with return an error.
-    pub size_multiple: SizeMultiple,
+    pub const fn size_multiple(&self) -> SizeMultiple {
+        self.size_multiple
+    }
+
+    pub(crate) fn group_size(&self) -> PreferredGroupSize {
+        self.group_size
+    }
 }

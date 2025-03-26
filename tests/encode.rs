@@ -97,7 +97,7 @@ fn encode_base() {
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
         let mut size = base_u8.size;
         if let Some(support) = format.encoding_support() {
-            size = size.round_down_to_multiple(support.size_multiple);
+            size = size.round_down_to_multiple(support.size_multiple());
         };
 
         let mut output = Vec::new();
@@ -180,7 +180,7 @@ fn encode_dither() {
         .copied()
         .filter(|f| !ignore.contains(f))
         .filter_map(|f| f.encoding_support().map(|e| (f, e)))
-        .filter(|(_, e)| e.dithering != Dithering::None)
+        .filter(|(_, e)| e.dithering() != Dithering::None)
     {
         let mut test_and_summarize = |image, name| {
             let output_path = get_output_dds(format, name);
@@ -189,7 +189,7 @@ fn encode_dither() {
 
         test_and_summarize(&base, "base");
 
-        if encoding.dithering.color() {
+        if encoding.dithering().color() {
             test_and_summarize(&twirl, "twirl");
         }
     }
@@ -539,7 +539,7 @@ fn encode_all_color_formats() {
 
     for &format in util::ALL_FORMATS {
         if let Some(support) = format.encoding_support() {
-            if support.size_multiple != SizeMultiple::ONE {
+            if support.size_multiple() != SizeMultiple::ONE {
                 continue;
             }
         } else {

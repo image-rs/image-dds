@@ -2,11 +2,11 @@
 
 use crate::{
     cast::{self, ToLe},
-    convert_to_rgba_f32, yuv10, yuv16, yuv8, ColorFormatSet, EncodeError, SizeMultiple,
+    convert_to_rgba_f32, yuv10, yuv16, yuv8, EncodeError, SizeMultiple,
 };
 
 use super::{
-    encoder::{Args, Encoder, EncoderSet, Flags},
+    encoder::{Args, Encoder, EncoderSet},
     EncodeOptions,
 };
 #[allow(clippy::type_complexity)]
@@ -83,50 +83,38 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
 
 // encoders
 
-pub(crate) const NV12: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
-    color_formats: ColorFormatSet::ALL,
-    flags: Flags::empty(),
-    encode: |args| {
-        bi_planar_universal(args, |block, _| {
-            let block_yuv = block.map(|[r, g, b, _]| yuv8::from_rgb_f32([r, g, b]));
+pub(crate) const NV12: EncoderSet = EncoderSet::new_bi_planar(&[Encoder::new_universal(|args| {
+    bi_planar_universal(args, |block, _| {
+        let block_yuv = block.map(|[r, g, b, _]| yuv8::from_rgb_f32([r, g, b]));
 
-            let block_y = block_yuv.map(|yuv| yuv[0]);
-            let u = block_yuv.iter().map(|yuv| yuv[1] as u16).sum::<u16>() / 4;
-            let v = block_yuv.iter().map(|yuv| yuv[2] as u16).sum::<u16>() / 4;
+        let block_y = block_yuv.map(|yuv| yuv[0]);
+        let u = block_yuv.iter().map(|yuv| yuv[1] as u16).sum::<u16>() / 4;
+        let v = block_yuv.iter().map(|yuv| yuv[2] as u16).sum::<u16>() / 4;
 
-            (block_y, [u as u8, v as u8])
-        })
-    },
-}]);
+        (block_y, [u as u8, v as u8])
+    })
+})]);
 
-pub(crate) const P010: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
-    color_formats: ColorFormatSet::ALL,
-    flags: Flags::empty(),
-    encode: |args| {
-        bi_planar_universal(args, |block, _| {
-            let block_yuv = block.map(|[r, g, b, _]| yuv10::from_rgb_f32([r, g, b]));
+pub(crate) const P010: EncoderSet = EncoderSet::new_bi_planar(&[Encoder::new_universal(|args| {
+    bi_planar_universal(args, |block, _| {
+        let block_yuv = block.map(|[r, g, b, _]| yuv10::from_rgb_f32([r, g, b]));
 
-            let block_y = block_yuv.map(|yuv| yuv[0] << 6);
-            let u = block_yuv.iter().map(|yuv| yuv[1]).sum::<u16>() / 4;
-            let v = block_yuv.iter().map(|yuv| yuv[2]).sum::<u16>() / 4;
+        let block_y = block_yuv.map(|yuv| yuv[0] << 6);
+        let u = block_yuv.iter().map(|yuv| yuv[1]).sum::<u16>() / 4;
+        let v = block_yuv.iter().map(|yuv| yuv[2]).sum::<u16>() / 4;
 
-            (block_y, [u << 6, v << 6])
-        })
-    },
-}]);
+        (block_y, [u << 6, v << 6])
+    })
+})]);
 
-pub(crate) const P016: EncoderSet = EncoderSet::new_bi_planar(&[Encoder {
-    color_formats: ColorFormatSet::ALL,
-    flags: Flags::empty(),
-    encode: |args| {
-        bi_planar_universal(args, |block, _| {
-            let block_yuv = block.map(|[r, g, b, _]| yuv16::from_rgb_f32([r, g, b]));
+pub(crate) const P016: EncoderSet = EncoderSet::new_bi_planar(&[Encoder::new_universal(|args| {
+    bi_planar_universal(args, |block, _| {
+        let block_yuv = block.map(|[r, g, b, _]| yuv16::from_rgb_f32([r, g, b]));
 
-            let block_y = block_yuv.map(|yuv| yuv[0]);
-            let u = block_yuv.iter().map(|yuv| yuv[1] as u32).sum::<u32>() / 4;
-            let v = block_yuv.iter().map(|yuv| yuv[2] as u32).sum::<u32>() / 4;
+        let block_y = block_yuv.map(|yuv| yuv[0]);
+        let u = block_yuv.iter().map(|yuv| yuv[1] as u32).sum::<u32>() / 4;
+        let v = block_yuv.iter().map(|yuv| yuv[2] as u32).sum::<u32>() / 4;
 
-            (block_y, [u as u16, v as u16])
-        })
-    },
-}]);
+        (block_y, [u as u16, v as u16])
+    })
+})]);

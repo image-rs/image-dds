@@ -4,7 +4,7 @@ use bitflags::bitflags;
 
 use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision, SizeMultiple};
 
-use super::{Dithering, EncodeOptions, EncodingSupport};
+use super::{Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize};
 
 pub(crate) struct Args<'a, 'b> {
     pub data: &'a [u8],
@@ -100,19 +100,41 @@ impl Flags {
 pub(crate) struct Encoder {
     pub color_formats: ColorFormatSet,
     pub flags: Flags,
+    group_size: PreferredGroupSize,
+
     pub encode: fn(Args) -> Result<(), EncodeError>,
 }
 impl Encoder {
+    pub const fn new(
+        color_formats: ColorFormatSet,
+        flags: Flags,
+        encode: fn(Args) -> Result<(), EncodeError>,
+    ) -> Self {
+        Self {
+            color_formats,
+            flags,
+            group_size: PreferredGroupSize::EntireImage,
+            encode,
+        }
+    }
+    pub const fn new_universal(encode: fn(Args) -> Result<(), EncodeError>) -> Self {
+        Self::new(ColorFormatSet::ALL, Flags::empty(), encode)
+    }
     pub const fn copy(color: ColorFormat) -> Self {
         Self {
             color_formats: ColorFormatSet::from_single(color),
             flags: Flags::exact_for(color.precision),
+            group_size: PreferredGroupSize::EntireImage,
             encode: |args| copy_directly(args),
         }
     }
 
     pub const fn add_flags(mut self, flags: Flags) -> Self {
         self.flags = self.flags.union(flags);
+        self
+    }
+    pub const fn with_group_size(mut self, group_size: PreferredGroupSize) -> Self {
+        self.group_size = group_size;
         self
     }
 
@@ -135,10 +157,10 @@ bitflags! {
     }
 }
 pub(crate) struct EncoderSet {
-    pub flags: EncodeFormatFlags,
-    pub split_height: Option<NonZeroU8>,
-    pub size_multiple: SizeMultiple,
-    pub encoders: &'static [Encoder],
+    flags: EncodeFormatFlags,
+    split_height: Option<NonZeroU8>,
+    size_multiple: SizeMultiple,
+    encoders: &'static [Encoder],
 }
 impl EncoderSet {
     pub const fn new(encoders: &'static [Encoder]) -> Self {
@@ -205,6 +227,7 @@ impl EncoderSet {
             split_height: self.split_height,
             local_dithering: self.local_dithering(),
             size_multiple: self.size_multiple,
+            group_size: self.encoders[0].group_size,
         }
     }
 
