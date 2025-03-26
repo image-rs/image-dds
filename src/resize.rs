@@ -5,48 +5,68 @@ use fast_image_resize::{
 
 use crate::{Channels, ColorFormat, Precision, ResizeFilter, Size};
 
+pub(crate) struct Aligner {
+    buffer: Vec<u8>,
+}
+impl Aligner {
+    pub fn new() -> Self {
+        Self { buffer: Vec::new() }
+    }
+
+    pub fn align<'a>(
+        &'a mut self,
+        data: &'a [u8],
+        size: Size,
+        color: ColorFormat,
+    ) -> AlignedView<'a> {
+        let pixel = to_pixel_type(color);
+        let bytes_per_pixel = pixel.size();
+        debug_assert_eq!(bytes_per_pixel, color.bytes_per_pixel() as usize);
+        debug_assert_eq!(size.pixels() as usize * bytes_per_pixel, data.len());
+
+        let view = if let Ok(src) = ImageRef::new(size.width, size.height, data, pixel) {
+            src
+        } else {
+            // the image data isn't aligned, so we need to copy it to an aligned buffer
+            let src_slice = get_aligned_slice(&mut self.buffer, size, bytes_per_pixel);
+            src_slice.copy_from_slice(data);
+            ImageRef::new(size.width, size.height, src_slice, pixel).expect("image should be valid")
+        };
+
+        AlignedView { view, size, pixel }
+    }
+}
+
+pub(crate) struct AlignedView<'a> {
+    view: ImageRef<'a>,
+    size: Size,
+    pixel: PixelType,
+}
+
 pub(crate) struct ResizeState {
     inner: fast_image_resize::Resizer,
-    src_buffer: Vec<u8>,
     dest_buffer: Vec<u8>,
 }
 impl ResizeState {
     pub fn new() -> Self {
         Self {
             inner: fast_image_resize::Resizer::new(),
-            src_buffer: Vec::new(),
             dest_buffer: Vec::new(),
         }
     }
 
     pub fn resize<'a>(
         &'a mut self,
-        data: &[u8],
-        color: ColorFormat,
-        size: Size,
+        src: &AlignedView,
         new_size: Size,
         straight_alpha: bool,
         filter: ResizeFilter,
     ) -> &'a [u8] {
-        let pixel_type = to_pixel_type(color);
-        let bytes_per_pixel = pixel_type.size();
-        debug_assert_eq!(bytes_per_pixel, color.bytes_per_pixel() as usize);
-        debug_assert_eq!(size.pixels() as usize * bytes_per_pixel, data.len());
-
-        // prepare the source image
-        let src = if let Ok(src) = ImageRef::new(size.width, size.height, data, pixel_type) {
-            src
-        } else {
-            // the image data isn't aligned, so we need to copy it to an aligned buffer
-            let src_slice = get_aligned_slice(&mut self.src_buffer, size, bytes_per_pixel);
-            src_slice.copy_from_slice(data);
-            ImageRef::new(size.width, size.height, src_slice, pixel_type)
-                .expect("image should be valid")
-        };
+        let bytes_per_pixel = src.pixel.size();
 
         // prepare the destination buffer
-        let dest_slice = get_aligned_slice(&mut self.dest_buffer, new_size, pixel_type.size());
-        let mut dst = Image::from_slice_u8(new_size.width, new_size.height, dest_slice, pixel_type)
+        let dest_slice = get_aligned_slice(&mut self.dest_buffer, new_size, bytes_per_pixel);
+        let mut dst = Image::from_slice_u8(new_size.width, new_size.height, dest_slice, src.pixel)
             .expect("image should be valid");
 
         // the actual resizing
@@ -57,7 +77,7 @@ impl ResizeState {
         };
 
         self.inner
-            .resize(&src, &mut dst, &options)
+            .resize(&src.view, &mut dst, &options)
             .expect("resize should always succeed");
 
         dest_slice

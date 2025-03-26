@@ -4,7 +4,7 @@ use crate::{
     encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
-    resize::ResizeState,
+    resize::{Aligner, ResizeState},
     AsBytes, ColorFormat, DataLayout, Dithering, EncodeError, EncodeOptions, Format, Size,
 };
 
@@ -47,7 +47,7 @@ pub struct Encoder<W> {
     layout: DataLayout,
     iter: SurfaceIterator,
     pub options: EncodeOptions,
-    resize: Option<Box<ResizeState>>,
+    resize: Option<Box<(Aligner, ResizeState)>>,
 }
 impl<W> Encoder<W> {
     pub fn new(mut writer: W, format: Format, header: &Header) -> Result<Self, EncodeError>
@@ -194,10 +194,17 @@ impl<W> Encoder<W> {
         )?;
         self.iter.advance();
 
-        if options.generate_mipmaps && self.layout.volume().is_none() {
+        if options.generate_mipmaps
+            && self.layout.volume().is_none()
+            && self.iter.current().map_or(false, |c| c.is_mipmap())
+        {
+            let (align, resize) = Self::get_or_init(&mut self.resize);
+            let src = align.align(buffer, size, color);
+
             let mut count = 0;
             while let Some(current) = self.iter.current() {
                 if !current.is_mipmap() {
+                    debug_assert!(count > 0);
                     break;
                 }
 
@@ -205,11 +212,8 @@ impl<W> Encoder<W> {
                 progress.report(1.0 - 0.3_f32.powi(count));
 
                 let mipmap_size = current.size();
-                let resize = Self::get_or_init(&mut self.resize);
                 let mip = resize.resize(
-                    buffer,
-                    color,
-                    size,
+                    &src,
                     mipmap_size,
                     options.resize_straight_alpha,
                     options.resize_filter,
@@ -232,9 +236,11 @@ impl<W> Encoder<W> {
         Ok(())
     }
 
-    fn get_or_init(resize: &mut Option<Box<ResizeState>>) -> &mut ResizeState {
+    fn get_or_init(
+        resize: &mut Option<Box<(Aligner, ResizeState)>>,
+    ) -> &mut (Aligner, ResizeState) {
         if resize.is_none() {
-            *resize = Some(Box::new(ResizeState::new()));
+            *resize = Some(Box::new((Aligner::new(), ResizeState::new())));
         }
         resize.as_mut().unwrap()
     }
