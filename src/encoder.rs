@@ -197,6 +197,7 @@ impl<W> Encoder<W> {
                     size,
                     mipmap_size,
                     options.resize_straight_alpha,
+                    options.resize_filter,
                 );
 
                 encode(
@@ -213,6 +214,15 @@ impl<W> Encoder<W> {
 
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ResizeFilter {
+    Nearest,
+    Box,
+    Triangle,
+    Mitchell,
+    Lanczos3,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -239,12 +249,15 @@ pub struct WriteOptions {
     /// If this option is set to `false`, all channels will be resized
     /// independently of each other.
     pub resize_straight_alpha: bool,
+
+    pub resize_filter: ResizeFilter,
 }
 impl Default for WriteOptions {
     fn default() -> Self {
         Self {
             generate_mipmaps: false,
             resize_straight_alpha: true,
+            resize_filter: ResizeFilter::Box,
         }
     }
 }
@@ -255,6 +268,7 @@ fn resize(
     size: Size,
     new_size: Size,
     straight_alpha: bool,
+    filter: ResizeFilter,
 ) -> fast_image_resize::images::Image<'static> {
     use fast_image_resize::*;
 
@@ -272,15 +286,25 @@ fn resize(
         }
     }
 
+    fn to_resize_algorithm(filter: ResizeFilter) -> ResizeAlg {
+        match filter {
+            ResizeFilter::Nearest => ResizeAlg::Nearest,
+            ResizeFilter::Box => ResizeAlg::Convolution(FilterType::Box),
+            ResizeFilter::Triangle => ResizeAlg::Convolution(FilterType::Bilinear),
+            ResizeFilter::Mitchell => ResizeAlg::Convolution(FilterType::Mitchell),
+            ResizeFilter::Lanczos3 => ResizeAlg::Convolution(FilterType::Lanczos3),
+        }
+    }
+
     // TODO: alignment
     let pixel_type = to_pixel_type(color);
     let src = ImageRef::new(size.width, size.height, data, pixel_type).unwrap();
     let mut dst =
         fast_image_resize::images::Image::new(new_size.width, new_size.height, pixel_type);
 
-    // TODO: resize algorithm
     let options = fast_image_resize::ResizeOptions {
         mul_div_alpha: straight_alpha,
+        algorithm: to_resize_algorithm(filter),
         ..Default::default()
     };
 

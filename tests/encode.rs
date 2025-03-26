@@ -624,10 +624,28 @@ fn encode_mipmap() {
     let options = [
         WriteOptions {
             resize_straight_alpha: true,
+            resize_filter: ResizeFilter::Box,
             ..WriteOptions::default()
         },
         WriteOptions {
             resize_straight_alpha: false,
+            resize_filter: ResizeFilter::Box,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Nearest,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Triangle,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Mitchell,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Lanczos3,
             ..WriteOptions::default()
         },
     ];
@@ -642,6 +660,7 @@ fn encode_mipmap() {
         } else {
             "no-straight-alpha"
         });
+        name.push_str(&format!(" - {:?}", option.resize_filter));
 
         let snapshot_file = util::test_data_dir()
             .join("output-encode/mipmaps")

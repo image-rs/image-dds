@@ -1,6 +1,18 @@
-base @ straight-alpha.png: >
-    b3e5a32b4da22a1569899a494db0f91641b79c65119067ec5e2df58fd7ddeeda
+base @ straight-alpha - Box.png: >
+    7fe5ac298c537a656683f94a93067241ab855c747e086bbd05c522149417cd45
 
-base @ no-straight-alpha.png: >
-    a65ef6d224b33399aab7ca620e3b948ad65a429b43a01e6f4126c3e0ea407db2
+base @ no-straight-alpha - Box.png: >
+    51a7e5e2583f8c246eee51c60dcdf3968a65a2bfaf34893680a1a8ec7ecf3354
+
+base @ straight-alpha - Nearest.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+base @ straight-alpha - Triangle.png: >
+    0e1ea94bfd15a4d53f8e1e45de147013cfc3e534cb54274ee28205f27f6fb465
+
+base @ straight-alpha - Mitchell.png: >
+    360b48ffab41ca294ba968e7ca51887c647883012ac81c4950e79ef90454d9df
+
+base @ straight-alpha - Lanczos3.png: >
+    b3e5a32b4da22a1569899a494db0f91641b79c65119067ec5e2df58fd7ddeeda
 
