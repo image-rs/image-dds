@@ -1,6 +1,6 @@
 use glam::Vec4;
 
-use crate::{n8, s8};
+use crate::{n8, s8, util::clamp_0_1};
 
 use super::bcn_util::{self, Block4x4};
 
@@ -24,7 +24,7 @@ const BC4_EPSILON: f32 = 1. / (65536.);
 
 pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [u8; 8] {
     // clamp to 0-1
-    block.iter_mut().for_each(|x| *x = x.clamp(0.0, 1.0));
+    block.iter_mut().for_each(|x| *x = clamp_0_1(*x));
 
     let mut min = block[0];
     let mut max = block[0];

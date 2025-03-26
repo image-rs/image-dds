@@ -998,7 +998,7 @@ pub(crate) mod fp10 {
 /// Optimized functions for the R9G9B9E5_SHAREDEXP format.
 /// <https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#3.2.2%20Floating%20Point%20Conversion>
 pub(crate) mod rgb9995f {
-    use crate::util::two_powi;
+    use crate::util::{clamp_0_max, two_powi};
 
     #[inline]
     pub fn f32(rgb: u32) -> [f32; 3] {
@@ -1056,10 +1056,10 @@ pub(crate) mod rgb9995f {
     #[inline]
     pub fn from_f32(rgb: [f32; 3]) -> u32 {
         // values are now either in range or NaN
-        let [r, g, b] = rgb.map(|c| c.clamp(0.0, 65408.0));
+        let [r, g, b] = rgb.map(|c| clamp_0_max(c, 65408.0));
         let max = r.max(g).max(b);
 
-        if max.is_nan() || max == 0.0 || max.is_subnormal() {
+        if max == 0.0 || max.is_subnormal() {
             // all channels are either NaN or zero
             // sub-normal numbers also map to zero
             return 0;

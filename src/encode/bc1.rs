@@ -2,7 +2,7 @@
 
 use glam::Vec3A;
 
-use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
+use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6, util::clamp_0_1};
 
 use super::bcn_util::{self, Block4x4, ColorSpace};
 
@@ -45,7 +45,7 @@ pub(crate) fn compress_bc1_block(mut block: [[f32; 4]; 16], options: Bc1Options)
     // clamp 0 to 1
     for pixel in block.iter_mut() {
         for value in pixel.iter_mut() {
-            *value = value.clamp(0., 1.);
+            *value = clamp_0_1(*value);
         }
     }
 

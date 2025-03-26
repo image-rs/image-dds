@@ -1,6 +1,10 @@
 // helpers
 
-use crate::{cast, ch, convert_to_rgba_f32, n4, util, ColorFormatSet, EncodeError};
+use crate::{
+    cast, ch, convert_to_rgba_f32, n4,
+    util::{self, clamp_0_1},
+    ColorFormatSet, EncodeError,
+};
 
 use super::{
     bc1, bc4, bcn_util,
@@ -114,7 +118,7 @@ fn get_alpha(data: &[[f32; 4]; 16]) -> [f32; 16] {
 }
 fn pre_multiply_alpha(data: &mut [[f32; 4]]) {
     for pixel in data.iter_mut() {
-        let [r, g, b, a] = pixel.map(|x| x.clamp(0.0, 1.0));
+        let [r, g, b, a] = pixel.map(clamp_0_1);
         pixel[0] = r * a;
         pixel[1] = g * a;
         pixel[2] = b * a;
