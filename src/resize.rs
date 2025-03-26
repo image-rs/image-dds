@@ -33,13 +33,12 @@ impl Aligner {
             ImageRef::new(size.width, size.height, src_slice, pixel).expect("image should be valid")
         };
 
-        AlignedView { view, size, pixel }
+        AlignedView { view, pixel }
     }
 }
 
 pub(crate) struct AlignedView<'a> {
     view: ImageRef<'a>,
-    size: Size,
     pixel: PixelType,
 }
 
