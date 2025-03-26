@@ -1,13 +1,11 @@
 use std::{io::Write, ops::Range};
 
-use fast_image_resize::images::ImageRef;
-
 use crate::{
-    cast, encode,
+    encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
-    AsBytes, Channels, ColorFormat, DataLayout, Dithering, EncodeError, EncodeOptions, Format,
-    Precision, Size,
+    resize::ResizeState,
+    AsBytes, ColorFormat, DataLayout, Dithering, EncodeError, EncodeOptions, Format, Size,
 };
 
 fn split_surface_into_lines(
@@ -49,6 +47,7 @@ pub struct Encoder<W> {
     layout: DataLayout,
     iter: SurfaceIterator,
     pub options: EncodeOptions,
+    resize: Option<Box<ResizeState>>,
 }
 impl<W> Encoder<W> {
     pub fn new(mut writer: W, format: Format, header: &Header) -> Result<Self, EncodeError>
@@ -69,6 +68,7 @@ impl<W> Encoder<W> {
             layout,
             iter: SurfaceIterator::new(layout),
             options: EncodeOptions::default(),
+            resize: None,
         })
     }
 
@@ -191,7 +191,8 @@ impl<W> Encoder<W> {
                 }
 
                 let mipmap_size = current.size();
-                let mip = resize(
+                let resize = Self::get_or_init(&mut self.resize);
+                let mip = resize.resize(
                     buffer,
                     color,
                     size,
@@ -205,7 +206,7 @@ impl<W> Encoder<W> {
                     self.format,
                     mipmap_size,
                     color,
-                    mip.buffer(),
+                    mip,
                     &self.options,
                 )?;
                 self.iter.advance();
@@ -213,6 +214,13 @@ impl<W> Encoder<W> {
         }
 
         Ok(())
+    }
+
+    fn get_or_init(resize: &mut Option<Box<ResizeState>>) -> &mut ResizeState {
+        if resize.is_none() {
+            *resize = Some(Box::new(ResizeState::new()));
+        }
+        resize.as_mut().unwrap()
     }
 }
 
@@ -260,58 +268,4 @@ impl Default for WriteOptions {
             resize_filter: ResizeFilter::Box,
         }
     }
-}
-
-fn resize(
-    data: &[u8],
-    color: ColorFormat,
-    size: Size,
-    new_size: Size,
-    straight_alpha: bool,
-    filter: ResizeFilter,
-) -> fast_image_resize::images::Image<'static> {
-    use fast_image_resize::*;
-
-    fn to_pixel_type(color: ColorFormat) -> PixelType {
-        match (color.precision, color.channels) {
-            (Precision::U8, Channels::Grayscale | Channels::Alpha) => PixelType::U8,
-            (Precision::U8, Channels::Rgb) => PixelType::U8x3,
-            (Precision::U8, Channels::Rgba) => PixelType::U8x4,
-            (Precision::U16, Channels::Grayscale | Channels::Alpha) => PixelType::U16,
-            (Precision::U16, Channels::Rgb) => PixelType::U16x3,
-            (Precision::U16, Channels::Rgba) => PixelType::U16x4,
-            (Precision::F32, Channels::Grayscale | Channels::Alpha) => PixelType::F32,
-            (Precision::F32, Channels::Rgb) => PixelType::F32x3,
-            (Precision::F32, Channels::Rgba) => PixelType::F32x4,
-        }
-    }
-
-    fn to_resize_algorithm(filter: ResizeFilter) -> ResizeAlg {
-        match filter {
-            ResizeFilter::Nearest => ResizeAlg::Nearest,
-            ResizeFilter::Box => ResizeAlg::Convolution(FilterType::Box),
-            ResizeFilter::Triangle => ResizeAlg::Convolution(FilterType::Bilinear),
-            ResizeFilter::Mitchell => ResizeAlg::Convolution(FilterType::Mitchell),
-            ResizeFilter::Lanczos3 => ResizeAlg::Convolution(FilterType::Lanczos3),
-        }
-    }
-
-    // TODO: alignment
-    let pixel_type = to_pixel_type(color);
-    let src = ImageRef::new(size.width, size.height, data, pixel_type).unwrap();
-    let mut dst =
-        fast_image_resize::images::Image::new(new_size.width, new_size.height, pixel_type);
-
-    let options = fast_image_resize::ResizeOptions {
-        mul_div_alpha: straight_alpha,
-        algorithm: to_resize_algorithm(filter),
-        ..Default::default()
-    };
-
-    let mut resizer = Resizer::new();
-    resizer
-        .resize(&src, &mut dst, &options)
-        .expect("resize should always succeed");
-
-    dst
 }

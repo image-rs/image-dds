@@ -13,6 +13,7 @@ pub mod header;
 mod iter;
 mod layout;
 mod pixel;
+mod resize;
 mod util;
 
 use std::num::NonZeroU8;
