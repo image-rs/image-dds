@@ -5,6 +5,7 @@ use std::{
 };
 
 use dds::{header::*, *};
+use rand::RngCore;
 use Precision::*;
 
 mod util;
@@ -425,4 +426,61 @@ fn test_rect_out_of_bounds() {
     // edge case: empty rect at the end of the image
     let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
     assert!(matches!(result, Ok(())));
+}
+
+#[test]
+fn test_unaligned() {
+    // dummy image data of the encoded image
+    let mut dummy_data = vec![0_u8; 4096];
+    let mut rng = util::create_rng();
+    rng.fill_bytes(dummy_data.as_mut_slice());
+
+    // aligned and unaligned buffers
+    let mut buffer = vec![0_u32; 4096];
+    let (first, second) = buffer.split_at_mut(2048);
+    let aligned_buffer = util::as_bytes_mut(first);
+    let unaligned_buffer = &mut util::as_bytes_mut(second)[1..];
+
+    let size = Size::new(7, 7);
+    let options = DecodeOptions::default();
+
+    for format in [
+        Format::R8G8B8A8_UNORM,
+        Format::R16G16_UNORM,
+        Format::R32_FLOAT,
+        Format::AYUV,
+        Format::R1_UNORM,
+        Format::R8G8_B8G8_UNORM,
+        Format::BC1_UNORM,
+    ] {
+        for &color in util::ALL_COLORS {
+            let stride = size.width as usize * color.bytes_per_pixel() as usize;
+            let bytes = stride * size.height as usize;
+
+            let aligned = &mut aligned_buffer[..bytes];
+            let unaligned = &mut unaligned_buffer[..bytes];
+
+            dds::decode(
+                &mut dummy_data.as_slice(),
+                format,
+                size,
+                color,
+                aligned,
+                &options,
+            )
+            .unwrap();
+
+            dds::decode(
+                &mut dummy_data.as_slice(),
+                format,
+                size,
+                color,
+                unaligned,
+                &options,
+            )
+            .unwrap();
+
+            assert_eq!(aligned, unaligned, "Failed for {:?} {:?}", format, color);
+        }
+    }
 }

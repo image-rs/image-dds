@@ -160,6 +160,21 @@ pub const ALL_FORMATS: &[Format] = &[
     Format::BC3_UNORM_RXGB,
 ];
 
+pub const ALL_COLORS: &[ColorFormat] = &[
+    ColorFormat::ALPHA_U8,
+    ColorFormat::GRAYSCALE_U8,
+    ColorFormat::RGB_U8,
+    ColorFormat::RGBA_U8,
+    ColorFormat::ALPHA_U16,
+    ColorFormat::GRAYSCALE_U16,
+    ColorFormat::RGB_U16,
+    ColorFormat::RGBA_U16,
+    ColorFormat::ALPHA_F32,
+    ColorFormat::GRAYSCALE_F32,
+    ColorFormat::RGB_F32,
+    ColorFormat::RGBA_F32,
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Image<T> {

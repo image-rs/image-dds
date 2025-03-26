@@ -138,20 +138,12 @@ impl<W> Encoder<W> {
     where
         W: Write,
     {
-        let buffer = buffer.as_bytes();
-
-        let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
-        encode(
-            &mut self.writer,
-            self.format,
-            current.size(),
+        self.write_surface_impl(
+            buffer.as_bytes(),
             color,
-            buffer,
-            &self.options,
-        )?;
-        self.iter.advance();
-
-        Ok(())
+            ProgressToken::none(),
+            &WriteOptions::default(),
+        )
     }
 
     /// Writes the next surface.
@@ -164,13 +156,31 @@ impl<W> Encoder<W> {
         &mut self,
         buffer: &B,
         color: ColorFormat,
-        progress: impl FnMut(f32),
+        mut progress: impl FnMut(f32),
         options: &WriteOptions,
     ) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        let buffer = buffer.as_bytes();
+        self.write_surface_impl(
+            buffer.as_bytes(),
+            color,
+            ProgressToken::new(&mut progress),
+            options,
+        )
+    }
+
+    fn write_surface_impl(
+        &mut self,
+        buffer: &[u8],
+        color: ColorFormat,
+        mut progress: ProgressToken,
+        options: &WriteOptions,
+    ) -> Result<(), EncodeError>
+    where
+        W: Write,
+    {
+        progress.report(0.0);
 
         let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
         let size = current.size();
@@ -184,11 +194,15 @@ impl<W> Encoder<W> {
         )?;
         self.iter.advance();
 
-        if options.generate_mipmaps {
+        if options.generate_mipmaps && self.layout.volume().is_none() {
+            let mut count = 0;
             while let Some(current) = self.iter.current() {
                 if !current.is_mipmap() {
                     break;
                 }
+
+                count += 1;
+                progress.report(1.0 - 0.3_f32.powi(count));
 
                 let mipmap_size = current.size();
                 let resize = Self::get_or_init(&mut self.resize);
@@ -213,6 +227,8 @@ impl<W> Encoder<W> {
             }
         }
 
+        progress.report(1.0);
+
         Ok(())
     }
 
@@ -232,6 +248,11 @@ pub enum ResizeFilter {
     Mitchell,
     Lanczos3,
 }
+impl Default for ResizeFilter {
+    fn default() -> Self {
+        Self::Box
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct WriteOptions {
@@ -243,6 +264,8 @@ pub struct WriteOptions {
     /// Note: Generating mipmaps for volume depth slices is not supported. This
     /// will **NOT** result in an error and instead the encoder will silently
     /// ignore the option.
+    ///
+    /// Default: `false`
     pub generate_mipmaps: bool,
     /// Whether the alpha channel (if any) is straight alpha.
     ///
@@ -256,8 +279,12 @@ pub struct WriteOptions {
     ///
     /// If this option is set to `false`, all channels will be resized
     /// independently of each other.
+    ///
+    /// Default: `true`
     pub resize_straight_alpha: bool,
-
+    /// The filter to use when resizing the texture to generate mipmaps.
+    ///
+    /// Default: [`ResizeFilter::Box`]
     pub resize_filter: ResizeFilter,
 }
 impl Default for WriteOptions {
@@ -266,6 +293,36 @@ impl Default for WriteOptions {
             generate_mipmaps: false,
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
+        }
+    }
+}
+
+struct ProgressToken<'a> {
+    reporter: Option<&'a mut dyn FnMut(f32)>,
+    offset: f32,
+    scale: f32,
+}
+impl<'a> ProgressToken<'a> {
+    fn none() -> Self {
+        Self {
+            reporter: None,
+            offset: 0.0,
+            scale: 1.0,
+        }
+    }
+
+    fn new(reporter: &'a mut dyn FnMut(f32)) -> Self {
+        Self {
+            reporter: Some(reporter),
+            offset: 0.0,
+            scale: 1.0,
+        }
+    }
+
+    pub fn report(&mut self, mut progress: f32) {
+        if let Some(reporter) = &mut self.reporter {
+            progress = self.offset + progress * self.scale;
+            (reporter)(progress);
         }
     }
 }

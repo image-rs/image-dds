@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dds::{header::*, *};
-use rand::Rng;
+use rand::{Rng, RngCore};
 use util::{test_data_dir, Image, WithPrecision};
 
 mod util;
@@ -673,4 +673,79 @@ fn encode_mipmap() {
     }
 
     summaries.snapshot_or_fail();
+}
+
+#[test]
+fn test_unaligned() {
+    // aligned and unaligned buffers
+    let mut buffer = vec![0_u32; 4096];
+    let (first, second) = buffer.split_at_mut(2048);
+    let aligned_buffer = util::as_bytes_mut(first);
+    let unaligned_buffer = &mut util::as_bytes_mut(second)[1..];
+
+    let mut rng = util::create_rng();
+    rng.fill_bytes(aligned_buffer);
+    unaligned_buffer.copy_from_slice(&aligned_buffer[..unaligned_buffer.len()]);
+
+    let size = Size::new(7, 7);
+
+    let mut aligned_encoded = Vec::new();
+    let mut unaligned_encoded = Vec::new();
+
+    for format in [
+        Format::R8G8B8A8_UNORM,
+        Format::R16G16_UNORM,
+        Format::R32_FLOAT,
+        Format::AYUV,
+        Format::R1_UNORM,
+        Format::R8G8_B8G8_UNORM,
+        Format::BC1_UNORM,
+    ] {
+        for &color in util::ALL_COLORS {
+            let stride = size.width as usize * color.bytes_per_pixel() as usize;
+            let bytes = stride * size.height as usize;
+
+            let aligned = &mut aligned_buffer[..bytes];
+            let unaligned = &mut unaligned_buffer[..bytes];
+
+            for options in [
+                WriteOptions {
+                    generate_mipmaps: false,
+                    ..WriteOptions::default()
+                },
+                WriteOptions {
+                    generate_mipmaps: true,
+                    ..WriteOptions::default()
+                },
+            ] {
+                aligned_encoded.clear();
+                unaligned_encoded.clear();
+
+                let mut header = Header::new_image(size.width, size.height, format);
+                if options.generate_mipmaps {
+                    header = header.with_maximum_mipmap_count();
+                }
+
+                let mut aligned_encoder =
+                    Encoder::new(&mut aligned_encoded, format, &header).unwrap();
+                aligned_encoder
+                    .write_surface_with(aligned, color, |_| {}, &options)
+                    .unwrap();
+                aligned_encoder.finish().unwrap();
+
+                let mut unaligned_encoder =
+                    Encoder::new(&mut unaligned_encoded, format, &header).unwrap();
+                unaligned_encoder
+                    .write_surface_with(unaligned, color, |_| {}, &options)
+                    .unwrap();
+                unaligned_encoder.finish().unwrap();
+
+                assert_eq!(
+                    aligned_encoded, unaligned_encoded,
+                    "Failed for {:?} {:?} {:?}",
+                    format, color, options
+                );
+            }
+        }
+    }
 }
