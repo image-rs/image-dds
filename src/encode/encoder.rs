@@ -4,7 +4,7 @@ use bitflags::bitflags;
 
 use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision, SizeMultiple};
 
-use super::{Dithering, EncodeOptions};
+use super::{Dithering, EncodeOptions, EncodingSupport};
 
 pub(crate) struct Args<'a, 'b> {
     pub data: &'a [u8],
@@ -197,6 +197,15 @@ impl EncoderSet {
     }
     pub const fn local_dithering(&self) -> bool {
         self.flags.contains(EncodeFormatFlags::LOCAL_DITHERING)
+    }
+
+    pub const fn encoding_support(&self) -> EncodingSupport {
+        EncodingSupport {
+            dithering: self.supported_dithering(),
+            split_height: self.split_height,
+            local_dithering: self.local_dithering(),
+            size_multiple: self.size_multiple,
+        }
     }
 
     fn encoders_for_color(&self, color: ColorFormat) -> impl Iterator<Item = &Encoder> {
