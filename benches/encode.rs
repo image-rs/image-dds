@@ -202,5 +202,43 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
 }
 
-criterion_group!(benches, encode_uncompressed, encode_compressed);
+pub fn generate_mipmaps(c: &mut Criterion) {
+    use Channels::*;
+
+    // images
+    let image: Image<f32> = Image::random(Size::new(4096, 4096), Rgba);
+    let format = Format::R8G8B8A8_UNORM;
+
+    c.bench_function("generate mipmaps", |b| {
+        let mut output: Vec<u8> = Vec::with_capacity(image.size.pixels() as usize * 16);
+
+        b.iter(|| {
+            output.truncate(0);
+
+            let image = black_box(&image);
+
+            let header = Header::new_image(image.size.width, image.size.height, format);
+            let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
+            let result = encoder.write_surface_with(
+                black_box(image.as_bytes()),
+                image.color(),
+                |_| {},
+                &WriteOptions {
+                    generate_mipmaps: true,
+                    ..Default::default()
+                },
+            );
+            black_box(result).unwrap();
+            black_box(encoder.finish()).unwrap();
+            assert!(!black_box(&output).is_empty());
+        });
+    });
+}
+
+criterion_group!(
+    benches,
+    encode_uncompressed,
+    encode_compressed,
+    generate_mipmaps
+);
 criterion_main!(benches);
