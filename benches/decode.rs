@@ -53,15 +53,14 @@ fn bench_decoder_with(
         let surface = info.layout().texture().unwrap().main();
         let mut bytes = random_bytes(surface.data_len() as usize).into_boxed_slice();
         (config.data_modifier)(&mut bytes);
-        let mut output =
+        let mut output: Vec<u8> =
             vec![0; surface.size().pixels() as usize * color.bytes_per_pixel() as usize];
         b.iter(|| {
+            let image = ImageViewMut::new(output.as_mut_slice(), surface.size(), color).unwrap();
             let result = decode(
                 black_box(&mut bytes.as_ref()),
+                black_box(image),
                 format,
-                surface.size(),
-                color,
-                black_box(&mut output),
                 &DecodeOptions::default(),
             );
             black_box(result).unwrap();

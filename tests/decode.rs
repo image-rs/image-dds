@@ -183,12 +183,12 @@ fn decode_rect() {
                 let stride = image.stride();
                 dds::decode_rect(
                     &mut Cursor::new(surface.as_slice()),
-                    format,
-                    size,
-                    rect,
-                    target_color,
                     &mut image.data[(image_y * stride + image_x * 4)..],
                     stride,
+                    target_color,
+                    size,
+                    rect,
+                    format,
                     &DecodeOptions::default(),
                 )?;
             }
@@ -340,72 +340,18 @@ fn neg_infinity_bc6_blocks() {
 }
 
 #[test]
-fn test_unexpected_buffer_size() {
-    // decodes a dummy 1x1 image to GRAY U8
-    let decode_dummy = |output: &mut [u8]| {
-        let data: &[u8] = &[0_u8];
-        decode(
-            &mut &data[..],
-            Format::R8_UNORM,
-            Size::new(1, 1),
-            ColorFormat::GRAYSCALE_U8,
-            output,
-            &DecodeOptions::default(),
-        )
-    };
-
-    // buffer too small
-    let result = decode_dummy(&mut []);
-    assert!(matches!(
-        result,
-        Err(DecodeError::UnexpectedBufferSize { expected: 1 })
-    ));
-    assert_eq!(
-        format!("{}", result.unwrap_err()),
-        "Unexpected buffer size: expected 1 bytes"
-    );
-
-    // buffer is just right
-    let result = decode_dummy(&mut [0]);
-    assert!(matches!(result, Ok(())));
-
-    // buffer too large
-    let result = decode_dummy(&mut [0, 0]);
-    assert!(matches!(
-        result,
-        Err(DecodeError::UnexpectedBufferSize { expected: 1 })
-    ));
-
-    // expected buffer size overflows `usize::MAX`
-    let result = decode(
-        &mut &[][..],
-        Format::R8_UNORM,
-        Size::new(u32::MAX, u32::MAX),
-        ColorFormat::RGBA_F32,
-        &mut [],
-        &DecodeOptions::default(),
-    );
-    assert!(matches!(
-        result,
-        Err(DecodeError::UnexpectedBufferSize {
-            expected: usize::MAX
-        })
-    ));
-}
-
-#[test]
 fn test_rect_out_of_bounds() {
     // decodes a dummy 2x3 image to GRAY U8
     let decode_dummy = |rect: Rect, output: &mut [u8], row_pitch: usize| {
         let data: &[u8] = &[0, 0, 0, 0, 0, 0];
         dds::decode_rect(
             &mut std::io::Cursor::new(data),
-            Format::R8_UNORM,
-            Size::new(2, 3),
-            rect,
-            ColorFormat::GRAYSCALE_U8,
             output,
             row_pitch,
+            ColorFormat::GRAYSCALE_U8,
+            Size::new(2, 3),
+            rect,
+            Format::R8_UNORM,
             &DecodeOptions::default(),
         )
     };
@@ -460,25 +406,11 @@ fn test_unaligned() {
             let aligned = &mut aligned_buffer[..bytes];
             let unaligned = &mut unaligned_buffer[..bytes];
 
-            dds::decode(
-                &mut dummy_data.as_slice(),
-                format,
-                size,
-                color,
-                aligned,
-                &options,
-            )
-            .unwrap();
+            let aligned_view = ImageViewMut::new(aligned, size, color).unwrap();
+            let unaligned_view = ImageViewMut::new(unaligned, size, color).unwrap();
 
-            dds::decode(
-                &mut dummy_data.as_slice(),
-                format,
-                size,
-                color,
-                unaligned,
-                &options,
-            )
-            .unwrap();
+            dds::decode(&mut dummy_data.as_slice(), aligned_view, format, &options).unwrap();
+            dds::decode(&mut dummy_data.as_slice(), unaligned_view, format, &options).unwrap();
 
             assert_eq!(aligned, unaligned, "Failed for {:?} {:?}", format, color);
         }

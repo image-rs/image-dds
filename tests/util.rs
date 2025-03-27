@@ -241,6 +241,14 @@ impl<T> Image<T> {
     {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
+    pub fn view_mut(&mut self) -> ImageViewMut
+    where
+        T: Castable + WithPrecision,
+    {
+        let size = self.size;
+        let color = self.color();
+        ImageViewMut::new(self.as_bytes_mut(), size, color).unwrap()
+    }
 
     pub fn to_channels(&self, channels: Channels) -> Image<T>
     where
@@ -417,10 +425,7 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
 
     let channels = settings.pick_channels(format);
     let mut image = Image::new_empty(channels, size);
-    decoder.read_surface(
-        image.as_bytes_mut(),
-        ColorFormat::new(channels, T::PRECISION),
-    )?;
+    decoder.read_surface(image.view_mut())?;
 
     Ok((image, decoder.info().clone()))
 }
@@ -567,12 +572,11 @@ pub fn compare_snapshot_dds_f32(
         let mut decoder = Decoder::new(file)?;
         let size = decoder.main_size();
 
-        let mut dds_image_data =
-            vec![0.0_f32; size.pixels() as usize * image.channels.count() as usize];
-        decoder.read_surface(dds_image_data.as_mut_slice(), image.color())?;
+        let mut dds_image: Image<f32> = Image::new_empty(image.channels, size);
+        decoder.read_surface(dds_image.view_mut())?;
 
-        assert!(dds_image_data.len() == image.data.len());
-        if dds_image_data == image.data {
+        assert!(dds_image.data.len() == image.data.len());
+        if dds_image.data == image.data {
             // all good
             return Ok(());
         }

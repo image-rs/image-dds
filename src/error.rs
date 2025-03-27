@@ -84,17 +84,6 @@ impl std::error::Error for LayoutError {}
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum DecodeError {
-    /// [`crate::decode()`] requires that the buffer size is exactly the size
-    /// of the image data. No more, no less.
-    ///
-    /// This is different from [`crate::decode_rect()`], which allows the buffer
-    /// to be larger than necessary.
-    ///
-    /// This error can only occur when using [`crate::decode()`].
-    UnexpectedBufferSize {
-        expected: usize,
-    },
-
     /// When decoding a rectangle, the rectangle is out of bounds of the size
     /// of the image.
     RectOutOfBounds,
@@ -111,6 +100,10 @@ pub enum DecodeError {
         required_minimum: usize,
     },
 
+    /// Returned by [`crate::Decoder::read_surface`] when the user tries to
+    /// decode a surface into an image that is not the same size as the
+    /// surface.
+    UnexpectedSurfaceSize,
     /// When decoding a volume texture, it is not allowed to skip mipmaps
     /// within a volume.
     ///
@@ -131,9 +124,6 @@ pub enum DecodeError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DecodeError::UnexpectedBufferSize { expected } => {
-                write!(f, "Unexpected buffer size: expected {} bytes", expected)
-            }
             DecodeError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
             }
@@ -150,6 +140,9 @@ impl std::fmt::Display for DecodeError {
                     "Buffer too small for rectangle: required at least {} bytes",
                     required_minimum
                 )
+            }
+            DecodeError::UnexpectedSurfaceSize => {
+                write!(f, "Unexpected size of the surface")
             }
             DecodeError::CannotSkipMipmapsInVolume => {
                 write!(f, "Cannot skip mipmaps within a volume texture")

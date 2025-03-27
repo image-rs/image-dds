@@ -29,8 +29,6 @@ fn encode_decode(
     options: &EncodeOptions,
     image: &Image<f32>,
 ) -> (Vec<u8>, Image<f32>) {
-    let color = image.color();
-
     // encode
     let mut encoded = Vec::new();
     let mut encoder = Encoder::new(
@@ -46,7 +44,7 @@ fn encode_decode(
     // decode
     let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
     let mut decoded = Image::new_empty(image.channels, image.size);
-    decoder.read_surface(decoded.as_bytes_mut(), color).unwrap();
+    decoder.read_surface(decoded.view_mut()).unwrap();
 
     (encoded, decoded)
 }

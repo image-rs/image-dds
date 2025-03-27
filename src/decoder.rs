@@ -4,7 +4,7 @@ use crate::{
     decode, decode_rect,
     header::{Header, ParseOptions},
     iter::{SurfaceInfo, SurfaceIterator},
-    util, AsBytes, ColorFormat, DataLayout, DecodeError, DecodeOptions, Format, Rect, Size,
+    util, ColorFormat, DataLayout, DecodeError, DecodeOptions, Format, ImageViewMut, Rect, Size,
 };
 
 /// Information about the header, pixel format, and data layout of a DDS file.
@@ -144,24 +144,16 @@ impl<R> Decoder<R> {
     ///
     /// The next surface is determined by the data layout of the DDS file. For
     /// volume textures, this function will read the next depth slice.
-    pub fn read_surface<B: AsBytes + ?Sized>(
-        &mut self,
-        buffer: &mut B,
-        color: ColorFormat,
-    ) -> Result<(), DecodeError>
+    pub fn read_surface(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
     where
         R: Read,
     {
         let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+        if image.size() != current.size() {
+            return Err(DecodeError::UnexpectedSurfaceSize);
+        }
 
-        decode(
-            &mut self.reader,
-            self.info.format,
-            current.size(),
-            color,
-            buffer.as_bytes_mut(),
-            &self.options,
-        )?;
+        decode(&mut self.reader, image, self.info.format, &self.options)?;
 
         self.iter.advance();
         Ok(())
@@ -187,12 +179,12 @@ impl<R> Decoder<R> {
 
         decode_rect(
             &mut self.reader,
-            self.info.format,
-            current.size(),
-            rect,
-            color,
             buffer,
             row_pitch,
+            color,
+            current.size(),
+            rect,
+            self.info.format,
             &self.options,
         )?;
 
