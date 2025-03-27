@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dds::*;
+use dds::{header::*, *};
 use rand::{Rng, RngCore};
 
 fn random_bytes(len: usize) -> Vec<u8> {
@@ -95,15 +95,12 @@ where
 
             let image = black_box(image);
 
-            let result = encode(
-                black_box(&mut output),
-                format,
-                image.size,
-                image.color(),
-                image.as_bytes(),
-                black_box(options),
-            );
+            let header = Header::new_image(image.size.width, image.size.height, format);
+            let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
+            encoder.options = black_box(options).clone();
+            let result = encoder.write_surface(black_box(image.as_bytes()), image.color());
             black_box(result).unwrap();
+            black_box(encoder.finish()).unwrap();
             assert!(!black_box(&output).is_empty());
         });
     });

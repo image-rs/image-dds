@@ -135,7 +135,7 @@ fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
 
 const BC1_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(256 * 256, 64 * 64, 64 * 64);
 const BC3_GROUP_SIZE: PreferredGroupSize = BC1_GROUP_SIZE.combine(BC4_GROUP_SIZE);
-const BC4_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(512 * 512, 256 * 256, 8 * 8);
+const BC4_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(512 * 256, 128 * 128, 8 * 8);
 
 // encoders
 

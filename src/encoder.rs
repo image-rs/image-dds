@@ -1,58 +1,12 @@
-use std::{io::Write, ops::Range};
+use std::io::Write;
 
 use crate::{
     encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    AsBytes, ColorFormat, DataLayout, Dithering, EncodeError, EncodeOptions, Format, Size,
+    AsBytes, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, Size, SplitSurface,
 };
-
-fn split_surface_into_lines(
-    size: Size,
-    format: Format,
-    options: &EncodeOptions,
-) -> Option<Vec<Range<u32>>> {
-    if size.is_empty() {
-        return None;
-    }
-
-    let support = format.encoding_support()?;
-    let split_height = support.split_height()?;
-
-    // dithering destroys our ability to split the surface into lines,
-    // because it would create visible seams
-    if !support.local_dithering()
-        && options.dithering.intersect(support.dithering()) != Dithering::None
-    {
-        return None;
-    }
-
-    let group_pixels = support
-        .group_size()
-        .get_group_pixels(options.quality)
-        .max(1);
-    if group_pixels >= size.pixels() {
-        // the image is small enough that it's not worth splitting
-        return None;
-    }
-
-    let group_height = u64::clamp(
-        (group_pixels / size.width as u64) / split_height.get() as u64 * split_height.get() as u64,
-        split_height.get() as u64,
-        u32::MAX as u64,
-    ) as u32;
-
-    let mut lines = Vec::new();
-    let mut y: u32 = 0;
-    while y < size.height {
-        let end = y.saturating_add(group_height).min(size.height);
-        lines.push(y..end);
-        y = end;
-    }
-
-    Some(lines)
-}
 
 pub struct Encoder<W> {
     writer: W,
@@ -197,14 +151,8 @@ impl<W> Encoder<W> {
 
         let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
         let size = current.size();
-        encode(
-            &mut self.writer,
-            self.format,
-            size,
-            color,
-            buffer,
-            &self.options,
-        )?;
+        let split = SplitSurface::new(buffer, size, color, self.format, &self.options);
+        split.encode(&mut self.writer)?;
         self.iter.advance();
 
         if options.generate_mipmaps
@@ -232,14 +180,8 @@ impl<W> Encoder<W> {
                     options.resize_filter,
                 );
 
-                encode(
-                    &mut self.writer,
-                    self.format,
-                    mipmap_size,
-                    color,
-                    mip,
-                    &self.options,
-                )?;
+                let split = SplitSurface::new(mip, mipmap_size, color, self.format, &self.options);
+                split.encode(&mut self.writer)?;
                 self.iter.advance();
             }
         }

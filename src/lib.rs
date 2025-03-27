@@ -14,6 +14,7 @@ mod iter;
 mod layout;
 mod pixel;
 mod resize;
+mod split;
 mod util;
 
 use std::num::NonZeroU8;
@@ -29,6 +30,7 @@ pub use error::*;
 pub use format::*;
 pub use layout::*;
 pub use pixel::*;
+pub use split::*;
 
 pub trait AsBytes {
     fn as_bytes(&self) -> &[u8];
