@@ -46,16 +46,10 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.61.0
+          - 1.63.0
     steps:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - name: Use older dependency version for compatibility
-        run: |
-          cargo update -p resize --precise 0.8.4
-          cargo update -p rgb --precise 0.8.45
-          cargo update -p rayon --precise 1.7.0
-          cargo update -p rayon-core --precise 1.11.0
       - run: cargo check
 
   # make sure the crate works with all features enabled/disabled
