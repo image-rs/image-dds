@@ -16,7 +16,7 @@ rust-version = "1.61"
 [dependencies]
 bitflags = "2.4.0"
 glam = "0.25.0"
-resize = { version = "0.8.5", default-features = false, features = ["std"] }
+resize = { version = "0.8.4", default-features = false, features = ["std"] }
 zerocopy = "0.8.14"
 
 # optional dependencies
