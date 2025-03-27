@@ -46,7 +46,8 @@ fn format_metadata() {
             if encoding.size_multiple() != SizeMultiple::ONE {
                 out.push_str(&format!(
                     "size_mul={}x{} ",
-                    encoding.size_multiple().width_multiple, encoding.size_multiple().height_multiple
+                    encoding.size_multiple().width_multiple,
+                    encoding.size_multiple().height_multiple
                 ));
             }
 
