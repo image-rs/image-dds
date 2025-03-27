@@ -17,8 +17,10 @@ rust-version = "1.61"
 bitflags = "2.4.0"
 fast_image_resize = "5.1.2"
 glam = "=0.25.0"
-rayon = "1.7.0"
 zerocopy = "0.8.14"
+
+# optional dependencies
+rayon = { version = "1.7.0", optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
@@ -28,6 +30,12 @@ png = "0.17"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 sha2 = "0.10.8"
+
+[features]
+default = ["rayon"]
+
+# Enables parallel encoding via rayon. This makes encoding BCn images 5-20x faster.
+rayon = ["dep:rayon"]
 
 [[bench]]
 path = "benches/decode.rs"

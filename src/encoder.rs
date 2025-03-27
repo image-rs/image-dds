@@ -1,11 +1,10 @@
 use std::io::Write;
 
 use crate::{
-    encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    AsBytes, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, Size, SplitSurface,
+    split_encode, AsBytes, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, Size,
 };
 
 pub struct Encoder<W> {
@@ -151,8 +150,14 @@ impl<W> Encoder<W> {
 
         let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
         let size = current.size();
-        let split = SplitSurface::new(buffer, size, color, self.format, &self.options);
-        split.encode(&mut self.writer)?;
+        split_encode(
+            &mut self.writer,
+            self.format,
+            size,
+            color,
+            buffer,
+            &self.options,
+        )?;
         self.iter.advance();
 
         if options.generate_mipmaps
@@ -180,8 +185,14 @@ impl<W> Encoder<W> {
                     options.resize_filter,
                 );
 
-                let split = SplitSurface::new(mip, mipmap_size, color, self.format, &self.options);
-                split.encode(&mut self.writer)?;
+                split_encode(
+                    &mut self.writer,
+                    self.format,
+                    mipmap_size,
+                    color,
+                    mip,
+                    &self.options,
+                )?;
                 self.iter.advance();
             }
         }

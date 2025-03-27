@@ -1,7 +1,5 @@
 use std::{io::Write, ops::Range};
 
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-
 use crate::{encode, ColorFormat, Dithering, EncodeError, EncodeOptions, Format, PixelInfo, Size};
 
 /// This implements the main logic for splitting a surface into lines.
@@ -164,6 +162,12 @@ impl<'a> SplitSurface<'a> {
     ///
     /// This will encode the fragments in parallel (if the `rayon` feature is enabled).
     pub fn encode(&self, writer: &mut dyn Write) -> Result<(), EncodeError> {
+        self.encode_impl(writer)
+    }
+    #[cfg(feature = "rayon")]
+    fn encode_impl(&self, writer: &mut dyn Write) -> Result<(), EncodeError> {
+        use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
         // optimization for single fragment
         if let Some(single) = self.single() {
             return self.encode_fragment(writer, single);
@@ -195,5 +199,38 @@ impl<'a> SplitSurface<'a> {
         }
 
         Ok(())
+    }
+    #[cfg(not(feature = "rayon"))]
+    fn encode_impl(&self, writer: &mut dyn Write) -> Result<(), EncodeError> {
+        for fragment in &self.fragments {
+            self.encode_fragment(writer, fragment)?;
+        }
+        Ok(())
+    }
+}
+
+/// This function has the same API as [`encode()`], but it will automatically
+/// make use of the `rayon` feature to parallelize the encoding of the surface.
+///
+/// If the `rayon` feature is not enabled, this function will behave exactly
+/// like [`encode()`].
+pub fn split_encode(
+    writer: &mut dyn Write,
+    format: Format,
+    size: Size,
+    color: ColorFormat,
+    data: &[u8],
+    options: &EncodeOptions,
+) -> Result<(), EncodeError> {
+    // Only actually split the surface when rayon is available.
+    // If we don't get to encode in parallel, splitting is pure overhead.
+    #[cfg(feature = "rayon")]
+    {
+        let split = SplitSurface::new(data, size, color, format, options);
+        split.encode(writer)
+    }
+    #[cfg(not(feature = "rayon"))]
+    {
+        encode(writer, format, size, color, data, options)
     }
 }
