@@ -578,7 +578,7 @@ fn encode_mipmap() {
         let mut encoder = Encoder::new(
             &mut encoded,
             format,
-            &Header::new_image(width, height, format).with_maximum_mipmap_count(),
+            &Header::new_image(width, height, format).with_mipmaps(),
         )?;
         encoder.write_surface_with(base.view(), |_| {}, &options)?;
         encoder.finish()?;
@@ -719,7 +719,7 @@ fn test_unaligned() {
 
                 let mut header = Header::new_image(size.width, size.height, format);
                 if options.generate_mipmaps {
-                    header = header.with_maximum_mipmap_count();
+                    header = header.with_mipmaps();
                 }
 
                 let mut aligned_encoder =

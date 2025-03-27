@@ -9,6 +9,60 @@
 //! [`RawHeader`] is a low-level representation of an unparsed DDS header. It is
 //! bit-for-bit what is on disk. You rarely need to interact with this type, but
 //! it can useful for manually detecting and parsing non-standard DDS files.
+//!
+//! # Creating a header
+//!
+//! This will create the header for a 128x256 BC1 image without mipmaps:
+//!
+//! ```
+//! # use dds::{*, header::*};
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM);
+//! assert_eq!(header.width(), 128);
+//! assert_eq!(header.height(), 256);
+//! assert_eq!(header.depth(), None);
+//! assert_eq!(header.mipmap_count().get(), 1);
+//! assert_eq!(header.dx10().unwrap().dxgi_format, DxgiFormat::BC1_UNORM);
+//! ```
+//!
+//! To specify mipmaps, use [`Header::with_mipmap_count`] to set a specific
+//! number of mipmaps, or [`Header::with_mipmaps`] to automatically set the
+//! mipmap count based on the dimensions of the image:
+//!
+//! ```
+//! # use dds::{*, header::*};
+//! # use std::num::NonZeroU32;
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM).with_mipmaps();
+//! assert_eq!(header.mipmap_count().get(), 9);
+//!
+//! // The layout of the image is:
+//! let layout = DataLayout::from_header(&header).unwrap();
+//! let texture = layout.texture().unwrap();
+//! let mut mipmap_sizes = texture.iter_mips().map(|m| m.size());
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(128, 256)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(64, 128)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(32, 64)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(16, 32)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(8, 16)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(4, 8)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(2, 4)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(1, 2)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(1, 1)));
+//! assert_eq!(mipmap_sizes.next(), None);
+//! ```
+//!
+//! You can also set a specific number of mipmaps with
+//! [`Header::with_mipmap_count`]:
+//!
+//! ```
+//! # use dds::{*, header::*};
+//! # use std::num::NonZeroU32;
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM)
+//!     .with_mipmap_count(NonZeroU32::new(4).unwrap());
+//! assert_eq!(header.mipmap_count().get(), 4);
+//! ```
+//!
+//! Lastly, if you need more control over the header, use [`Dx9Header`] and
+//! [`Dx10Header`] directly.
 
 use crate::{
     cast,
@@ -664,12 +718,9 @@ impl Header {
         self
     }
     /// A builder-pattern-style method to set the mipmap count of the header
-    /// to its logical maximum.
-    ///
-    /// The logical maximum is the smallest mipmap count such that the last
-    /// mipmap level has the dimensions 1x1 (or 1x1x1). E.g. for 64x256 image,
-    /// the maximum mipmap count is 8.
-    pub fn with_maximum_mipmap_count(self) -> Header {
+    /// such that the last mipmap level has the dimensions 1x1 (or 1x1x1).
+    /// E.g. for 64x256 image, the mipmap count will be set to 9.
+    pub fn with_mipmaps(self) -> Header {
         let max = get_maximum_mipmap_count(
             self.width()
                 .max(self.height())
