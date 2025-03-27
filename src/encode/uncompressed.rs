@@ -125,7 +125,7 @@ where
 fn uncompressed_untyped(
     args: Args,
     bytes_per_encoded_pixel: usize,
-    f: impl Fn(&[u8], ColorFormat, &mut [u8]),
+    f: fn(&[u8], ColorFormat, &mut [u8]),
 ) -> Result<(), EncodeError> {
     let Args {
         data,
@@ -152,64 +152,51 @@ fn uncompressed_untyped(
     Ok(())
 }
 fn simple_color_convert(
+    line: &[u8],
+    color: ColorFormat,
+    out: &mut [u8],
     target: ColorFormat,
     snorm: bool,
-) -> impl Fn(&[u8], ColorFormat, &mut [u8]) {
+) {
+    assert!(color.precision == target.precision);
+
+    convert_channels_for(color, target.channels, line, out);
+
     if snorm {
-        assert!(matches!(target.precision, Precision::U8 | Precision::U16));
-    }
-
-    move |line, color, out| {
-        assert!(color.precision == target.precision);
-
-        convert_channels_for(color, target.channels, line, out);
-
-        if snorm {
-            match target.precision {
-                Precision::U8 => {
-                    out.iter_mut().for_each(|o| *o = s8::from_n8(*o));
-                }
-                Precision::U16 => {
-                    let chunked: &mut [[u8; 2]] =
-                        cast::as_array_chunks_mut(out).expect("invalid buffer size");
-                    chunked.iter_mut().for_each(|o| {
-                        *o = s16::from_n16(u16::from_ne_bytes(*o)).to_ne_bytes();
-                    });
-                }
-                Precision::F32 => unreachable!(),
+        match target.precision {
+            Precision::U8 => {
+                out.iter_mut().for_each(|o| *o = s8::from_n8(*o));
             }
+            Precision::U16 => {
+                let chunked: &mut [[u8; 2]] =
+                    cast::as_array_chunks_mut(out).expect("invalid buffer size");
+                chunked.iter_mut().for_each(|o| {
+                    *o = s16::from_n16(u16::from_ne_bytes(*o)).to_ne_bytes();
+                });
+            }
+            Precision::F32 => unreachable!(),
         }
-
-        cast::slice_ne_to_le(target.precision, out);
     }
+
+    cast::slice_ne_to_le(target.precision, out);
 }
 
 macro_rules! color_convert {
-    ($target:expr) => {
-        Encoder {
-            color_formats: ColorFormatSet::from_precision($target.precision),
-            flags: Flags::exact_for($target.precision),
-            encode: |args| {
+    ($target:expr, snorm = $snorm:literal) => {
+        Encoder::new(
+            ColorFormatSet::from_precision($target.precision),
+            Flags::exact_for($target.precision),
+            |args| {
                 uncompressed_untyped(
                     args,
                     $target.bytes_per_pixel() as usize,
-                    simple_color_convert($target, false),
+                    |line, color, out| simple_color_convert(line, color, out, $target, $snorm),
                 )
             },
-        }
+        )
     };
-    ($target:expr, SNORM) => {
-        Encoder {
-            color_formats: ColorFormatSet::from_precision($target.precision),
-            flags: Flags::exact_for($target.precision),
-            encode: |args| {
-                uncompressed_untyped(
-                    args,
-                    $target.bytes_per_pixel() as usize,
-                    simple_color_convert($target, true),
-                )
-            },
-        }
+    ($target:expr) => {
+        color_convert!($target, snorm = false)
     };
 }
 
@@ -222,11 +209,7 @@ macro_rules! universal {
                 *o = f(*i);
             }
         }
-        Encoder {
-            color_formats: ColorFormatSet::ALL,
-            flags: Flags::empty(),
-            encode: |args| uncompressed_universal(args, process_line),
-        }
+        Encoder::new_universal(|args| uncompressed_universal(args, process_line))
     }};
 }
 macro_rules! universal_grayscale {
@@ -236,11 +219,7 @@ macro_rules! universal_grayscale {
 }
 macro_rules! universal_dither {
     ($out:ty, $f:expr) => {
-        Encoder {
-            color_formats: ColorFormatSet::ALL,
-            flags: Flags::empty(),
-            encode: |args| uncompressed_universal_dither::<$out, _>(args, $f),
-        }
+        Encoder::new_universal(|args| uncompressed_universal_dither::<$out, _>(args, $f))
     };
 }
 
@@ -253,23 +232,19 @@ pub(crate) const R8G8B8_UNORM: EncoderSet = EncoderSet::new(&[
 ]);
 
 pub(crate) const B8G8R8_UNORM: EncoderSet = EncoderSet::new(&[
-    Encoder {
-        color_formats: ColorFormatSet::U8,
-        flags: Flags::EXACT_U8,
-        encode: |args| {
-            fn process_line(line: &[u8], color: ColorFormat, out: &mut [u8]) {
-                assert!(color.precision == Precision::U8);
-                convert_channels::<u8>(color.channels, Channels::Rgb, line, out);
+    Encoder::new(ColorFormatSet::U8, Flags::EXACT_U8, |args| {
+        fn process_line(line: &[u8], color: ColorFormat, out: &mut [u8]) {
+            assert!(color.precision == Precision::U8);
+            convert_channels::<u8>(color.channels, Channels::Rgb, line, out);
 
-                // swap R and B
-                let chunked: &mut [[u8; 3]] =
-                    cast::as_array_chunks_mut(out).expect("invalid buffer size");
-                chunked.iter_mut().for_each(|p| p.swap(0, 2));
-            }
+            // swap R and B
+            let chunked: &mut [[u8; 3]] =
+                cast::as_array_chunks_mut(out).expect("invalid buffer size");
+            chunked.iter_mut().for_each(|p| p.swap(0, 2));
+        }
 
-            uncompressed_untyped(args, 3, process_line)
-        },
-    },
+        uncompressed_untyped(args, 3, process_line)
+    }),
     universal!([u8; 3], |[r, g, b, _]| [b, g, r].map(n8::from_f32)),
 ]);
 
@@ -280,52 +255,44 @@ pub(crate) const R8G8B8A8_UNORM: EncoderSet = EncoderSet::new(&[
 ]);
 
 pub(crate) const R8G8B8A8_SNORM: EncoderSet = EncoderSet::new(&[
-    color_convert!(ColorFormat::RGBA_U8, SNORM),
+    color_convert!(ColorFormat::RGBA_U8, snorm = true),
     universal!([u8; 4], |rgba| rgba.map(s8::from_uf32)),
 ]);
 
 pub(crate) const B8G8R8A8_UNORM: EncoderSet = EncoderSet::new(&[
-    Encoder {
-        color_formats: ColorFormatSet::U8,
-        flags: Flags::EXACT_U8,
-        encode: |args| {
-            fn process_line(line: &[u8], color: ColorFormat, out: &mut [u8]) {
-                assert!(color.precision == Precision::U8);
-                convert_channels::<u8>(color.channels, Channels::Rgba, line, out);
+    Encoder::new(ColorFormatSet::U8, Flags::EXACT_U8, |args| {
+        fn process_line(line: &[u8], color: ColorFormat, out: &mut [u8]) {
+            assert!(color.precision == Precision::U8);
+            convert_channels::<u8>(color.channels, Channels::Rgba, line, out);
 
-                // swap R and B
-                let chunked: &mut [[u8; 4]] =
-                    cast::as_array_chunks_mut(out).expect("invalid buffer size");
-                chunked.iter_mut().for_each(|p| p.swap(0, 2));
-            }
+            // swap R and B
+            let chunked: &mut [[u8; 4]] =
+                cast::as_array_chunks_mut(out).expect("invalid buffer size");
+            chunked.iter_mut().for_each(|p| p.swap(0, 2));
+        }
 
-            uncompressed_untyped(args, 4, process_line)
-        },
-    },
+        uncompressed_untyped(args, 4, process_line)
+    }),
     universal!([u8; 4], |[r, g, b, a]| [b, g, r, a].map(n8::from_f32)),
 ]);
 
 pub(crate) const B8G8R8X8_UNORM: EncoderSet = EncoderSet::new(&[
-    Encoder {
-        color_formats: ColorFormatSet::U8,
-        flags: Flags::EXACT_U8,
-        encode: |args| {
-            fn process_line(line: &[u8], color: ColorFormat, out: &mut [u8]) {
-                assert!(color.precision == Precision::U8);
-                convert_channels::<u8>(color.channels, Channels::Rgba, line, out);
+    Encoder::new(ColorFormatSet::U8, Flags::EXACT_U8, |args| {
+        fn process_line(line: &[u8], color: ColorFormat, out: &mut [u8]) {
+            assert!(color.precision == Precision::U8);
+            convert_channels::<u8>(color.channels, Channels::Rgba, line, out);
 
-                // swap R and B and set X to 0xFF
-                let chunked: &mut [[u8; 4]] =
-                    cast::as_array_chunks_mut(out).expect("invalid buffer size");
-                chunked.iter_mut().for_each(|p| {
-                    p.swap(0, 2);
-                    p[3] = 0xFF;
-                });
-            }
+            // swap R and B and set X to 0xFF
+            let chunked: &mut [[u8; 4]] =
+                cast::as_array_chunks_mut(out).expect("invalid buffer size");
+            chunked.iter_mut().for_each(|p| {
+                p.swap(0, 2);
+                p[3] = 0xFF;
+            });
+        }
 
-            uncompressed_untyped(args, 4, process_line)
-        },
-    },
+        uncompressed_untyped(args, 4, process_line)
+    }),
     universal!([u8; 4], |[r, g, b, _]| [
         n8::from_f32(b),
         n8::from_f32(g),
@@ -427,7 +394,7 @@ pub(crate) const R8_UNORM: EncoderSet = EncoderSet::new(&[
 ]);
 
 pub(crate) const R8_SNORM: EncoderSet = EncoderSet::new(&[
-    color_convert!(ColorFormat::GRAYSCALE_U8, SNORM),
+    color_convert!(ColorFormat::GRAYSCALE_U8, snorm = true),
     universal_grayscale!(u8, s8::from_uf32),
 ]);
 
@@ -454,7 +421,7 @@ pub(crate) const R16_UNORM: EncoderSet = EncoderSet::new(&[
 ]);
 
 pub(crate) const R16_SNORM: EncoderSet = EncoderSet::new(&[
-    color_convert!(ColorFormat::GRAYSCALE_U16, SNORM),
+    color_convert!(ColorFormat::GRAYSCALE_U16, snorm = true),
     universal_grayscale!(u16, s16::from_uf32),
 ]);
 
@@ -475,7 +442,7 @@ pub(crate) const R16G16B16A16_UNORM: EncoderSet = EncoderSet::new(&[
 ]);
 
 pub(crate) const R16G16B16A16_SNORM: EncoderSet = EncoderSet::new(&[
-    color_convert!(ColorFormat::RGBA_U16, SNORM),
+    color_convert!(ColorFormat::RGBA_U16, snorm = true),
     universal!([u16; 4], |rgba| rgba.map(s16::from_uf32)),
 ]);
 

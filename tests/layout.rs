@@ -341,11 +341,11 @@ fn weird_and_invalid_headers() {
             .into(),
         //
         // too many mipmaps
-        Header::new_image(1, 1, DxgiFormat::BC1_UNORM)
+        Header::new_image(1, 1, Format::BC1_UNORM)
             .with_mipmap_count(NonZeroU32::new(123456).unwrap()),
         //
         // unknown pixel format
-        Header::new_image(100, 100, DxgiFormat::UNKNOWN),
+        Dx10Header::new_image(100, 100, DxgiFormat::UNKNOWN).into(),
         Dx9Header::new_image(100, 100, FourCC::NONE.into()).into(),
         // despite the invalid pixel format, we can create a proper layout
         Dx9Header::new_image(
@@ -364,12 +364,12 @@ fn weird_and_invalid_headers() {
         .into(),
         //
         // zero dimension
-        Header::new_image(0, 100, DxgiFormat::BC1_UNORM),
-        Header::new_image(100, 0, DxgiFormat::BC1_UNORM),
-        Header::new_volume(100, 100, 0, DxgiFormat::BC1_UNORM),
-        Header::new_cube_map(100, 0, DxgiFormat::BC1_UNORM),
+        Header::new_image(0, 100, Format::BC1_UNORM),
+        Header::new_image(100, 0, Format::BC1_UNORM),
+        Header::new_volume(100, 100, 0, Format::BC1_UNORM),
+        Header::new_cube_map(100, 0, Format::BC1_UNORM),
         // volume without depth
-        Header::new_volume(100, 100, 100, DxgiFormat::BC1_UNORM).with_dimensions(10, 10, None),
+        Header::new_volume(100, 100, 100, Format::BC1_UNORM).with_dimensions(10, 10, None),
         //
         // cube map with huge array size
         Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM)
@@ -377,18 +377,18 @@ fn weird_and_invalid_headers() {
             .into(),
         //
         // HUGE files
-        Header::new_image(u32::MAX, u32::MAX, DxgiFormat::R8_UNORM),
-        Header::new_image(u32::MAX, u32::MAX, DxgiFormat::R8_UNORM)
+        Header::new_image(u32::MAX, u32::MAX, Format::R8_UNORM),
+        Header::new_image(u32::MAX, u32::MAX, Format::R8_UNORM)
             .with_mipmap_count(NonZeroU32::new(5).unwrap()),
-        Header::new_image(u32::MAX, u32::MAX, DxgiFormat::R16_UNORM),
+        Header::new_image(u32::MAX, u32::MAX, Format::R16_UNORM),
         Dx10Header::new_image(u32::MAX, 2, DxgiFormat::R8_UNORM)
             .with_array_size(u32::MAX)
             .into(),
-        Header::new_volume(u32::MAX, u32::MAX, 1, DxgiFormat::R8_UNORM),
-        Header::new_volume(u32::MAX, u32::MAX, 2, DxgiFormat::R8_UNORM),
-        Header::new_volume(u32::MAX, u32::MAX, 1, DxgiFormat::R8_UNORM)
+        Header::new_volume(u32::MAX, u32::MAX, 1, Format::R8_UNORM),
+        Header::new_volume(u32::MAX, u32::MAX, 2, Format::R8_UNORM),
+        Header::new_volume(u32::MAX, u32::MAX, 1, Format::R8_UNORM)
             .with_mipmap_count(NonZeroU32::new(5).unwrap()),
-        Header::new_volume(u32::MAX, u32::MAX, 1, DxgiFormat::R16_UNORM),
+        Header::new_volume(u32::MAX, u32::MAX, 1, Format::R16_UNORM),
         //
         // non-2D cube map
         Dx10Header::new_cube_map(100, 100, DxgiFormat::BC1_UNORM)

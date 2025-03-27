@@ -3,9 +3,10 @@ use std::num::{NonZeroU32, NonZeroU8};
 use bitflags::bitflags;
 
 use crate::header::{Caps2, Header, ResourceDimension};
+use crate::DecodeError;
 use crate::{
     util::{get_mipmap_size, NON_ZERO_U32_ONE},
-    DecodeError, PixelInfo, Size,
+    LayoutError, PixelInfo, Size,
 };
 
 pub trait DataRegion {
@@ -200,10 +201,10 @@ impl Texture {
         height: NonZeroU32,
         mipmaps: NonZeroU8,
         pixels: PixelInfo,
-    ) -> Result<Self, DecodeError> {
+    ) -> Result<Self, LayoutError> {
         // Check that length and all other calculations do not overflow
         let len =
-            get_texture_len(width, height, mipmaps, pixels).ok_or(DecodeError::DataLayoutTooBig)?;
+            get_texture_len(width, height, mipmaps, pixels).ok_or(LayoutError::DataLayoutTooBig)?;
 
         Ok(Self {
             width,
@@ -313,11 +314,11 @@ impl Volume {
         depth: NonZeroU32,
         mipmaps: NonZeroU8,
         pixels: PixelInfo,
-    ) -> Result<Self, DecodeError> {
+    ) -> Result<Self, LayoutError> {
         // compute the length of the entire volume (including mips) to check
         // for overflows, so we can assume no overflows in the rest of the code
         _ = get_volume_len(width, height, depth, mipmaps, pixels)
-            .ok_or(DecodeError::DataLayoutTooBig)?;
+            .ok_or(LayoutError::DataLayoutTooBig)?;
 
         Ok(Self {
             width,
@@ -332,6 +333,7 @@ impl Volume {
         self.pixels
     }
 
+    /// The level 0 mipmap of this volume.
     pub fn main(&self) -> VolumeDescriptor {
         let slice_size = Size::new(self.width.get(), self.height.get());
         // Panic Safety: This cannot overflow, because we already checked in the constructor
@@ -443,7 +445,7 @@ pub struct TextureArray {
     texture_short_len: Option<NonZeroU32>,
 }
 impl TextureArray {
-    fn new(kind: TextureArrayKind, array_len: u32, first: Texture) -> Result<Self, DecodeError> {
+    fn new(kind: TextureArrayKind, array_len: u32, first: Texture) -> Result<Self, LayoutError> {
         // must start at offset 0
         debug_assert_eq!(first.data_offset(), 0);
 
@@ -451,7 +453,7 @@ impl TextureArray {
         _ = first
             .data_len()
             .checked_mul(array_len as u64)
-            .ok_or(DecodeError::DataLayoutTooBig)?;
+            .ok_or(LayoutError::DataLayoutTooBig)?;
 
         Ok(Self {
             kind,
@@ -478,6 +480,10 @@ impl TextureArray {
     }
     pub fn len(&self) -> usize {
         self.array_len as usize
+    }
+
+    pub fn size(&self) -> Size {
+        Size::new(self.width.get(), self.height.get())
     }
 
     pub(crate) fn first(&self) -> Texture {
@@ -526,14 +532,15 @@ pub enum DataLayout {
 }
 impl DataLayout {
     pub fn from_header(header: &Header) -> Result<Self, DecodeError> {
-        Self::from_header_with(header, PixelInfo::from_header(header)?)
+        let layout = Self::from_header_with(header, PixelInfo::from_header(header)?)?;
+        Ok(layout)
     }
-    pub fn from_header_with(header: &Header, pixel_info: PixelInfo) -> Result<Self, DecodeError> {
+    pub fn from_header_with(header: &Header, pixel_info: PixelInfo) -> Result<Self, LayoutError> {
         match header {
             Header::Dx10(dx10) => {
                 if dx10.is_cube_map() {
                     if dx10.resource_dimension != ResourceDimension::Texture2D {
-                        return Err(DecodeError::InvalidCubeMapDimensions);
+                        return Err(LayoutError::InvalidCubeMapDimensions);
                     }
 
                     let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
@@ -542,7 +549,7 @@ impl DataLayout {
                     // "For a 2D texture that is also a cube-map texture, array_size represents the number of cubes."
                     let cube_map_faces = array_size
                         .checked_mul(6)
-                        .ok_or(DecodeError::ArraySizeTooBig(array_size))?;
+                        .ok_or(LayoutError::ArraySizeTooBig(array_size))?;
                     return Ok(Self::TextureArray(
                         info.create_array(TextureArrayKind::CubeMaps, cube_map_faces)?,
                     ));
@@ -573,7 +580,7 @@ impl DataLayout {
             Header::Dx9(dx9) => {
                 if let Some(faces) = dx9.cube_map_faces() {
                     if dx9.is_volume() {
-                        return Err(DecodeError::InvalidCubeMapDimensions);
+                        return Err(LayoutError::InvalidCubeMapDimensions);
                     }
 
                     let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
@@ -593,6 +600,20 @@ impl DataLayout {
                     Ok(Self::Texture(info.create()?))
                 }
             }
+        }
+    }
+
+    /// The size of the level 0 object.
+    ///
+    /// For single textures and texture arrays, this will return the size of the
+    /// texture (mipmap level 0). For cube maps, this will return the size of
+    /// the individual faces (mipmap level 0). For volume textures, this will
+    /// return the size of the first depth slice (mipmap level 0).
+    pub fn main_size(&self) -> Size {
+        match self {
+            DataLayout::Texture(texture) => texture.size(),
+            DataLayout::Volume(volume) => volume.main().size(),
+            DataLayout::TextureArray(texture_array) => texture_array.size(),
         }
     }
 
@@ -637,11 +658,11 @@ impl DataRegion for DataLayout {
     }
 }
 
-fn parse_dimension(dim: u32) -> Result<NonZeroU32, DecodeError> {
-    NonZeroU32::new(dim).ok_or(DecodeError::ZeroDimension)
+fn parse_dimension(dim: u32) -> Result<NonZeroU32, LayoutError> {
+    NonZeroU32::new(dim).ok_or(LayoutError::ZeroDimension)
 }
-fn parse_mipmap_count(mipmaps: NonZeroU32) -> Result<NonZeroU8, DecodeError> {
-    NonZeroU8::try_from(mipmaps).map_err(|_| DecodeError::TooManyMipMaps(mipmaps.get()))
+fn parse_mipmap_count(mipmaps: NonZeroU32) -> Result<NonZeroU8, LayoutError> {
+    NonZeroU8::try_from(mipmaps).map_err(|_| LayoutError::TooManyMipMaps(mipmaps.get()))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -652,7 +673,7 @@ struct SurfaceLayoutInfo {
     pixels: PixelInfo,
 }
 impl SurfaceLayoutInfo {
-    fn from_header(header: &Header, pixels: PixelInfo) -> Result<Self, DecodeError> {
+    fn from_header(header: &Header, pixels: PixelInfo) -> Result<Self, LayoutError> {
         Ok(Self {
             width: parse_dimension(header.width())?,
             height: parse_dimension(header.height())?,
@@ -661,7 +682,7 @@ impl SurfaceLayoutInfo {
         })
     }
 
-    fn create(&self) -> Result<Texture, DecodeError> {
+    fn create(&self) -> Result<Texture, LayoutError> {
         Texture::create_at_offset_0(self.width, self.height, self.mipmaps, self.pixels)
     }
 
@@ -669,7 +690,7 @@ impl SurfaceLayoutInfo {
         &self,
         kind: TextureArrayKind,
         array_len: u32,
-    ) -> Result<TextureArray, DecodeError> {
+    ) -> Result<TextureArray, LayoutError> {
         TextureArray::new(kind, array_len, self.create()?)
     }
 }
@@ -682,17 +703,17 @@ struct VolumeLayoutInfo {
     pixels: PixelInfo,
 }
 impl VolumeLayoutInfo {
-    fn from_header(header: &Header, pixels: PixelInfo) -> Result<Self, DecodeError> {
+    fn from_header(header: &Header, pixels: PixelInfo) -> Result<Self, LayoutError> {
         Ok(Self {
             width: parse_dimension(header.width())?,
             height: parse_dimension(header.height())?,
-            depth: parse_dimension(header.depth().ok_or(DecodeError::MissingDepth)?)?,
+            depth: parse_dimension(header.depth().ok_or(LayoutError::MissingDepth)?)?,
             mipmaps: parse_mipmap_count(header.mipmap_count())?,
             pixels,
         })
     }
 
-    fn create(&self) -> Result<Volume, DecodeError> {
+    fn create(&self) -> Result<Volume, LayoutError> {
         Volume::create_at_offset_0(
             self.width,
             self.height,

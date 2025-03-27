@@ -1,4 +1,4 @@
-use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, ColorFormatSet, EncodeError};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodeError};
 
 use super::encoder::{Args, Encoder, EncoderSet, Flags};
 
@@ -79,11 +79,9 @@ macro_rules! universal_subsample {
         fn process_blocks(block: &[[f32; 4]], out: &mut [$out]) {
             process_subsample::<$block_width, $out, _>(block, out, $f);
         }
-        Encoder {
-            color_formats: ColorFormatSet::ALL,
-            flags: Flags::empty(),
-            encode: |args| uncompressed_universal_subsample(args, $block_width, process_blocks),
-        }
+        Encoder::new_universal(|args| {
+            uncompressed_universal_subsample(args, $block_width, process_blocks)
+        })
     }};
 }
 

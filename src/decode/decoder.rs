@@ -1,7 +1,9 @@
 use std::io::{Read, Seek};
 use std::mem::size_of;
 
-use crate::{Channels, ColorFormat, ColorFormatSet, DecodeError, Precision, Rect, Size};
+use crate::{
+    Channels, ColorFormat, ColorFormatSet, DecodeError, ImageViewMut, Precision, Rect, Size,
+};
 
 use super::DecodeOptions;
 
@@ -53,18 +55,11 @@ impl<'a, 'b> Args<'a, 'b> {
         output: &'b mut [u8],
         context: DecodeContext,
     ) -> Result<Self, DecodeError> {
-        let required_bytes = context
-            .size
-            .pixels()
-            .saturating_mul(context.color.bytes_per_pixel() as u64)
-            .try_into()
-            .unwrap_or(usize::MAX);
-
-        if output.len() != required_bytes {
-            return Err(DecodeError::UnexpectedBufferSize {
-                expected: required_bytes,
-            });
-        }
+        let bytes_per_pixel = context.color.bytes_per_pixel() as u64;
+        assert_eq!(
+            output.len() as u64,
+            context.size.pixels().saturating_mul(bytes_per_pixel)
+        );
 
         Ok(Self(reader, output, context))
     }
@@ -220,15 +215,16 @@ impl DecoderSet {
 
     pub fn decode(
         &self,
-        color: ColorFormat,
         reader: &mut dyn Read,
-        size: Size,
-        output: &mut [u8],
+        image: ImageViewMut,
         options: &DecodeOptions,
     ) -> Result<(), DecodeError> {
+        let color = image.color();
+        let size = image.size();
+
         let args = Args::new(
             reader,
-            output,
+            image.data,
             DecodeContext {
                 color,
                 size,

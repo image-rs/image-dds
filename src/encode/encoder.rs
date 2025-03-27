@@ -2,9 +2,9 @@ use std::{io::Write, num::NonZeroU8};
 
 use bitflags::bitflags;
 
-use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision, SizeMultiple};
+use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, ImageView, Precision, SizeMultiple};
 
-use super::{Dithering, EncodeOptions};
+use super::{Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize};
 
 pub(crate) struct Args<'a, 'b> {
     pub data: &'a [u8],
@@ -16,37 +16,15 @@ pub(crate) struct Args<'a, 'b> {
 }
 impl<'a, 'b> Args<'a, 'b> {
     fn from(
-        data: &'a [u8],
-        width: usize,
-        color: ColorFormat,
+        image: ImageView<'a>,
         writer: &'b mut dyn Write,
         options: EncodeOptions,
     ) -> Result<Self, EncodeError> {
-        if data.is_empty() {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let bytes_per_pixel = color.bytes_per_pixel() as usize;
-        debug_assert!(bytes_per_pixel > 0);
-        if data.len() % bytes_per_pixel != 0 {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let stride = width * bytes_per_pixel;
-        if stride == 0 || data.len() % stride != 0 {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let height = data.len() / stride;
-        if stride * height != data.len() {
-            return Err(EncodeError::InvalidLines);
-        }
-
         Ok(Self {
-            data,
-            width,
-            height,
-            color,
+            data: image.data(),
+            width: image.width() as usize,
+            height: image.height() as usize,
+            color: image.color(),
             writer,
             options,
         })
@@ -100,19 +78,41 @@ impl Flags {
 pub(crate) struct Encoder {
     pub color_formats: ColorFormatSet,
     pub flags: Flags,
+    group_size: PreferredGroupSize,
+
     pub encode: fn(Args) -> Result<(), EncodeError>,
 }
 impl Encoder {
+    pub const fn new(
+        color_formats: ColorFormatSet,
+        flags: Flags,
+        encode: fn(Args) -> Result<(), EncodeError>,
+    ) -> Self {
+        Self {
+            color_formats,
+            flags,
+            group_size: PreferredGroupSize::EntireImage,
+            encode,
+        }
+    }
+    pub const fn new_universal(encode: fn(Args) -> Result<(), EncodeError>) -> Self {
+        Self::new(ColorFormatSet::ALL, Flags::empty(), encode)
+    }
     pub const fn copy(color: ColorFormat) -> Self {
         Self {
             color_formats: ColorFormatSet::from_single(color),
             flags: Flags::exact_for(color.precision),
+            group_size: PreferredGroupSize::EntireImage,
             encode: |args| copy_directly(args),
         }
     }
 
     pub const fn add_flags(mut self, flags: Flags) -> Self {
         self.flags = self.flags.union(flags);
+        self
+    }
+    pub const fn with_group_size(mut self, group_size: PreferredGroupSize) -> Self {
+        self.group_size = group_size;
         self
     }
 
@@ -135,10 +135,10 @@ bitflags! {
     }
 }
 pub(crate) struct EncoderSet {
-    pub flags: EncodeFormatFlags,
-    pub split_height: Option<NonZeroU8>,
-    pub size_multiple: SizeMultiple,
-    pub encoders: &'static [Encoder],
+    flags: EncodeFormatFlags,
+    split_height: Option<NonZeroU8>,
+    size_multiple: SizeMultiple,
+    encoders: &'static [Encoder],
 }
 impl EncoderSet {
     pub const fn new(encoders: &'static [Encoder]) -> Self {
@@ -199,6 +199,16 @@ impl EncoderSet {
         self.flags.contains(EncodeFormatFlags::LOCAL_DITHERING)
     }
 
+    pub const fn encoding_support(&self) -> EncodingSupport {
+        EncodingSupport {
+            dithering: self.supported_dithering(),
+            split_height: self.split_height,
+            local_dithering: self.local_dithering(),
+            size_multiple: self.size_multiple,
+            group_size: self.encoders[0].group_size,
+        }
+    }
+
     fn encoders_for_color(&self, color: ColorFormat) -> impl Iterator<Item = &Encoder> {
         self.encoders
             .iter()
@@ -231,14 +241,12 @@ impl EncoderSet {
 
     pub fn encode(
         &self,
-        data: &[u8],
-        width: u32,
-        color: ColorFormat,
         writer: &mut dyn Write,
+        image: ImageView,
         options: &EncodeOptions,
     ) -> Result<(), EncodeError> {
-        let encoder = self.pick_encoder(color, options);
-        let args = Args::from(data, width as usize, color, writer, options.clone())?;
+        let encoder = self.pick_encoder(image.color(), options);
+        let args = Args::from(image, writer, options.clone())?;
         encoder.encode(args)
     }
 }

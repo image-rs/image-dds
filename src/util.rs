@@ -66,6 +66,14 @@ pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> NonZeroU32 {
         NON_ZERO_U32_ONE
     }
 }
+pub(crate) const fn get_maximum_mipmap_count(size: u32) -> NonZeroU32 {
+    let count = 32 - size.leading_zeros();
+    if let Some(count) = NonZeroU32::new(count) {
+        count
+    } else {
+        NON_ZERO_U32_ONE
+    }
+}
 
 /// Computes `2^exponent` as a float.
 #[inline(always)]
@@ -84,6 +92,21 @@ pub(crate) fn closure_types<A, B, F: Fn(A) -> B>(f: F) -> F {
 }
 pub(crate) fn closure_types3<A1, A2, A3, B, F: Fn(A1, A2, A3) -> B>(f: F) -> F {
     f
+}
+
+/// Clamps a value to the range [0, 1].
+///
+/// If the value is NaN, it will be clamped to 0.
+#[inline(always)]
+#[allow(clippy::manual_clamp)]
+pub(crate) fn clamp_0_1(value: f32) -> f32 {
+    value.max(0.0).min(1.0)
+}
+#[inline(always)]
+#[allow(clippy::manual_clamp)]
+pub(crate) fn clamp_0_max(value: f32, max: f32) -> f32 {
+    debug_assert!(max > 0.0);
+    value.max(0.0).min(max)
 }
 
 /// This can be used to hint to the compiler that a branch is unlikely to be taken.
@@ -144,5 +167,14 @@ mod test {
             let actual = super::two_powi(i);
             assert_eq!(actual, expected, "i={}", i);
         }
+    }
+    #[test]
+    fn clamp() {
+        assert_eq!(0.0, super::clamp_0_1(-1.0));
+        assert_eq!(0.0, super::clamp_0_1(0.0));
+        assert_eq!(0.5, super::clamp_0_1(0.5));
+        assert_eq!(1.0, super::clamp_0_1(1.0));
+        assert_eq!(1.0, super::clamp_0_1(2.0));
+        assert_eq!(0.0, super::clamp_0_1(f32::NAN));
     }
 }

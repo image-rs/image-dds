@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dds::{header::*, *};
-use rand::Rng;
+use rand::{Rng, RngCore};
 use util::{test_data_dir, Image, WithPrecision};
 
 mod util;
@@ -10,37 +10,19 @@ fn get_sample(name: &str) -> PathBuf {
     util::test_data_dir().join("samples").join(name)
 }
 
-fn create_header(size: Size, format: Format) -> Header {
-    if let Ok(dxgi_format) = format.try_into() {
-        Header::new_image(size.width, size.height, dxgi_format)
-    } else if let Ok(format) = format.try_into() {
-        Dx9Header::new_image(size.width, size.height, format).into()
-    } else {
-        unreachable!("unsupported format: {:?}", format);
-    }
-}
-fn write_dds_header(size: Size, format: Format) -> Vec<u8> {
-    let header = create_header(size, format);
-
-    let mut output = Vec::new();
-    header.write(&mut output).unwrap();
-
-    output
-}
 fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     image: &Image<T>,
     format: Format,
     writer: &mut W,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
-    encode(
-        writer,
-        format,
-        image.size,
-        image.color(),
-        image.as_bytes(),
-        options,
-    )
+    encode(writer, image.view(), format, options)
+}
+fn write_image<T: WithPrecision + util::Castable, W: std::io::Write>(
+    encoder: &mut Encoder<W>,
+    image: &Image<T>,
+) -> Result<(), EncodeError> {
+    encoder.write_surface(image.view())
 }
 fn encode_decode(
     format: Format,
@@ -48,15 +30,21 @@ fn encode_decode(
     image: &Image<f32>,
 ) -> (Vec<u8>, Image<f32>) {
     // encode
-    let mut encoded = write_dds_header(image.size, format);
-    encode_image(image, format, &mut encoded, options).unwrap();
+    let mut encoded = Vec::new();
+    let mut encoder = Encoder::new(
+        &mut encoded,
+        format,
+        &Header::new_image(image.size.width, image.size.height, format),
+    )
+    .unwrap();
+    encoder.options = options.clone();
+    encoder.write_surface(image.view()).unwrap();
+    encoder.finish().unwrap();
 
     // decode
     let mut decoder = Decoder::new(encoded.as_slice()).unwrap();
     let mut decoded = Image::new_empty(image.channels, image.size);
-    decoder
-        .read_surface(decoded.as_bytes_mut(), image.color())
-        .unwrap();
+    decoder.read_surface(decoded.view_mut()).unwrap();
 
     (encoded, decoded)
 }
@@ -99,23 +87,27 @@ fn encode_base() {
     }
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
         let mut size = base_u8.size;
-        if let Some(encoding) = format.encoding() {
-            size = size.round_down_to_multiple(encoding.size_multiple);
+        if let Some(support) = format.encoding_support() {
+            size = size.round_down_to_multiple(support.size_multiple());
         };
 
-        let mut output = write_dds_header(size, format);
-
-        let mut options = EncodeOptions::default();
-        options.quality = CompressionQuality::High;
+        let mut output = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut output,
+            format,
+            &Header::new_image(size.width, size.height, format),
+        )?;
+        encoder.options.quality = CompressionQuality::High;
 
         // and now the image data
         if format.precision() == Precision::U16 {
-            encode_image(&base_u16.cropped(size), format, &mut output, &options)?;
+            write_image(&mut encoder, &base_u16.cropped(size))?;
         } else if format.precision() == Precision::F32 {
-            encode_image(&base_f32.cropped(size), format, &mut output, &options)?;
+            write_image(&mut encoder, &base_f32.cropped(size))?;
         } else {
-            encode_image(&base_u8.cropped(size), format, &mut output, &options)?;
+            write_image(&mut encoder, &base_u8.cropped(size))?;
         }
+        encoder.finish()?;
 
         // write to disk
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
@@ -146,12 +138,16 @@ fn encode_dither() {
         image: &Image<f32>,
         dds_path: &Path,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let mut output = write_dds_header(image.size, format);
-
-        let mut options = EncodeOptions::default();
-        options.quality = CompressionQuality::High;
-        options.dithering = Dithering::ColorAndAlpha;
-        encode_image(image, format, &mut output, &options)?;
+        let mut output = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut output,
+            format,
+            &Header::new_image(image.size.width, image.size.height, format),
+        )?;
+        encoder.options.quality = CompressionQuality::High;
+        encoder.options.dithering = Dithering::ColorAndAlpha;
+        encoder.write_surface(image.view())?;
+        encoder.finish()?;
 
         // write to disk
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
@@ -174,8 +170,8 @@ fn encode_dither() {
         .iter()
         .copied()
         .filter(|f| !ignore.contains(f))
-        .filter_map(|f| f.encoding().map(|e| (f, e)))
-        .filter(|(_, e)| e.dithering != Dithering::None)
+        .filter_map(|f| f.encoding_support().map(|e| (f, e)))
+        .filter(|(_, e)| e.dithering() != Dithering::None)
     {
         let mut test_and_summarize = |image, name| {
             let output_path = get_output_dds(format, name);
@@ -184,7 +180,7 @@ fn encode_dither() {
 
         test_and_summarize(&base, "base");
 
-        if encoding.dithering.color() {
+        if encoding.dithering().color() {
             test_and_summarize(&twirl, "twirl");
         }
     }
@@ -533,8 +529,8 @@ fn encode_all_color_formats() {
     let mut failures = String::new();
 
     for &format in util::ALL_FORMATS {
-        if let Some(support) = format.encoding() {
-            if support.size_multiple != SizeMultiple::ONE {
+        if let Some(support) = format.encoding_support() {
+            if support.size_multiple() != SizeMultiple::ONE {
                 continue;
             }
         } else {
@@ -561,5 +557,189 @@ fn encode_all_color_formats() {
 
     if !failures.is_empty() {
         panic!("Failed for formats:\n{}", failures);
+    }
+}
+
+/// This tests mipmap generation.
+#[test]
+fn encode_mipmap() {
+    fn create_mipmap_image(
+        snap_path: &Path,
+        format: Format,
+        options: WriteOptions,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let base = util::read_png_u8(&get_sample("base.png"))?;
+        let width = base.size.width;
+        let height = base.size.height;
+
+        let mut encoded = Vec::new();
+        let mut encoder = Encoder::new(
+            &mut encoded,
+            format,
+            &Header::new_image(width, height, format).with_mipmaps(),
+        )?;
+        encoder.write_surface_with(base.view(), |_| {}, &options)?;
+        encoder.finish()?;
+
+        let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
+        let mut decoded: Image<u8> =
+            Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
+        let color = ColorFormat::RGBA_U8;
+        let stride = decoded.size.width as usize * 4;
+        decoder.read_surface_rect(
+            decoded.as_bytes_mut(),
+            stride,
+            Rect::new(0, 0, width, height),
+            color,
+        )?;
+        let mut offset_y = 0;
+        while let Some(info) = decoder.surface_info() {
+            let mip_size = info.size();
+
+            decoder.read_surface_rect(
+                &mut decoded.as_bytes_mut()[offset_y * stride + (width as usize * 4)..],
+                stride,
+                Rect::new(0, 0, mip_size.width, mip_size.height),
+                color,
+            )?;
+
+            offset_y += mip_size.height as usize;
+        }
+
+        _ = util::update_snapshot_png_u8(snap_path, &decoded)?;
+
+        let hex = util::hash_hex(&decoded.data);
+        Ok(hex)
+    }
+
+    let options = [
+        WriteOptions {
+            resize_straight_alpha: true,
+            resize_filter: ResizeFilter::Box,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_straight_alpha: false,
+            resize_filter: ResizeFilter::Box,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Nearest,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Triangle,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Mitchell,
+            ..WriteOptions::default()
+        },
+        WriteOptions {
+            resize_filter: ResizeFilter::Lanczos3,
+            ..WriteOptions::default()
+        },
+    ];
+
+    let mut summaries = util::OutputSummaries::new("_hashes");
+    for mut option in options {
+        option.generate_mipmaps = true;
+
+        let mut name = "base @ ".to_string();
+        name.push_str(if option.resize_straight_alpha {
+            "straight-alpha"
+        } else {
+            "no-straight-alpha"
+        });
+        name.push_str(&format!(" - {:?}", option.resize_filter));
+
+        let snapshot_file = util::test_data_dir()
+            .join("output-encode/mipmaps")
+            .join(format!("{}.png", name));
+
+        summaries.add_output_file_result(
+            &snapshot_file,
+            create_mipmap_image(&snapshot_file, Format::R8G8B8A8_UNORM, option),
+        );
+    }
+
+    summaries.snapshot_or_fail();
+}
+
+#[test]
+fn test_unaligned() {
+    // aligned and unaligned buffers
+    let mut buffer = vec![0_u32; 4096];
+    let (first, second) = buffer.split_at_mut(2048);
+    let aligned_buffer = util::as_bytes_mut(first);
+    let unaligned_buffer = &mut util::as_bytes_mut(second)[1..];
+
+    let mut rng = util::create_rng();
+    rng.fill_bytes(aligned_buffer);
+    unaligned_buffer.copy_from_slice(&aligned_buffer[..unaligned_buffer.len()]);
+
+    let size = Size::new(7, 7);
+
+    let mut aligned_encoded = Vec::new();
+    let mut unaligned_encoded = Vec::new();
+
+    for format in [
+        Format::R8G8B8A8_UNORM,
+        Format::R16G16_UNORM,
+        Format::R32_FLOAT,
+        Format::AYUV,
+        Format::R1_UNORM,
+        Format::R8G8_B8G8_UNORM,
+        Format::BC1_UNORM,
+    ] {
+        for &color in util::ALL_COLORS {
+            let stride = size.width as usize * color.bytes_per_pixel() as usize;
+            let bytes = stride * size.height as usize;
+
+            let aligned = &mut aligned_buffer[..bytes];
+            let unaligned = &mut unaligned_buffer[..bytes];
+
+            let aligned = ImageView::new(aligned, size, color).unwrap();
+            let unaligned = ImageView::new(unaligned, size, color).unwrap();
+
+            for options in [
+                WriteOptions {
+                    generate_mipmaps: false,
+                    ..WriteOptions::default()
+                },
+                WriteOptions {
+                    generate_mipmaps: true,
+                    ..WriteOptions::default()
+                },
+            ] {
+                aligned_encoded.clear();
+                unaligned_encoded.clear();
+
+                let mut header = Header::new_image(size.width, size.height, format);
+                if options.generate_mipmaps {
+                    header = header.with_mipmaps();
+                }
+
+                let mut aligned_encoder =
+                    Encoder::new(&mut aligned_encoded, format, &header).unwrap();
+                aligned_encoder
+                    .write_surface_with(aligned, |_| {}, &options)
+                    .unwrap();
+                aligned_encoder.finish().unwrap();
+
+                let mut unaligned_encoder =
+                    Encoder::new(&mut unaligned_encoded, format, &header).unwrap();
+                unaligned_encoder
+                    .write_surface_with(unaligned, |_| {}, &options)
+                    .unwrap();
+                unaligned_encoder.finish().unwrap();
+
+                assert_eq!(
+                    aligned_encoded, unaligned_encoded,
+                    "Failed for {:?} {:?} {:?}",
+                    format, color, options
+                );
+            }
+        }
     }
 }

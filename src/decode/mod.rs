@@ -16,7 +16,7 @@ pub(crate) use decoder::*;
 use sub_sampled::*;
 use uncompressed::*;
 
-use crate::{ColorFormat, DecodeError, Format, Rect, Size};
+use crate::{ColorFormat, DecodeError, Format, ImageViewMut, Rect, Size};
 
 pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
     match format {
@@ -93,16 +93,6 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// Decodes the image data of a surface from the given reader and writes it
 /// to the given output buffer.
 ///
-/// ## Output buffer
-///
-/// The output buffer must be exactly the right size to hold the decoded
-/// image data.
-///
-/// The size in bytes of the output buffer can be calculated as
-/// `size.pixels() * color.bytes_per_pixel()`. If you are using one of the
-/// `decode_<precision>` methods, the length of the types output buffer is
-/// `size.pixels() * channels.count()`
-///
 /// ## State of the reader
 ///
 /// The reader is expected to be positioned at the start of the encoded
@@ -120,13 +110,11 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// This method will only panic in the given reader panics while reading.
 pub fn decode(
     reader: &mut dyn Read,
+    image: ImageViewMut,
     format: Format,
-    size: Size,
-    color: ColorFormat,
-    output: &mut [u8],
     options: &DecodeOptions,
 ) -> Result<(), DecodeError> {
-    get_decoders(format).decode(color, reader, size, output, options)
+    get_decoders(format).decode(reader, image, options)
 }
 
 /// Decodes a rectangle of the image data of a surface from the given reader
@@ -155,12 +143,12 @@ pub fn decode(
 #[allow(clippy::too_many_arguments)]
 pub fn decode_rect<R: Read + Seek>(
     reader: &mut R,
-    format: Format,
-    size: Size,
-    rect: Rect,
-    color: ColorFormat,
     output: &mut [u8],
     row_pitch: usize,
+    color: ColorFormat,
+    size: Size,
+    rect: Rect,
+    format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodeError> {
     let reader = reader as &mut dyn ReadSeek;

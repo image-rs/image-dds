@@ -160,6 +160,21 @@ pub const ALL_FORMATS: &[Format] = &[
     Format::BC3_UNORM_RXGB,
 ];
 
+pub const ALL_COLORS: &[ColorFormat] = &[
+    ColorFormat::ALPHA_U8,
+    ColorFormat::GRAYSCALE_U8,
+    ColorFormat::RGB_U8,
+    ColorFormat::RGBA_U8,
+    ColorFormat::ALPHA_U16,
+    ColorFormat::GRAYSCALE_U16,
+    ColorFormat::RGB_U16,
+    ColorFormat::RGBA_U16,
+    ColorFormat::ALPHA_F32,
+    ColorFormat::GRAYSCALE_F32,
+    ColorFormat::RGB_F32,
+    ColorFormat::RGBA_F32,
+];
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Image<T> {
@@ -218,6 +233,21 @@ impl<T> Image<T> {
         T: WithPrecision,
     {
         ColorFormat::new(self.channels, T::PRECISION)
+    }
+
+    pub fn view(&self) -> ImageView
+    where
+        T: Castable + WithPrecision,
+    {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
+    }
+    pub fn view_mut(&mut self) -> ImageViewMut
+    where
+        T: Castable + WithPrecision,
+    {
+        let size = self.size;
+        let color = self.color();
+        ImageViewMut::new(self.as_bytes_mut(), size, color).unwrap()
     }
 
     pub fn to_channels(&self, channels: Channels) -> Image<T>
@@ -395,10 +425,7 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
 
     let channels = settings.pick_channels(format);
     let mut image = Image::new_empty(channels, size);
-    decoder.read_surface(
-        image.as_bytes_mut(),
-        ColorFormat::new(channels, T::PRECISION),
-    )?;
+    decoder.read_surface(image.view_mut())?;
 
     Ok((image, decoder.info().clone()))
 }
@@ -545,12 +572,11 @@ pub fn compare_snapshot_dds_f32(
         let mut decoder = Decoder::new(file)?;
         let size = decoder.main_size();
 
-        let mut dds_image_data =
-            vec![0.0_f32; size.pixels() as usize * image.channels.count() as usize];
-        decoder.read_surface(as_bytes_mut(&mut dds_image_data), image.color())?;
+        let mut dds_image: Image<f32> = Image::new_empty(image.channels, size);
+        decoder.read_surface(dds_image.view_mut())?;
 
-        assert!(dds_image_data.len() == image.data.len());
-        if dds_image_data == image.data {
+        assert!(dds_image.data.len() == image.data.len());
+        if dds_image.data == image.data {
             // all good
             return Ok(());
         }
@@ -570,14 +596,7 @@ pub fn compare_snapshot_dds_f32(
         write_simple_dds_header(&mut output, image.size, format.try_into().unwrap())?;
 
         // convert to LE
-        encode(
-            &mut output,
-            format,
-            image.size,
-            format.color(),
-            image.as_bytes(),
-            &EncodeOptions::default(),
-        )?;
+        encode(&mut output, image.view(), format, &EncodeOptions::default())?;
 
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
         std::fs::write(dds_path, output)?;
@@ -665,12 +684,10 @@ pub fn write_simple_dds_header(
     size: Size,
     format: DxgiFormat,
 ) -> std::io::Result<()> {
-    let mut header = Header::new_image(size.width, size.height, format);
-    if let Header::Dx10(dx10) = &mut header {
-        dx10.alpha_mode = AlphaMode::Unknown;
-    }
+    let mut header = Dx10Header::new_image(size.width, size.height, format);
+    header.alpha_mode = AlphaMode::Unknown;
 
-    header.write(w)?;
+    Header::from(header).write(w)?;
 
     Ok(())
 }

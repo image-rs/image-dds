@@ -46,11 +46,20 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - 1.61.0
+          - 1.63.0
     steps:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo check
+
+  # make sure the crate works with all features enabled/disabled
+  features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update --no-self-update stable && rustup default stable
+      - uses: taiki-e/install-action@cargo-hack
+      - run: cargo hack test --each-feature
 
   # taken from https://github.com/image-rs/image/blob/ca9e2dceb436a8c5a8202797cb9e8a1573eba35e/.github/workflows/rust.yml#L64-L88
   test_other_archs:

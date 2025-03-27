@@ -31,22 +31,23 @@ fn format_metadata() {
             conv_table.add_empty_row();
         }
 
-        let encoding = if let Some(encoding) = format.encoding() {
+        let encoding = if let Some(encoding) = format.encoding_support() {
             let mut out = "✔️ ".to_string();
 
-            if let Some(block_height) = encoding.split_height {
+            if let Some(block_height) = encoding.split_height() {
                 out.push_str(&format!("split={:?} ", block_height));
             }
-            if encoding.dithering != Dithering::None {
-                out.push_str(&format!("dithering={:?} ", encoding.dithering));
-                if encoding.local_dithering {
+            if encoding.dithering() != Dithering::None {
+                out.push_str(&format!("dithering={:?} ", encoding.dithering()));
+                if encoding.local_dithering() {
                     out.push_str("(local) ");
                 }
             }
-            if encoding.size_multiple != SizeMultiple::ONE {
+            if encoding.size_multiple() != SizeMultiple::ONE {
                 out.push_str(&format!(
                     "size_mul={}x{} ",
-                    encoding.size_multiple.width_multiple, encoding.size_multiple.height_multiple
+                    encoding.size_multiple().width_multiple,
+                    encoding.size_multiple().height_multiple
                 ));
             }
 

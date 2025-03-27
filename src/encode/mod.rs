@@ -1,6 +1,6 @@
-use std::io::Write;
+use std::{io::Write, num::NonZeroU8};
 
-use crate::{ColorFormat, EncodeError, Format, Size};
+use crate::{EncodeError, Format, ImageView, SizeMultiple};
 
 mod bc;
 mod bc1;
@@ -91,14 +91,12 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
 
 pub fn encode(
     writer: &mut dyn Write,
+    image: ImageView,
     format: Format,
-    size: Size,
-    color: ColorFormat,
-    data: &[u8],
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
     if let Some(encoders) = get_encoders(format) {
-        encoders.encode(data, size.width, color, writer, options)
+        encoders.encode(writer, image, options)
     } else {
         Err(EncodeError::UnsupportedFormat(format))
     }
@@ -232,5 +230,146 @@ pub enum CompressionQuality {
 impl Default for CompressionQuality {
     fn default() -> Self {
         Self::Normal
+    }
+}
+
+/// The preferred group size when splitting an image into chunks for parallel
+/// encoding.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum PreferredGroupSize {
+    EntireImage,
+    Group {
+        fast: u8,
+        high: u8,
+        unreasonable: u8,
+    },
+}
+impl PreferredGroupSize {
+    pub const fn group(fast: u64, high: u64, unreasonable: u64) -> Self {
+        const fn log2(x: u64) -> u8 {
+            64 - x.leading_zeros() as u8
+        }
+
+        Self::Group {
+            fast: log2(fast),
+            high: log2(high),
+            unreasonable: log2(unreasonable),
+        }
+    }
+
+    pub const fn combine(&self, other: Self) -> Self {
+        const fn u8_min(a: u8, b: u8) -> u8 {
+            if a > b {
+                b
+            } else {
+                a
+            }
+        }
+
+        match (*self, other) {
+            (PreferredGroupSize::EntireImage, _) => other,
+            (_, PreferredGroupSize::EntireImage) => *self,
+            (
+                PreferredGroupSize::Group {
+                    fast: a,
+                    high: b,
+                    unreasonable: c,
+                },
+                PreferredGroupSize::Group {
+                    fast: x,
+                    high: y,
+                    unreasonable: z,
+                },
+            ) => PreferredGroupSize::Group {
+                fast: u8_min(a, x),
+                high: u8_min(b, y),
+                unreasonable: u8_min(c, z),
+            },
+        }
+    }
+
+    pub fn get_group_pixels(&self, quality: CompressionQuality) -> u64 {
+        match *self {
+            PreferredGroupSize::EntireImage => u64::MAX,
+            PreferredGroupSize::Group {
+                fast,
+                high,
+                unreasonable,
+            } => {
+                let size_log2 = match quality {
+                    CompressionQuality::Fast => fast,
+                    CompressionQuality::Normal => ((fast as u16 + high as u16) / 2) as u8,
+                    CompressionQuality::High => high,
+                    CompressionQuality::Unreasonable => unreasonable,
+                };
+
+                1 << size_log2.min(63)
+            }
+        }
+    }
+}
+
+/// Describes the extent of support for encoding a format.
+#[derive(Debug, Clone, Copy)]
+pub struct EncodingSupport {
+    dithering: Dithering,
+    split_height: Option<NonZeroU8>,
+    local_dithering: bool,
+    size_multiple: SizeMultiple,
+    group_size: PreferredGroupSize,
+}
+
+impl EncodingSupport {
+    /// Whether and what type of dithering is supported.
+    pub const fn dithering(&self) -> Dithering {
+        self.dithering
+    }
+    /// The split height for the image format.
+    ///
+    /// Encoding most formats is trivially parallelizable, by splitting the
+    /// image into chunks by lines, encoding each chunk separately, and writing
+    /// the encoded chunks to the output stream in order.
+    ///
+    /// This value specifies how many lines need to be grouped together for
+    /// correct encoding. E.g. `BC1_UNORM` requires 4 lines to be grouped
+    /// together, meaning that all chunks (except the last one) must have a
+    /// height that is a multiple of 4. So e.g. an image with a height of 10
+    /// pixels can split into chunks with heights of 4-4-2, 8-2, 4-6, or 10.
+    ///
+    /// Note that most dithering will produce different (but not necessarily
+    /// incorrect) results if the image is split into chunks. However, all BCn
+    /// formats implement block-based local dithering, meaning that the dithering
+    /// is the same whether the image is split or not. See
+    /// [`EncodingSupport::local_dithering()`].
+    pub const fn split_height(&self) -> Option<NonZeroU8> {
+        self.split_height
+    }
+    /// Whether the format supports local dithering.
+    ///
+    /// Most formats implement global error diffusing dithering for best quality.
+    /// However, this prevents parallel encoding of the image, as the dithering
+    /// error of one chunk depends on the dithering error of the previous chunk.
+    /// It's still possible to encode the image in parallel, but the dither
+    /// pattern may reveal the chunk seams.
+    ///
+    /// Local dithering on the other hand will attempt to diffuse the error
+    /// within a small region of the image. E.g. `BC1_UNORM` will dither within
+    /// a 4x4 block. This allows the image to be split into chunks and encoded
+    /// in parallel without revealing the chunk seams.
+    ///
+    /// `self.dithering() == Dithering::None` implies `self.local_dithering() == false`.
+    pub const fn local_dithering(&self) -> bool {
+        self.local_dithering
+    }
+    /// The size multiple of the encoded image.
+    ///
+    /// If the dimensions of the image are not multiples of this size, the
+    /// encoder with return an error.
+    pub const fn size_multiple(&self) -> SizeMultiple {
+        self.size_multiple
+    }
+
+    pub(crate) fn group_size(&self) -> PreferredGroupSize {
+        self.group_size
     }
 }

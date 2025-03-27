@@ -29,7 +29,7 @@ impl std::error::Error for FormatError {}
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum DecodeError {
+pub enum LayoutError {
     /// The decoder only supports up to 255 mipmaps.
     ///
     /// In practice, texture will have at most 32 mipmaps, so this limitation
@@ -50,18 +50,40 @@ pub enum DecodeError {
     DataLayoutTooBig,
     /// The faces of a cube map must always be 2D textures.
     InvalidCubeMapDimensions,
+}
+impl std::fmt::Display for LayoutError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LayoutError::TooManyMipMaps(mipmaps) => {
+                write!(
+                    f,
+                    "Too many mipmaps ({}), the maximum supported is 255",
+                    mipmaps
+                )
+            }
+            LayoutError::MissingDepth => {
+                write!(f, "Missing depth for a texture 3D/volume")
+            }
+            LayoutError::ZeroDimension => {
+                write!(f, "The width, height, or depth of the texture is zero")
+            }
+            LayoutError::ArraySizeTooBig(size) => {
+                write!(f, "Array size {} is too large", size)
+            }
+            LayoutError::DataLayoutTooBig => {
+                write!(f, "Data layout described by the header is too large")
+            }
+            LayoutError::InvalidCubeMapDimensions => {
+                write!(f, "Cube map faces must be 2D textures")
+            }
+        }
+    }
+}
+impl std::error::Error for LayoutError {}
 
-    /// [`crate::decode()`] requires that the buffer size is exactly the size
-    /// of the image data. No more, no less.
-    ///
-    /// This is different from [`crate::decode_rect()`], which allows the buffer
-    /// to be larger than necessary.
-    ///
-    /// This error can only occur when using [`crate::decode()`].
-    UnexpectedBufferSize {
-        expected: usize,
-    },
-
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum DecodeError {
     /// When decoding a rectangle, the rectangle is out of bounds of the size
     /// of the image.
     RectOutOfBounds,
@@ -78,6 +100,10 @@ pub enum DecodeError {
         required_minimum: usize,
     },
 
+    /// Returned by [`crate::Decoder::read_surface`] when the user tries to
+    /// decode a surface into an image that is not the same size as the
+    /// surface.
+    UnexpectedSurfaceSize,
     /// When decoding a volume texture, it is not allowed to skip mipmaps
     /// within a volume.
     ///
@@ -89,6 +115,7 @@ pub enum DecodeError {
     /// The decoder has exceeded its memory limit.
     MemoryLimitExceeded,
 
+    Layout(LayoutError),
     Format(FormatError),
     Header(HeaderError),
     Io(std::io::Error),
@@ -97,31 +124,6 @@ pub enum DecodeError {
 impl std::fmt::Display for DecodeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DecodeError::TooManyMipMaps(mipmaps) => {
-                write!(
-                    f,
-                    "Too many mipmaps ({}), the maximum supported is 255",
-                    mipmaps
-                )
-            }
-            DecodeError::MissingDepth => {
-                write!(f, "Missing depth for a texture 3D/volume")
-            }
-            DecodeError::ZeroDimension => {
-                write!(f, "The width, height, or depth of the texture is zero")
-            }
-            DecodeError::ArraySizeTooBig(size) => {
-                write!(f, "Array size {} is too large", size)
-            }
-            DecodeError::DataLayoutTooBig => {
-                write!(f, "Data layout described by the header is too large")
-            }
-            DecodeError::InvalidCubeMapDimensions => {
-                write!(f, "Cube map faces must be 2D textures")
-            }
-            DecodeError::UnexpectedBufferSize { expected } => {
-                write!(f, "Unexpected buffer size: expected {} bytes", expected)
-            }
             DecodeError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
             }
@@ -139,6 +141,9 @@ impl std::fmt::Display for DecodeError {
                     required_minimum
                 )
             }
+            DecodeError::UnexpectedSurfaceSize => {
+                write!(f, "Unexpected size of the surface")
+            }
             DecodeError::CannotSkipMipmapsInVolume => {
                 write!(f, "Cannot skip mipmaps within a volume texture")
             }
@@ -149,6 +154,7 @@ impl std::fmt::Display for DecodeError {
                 write!(f, "Memory limit exceeded")
             }
 
+            DecodeError::Layout(error) => write!(f, "{}", error),
             DecodeError::Format(error) => write!(f, "{}", error),
             DecodeError::Header(error) => write!(f, "Header error: {}", error),
             DecodeError::Io(error) => write!(f, "I/O error: {}", error),
@@ -156,6 +162,11 @@ impl std::fmt::Display for DecodeError {
     }
 }
 
+impl From<LayoutError> for DecodeError {
+    fn from(error: LayoutError) -> Self {
+        DecodeError::Layout(error)
+    }
+}
 impl From<FormatError> for DecodeError {
     fn from(error: FormatError) -> Self {
         DecodeError::Format(error)
@@ -175,6 +186,7 @@ impl From<std::io::Error> for DecodeError {
 impl std::error::Error for DecodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            DecodeError::Layout(error) => Some(error),
             DecodeError::Format(error) => Some(error),
             DecodeError::Header(error) => Some(error),
             DecodeError::Io(error) => Some(error),
@@ -279,7 +291,22 @@ impl std::error::Error for HeaderError {
 pub enum EncodeError {
     UnsupportedFormat(Format),
     InvalidSize(SizeMultiple),
-    InvalidLines,
+    /// Returned by [`crate::encode()`] when the user tries to write a surface
+    /// with width or height of 0.
+    EmptySurface,
+
+    /// Returned by [`crate::Encoder`] when the user tries to write a surface
+    /// with a size that is different from the size declared in the header.
+    UnexpectedSurfaceSize,
+    /// Returned by [`crate::Encoder`] when the encoder has already written all
+    /// surfaces declared in the header, but the user attempts to write
+    /// additional surfaces.
+    TooManySurfaces,
+    /// Returned by [`crate::Encoder::finish()`] when the encoder has not
+    /// written all surfaces declared in the header.
+    MissingSurfaces,
+
+    Layout(LayoutError),
     Io(std::io::Error),
 }
 
@@ -292,7 +319,15 @@ impl std::fmt::Display for EncodeError {
             EncodeError::InvalidSize(size) => {
                 write!(f, "Size is not a multiple of {:?}", size)
             }
-            EncodeError::InvalidLines => write!(f, "Invalid lines"),
+            EncodeError::EmptySurface => write!(f, "Surface has a width or height of 0"),
+
+            EncodeError::UnexpectedSurfaceSize => {
+                write!(f, "Unexpected size of the surface")
+            }
+            EncodeError::TooManySurfaces => write!(f, "Too many surfaces are attempted to written"),
+            EncodeError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
+
+            EncodeError::Layout(err) => write!(f, "Layout error: {}", err),
             EncodeError::Io(err) => write!(f, "IO error: {}", err),
         }
     }
@@ -300,12 +335,18 @@ impl std::fmt::Display for EncodeError {
 impl std::error::Error for EncodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            EncodeError::Layout(err) => Some(err),
             EncodeError::Io(err) => Some(err),
             _ => None,
         }
     }
 }
 
+impl From<LayoutError> for EncodeError {
+    fn from(err: LayoutError) -> Self {
+        EncodeError::Layout(err)
+    }
+}
 impl From<std::io::Error> for EncodeError {
     fn from(err: std::io::Error) -> Self {
         EncodeError::Io(err)

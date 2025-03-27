@@ -9,12 +9,66 @@
 //! [`RawHeader`] is a low-level representation of an unparsed DDS header. It is
 //! bit-for-bit what is on disk. You rarely need to interact with this type, but
 //! it can useful for manually detecting and parsing non-standard DDS files.
+//!
+//! # Creating a header
+//!
+//! This will create the header for a 128x256 BC1 image without mipmaps:
+//!
+//! ```
+//! # use dds::{*, header::*};
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM);
+//! assert_eq!(header.width(), 128);
+//! assert_eq!(header.height(), 256);
+//! assert_eq!(header.depth(), None);
+//! assert_eq!(header.mipmap_count().get(), 1);
+//! assert_eq!(header.dx10().unwrap().dxgi_format, DxgiFormat::BC1_UNORM);
+//! ```
+//!
+//! To specify mipmaps, use [`Header::with_mipmap_count`] to set a specific
+//! number of mipmaps, or [`Header::with_mipmaps`] to automatically set the
+//! mipmap count based on the dimensions of the image:
+//!
+//! ```
+//! # use dds::{*, header::*};
+//! # use std::num::NonZeroU32;
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM).with_mipmaps();
+//! assert_eq!(header.mipmap_count().get(), 9);
+//!
+//! // The layout of the image is:
+//! let layout = DataLayout::from_header(&header).unwrap();
+//! let texture = layout.texture().unwrap();
+//! let mut mipmap_sizes = texture.iter_mips().map(|m| m.size());
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(128, 256)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(64, 128)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(32, 64)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(16, 32)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(8, 16)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(4, 8)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(2, 4)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(1, 2)));
+//! assert_eq!(mipmap_sizes.next(), Some(Size::new(1, 1)));
+//! assert_eq!(mipmap_sizes.next(), None);
+//! ```
+//!
+//! You can also set a specific number of mipmaps with
+//! [`Header::with_mipmap_count`]:
+//!
+//! ```
+//! # use dds::{*, header::*};
+//! # use std::num::NonZeroU32;
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM)
+//!     .with_mipmap_count(NonZeroU32::new(4).unwrap());
+//! assert_eq!(header.mipmap_count().get(), 4);
+//! ```
+//!
+//! Lastly, if you need more control over the header, use [`Dx9Header`] and
+//! [`Dx10Header`] directly.
 
 use crate::{
     cast,
     detect::{dxgi_to_four_cc, dxgi_to_masked, four_cc_to_dxgi, masked_to_dxgi},
-    util::{read_u32_le_array, NON_ZERO_U32_ONE},
-    CubeMapFaces, DataLayout, DataRegion, HeaderError, PixelInfo, Size,
+    util::{get_maximum_mipmap_count, read_u32_le_array, NON_ZERO_U32_ONE},
+    CubeMapFaces, DataLayout, DataRegion, Format, HeaderError, PixelInfo, Size,
 };
 use bitflags::bitflags;
 use std::{
@@ -560,26 +614,57 @@ impl Header {
         size as usize
     }
 
-    /// Creates a new header for DX10 texture 2D with the given dimensions and
+    /// Creates a new header for a 2D texture with the given dimensions and
     /// format.
     ///
-    /// The mipmap count is set to 1 and the alpha mode is set to unknown.
-    pub const fn new_image(width: u32, height: u32, format: DxgiFormat) -> Self {
-        Self::Dx10(Dx10Header::new_image(width, height, format))
+    /// This will prefer DX10 headers if the format is supported by DX10.
+    ///
+    /// The mipmap count is set to 1.
+    pub fn new_image(width: u32, height: u32, format: Format) -> Self {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            Self::Dx10(Dx10Header::new_image(width, height, dxgi))
+        } else {
+            Self::Dx9(Dx9Header::new_image(
+                width,
+                height,
+                format.try_into().unwrap(),
+            ))
+        }
     }
-    /// Creates a new header for DX10 texture 3D with the given dimensions and
+    /// Creates a new header for a 3D texture with the given dimensions and
     /// format.
     ///
-    /// The mipmap count is set to 1 and the alpha mode is set to unknown.
-    pub const fn new_volume(width: u32, height: u32, depth: u32, format: DxgiFormat) -> Self {
-        Self::Dx10(Dx10Header::new_volume(width, height, depth, format))
+    /// This will prefer DX10 headers if the format is supported by DX10.
+    ///
+    /// The mipmap count is set to 1.
+    pub fn new_volume(width: u32, height: u32, depth: u32, format: Format) -> Self {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            Self::Dx10(Dx10Header::new_volume(width, height, depth, dxgi))
+        } else {
+            Self::Dx9(Dx9Header::new_volume(
+                width,
+                height,
+                depth,
+                format.try_into().unwrap(),
+            ))
+        }
     }
-    /// Creates a new header for DX10 cube map with the given dimensions and
+    /// Creates a new header for a cube map with the given dimensions and
     /// format.
     ///
-    /// The mipmap count is set to 1 and the alpha mode is set to unknown.
-    pub const fn new_cube_map(width: u32, height: u32, format: DxgiFormat) -> Self {
-        Self::Dx10(Dx10Header::new_cube_map(width, height, format))
+    /// This will prefer DX10 headers if the format is supported by DX10.
+    ///
+    /// The mipmap count is set to 1.
+    pub fn new_cube_map(width: u32, height: u32, format: Format) -> Self {
+        if let Ok(dxgi) = DxgiFormat::try_from(format) {
+            Self::Dx10(Dx10Header::new_cube_map(width, height, dxgi))
+        } else {
+            Self::Dx9(Dx9Header::new_cube_map(
+                width,
+                height,
+                format.try_into().unwrap(),
+            ))
+        }
     }
 
     /// A builder-pattern-style method to set the width and height of the
@@ -622,12 +707,27 @@ impl Header {
         self
     }
     /// A builder-pattern-style method to set the mipmap count of the header.
+    ///
+    /// For the an easier way to enable mipmapping, use
+    /// [`Header::with_maximum_mipmap_count`].
     pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
         match &mut self {
             Header::Dx9(header) => header.mipmap_count = mipmap_count,
             Header::Dx10(header) => header.mipmap_count = mipmap_count,
         }
         self
+    }
+    /// A builder-pattern-style method to set the mipmap count of the header
+    /// such that the last mipmap level has the dimensions 1x1 (or 1x1x1).
+    /// E.g. for 64x256 image, the mipmap count will be set to 9.
+    pub fn with_mipmaps(self) -> Header {
+        let max = get_maximum_mipmap_count(
+            self.width()
+                .max(self.height())
+                .max(self.depth().unwrap_or(1)),
+        );
+
+        self.with_mipmap_count(max)
     }
 
     /// Converts this header into a DX9 header if possible. If the header is a
@@ -710,15 +810,15 @@ impl Header {
         // Sometimes, the mipmap count is incorrect. We can try to fix this by
         // simply guessing the correct mipmap count.
         let mipmap = self.mipmap_count().get();
-        let max_dimension = self
-            .width()
-            .max(self.height())
-            .max(self.depth().unwrap_or(1));
-        let max_levels = 32 - max_dimension.leading_zeros();
+        let max_levels = get_maximum_mipmap_count(
+            self.width()
+                .max(self.height())
+                .max(self.depth().unwrap_or(1)),
+        );
         let guesses = [
-            1,          // it's very common for DDS images to have no mipmaps
-            max_levels, // or a full mipmap chain
-            mipmap - 1, // otherwise, it could be an off-by-one error
+            1,                // it's very common for DDS images to have no mipmaps
+            max_levels.get(), // or a full mipmap chain
+            mipmap - 1,       // otherwise, it could be an off-by-one error
             mipmap.saturating_add(1),
         ];
         for guess in guesses.into_iter().filter_map(NonZeroU32::new) {

@@ -1,13 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dds::*;
-use rand::{Rng, RngCore};
-
-fn random_bytes(len: usize) -> Vec<u8> {
-    let mut out = vec![0; len];
-    let mut rng = rand::thread_rng();
-    rng.fill_bytes(&mut out);
-    out
-}
+use dds::{header::*, *};
+use rand::Rng;
 
 struct Image<T> {
     data: Vec<T>,
@@ -51,6 +44,7 @@ impl<T: 'static> Image<T> {
 trait ImageAsBytes {
     fn color(&self) -> ColorFormat;
     fn as_bytes(&self) -> &[u8];
+    fn view(&self) -> ImageView;
 }
 impl ImageAsBytes for Image<u8> {
     fn color(&self) -> ColorFormat {
@@ -58,6 +52,9 @@ impl ImageAsBytes for Image<u8> {
     }
     fn as_bytes(&self) -> &[u8] {
         &self.data
+    }
+    fn view(&self) -> ImageView {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
 impl ImageAsBytes for Image<u16> {
@@ -67,6 +64,9 @@ impl ImageAsBytes for Image<u16> {
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
     }
+    fn view(&self) -> ImageView {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
+    }
 }
 impl ImageAsBytes for Image<f32> {
     fn color(&self) -> ColorFormat {
@@ -74,6 +74,9 @@ impl ImageAsBytes for Image<f32> {
     }
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
+    }
+    fn view(&self) -> ImageView {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
 
@@ -95,15 +98,12 @@ where
 
             let image = black_box(image);
 
-            let result = encode(
-                black_box(&mut output),
-                format,
-                image.size,
-                image.color(),
-                image.as_bytes(),
-                black_box(options),
-            );
+            let header = Header::new_image(image.size.width, image.size.height, format);
+            let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
+            encoder.options = black_box(options).clone();
+            let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
+            black_box(encoder.finish()).unwrap();
             assert!(!black_box(&output).is_empty());
         });
     });
@@ -205,5 +205,42 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
 }
 
-criterion_group!(benches, encode_uncompressed, encode_compressed);
+pub fn generate_mipmaps(c: &mut Criterion) {
+    use Channels::*;
+
+    // images
+    let image: Image<f32> = Image::random(Size::new(4096, 4096), Rgba);
+    let format = Format::R8G8B8A8_UNORM;
+
+    c.bench_function("generate mipmaps", |b| {
+        let mut output: Vec<u8> = Vec::with_capacity(image.size.pixels() as usize * 16);
+
+        b.iter(|| {
+            output.truncate(0);
+
+            let image = black_box(&image);
+
+            let header = Header::new_image(image.size.width, image.size.height, format);
+            let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
+            let result = encoder.write_surface_with(
+                black_box(image.view()),
+                |_| {},
+                &WriteOptions {
+                    generate_mipmaps: true,
+                    ..Default::default()
+                },
+            );
+            black_box(result).unwrap();
+            black_box(encoder.finish()).unwrap();
+            assert!(!black_box(&output).is_empty());
+        });
+    });
+}
+
+criterion_group!(
+    benches,
+    encode_uncompressed,
+    encode_compressed,
+    generate_mipmaps
+);
 criterion_main!(benches);
