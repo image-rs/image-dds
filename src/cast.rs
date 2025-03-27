@@ -170,9 +170,12 @@ pub(crate) fn slice_le_to_ne_16(buf: &mut [u8]) {
     assert!(buf.len() % 2 == 0);
 
     if cfg!(target_endian = "big") {
-        // TODO: optimize this for when the buffer is aligned to u16/u32/u64
-        for i in (0..buf.len()).step_by(2) {
-            buf.swap(i, i + 1);
+        if let Some(aligned) = from_bytes_mut::<u16>(buf) {
+            aligned.iter_mut().for_each(|x| *x = x.swap_bytes());
+        } else {
+            // we already checked the length, so this is safe to unwrap
+            let unaligned: &mut [[u8; 2]] = as_array_chunks_mut(buf).unwrap();
+            unaligned.iter_mut().for_each(|x| *x = [x[1], x[0]]);
         }
     }
 }
@@ -183,10 +186,14 @@ pub(crate) fn slice_le_to_ne_32(buf: &mut [u8]) {
     assert!(buf.len() % 4 == 0);
 
     if cfg!(target_endian = "big") {
-        // TODO: optimize this for when the buffer is aligned to u32/u64
-        for i in (0..buf.len()).step_by(4) {
-            buf.swap(i, i + 3);
-            buf.swap(i + 1, i + 2);
+        if let Some(aligned) = from_bytes_mut::<u32>(buf) {
+            aligned.iter_mut().for_each(|x| *x = x.swap_bytes());
+        } else {
+            // we already checked the length, so this is safe to unwrap
+            let unaligned: &mut [[u8; 4]] = as_array_chunks_mut(buf).unwrap();
+            unaligned
+                .iter_mut()
+                .for_each(|x| *x = [x[3], x[2], x[1], x[0]]);
         }
     }
 }
