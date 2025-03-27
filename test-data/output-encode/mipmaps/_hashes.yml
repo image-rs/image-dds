@@ -1,18 +1,18 @@
 base @ straight-alpha - Box.png: >
-    7fe5ac298c537a656683f94a93067241ab855c747e086bbd05c522149417cd45
+    42d9db52df97d460c35cdeaf07cba92a84de2ba1e18e0cd5415abda16aae04ab
 
 base @ no-straight-alpha - Box.png: >
-    51a7e5e2583f8c246eee51c60dcdf3968a65a2bfaf34893680a1a8ec7ecf3354
+    c5a489502b956d81ee366e6c4bfc708d8c7fe3671af41cc31c2f9c57872b6e5c
 
 base @ straight-alpha - Nearest.png: >
-    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+    87cfc13df79b2864edab2507b8da67ab15281f0784ef3b82947bb33c61ef30af
 
 base @ straight-alpha - Triangle.png: >
-    0e1ea94bfd15a4d53f8e1e45de147013cfc3e534cb54274ee28205f27f6fb465
+    de10427f60f44b5ab6f3e29c73779bc47dcfd948bbc14f153111fb44445f5bcc
 
 base @ straight-alpha - Mitchell.png: >
-    360b48ffab41ca294ba968e7ca51887c647883012ac81c4950e79ef90454d9df
+    21cdc56a6eea67ef4861f9b226713a2d438187be4b55c735430764970729eaba
 
 base @ straight-alpha - Lanczos3.png: >
-    b3e5a32b4da22a1569899a494db0f91641b79c65119067ec5e2df58fd7ddeeda
+    50ce5bf37b01ec925c5a2188dfdf83be0e4ff0060923261e030741a1b0025e30
 

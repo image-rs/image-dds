@@ -15,8 +15,8 @@ rust-version = "1.61"
 
 [dependencies]
 bitflags = "2.4.0"
-fast_image_resize = "5.1.2"
 glam = "0.25.0"
+resize = "0.8.5"
 zerocopy = "0.8.14"
 
 # optional dependencies
