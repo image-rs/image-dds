@@ -1,13 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dds::{header::*, *};
-use rand::{Rng, RngCore};
-
-fn random_bytes(len: usize) -> Vec<u8> {
-    let mut out = vec![0; len];
-    let mut rng = rand::thread_rng();
-    rng.fill_bytes(&mut out);
-    out
-}
+use rand::Rng;
 
 struct Image<T> {
     data: Vec<T>,
@@ -51,6 +44,7 @@ impl<T: 'static> Image<T> {
 trait ImageAsBytes {
     fn color(&self) -> ColorFormat;
     fn as_bytes(&self) -> &[u8];
+    fn view(&self) -> ImageView;
 }
 impl ImageAsBytes for Image<u8> {
     fn color(&self) -> ColorFormat {
@@ -58,6 +52,9 @@ impl ImageAsBytes for Image<u8> {
     }
     fn as_bytes(&self) -> &[u8] {
         &self.data
+    }
+    fn view(&self) -> ImageView {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
 impl ImageAsBytes for Image<u16> {
@@ -67,6 +64,9 @@ impl ImageAsBytes for Image<u16> {
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
     }
+    fn view(&self) -> ImageView {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
+    }
 }
 impl ImageAsBytes for Image<f32> {
     fn color(&self) -> ColorFormat {
@@ -74,6 +74,9 @@ impl ImageAsBytes for Image<f32> {
     }
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
+    }
+    fn view(&self) -> ImageView {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
 
@@ -98,7 +101,7 @@ where
             let header = Header::new_image(image.size.width, image.size.height, format);
             let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
             encoder.options = black_box(options).clone();
-            let result = encoder.write_surface(black_box(image.as_bytes()), image.color());
+            let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
             black_box(encoder.finish()).unwrap();
             assert!(!black_box(&output).is_empty());
@@ -220,8 +223,7 @@ pub fn generate_mipmaps(c: &mut Criterion) {
             let header = Header::new_image(image.size.width, image.size.height, format);
             let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
             let result = encoder.write_surface_with(
-                black_box(image.as_bytes()),
-                image.color(),
+                black_box(image.view()),
                 |_| {},
                 &WriteOptions {
                     generate_mipmaps: true,

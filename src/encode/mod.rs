@@ -1,6 +1,6 @@
 use std::{io::Write, num::NonZeroU8};
 
-use crate::{ColorFormat, EncodeError, Format, Size, SizeMultiple};
+use crate::{EncodeError, Format, ImageView, SizeMultiple};
 
 mod bc;
 mod bc1;
@@ -91,14 +91,12 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
 
 pub fn encode(
     writer: &mut dyn Write,
+    image: ImageView,
     format: Format,
-    size: Size,
-    color: ColorFormat,
-    data: &[u8],
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
     if let Some(encoders) = get_encoders(format) {
-        encoders.encode(data, size.width, color, writer, options)
+        encoders.encode(writer, image, options)
     } else {
         Err(EncodeError::UnsupportedFormat(format))
     }

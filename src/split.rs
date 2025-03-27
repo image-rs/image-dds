@@ -1,6 +1,6 @@
 use std::{io::Write, ops::Range};
 
-use crate::{encode, ColorFormat, Dithering, EncodeError, EncodeOptions, Format, PixelInfo, Size};
+use crate::{encode, Dithering, EncodeError, EncodeOptions, Format, ImageView, Size};
 
 /// This implements the main logic for splitting a surface into lines.
 fn split_surface_into_lines(
@@ -49,14 +49,8 @@ fn split_surface_into_lines(
     Some(lines)
 }
 
-pub struct SurfaceFragment<'a> {
-    pub data: &'a [u8],
-    pub size: Size,
-    pub color: ColorFormat,
-}
-
 pub struct SplitSurface<'a> {
-    fragments: Box<[SurfaceFragment<'a>]>,
+    fragments: Box<[ImageView<'a>]>,
     format: Format,
     options: EncodeOptions,
 }
@@ -64,47 +58,33 @@ pub struct SplitSurface<'a> {
 impl<'a> SplitSurface<'a> {
     /// Creates a new `SplitSurface` with exactly one fragment that covers the whole surface.
     pub fn from_single_fragment(
-        data: &'a [u8],
-        size: Size,
-        color: ColorFormat,
+        image: ImageView<'a>,
         format: Format,
         options: &EncodeOptions,
     ) -> Self {
-        // TODO: check that data is valid
         Self {
-            fragments: vec![SurfaceFragment { data, size, color }].into_boxed_slice(),
+            fragments: vec![image].into_boxed_slice(),
             format,
             options: options.clone(),
         }
     }
 
-    pub fn new(
-        data: &'a [u8],
-        size: Size,
-        color: ColorFormat,
-        format: Format,
-        options: &EncodeOptions,
-    ) -> Self {
-        // TODO: think over this panic
-        assert_eq!(
-            data.len() as u64,
-            size.pixels().saturating_mul(color.bytes_per_pixel() as u64)
-        );
-
-        if let Some(ranges) = split_surface_into_lines(size, format, options) {
-            let stride = size.width as usize * color.bytes_per_pixel() as usize;
+    pub fn new(image: ImageView<'a>, format: Format, options: &EncodeOptions) -> Self {
+        if let Some(ranges) = split_surface_into_lines(image.size(), format, options) {
+            let row_pitch = image.row_pitch();
 
             let fragments = ranges
                 .into_iter()
                 .map(move |range| {
-                    let start = range.start as usize * stride;
-                    let end = range.end as usize * stride;
+                    let start = range.start as usize * row_pitch;
+                    let end = range.end as usize * row_pitch;
                     let height = range.end - range.start;
-                    SurfaceFragment {
-                        data: &data[start..end],
-                        size: Size::new(size.width, height),
-                        color,
-                    }
+                    ImageView::new(
+                        &image.data[start..end],
+                        Size::new(image.width(), height),
+                        image.color,
+                    )
+                    .expect("invalid split")
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice();
@@ -115,13 +95,13 @@ impl<'a> SplitSurface<'a> {
                 options: options.clone(),
             }
         } else {
-            Self::from_single_fragment(data, size, color, format, options)
+            Self::from_single_fragment(image, format, options)
         }
     }
 
     /// If this split surface consists of only a single fragment, returns that
     /// fragment.
-    pub fn single(&self) -> Option<&SurfaceFragment<'a>> {
+    pub fn single(&self) -> Option<&ImageView<'a>> {
         if self.fragments.len() == 1 {
             self.fragments.first()
         } else {
@@ -138,7 +118,7 @@ impl<'a> SplitSurface<'a> {
     /// The list of fragments that make up the surface.
     ///
     /// The list is guaranteed to be non-empty.
-    pub fn fragments(&self) -> &[SurfaceFragment<'a>] {
+    pub fn fragments(&self) -> &[ImageView<'a>] {
         &self.fragments
     }
 
@@ -146,16 +126,9 @@ impl<'a> SplitSurface<'a> {
     pub fn encode_fragment(
         &self,
         writer: &mut dyn Write,
-        fragment: &SurfaceFragment<'a>,
+        fragment: &ImageView<'a>,
     ) -> Result<(), EncodeError> {
-        encode(
-            writer,
-            self.format,
-            fragment.size,
-            fragment.color,
-            fragment.data,
-            &self.options,
-        )
+        encode(writer, *fragment, self.format, &self.options)
     }
 
     /// Encodes all fragments to the writer.
@@ -173,7 +146,7 @@ impl<'a> SplitSurface<'a> {
             return self.encode_fragment(writer, single);
         }
 
-        let pixel_info = PixelInfo::from(self.format);
+        let pixel_info = crate::PixelInfo::from(self.format);
 
         let result: Result<Vec<Vec<u8>>, EncodeError> = self
             .fragments
@@ -216,21 +189,19 @@ impl<'a> SplitSurface<'a> {
 /// like [`encode()`].
 pub fn split_encode(
     writer: &mut dyn Write,
+    image: ImageView,
     format: Format,
-    size: Size,
-    color: ColorFormat,
-    data: &[u8],
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
     // Only actually split the surface when rayon is available.
     // If we don't get to encode in parallel, splitting is pure overhead.
     #[cfg(feature = "rayon")]
     {
-        let split = SplitSurface::new(data, size, color, format, options);
+        let split = SplitSurface::new(image, format, options);
         split.encode(writer)
     }
     #[cfg(not(feature = "rayon"))]
     {
-        encode(writer, format, size, color, data, options)
+        encode(writer, image, format, options)
     }
 }

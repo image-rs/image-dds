@@ -235,6 +235,13 @@ impl<T> Image<T> {
         ColorFormat::new(self.channels, T::PRECISION)
     }
 
+    pub fn view(&self) -> ImageView
+    where
+        T: Castable + WithPrecision,
+    {
+        ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
+    }
+
     pub fn to_channels(&self, channels: Channels) -> Image<T>
     where
         T: Copy + Default + Castable + Norm,
@@ -585,14 +592,7 @@ pub fn compare_snapshot_dds_f32(
         write_simple_dds_header(&mut output, image.size, format.try_into().unwrap())?;
 
         // convert to LE
-        encode(
-            &mut output,
-            format,
-            image.size,
-            format.color(),
-            image.as_bytes(),
-            &EncodeOptions::default(),
-        )?;
+        encode(&mut output, image.view(), format, &EncodeOptions::default())?;
 
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
         std::fs::write(dds_path, output)?;

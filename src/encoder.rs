@@ -4,7 +4,7 @@ use crate::{
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    split_encode, AsBytes, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, Size,
+    split_encode, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Size,
 };
 
 pub struct Encoder<W> {
@@ -96,20 +96,11 @@ impl<W> Encoder<W> {
     /// volume textures, this function will write the next depth slice.
     ///
     /// See [`Self::surface_info`] for more information about the surface.
-    pub fn write_surface<B: AsBytes + ?Sized>(
-        &mut self,
-        buffer: &B,
-        color: ColorFormat,
-    ) -> Result<(), EncodeError>
+    pub fn write_surface(&mut self, image: ImageView) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        self.write_surface_impl(
-            buffer.as_bytes(),
-            color,
-            ProgressToken::none(),
-            &WriteOptions::default(),
-        )
+        self.write_surface_impl(image, ProgressToken::none(), &WriteOptions::default())
     }
 
     /// Writes the next surface.
@@ -118,28 +109,21 @@ impl<W> Encoder<W> {
     /// volume textures, this function will write the next depth slice.
     ///
     /// See [`Self::surface_info`] for more information about the surface.
-    pub fn write_surface_with<B: AsBytes + ?Sized>(
+    pub fn write_surface_with(
         &mut self,
-        buffer: &B,
-        color: ColorFormat,
+        image: ImageView,
         mut progress: impl FnMut(f32),
         options: &WriteOptions,
     ) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        self.write_surface_impl(
-            buffer.as_bytes(),
-            color,
-            ProgressToken::new(&mut progress),
-            options,
-        )
+        self.write_surface_impl(image, ProgressToken::new(&mut progress), options)
     }
 
     fn write_surface_impl(
         &mut self,
-        buffer: &[u8],
-        color: ColorFormat,
+        image: ImageView,
         mut progress: ProgressToken,
         options: &WriteOptions,
     ) -> Result<(), EncodeError>
@@ -149,15 +133,10 @@ impl<W> Encoder<W> {
         progress.report(0.0);
 
         let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
-        let size = current.size();
-        split_encode(
-            &mut self.writer,
-            self.format,
-            size,
-            color,
-            buffer,
-            &self.options,
-        )?;
+        if current.size() != image.size() {
+            return Err(EncodeError::UnexpectedSurfaceSize);
+        }
+        split_encode(&mut self.writer, image, self.format, &self.options)?;
         self.iter.advance();
 
         if options.generate_mipmaps
@@ -165,7 +144,7 @@ impl<W> Encoder<W> {
             && self.iter.current().map_or(false, |c| c.is_mipmap())
         {
             let (align, resize) = Self::get_or_init(&mut self.resize);
-            let src = align.align(buffer, size, color);
+            let src = align.align(image);
 
             let mut count = 0;
             while let Some(current) = self.iter.current() {
@@ -178,21 +157,16 @@ impl<W> Encoder<W> {
                 progress.report(1.0 - 0.3_f32.powi(count));
 
                 let mipmap_size = current.size();
-                let mip = resize.resize(
+                let mip_data = resize.resize(
                     &src,
                     mipmap_size,
                     options.resize_straight_alpha,
                     options.resize_filter,
                 );
+                let mip =
+                    ImageView::new(mip_data, mipmap_size, image.color).expect("invalid mipmap");
 
-                split_encode(
-                    &mut self.writer,
-                    self.format,
-                    mipmap_size,
-                    color,
-                    mip,
-                    &self.options,
-                )?;
+                split_encode(&mut self.writer, mip, self.format, &self.options)?;
                 self.iter.advance();
             }
         }

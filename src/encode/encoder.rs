@@ -2,7 +2,7 @@ use std::{io::Write, num::NonZeroU8};
 
 use bitflags::bitflags;
 
-use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, Precision, SizeMultiple};
+use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, ImageView, Precision, SizeMultiple};
 
 use super::{Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize};
 
@@ -16,37 +16,15 @@ pub(crate) struct Args<'a, 'b> {
 }
 impl<'a, 'b> Args<'a, 'b> {
     fn from(
-        data: &'a [u8],
-        width: usize,
-        color: ColorFormat,
+        image: ImageView<'a>,
         writer: &'b mut dyn Write,
         options: EncodeOptions,
     ) -> Result<Self, EncodeError> {
-        if data.is_empty() {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let bytes_per_pixel = color.bytes_per_pixel() as usize;
-        debug_assert!(bytes_per_pixel > 0);
-        if data.len() % bytes_per_pixel != 0 {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let stride = width * bytes_per_pixel;
-        if stride == 0 || data.len() % stride != 0 {
-            return Err(EncodeError::InvalidLines);
-        }
-
-        let height = data.len() / stride;
-        if stride * height != data.len() {
-            return Err(EncodeError::InvalidLines);
-        }
-
         Ok(Self {
-            data,
-            width,
-            height,
-            color,
+            data: image.data(),
+            width: image.width() as usize,
+            height: image.height() as usize,
+            color: image.color(),
             writer,
             options,
         })
@@ -263,14 +241,12 @@ impl EncoderSet {
 
     pub fn encode(
         &self,
-        data: &[u8],
-        width: u32,
-        color: ColorFormat,
         writer: &mut dyn Write,
+        image: ImageView,
         options: &EncodeOptions,
     ) -> Result<(), EncodeError> {
-        let encoder = self.pick_encoder(color, options);
-        let args = Args::from(data, width as usize, color, writer, options.clone())?;
+        let encoder = self.pick_encoder(image.color(), options);
+        let args = Args::from(image, writer, options.clone())?;
         encoder.encode(args)
     }
 }

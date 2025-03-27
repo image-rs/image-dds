@@ -298,9 +298,19 @@ impl std::error::Error for HeaderError {
 pub enum EncodeError {
     UnsupportedFormat(Format),
     InvalidSize(SizeMultiple),
-    // TODO: Replace this error with something that makes sense
-    InvalidLines,
+    /// Returned by [`crate::encode()`] when the user tries to write a surface
+    /// with width or height of 0.
+    EmptySurface,
+
+    /// Returned by [`crate::Encoder`] when the user tries to write a surface
+    /// with a size that is different from the size declared in the header.
+    UnexpectedSurfaceSize,
+    /// Returned by [`crate::Encoder`] when the encoder has already written all
+    /// surfaces declared in the header, but the user attempts to write
+    /// additional surfaces.
     TooManySurfaces,
+    /// Returned by [`crate::Encoder::finish()`] when the encoder has not
+    /// written all surfaces declared in the header.
     MissingSurfaces,
 
     Layout(LayoutError),
@@ -316,7 +326,11 @@ impl std::fmt::Display for EncodeError {
             EncodeError::InvalidSize(size) => {
                 write!(f, "Size is not a multiple of {:?}", size)
             }
-            EncodeError::InvalidLines => write!(f, "Invalid lines"),
+            EncodeError::EmptySurface => write!(f, "Surface has a width or height of 0"),
+
+            EncodeError::UnexpectedSurfaceSize => {
+                write!(f, "Unexpected size of the surface")
+            }
             EncodeError::TooManySurfaces => write!(f, "Too many surfaces are attempted to written"),
             EncodeError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
 

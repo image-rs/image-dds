@@ -67,6 +67,50 @@ macro_rules! for_array_slices {
 }
 for_array_slices!(u8, u16, f32);
 
+/// A borrowed slice of image data.
+#[derive(Clone, Copy)]
+pub struct ImageView<'a> {
+    data: &'a [u8],
+    size: Size,
+    color: ColorFormat,
+}
+impl<'a> ImageView<'a> {
+    /// Creates a new image view from the given data, size, and color format.
+    ///
+    /// The data must be the correct size for the given size and color format.
+    /// If `data.as_bytes().len() != size.pixels() * color.bytes_per_pixel()`,
+    /// then `None` is returned.
+    pub fn new<B: AsBytes + ?Sized>(data: &'a B, size: Size, color: ColorFormat) -> Option<Self> {
+        let data = data.as_bytes();
+
+        if data.len() as u64 != size.pixels().saturating_mul(color.bytes_per_pixel() as u64) {
+            return None;
+        }
+        Some(Self { data, size, color })
+    }
+
+    pub fn data(&self) -> &'a [u8] {
+        self.data
+    }
+
+    pub fn size(&self) -> Size {
+        self.size
+    }
+    pub fn width(&self) -> u32 {
+        self.size.width
+    }
+    pub fn height(&self) -> u32 {
+        self.size.height
+    }
+
+    pub fn color(&self) -> ColorFormat {
+        self.color
+    }
+    pub fn row_pitch(&self) -> usize {
+        self.size.width as usize * self.color.bytes_per_pixel() as usize
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Size {
     pub width: u32,

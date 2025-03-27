@@ -1,4 +1,4 @@
-use crate::{cast, ColorFormat, Precision, ResizeFilter, Size};
+use crate::{cast, ColorFormat, ImageView, Precision, ResizeFilter, Size};
 
 use resize::{Filter, Resizer};
 
@@ -10,12 +10,11 @@ impl Aligner {
         Self { buffer: Vec::new() }
     }
 
-    pub fn align<'a>(
-        &'a mut self,
-        data: &'a [u8],
-        size: Size,
-        color: ColorFormat,
-    ) -> AlignedView<'a> {
+    pub fn align<'a>(&'a mut self, image: ImageView<'a>) -> AlignedView<'a> {
+        let size = image.size();
+        let color = image.color();
+        let data = image.data();
+
         let bytes_per_pixel = color.bytes_per_pixel() as usize;
         debug_assert_eq!(size.pixels() as usize * bytes_per_pixel, data.len());
 

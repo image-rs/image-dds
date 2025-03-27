@@ -16,20 +16,13 @@ fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     writer: &mut W,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
-    encode(
-        writer,
-        format,
-        image.size,
-        image.color(),
-        image.as_bytes(),
-        options,
-    )
+    encode(writer, image.view(), format, options)
 }
 fn write_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     encoder: &mut Encoder<W>,
     image: &Image<T>,
 ) -> Result<(), EncodeError> {
-    encoder.write_surface(image.as_bytes(), image.color())
+    encoder.write_surface(image.view())
 }
 fn encode_decode(
     format: Format,
@@ -47,7 +40,7 @@ fn encode_decode(
     )
     .unwrap();
     encoder.options = options.clone();
-    encoder.write_surface(image.as_bytes(), color).unwrap();
+    encoder.write_surface(image.view()).unwrap();
     encoder.finish().unwrap();
 
     // decode
@@ -155,7 +148,7 @@ fn encode_dither() {
         )?;
         encoder.options.quality = CompressionQuality::High;
         encoder.options.dithering = Dithering::ColorAndAlpha;
-        encoder.write_surface(image.as_bytes(), image.color())?;
+        encoder.write_surface(image.view())?;
         encoder.finish()?;
 
         // write to disk
@@ -587,7 +580,7 @@ fn encode_mipmap() {
             format,
             &Header::new_image(width, height, format).with_maximum_mipmap_count(),
         )?;
-        encoder.write_surface_with(base.as_bytes(), base.color(), |_| {}, &options)?;
+        encoder.write_surface_with(base.view(), |_| {}, &options)?;
         encoder.finish()?;
 
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
@@ -708,6 +701,9 @@ fn test_unaligned() {
             let aligned = &mut aligned_buffer[..bytes];
             let unaligned = &mut unaligned_buffer[..bytes];
 
+            let aligned = ImageView::new(aligned, size, color).unwrap();
+            let unaligned = ImageView::new(unaligned, size, color).unwrap();
+
             for options in [
                 WriteOptions {
                     generate_mipmaps: false,
@@ -729,14 +725,14 @@ fn test_unaligned() {
                 let mut aligned_encoder =
                     Encoder::new(&mut aligned_encoded, format, &header).unwrap();
                 aligned_encoder
-                    .write_surface_with(aligned, color, |_| {}, &options)
+                    .write_surface_with(aligned, |_| {}, &options)
                     .unwrap();
                 aligned_encoder.finish().unwrap();
 
                 let mut unaligned_encoder =
                     Encoder::new(&mut unaligned_encoded, format, &header).unwrap();
                 unaligned_encoder
-                    .write_surface_with(unaligned, color, |_| {}, &options)
+                    .write_surface_with(unaligned, |_| {}, &options)
                     .unwrap();
                 unaligned_encoder.finish().unwrap();
 
