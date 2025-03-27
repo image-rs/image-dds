@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - name: Use older dependency version for compatibility
-        run: cargo update resize --precise 0.8.5
+        run: cargo update -p resize --precise 0.8.5
       - run: cargo check
 
   # make sure the crate works with all features enabled/disabled
