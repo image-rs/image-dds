@@ -1,3 +1,4 @@
+mod astc;
 mod bc;
 mod bc6;
 mod bc7;
@@ -10,6 +11,7 @@ mod uncompressed;
 
 use std::io::{Read, Seek};
 
+use astc::*;
 use bc::*;
 use bi_planar::*;
 pub(crate) use decoder::*;
@@ -84,6 +86,22 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
         Format::BC6H_UF16 => BC6H_UF16,
         Format::BC6H_SF16 => BC6H_SF16,
         Format::BC7_UNORM => BC7_UNORM,
+
+        // ASTC formats
+        Format::ASTC_4X4_UNORM => ASTC_4X4_UNORM,
+        Format::ASTC_5X4_UNORM => ASTC_5X4_UNORM,
+        Format::ASTC_5X5_UNORM => ASTC_5X5_UNORM,
+        Format::ASTC_6X5_UNORM => ASTC_6X5_UNORM,
+        Format::ASTC_6X6_UNORM => ASTC_6X6_UNORM,
+        Format::ASTC_8X5_UNORM => ASTC_8X5_UNORM,
+        Format::ASTC_8X6_UNORM => ASTC_8X6_UNORM,
+        Format::ASTC_8X8_UNORM => ASTC_8X8_UNORM,
+        Format::ASTC_10X5_UNORM => ASTC_10X5_UNORM,
+        Format::ASTC_10X6_UNORM => ASTC_10X6_UNORM,
+        Format::ASTC_10X8_UNORM => ASTC_10X8_UNORM,
+        Format::ASTC_10X10_UNORM => ASTC_10X10_UNORM,
+        Format::ASTC_12X10_UNORM => ASTC_12X10_UNORM,
+        Format::ASTC_12X12_UNORM => ASTC_12X12_UNORM,
 
         // non-standard formats
         Format::BC3_UNORM_RXGB => BC3_UNORM_RXGB,

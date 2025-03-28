@@ -60,6 +60,20 @@ BC5_SNORM                      RGB    U8   8    ✔️ split=4 dithering=Color (
 BC6H_UF16                      RGB    F32  8    ❌
 BC6H_SF16                      RGB    F32  8    ❌
 BC7_UNORM                      RGBA   U8   8    ❌
+ASTC_4X4_UNORM                 RGBA   U8   8    ❌
+ASTC_5X4_UNORM                 RGBA   U8   7    ❌
+ASTC_5X5_UNORM                 RGBA   U8   6    ❌
+ASTC_6X5_UNORM                 RGBA   U8   5    ❌
+ASTC_6X6_UNORM                 RGBA   U8   4    ❌
+ASTC_8X5_UNORM                 RGBA   U8   4    ❌
+ASTC_8X6_UNORM                 RGBA   U8   3    ❌
+ASTC_8X8_UNORM                 RGBA   U8   2    ❌
+ASTC_10X5_UNORM                RGBA   U8   3    ❌
+ASTC_10X6_UNORM                RGBA   U8   3    ❌
+ASTC_10X8_UNORM                RGBA   U8   2    ❌
+ASTC_10X10_UNORM               RGBA   U8   2    ❌
+ASTC_12X10_UNORM               RGBA   U8   2    ❌
+ASTC_12X12_UNORM               RGBA   U8   1    ❌
 
 BC3_UNORM_RXGB                 RGB    U8   8    ✔️ split=4 dithering=Color (local)
 
@@ -127,5 +141,19 @@ BC5_SNORM                      84    FourCC(BC5S)
 BC6H_UF16                      95
 BC6H_SF16                      96
 BC7_UNORM                      98
+ASTC_4X4_UNORM                 134
+ASTC_5X4_UNORM                 138
+ASTC_5X5_UNORM                 142
+ASTC_6X5_UNORM                 146
+ASTC_6X6_UNORM                 150
+ASTC_8X5_UNORM                 154
+ASTC_8X6_UNORM                 158
+ASTC_8X8_UNORM                 162
+ASTC_10X5_UNORM                166
+ASTC_10X6_UNORM                170
+ASTC_10X8_UNORM                174
+ASTC_10X10_UNORM               178
+ASTC_12X10_UNORM               182
+ASTC_12X12_UNORM               186
 
 BC3_UNORM_RXGB                 -     FourCC(RXGB)

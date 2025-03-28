@@ -1,3 +1,605 @@
+images/astc/ASTC 10x10.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 1456
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_10X10_UNORM (178)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_10X10_UNORM (178)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_10X10_UNORM
+        pixel_info: Block(16 bytes/10x10px)
+
+    Layout: Texture (2128 bytes @ Block(16 bytes/10x10px))
+        Surface[0] 129x66 (1456 bytes)
+        Surface[1] 64x33 (448 bytes)
+        Surface[2] 32x16 (128 bytes)
+        Surface[3] 16x8 (32 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 10x5.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 2912
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_10X5_UNORM (166)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_10X5_UNORM (166)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_10X5_UNORM
+        pixel_info: Block(16 bytes/10x5px)
+
+    Layout: Texture (4080 bytes @ Block(16 bytes/10x5px))
+        Surface[0] 129x66 (2912 bytes)
+        Surface[1] 64x33 (784 bytes)
+        Surface[2] 32x16 (256 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 10x6.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 2288
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_10X6_UNORM (170)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_10X6_UNORM (170)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_10X6_UNORM
+        pixel_info: Block(16 bytes/10x6px)
+
+    Layout: Texture (3280 bytes @ Block(16 bytes/10x6px))
+        Surface[0] 129x66 (2288 bytes)
+        Surface[1] 64x33 (672 bytes)
+        Surface[2] 32x16 (192 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 10x8.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 1872
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_10X8_UNORM (174)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_10X8_UNORM (174)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_10X8_UNORM
+        pixel_info: Block(16 bytes/10x8px)
+
+    Layout: Texture (2656 bytes @ Block(16 bytes/10x8px))
+        Surface[0] 129x66 (1872 bytes)
+        Surface[1] 64x33 (560 bytes)
+        Surface[2] 32x16 (128 bytes)
+        Surface[3] 16x8 (32 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 12x10.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 1232
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_12X10_UNORM (182)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_12X10_UNORM (182)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_12X10_UNORM
+        pixel_info: Block(16 bytes/12x10px)
+
+    Layout: Texture (1808 bytes @ Block(16 bytes/12x10px))
+        Surface[0] 129x66 (1232 bytes)
+        Surface[1] 64x33 (384 bytes)
+        Surface[2] 32x16 (96 bytes)
+        Surface[3] 16x8 (32 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 12x12.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 1056
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_12X12_UNORM (186)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_12X12_UNORM (186)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_12X12_UNORM
+        pixel_info: Block(16 bytes/12x12px)
+
+    Layout: Texture (1536 bytes @ Block(16 bytes/12x12px))
+        Surface[0] 129x66 (1056 bytes)
+        Surface[1] 64x33 (288 bytes)
+        Surface[2] 32x16 (96 bytes)
+        Surface[3] 16x8 (32 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 4x4.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 8976
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_4X4_UNORM (134)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_4X4_UNORM (134)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_4X4_UNORM
+        pixel_info: Block(16 bytes/4x4px)
+
+    Layout: Texture (12000 bytes @ Block(16 bytes/4x4px))
+        Surface[0] 129x66 (8976 bytes)
+        Surface[1] 64x33 (2304 bytes)
+        Surface[2] 32x16 (512 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 5x4.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 7072
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_5X4_UNORM (138)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_5X4_UNORM (138)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_5X4_UNORM
+        pixel_info: Block(16 bytes/5x4px)
+
+    Layout: Texture (9600 bytes @ Block(16 bytes/5x4px))
+        Surface[0] 129x66 (7072 bytes)
+        Surface[1] 64x33 (1872 bytes)
+        Surface[2] 32x16 (448 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 5x5.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 5824
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_5X5_UNORM (142)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_5X5_UNORM (142)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_5X5_UNORM
+        pixel_info: Block(16 bytes/5x5px)
+
+    Layout: Texture (7936 bytes @ Block(16 bytes/5x5px))
+        Surface[0] 129x66 (5824 bytes)
+        Surface[1] 64x33 (1456 bytes)
+        Surface[2] 32x16 (448 bytes)
+        Surface[3] 16x8 (128 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 6x5.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 4928
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_6X5_UNORM (146)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_6X5_UNORM (146)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_6X5_UNORM
+        pixel_info: Block(16 bytes/6x5px)
+
+    Layout: Texture (6720 bytes @ Block(16 bytes/6x5px))
+        Surface[0] 129x66 (4928 bytes)
+        Surface[1] 64x33 (1232 bytes)
+        Surface[2] 32x16 (384 bytes)
+        Surface[3] 16x8 (96 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 6x6.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 3872
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_6X6_UNORM (150)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_6X6_UNORM (150)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_6X6_UNORM
+        pixel_info: Block(16 bytes/6x6px)
+
+    Layout: Texture (5392 bytes @ Block(16 bytes/6x6px))
+        Surface[0] 129x66 (3872 bytes)
+        Surface[1] 64x33 (1056 bytes)
+        Surface[2] 32x16 (288 bytes)
+        Surface[3] 16x8 (96 bytes)
+        Surface[4] 8x4 (32 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 8x5.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 3808
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_8X5_UNORM (154)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_8X5_UNORM (154)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_8X5_UNORM
+        pixel_info: Block(16 bytes/8x5px)
+
+    Layout: Texture (5088 bytes @ Block(16 bytes/8x5px))
+        Surface[0] 129x66 (3808 bytes)
+        Surface[1] 64x33 (896 bytes)
+        Surface[2] 32x16 (256 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 8x6.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 2992
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_8X6_UNORM (158)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_8X6_UNORM (158)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_8X6_UNORM
+        pixel_info: Block(16 bytes/8x6px)
+
+    Layout: Texture (4080 bytes @ Block(16 bytes/8x6px))
+        Surface[0] 129x66 (2992 bytes)
+        Surface[1] 64x33 (768 bytes)
+        Surface[2] 32x16 (192 bytes)
+        Surface[3] 16x8 (64 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
+images/astc/ASTC 8x8.dds
+    Raw Header:
+        flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)
+        w/h: 129 x 66 (x 1)
+        linear_size: 2448
+        mipmap_count: 8
+        reserved1:
+            0..=8: 0
+                9: NVT3 (ASCII)
+               10: 0x00000001 1
+        pixel_format: FourCC(DX10)
+        caps: Caps(COMPLEX | MIPMAP | TEXTURE)
+        caps2: Caps2(0x0)
+        DX10:
+            dxgi_format: ASTC_8X8_UNORM (162)
+            resource_dimension: Texture2D
+            misc_flag: MiscFlags(0x0)
+            array_size: 1
+            misc_flags2: 1
+
+    Header:
+        w/h: 129 x 66
+        mipmap_count: 8
+        DX10: Texture2D
+            dxgi_format: ASTC_8X8_UNORM (162)
+            alpha_mode: Straight
+
+    Pixel Format:
+        format: ASTC_8X8_UNORM
+        pixel_info: Block(16 bytes/8x8px)
+
+    Layout: Texture (3312 bytes @ Block(16 bytes/8x8px))
+        Surface[0] 129x66 (2448 bytes)
+        Surface[1] 64x33 (640 bytes)
+        Surface[2] 32x16 (128 bytes)
+        Surface[3] 16x8 (32 bytes)
+        Surface[4] 8x4 (16 bytes)
+        Surface[5] 4x2 (16 bytes)
+        Surface[6] 2x1 (16 bytes)
+        Surface[7] 1x1 (16 bytes)
+
+
+
 images/bc fuzz/bc6 SF16 mode one 00011.dds
     Raw Header:
         flags: DdsFlags(CAPS | HEIGHT | WIDTH | PIXEL_FORMAT | MIPMAP_COUNT | LINEAR_SIZE)

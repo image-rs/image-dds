@@ -318,7 +318,7 @@ pub(crate) fn process_8x1_blocks_helper<
     range: PixelRange,
     process_block: F,
 ) {
-    general_process_blocks::<8, 1, 8, 1, OutPixel, _>(
+    general_process_blocks::<8, 1, 8, 1, OutPixel>(
         encoded_blocks,
         decoded,
         stride,
@@ -409,7 +409,7 @@ pub(crate) fn process_4x4_blocks_helper<
     }
 
     // General implementation. Slower.
-    general_process_blocks::<4, 4, 16, BYTES_PER_BLOCK, OutPixel, _>(
+    general_process_blocks::<4, 4, 16, BYTES_PER_BLOCK, OutPixel>(
         encoded_blocks,
         decoded,
         stride,
@@ -442,7 +442,7 @@ fn handle_width_offset<
         return 0;
     }
 
-    general_process_blocks::<BLOCK_SIZE_X, BLOCK_SIZE_Y, BLOCK_PIXELS, BYTES_PER_BLOCK, OutPixel, _>(
+    general_process_blocks::<BLOCK_SIZE_X, BLOCK_SIZE_Y, BLOCK_PIXELS, BYTES_PER_BLOCK, OutPixel>(
         &encoded_blocks[..BYTES_PER_BLOCK],
         decoded,
         stride,
@@ -473,13 +473,12 @@ pub(crate) fn general_process_blocks<
     const BLOCK_PIXELS: usize,
     const BYTES_PER_BLOCK: usize,
     OutPixel: cast::IntoNeBytes + Copy,
-    F: Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; BLOCK_PIXELS],
 >(
     encoded_blocks: &[u8],
     decoded: &mut [u8],
     stride: usize,
     range: PixelRange,
-    process_block: F,
+    process_block: impl Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; BLOCK_PIXELS],
 ) {
     debug_assert_eq!(BLOCK_SIZE_X * BLOCK_SIZE_Y, BLOCK_PIXELS);
     debug_assert!((range.width_offset as usize) < BLOCK_SIZE_X);
@@ -746,7 +745,7 @@ struct ChannelConversionBuffer {
     target: Channels,
 }
 impl ChannelConversionBuffer {
-    const BUFFER_BYTES: usize = 1024;
+    const BUFFER_BYTES: usize = 3072;
     fn new(native_color: ColorFormat, target: Channels) -> Self {
         Self {
             buffer: [0_u32; Self::BUFFER_BYTES / 4],

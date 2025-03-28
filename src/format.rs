@@ -77,6 +77,22 @@ pub enum Format {
     BC6H_SF16,
     BC7_UNORM,
 
+    // ASTC
+    ASTC_4X4_UNORM,
+    ASTC_5X4_UNORM,
+    ASTC_5X5_UNORM,
+    ASTC_6X5_UNORM,
+    ASTC_6X6_UNORM,
+    ASTC_8X5_UNORM,
+    ASTC_8X6_UNORM,
+    ASTC_8X8_UNORM,
+    ASTC_10X5_UNORM,
+    ASTC_10X6_UNORM,
+    ASTC_10X8_UNORM,
+    ASTC_10X10_UNORM,
+    ASTC_12X10_UNORM,
+    ASTC_12X12_UNORM,
+
     // non-standard formats
     /// This is just [`Format::BC3_UNORM`], but with the R channel stored in alpha.
     ///
@@ -228,6 +244,22 @@ impl TryFrom<Format> for DxgiFormat {
             Format::BC6H_UF16 => DxgiFormat::BC6H_UF16,
             Format::BC6H_SF16 => DxgiFormat::BC6H_SF16,
             Format::BC7_UNORM => DxgiFormat::BC7_UNORM,
+
+            // ASTC
+            Format::ASTC_4X4_UNORM => DxgiFormat::ASTC_4X4_UNORM,
+            Format::ASTC_5X4_UNORM => DxgiFormat::ASTC_5X4_UNORM,
+            Format::ASTC_5X5_UNORM => DxgiFormat::ASTC_5X5_UNORM,
+            Format::ASTC_6X5_UNORM => DxgiFormat::ASTC_6X5_UNORM,
+            Format::ASTC_6X6_UNORM => DxgiFormat::ASTC_6X6_UNORM,
+            Format::ASTC_8X5_UNORM => DxgiFormat::ASTC_8X5_UNORM,
+            Format::ASTC_8X6_UNORM => DxgiFormat::ASTC_8X6_UNORM,
+            Format::ASTC_8X8_UNORM => DxgiFormat::ASTC_8X8_UNORM,
+            Format::ASTC_10X5_UNORM => DxgiFormat::ASTC_10X5_UNORM,
+            Format::ASTC_10X6_UNORM => DxgiFormat::ASTC_10X6_UNORM,
+            Format::ASTC_10X8_UNORM => DxgiFormat::ASTC_10X8_UNORM,
+            Format::ASTC_10X10_UNORM => DxgiFormat::ASTC_10X10_UNORM,
+            Format::ASTC_12X10_UNORM => DxgiFormat::ASTC_12X10_UNORM,
+            Format::ASTC_12X12_UNORM => DxgiFormat::ASTC_12X12_UNORM,
 
             // cannot be represented by DXGI
             Format::R8G8B8_UNORM

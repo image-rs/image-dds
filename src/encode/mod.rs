@@ -81,6 +81,22 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::BC5_UNORM => BC5_UNORM,
         Format::BC5_SNORM => BC5_SNORM,
 
+        // ASTC formats
+        Format::ASTC_4X4_UNORM
+        | Format::ASTC_5X4_UNORM
+        | Format::ASTC_5X5_UNORM
+        | Format::ASTC_6X5_UNORM
+        | Format::ASTC_6X6_UNORM
+        | Format::ASTC_8X5_UNORM
+        | Format::ASTC_8X6_UNORM
+        | Format::ASTC_8X8_UNORM
+        | Format::ASTC_10X5_UNORM
+        | Format::ASTC_10X6_UNORM
+        | Format::ASTC_10X8_UNORM
+        | Format::ASTC_10X10_UNORM
+        | Format::ASTC_12X10_UNORM
+        | Format::ASTC_12X12_UNORM => return None,
+
         // non-standard formats
         Format::BC3_UNORM_RXGB => BC3_UNORM_RXGB,
 
