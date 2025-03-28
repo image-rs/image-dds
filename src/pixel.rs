@@ -395,6 +395,51 @@ impl TryFrom<DxgiFormat> for PixelInfo {
             | F::BC7_UNORM
             | F::BC7_UNORM_SRGB => Ok(Self::block(16, (4, 4))),
 
+            // ASTC formats
+            F::ASTC_4X4_TYPELESS | F::ASTC_4X4_UNORM | F::ASTC_4X4_UNORM_SRGB => {
+                Ok(Self::block(16, (4, 4)))
+            }
+            F::ASTC_5X4_TYPELESS | F::ASTC_5X4_UNORM | F::ASTC_5X4_UNORM_SRGB => {
+                Ok(Self::block(16, (5, 4)))
+            }
+            F::ASTC_5X5_TYPELESS | F::ASTC_5X5_UNORM | F::ASTC_5X5_UNORM_SRGB => {
+                Ok(Self::block(16, (5, 5)))
+            }
+            F::ASTC_6X5_TYPELESS | F::ASTC_6X5_UNORM | F::ASTC_6X5_UNORM_SRGB => {
+                Ok(Self::block(16, (6, 5)))
+            }
+            F::ASTC_6X6_TYPELESS | F::ASTC_6X6_UNORM | F::ASTC_6X6_UNORM_SRGB => {
+                Ok(Self::block(16, (6, 6)))
+            }
+            F::ASTC_8X5_TYPELESS | F::ASTC_8X5_UNORM | F::ASTC_8X5_UNORM_SRGB => {
+                Ok(Self::block(16, (8, 5)))
+            }
+            F::ASTC_8X6_TYPELESS | F::ASTC_8X6_UNORM | F::ASTC_8X6_UNORM_SRGB => {
+                Ok(Self::block(16, (8, 6)))
+            }
+            F::ASTC_8X8_TYPELESS | F::ASTC_8X8_UNORM | F::ASTC_8X8_UNORM_SRGB => {
+                Ok(Self::block(16, (8, 8)))
+            }
+            F::ASTC_10X5_TYPELESS | F::ASTC_10X5_UNORM | F::ASTC_10X5_UNORM_SRGB => {
+                Ok(Self::block(16, (10, 5)))
+            }
+            F::ASTC_10X6_TYPELESS | F::ASTC_10X6_UNORM | F::ASTC_10X6_UNORM_SRGB => {
+                Ok(Self::block(16, (10, 6)))
+            }
+            F::ASTC_10X8_TYPELESS | F::ASTC_10X8_UNORM | F::ASTC_10X8_UNORM_SRGB => {
+                Ok(Self::block(16, (10, 8)))
+            }
+            F::ASTC_10X10_TYPELESS | F::ASTC_10X10_UNORM | F::ASTC_10X10_UNORM_SRGB => {
+                Ok(Self::block(16, (10, 10)))
+            }
+            F::ASTC_12X10_TYPELESS | F::ASTC_12X10_UNORM | F::ASTC_12X10_UNORM_SRGB => {
+                Ok(Self::block(16, (12, 10)))
+            }
+            F::ASTC_12X12_TYPELESS | F::ASTC_12X12_UNORM | F::ASTC_12X12_UNORM_SRGB => {
+                Ok(Self::block(16, (12, 12)))
+            }
+
+            // Bi-planar formats
             // (4:2:0) bytes = w*h + 2 * ceil(w/2)*ceil(h/2)
             F::NV12 | F::OPAQUE_420 => Ok(Self::bi_planar(1, 2, (2, 2))),
             // (4:2:0) bytes = 2*(w*h + 2 * ceil(w/2)*ceil(h/2))
@@ -431,7 +476,7 @@ mod test {
                 let size = 2 * 3 * 4 * 5 * 6;
                 let size = Size::new(size, size);
                 let bits_per_pixel_from_size =
-                    pixel.surface_bytes(size).unwrap() * 8 / size.pixels();
+                    util::div_ceil(pixel.surface_bytes(size).unwrap() * 8, size.pixels());
 
                 assert_eq!(
                     pixel.bits_per_pixel(),
