@@ -708,8 +708,7 @@ impl Header {
     }
     /// A builder-pattern-style method to set the mipmap count of the header.
     ///
-    /// For the an easier way to enable mipmapping, use
-    /// [`Header::with_maximum_mipmap_count`].
+    /// For the an easier way to enable mipmapping, use [`Header::with_mipmaps`].
     pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
         match &mut self {
             Header::Dx9(header) => header.mipmap_count = mipmap_count,
@@ -1124,7 +1123,7 @@ impl Dx9Header {
     }
 
     /// Whether this header describes a cube map by checking for the
-    /// [`DdsCaps2::CUBE_MAP`] flag.
+    /// [`Caps2::CUBE_MAP`] flag.
     ///
     /// Note: DX9 supports partial cube maps, which will also return `true`.
     /// See [`Dx9Header::cube_map_faces`].
@@ -1141,7 +1140,7 @@ impl Dx9Header {
     }
 
     /// Whether this header describes a volume texture by checking for the
-    /// [`DdsCaps2::VOLUME`] flag.
+    /// [`Caps2::VOLUME`] flag.
     pub const fn is_volume(&self) -> bool {
         self.caps2.contains(Caps2::VOLUME)
     }

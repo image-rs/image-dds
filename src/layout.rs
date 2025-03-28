@@ -402,6 +402,7 @@ pub enum TextureArrayKind {
     PartialCubeMap(CubeMapFaces),
 }
 bitflags! {
+    /// A bitset representing which faces of a cube map are present.
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
     pub struct CubeMapFaces: u8 {
         const POSITIVE_X = 0b0000_0001;
