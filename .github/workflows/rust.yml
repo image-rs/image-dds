@@ -29,6 +29,13 @@ jobs:
       - run: rustup update --no-self-update stable && rustup default stable
       - run: cargo clippy
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update --no-self-update stable && rustup default stable
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
+
   test:
     runs-on: ubuntu-latest
     strategy:
