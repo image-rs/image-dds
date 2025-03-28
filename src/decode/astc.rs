@@ -10,15 +10,13 @@ fn decode_astc_block<const PIXELS: usize, T: Default + Copy>(
     block_size: (usize, usize),
     map_fn: impl Fn(u8) -> T,
 ) -> impl Fn([u8; 16]) -> [[T; 4]; PIXELS] {
-    use astc_decode::{astc_decode_block, Footprint};
-
     debug_assert_eq!(PIXELS, block_size.0 * block_size.1);
-    let footprint = Footprint::new(block_size.0 as u32, block_size.1 as u32);
+    let footprint = astc_decode::Footprint::new(block_size.0 as u32, block_size.1 as u32);
 
     move |bytes| {
         let mut block = [[T::default(); 4]; PIXELS];
         let width = footprint.block_width() as usize;
-        astc_decode_block(&bytes, footprint, |x, y, [r, g, b, a]| {
+        astc_decode::astc_decode_block(&bytes, footprint, |x, y, [r, g, b, a]| {
             block[y as usize * width + x as usize] = [map_fn(r), map_fn(g), map_fn(b), map_fn(a)];
         });
         block
