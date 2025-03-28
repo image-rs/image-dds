@@ -156,6 +156,21 @@ pub const ALL_FORMATS: &[Format] = &[
     Format::BC6H_UF16,
     Format::BC6H_SF16,
     Format::BC7_UNORM,
+    // ASTC formats
+    Format::ASTC_4X4_UNORM,
+    Format::ASTC_5X4_UNORM,
+    Format::ASTC_5X5_UNORM,
+    Format::ASTC_6X5_UNORM,
+    Format::ASTC_6X6_UNORM,
+    Format::ASTC_8X5_UNORM,
+    Format::ASTC_8X6_UNORM,
+    Format::ASTC_8X8_UNORM,
+    Format::ASTC_10X5_UNORM,
+    Format::ASTC_10X6_UNORM,
+    Format::ASTC_10X8_UNORM,
+    Format::ASTC_10X10_UNORM,
+    Format::ASTC_12X10_UNORM,
+    Format::ASTC_12X12_UNORM,
     // non-standard formats
     Format::BC3_UNORM_RXGB,
 ];

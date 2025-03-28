@@ -101,6 +101,51 @@ pub(crate) const fn dxgi_format_to_supported(dxgi_format: DxgiFormat) -> Option<
         DxgiFormat::BC7_TYPELESS | DxgiFormat::BC7_UNORM | DxgiFormat::BC7_UNORM_SRGB => {
             Some(Format::BC7_UNORM)
         }
+
+        // ASTC formats
+        DxgiFormat::ASTC_4X4_TYPELESS
+        | DxgiFormat::ASTC_4X4_UNORM
+        | DxgiFormat::ASTC_4X4_UNORM_SRGB => Some(Format::ASTC_4X4_UNORM),
+        DxgiFormat::ASTC_5X4_TYPELESS
+        | DxgiFormat::ASTC_5X4_UNORM
+        | DxgiFormat::ASTC_5X4_UNORM_SRGB => Some(Format::ASTC_5X4_UNORM),
+        DxgiFormat::ASTC_5X5_TYPELESS
+        | DxgiFormat::ASTC_5X5_UNORM
+        | DxgiFormat::ASTC_5X5_UNORM_SRGB => Some(Format::ASTC_5X5_UNORM),
+        DxgiFormat::ASTC_6X5_TYPELESS
+        | DxgiFormat::ASTC_6X5_UNORM
+        | DxgiFormat::ASTC_6X5_UNORM_SRGB => Some(Format::ASTC_6X5_UNORM),
+        DxgiFormat::ASTC_6X6_TYPELESS
+        | DxgiFormat::ASTC_6X6_UNORM
+        | DxgiFormat::ASTC_6X6_UNORM_SRGB => Some(Format::ASTC_6X6_UNORM),
+        DxgiFormat::ASTC_8X5_TYPELESS
+        | DxgiFormat::ASTC_8X5_UNORM
+        | DxgiFormat::ASTC_8X5_UNORM_SRGB => Some(Format::ASTC_8X5_UNORM),
+        DxgiFormat::ASTC_8X6_TYPELESS
+        | DxgiFormat::ASTC_8X6_UNORM
+        | DxgiFormat::ASTC_8X6_UNORM_SRGB => Some(Format::ASTC_8X6_UNORM),
+        DxgiFormat::ASTC_8X8_TYPELESS
+        | DxgiFormat::ASTC_8X8_UNORM
+        | DxgiFormat::ASTC_8X8_UNORM_SRGB => Some(Format::ASTC_8X8_UNORM),
+        DxgiFormat::ASTC_10X5_TYPELESS
+        | DxgiFormat::ASTC_10X5_UNORM
+        | DxgiFormat::ASTC_10X5_UNORM_SRGB => Some(Format::ASTC_10X5_UNORM),
+        DxgiFormat::ASTC_10X6_TYPELESS
+        | DxgiFormat::ASTC_10X6_UNORM
+        | DxgiFormat::ASTC_10X6_UNORM_SRGB => Some(Format::ASTC_10X6_UNORM),
+        DxgiFormat::ASTC_10X8_TYPELESS
+        | DxgiFormat::ASTC_10X8_UNORM
+        | DxgiFormat::ASTC_10X8_UNORM_SRGB => Some(Format::ASTC_10X8_UNORM),
+        DxgiFormat::ASTC_10X10_TYPELESS
+        | DxgiFormat::ASTC_10X10_UNORM
+        | DxgiFormat::ASTC_10X10_UNORM_SRGB => Some(Format::ASTC_10X10_UNORM),
+        DxgiFormat::ASTC_12X10_TYPELESS
+        | DxgiFormat::ASTC_12X10_UNORM
+        | DxgiFormat::ASTC_12X10_UNORM_SRGB => Some(Format::ASTC_12X10_UNORM),
+        DxgiFormat::ASTC_12X12_TYPELESS
+        | DxgiFormat::ASTC_12X12_UNORM
+        | DxgiFormat::ASTC_12X12_UNORM_SRGB => Some(Format::ASTC_12X12_UNORM),
+
         _ => None,
     }
 }

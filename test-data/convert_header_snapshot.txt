@@ -2231,6 +2231,160 @@ Header:
     w/h: 129 x 66
     mipmap_count: 8
     DX10: Texture2D
+        dxgi_format: ASTC_4X4_UNORM (134)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_5X4_UNORM (138)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_5X5_UNORM (142)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_6X5_UNORM (146)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_6X6_UNORM (150)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_8X5_UNORM (154)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_8X6_UNORM (158)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_8X8_UNORM (162)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_10X5_UNORM (166)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_10X6_UNORM (170)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_10X8_UNORM (174)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_10X10_UNORM (178)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_12X10_UNORM (182)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
+        dxgi_format: ASTC_12X12_UNORM (186)
+        alpha_mode: Straight
+
+Can't be converted to DX9
+
+
+
+Header:
+    w/h: 129 x 66
+    mipmap_count: 8
+    DX10: Texture2D
         dxgi_format: A4B4G4R4_UNORM (191)
 
 Can't be converted to DX9
