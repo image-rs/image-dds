@@ -708,7 +708,7 @@ impl Header {
     }
     /// A builder-pattern-style method to set the mipmap count of the header.
     ///
-    /// For the an easier way to enable mipmapping, use [`Header::with_mipmaps_zzz`].
+    /// For the an easier way to enable mipmapping, use [`Header::with_mipmaps`].
     pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
         match &mut self {
             Header::Dx9(header) => header.mipmap_count = mipmap_count,
