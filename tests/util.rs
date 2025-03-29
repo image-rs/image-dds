@@ -1302,6 +1302,9 @@ impl PrettyTable {
         table.add_row(header);
         table
     }
+    pub fn height(&self) -> usize {
+        self.height
+    }
 
     pub fn get(&self, x: usize, y: usize) -> &str {
         &self.cells[y * self.width + x]
@@ -1354,6 +1357,55 @@ impl PrettyTable {
             out.push_str(line.trim_end());
             out.push('\n');
             line.clear();
+        }
+    }
+
+    pub fn print_markdown(&self, out: &mut String) {
+        let column_width: Vec<usize> = (0..self.width)
+            .map(|x| {
+                (0..self.height)
+                    .map(|y| self.get(x, y).chars().count())
+                    .max()
+                    .unwrap()
+            })
+            .collect();
+
+        for y in 0..self.height {
+            #[allow(clippy::needless_range_loop)]
+            for x in 0..self.width {
+                let cell = self.get(x, y);
+                out.push_str("| ");
+                out.push_str(cell);
+                for _ in 0..column_width[x] - cell.chars().count() {
+                    out.push(' ');
+                }
+                out.push(' ');
+            }
+
+            // poor man's trim
+            while let Some(last) = out.chars().last() {
+                if last == ' ' {
+                    out.pop();
+                } else {
+                    break;
+                }
+            }
+
+            out.push('\n');
+
+            if y == 0 {
+                #[allow(clippy::needless_range_loop)]
+                for x in 0..self.width {
+                    out.push_str("| ");
+                    for _ in 0..column_width[x] {
+                        out.push('-');
+                    }
+                    if x != self.width - 1 {
+                        out.push(' ');
+                    }
+                }
+                out.push('\n');
+            }
         }
     }
 }

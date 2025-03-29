@@ -13,6 +13,8 @@ This library supports a total of over 70 formats for decoding, including:
 
 Most formats support encoding. Notable exceptions are the ASTC formats ([#23](https://github.com/RunDevelopment/dds/issues/23)), BC7 ([#20](https://github.com/RunDevelopment/dds/issues/20)), and BC6 (currently not planned).
 
+For a full list of all support formats and their capabilities, see [this document](./supported-formats.md).
+
 ## License
 
 Licensed under either of
