@@ -69,10 +69,6 @@ fn create_random_color_blocks() -> Image<f32> {
 
     image
 }
-fn compression_ratio(data: &[u8]) -> f64 {
-    let compressed = miniz_oxide::deflate::compress_to_vec(data, 6);
-    compressed.len() as f64 / data.len() as f64
-}
 
 #[test]
 fn encode_base() {
@@ -345,15 +341,8 @@ fn encode_measure_quality() {
         }
         output.push('\n');
 
-        let mut table = util::PrettyTable::from_header(&[
-            "",
-            "",
-            "",
-            "↑PSNR",
-            "↑PSNR blur",
-            "↓Region err",
-            "↓Compress",
-        ]);
+        let mut table =
+            util::PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR blur", "↓Region err"]);
 
         for image in case.images {
             let hash_alpha = matches!(image.image.channels, Channels::Rgba | Channels::Alpha);
@@ -380,9 +369,6 @@ fn encode_measure_quality() {
                 let hash = util::hash_hex(&encoded_bytes);
                 output_summaries.add_output_file(&output_file, &hash);
 
-                let compression = compression_ratio(&encoded_bytes);
-                let compression = format!("{:.1}%", compression * 100.);
-
                 let metrics = util::measure_compression_quality(&image, &encoded_image);
                 let mut opt_mentioned = false;
                 let mut printed_metrics = 0;
@@ -405,11 +391,6 @@ fn encode_measure_quality() {
                         format!("{:.2}", m.psnr),
                         format!("{:.2}", m.psnr_blur),
                         format!("{:.5}", m.region_error * 255.),
-                        if opt_mentioned {
-                            String::new()
-                        } else {
-                            compression.to_string()
-                        },
                     ]);
                     name_mentioned = true;
                     opt_mentioned = true;
