@@ -1016,7 +1016,7 @@ pub enum MetricChannel {
 pub struct Metrics {
     pub channel: MetricChannel,
     pub mse: f64,
-    /// This the MSE of the image after a small blur
+    /// This is the MSE of the image after a small blur
     pub mse_blur: f64,
     pub region_error: f64,
 }
