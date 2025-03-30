@@ -185,7 +185,7 @@ fn get_texture_len(
 
 /// A 2D texture with mipmaps (if any).
 ///
-/// See [`DataLayout`] for more information.
+/// See [`DataLayout::Texture`] for more information.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Texture {
     width: NonZeroU32,
@@ -303,7 +303,7 @@ fn get_volume_len(
 
 /// A 3D texture with mipmaps (if any).
 ///
-/// See [`DataLayout`] for more information.
+/// See [`DataLayout::Volume`] for more information.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Volume {
     width: NonZeroU32,
@@ -441,7 +441,7 @@ impl CubeMapFaces {
 
 /// An array of textures.
 ///
-/// See [`DataLayout`] for more information.
+/// See [`DataLayout::TextureArray`] for more information.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TextureArray {
     kind: TextureArrayKind,
@@ -546,130 +546,119 @@ impl DataRegion for TextureArray {
 ///
 /// Note: [`DataLayout`] provides no methods to read the data itself. Use
 /// [`crate::Decoder`] or [`crate::Encoder`] to read/write the data section.
-///
-/// # Texture
-///
-/// The simplest DDS files contain a single texture. This is represented by the
-/// [`DataLayout::Texture`] variant. The texture is a 2D image and may contain
-/// mipmaps.
-///
-/// Example:
-///
-/// ```
-/// # use dds::{*, header::*};
-/// let header = Header::new_image(123, 345, Format::BC1_UNORM).with_mipmaps();
-/// let layout = DataLayout::from_header(&header).unwrap();
-/// let texture = layout.texture().unwrap();
-/// assert_eq!(texture.main().size(), Size::new(123, 345));
-///
-/// // iterate over all mipmaps
-/// for (level, mipmap) in texture.iter_mips().enumerate() {
-///     println!("Mipmap {}: {}x{}", level, mipmap.width(), mipmap.height());
-/// }
-/// ```
-///
-/// # Texture array
-///
-/// A texture array is simply an array of 2D textures. It is represented by the
-/// [`DataLayout::TextureArray`] variant. All textures within an array have the
-/// same size, mipmap count, and pixel format.
-///
-/// Example:
-///
-/// ```
-/// # use dds::{*, header::*};
-/// let mut header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
-/// header.array_size = 10;
-/// let layout = DataLayout::from_header(&header.into()).unwrap();
-/// let array = layout.texture_array().unwrap();
-/// assert_eq!(array.len(), 10);
-/// assert_eq!(array.size(), Size::new(123, 345));
-///
-/// // iterate over all textures in the array
-/// for texture in array.iter() {
-///     for (level, mipmap) in texture.iter_mips().enumerate() {
-///         println!("Mipmap {}: {}x{}", level, mipmap.width(), mipmap.height());
-///     }
-/// }
-/// ```
-///
-/// ## Cube maps
-///
-/// Cube maps are a special case of texture arrays. You can differentiate
-/// between normal texture arrays and cube maps using [`TextureArray::kind()`].
-///
-/// The faces of a cube map are always stored in the order:
-///
-/// 1. Positive X
-/// 2. Negative X
-/// 3. Positive Y
-/// 4. Negative Y
-/// 5. Positive Z
-/// 6. Negative Z
-///
-/// Note that cube maps come in 2 flavors: full cube maps and partial cube
-/// maps. Partial cube maps are cube maps with fewer than 6 faces (see
-/// [`TextureArrayKind::PartialCubeMap`]) and are **not** supported by DX10+.
-/// In practice, partial cube maps are rarely used. This library only supports
-/// them for completeness.
-///
-/// Example:
-///
-/// ```
-/// # use dds::{*, header::*};
-/// let mut header = Header::new_cube_map(256, 256, Format::BC1_UNORM).with_mipmaps();
-/// let layout = DataLayout::from_header(&header).unwrap();
-/// let array = layout.texture_array().unwrap();
-/// assert_eq!(array.kind(), TextureArrayKind::CubeMaps);
-/// assert_eq!(array.len(), 6); // 6 faces
-/// assert_eq!(array.size(), Size::new(256, 256));
-///
-/// let positive_x = array.get(0).unwrap();
-/// let negative_x = array.get(1).unwrap();
-/// let positive_y = array.get(2).unwrap();
-/// let negative_y = array.get(3).unwrap();
-/// let positive_z = array.get(4).unwrap();
-/// let negative_z = array.get(5).unwrap();
-/// ```
-///
-/// DX10 also supports arrays of cube maps. Example:
-///
-/// ```
-/// # use dds::{*, header::*};
-/// let mut header = Dx10Header::new_cube_map(256, 256, DxgiFormat::BC1_UNORM);
-/// header.array_size = 3;
-/// let layout = DataLayout::from_header(&header.into()).unwrap();
-/// let array = layout.texture_array().unwrap();
-/// assert_eq!(array.kind(), TextureArrayKind::CubeMaps);
-/// assert_eq!(array.len(), 18); // 6 faces * 3 cube maps
-/// ```
-///
-/// # Volume
-///
-/// A volume is a 3D texture. It is represented by the [`DataLayout::Volume`]
-/// variant. Volumes may also contain mipmaps.
-///
-/// DDS uses depth slices to represent 3D textures.
-///
-/// Example:
-///
-/// ```
-/// # use dds::{*, header::*};
-/// let header = Header::new_volume(123, 345, 678, Format::BC1_UNORM).with_mipmaps();
-/// let layout = DataLayout::from_header(&header).unwrap();
-/// let volume = layout.volume().unwrap();
-/// assert_eq!(volume.main().size(), Size::new(123, 345));
-/// assert_eq!(volume.main().depth(), 678);
-///
-/// // iterate over all mipmaps
-/// for (level, mipmap) in volume.iter_mips().enumerate() {
-///     println!("Mipmap {}: {}x{}x{}", level, mipmap.width(), mipmap.height(), mipmap.depth());
-/// }
-/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DataLayout {
+    /// A single texture with mipmaps (if any).
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use dds::{*, header::*};
+    /// let header = Header::new_image(123, 345, Format::BC1_UNORM).with_mipmaps();
+    /// let layout = DataLayout::from_header(&header).unwrap();
+    /// let texture = layout.texture().unwrap();
+    /// assert_eq!(texture.main().size(), Size::new(123, 345));
+    ///
+    /// // iterate over all mipmaps
+    /// for (level, mipmap) in texture.iter_mips().enumerate() {
+    ///     println!("Mipmap {}: {}x{}", level, mipmap.width(), mipmap.height());
+    /// }
+    /// ```
     Texture(Texture),
+    /// A 3D texture with mipmaps (if any).
+    ///
+    /// DDS uses depth slices to represent 3D textures.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use dds::{*, header::*};
+    /// let header = Header::new_volume(123, 345, 678, Format::BC1_UNORM).with_mipmaps();
+    /// let layout = DataLayout::from_header(&header).unwrap();
+    /// let volume = layout.volume().unwrap();
+    /// assert_eq!(volume.main().size(), Size::new(123, 345));
+    /// assert_eq!(volume.main().depth(), 678);
+    ///
+    /// // iterate over all mipmaps
+    /// for (level, mipmap) in volume.iter_mips().enumerate() {
+    ///     println!("Mipmap {}: {}x{}x{}", level, mipmap.width(), mipmap.height(), mipmap.depth());
+    /// }
+    /// ```
     Volume(Volume),
+    /// A simply array of 2D textures.
+    ///
+    /// All textures within the array have the same size, mipmap count, and
+    /// pixel format.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use dds::{*, header::*};
+    /// let mut header = Dx10Header::new_image(123, 345, DxgiFormat::BC1_UNORM);
+    /// header.array_size = 10;
+    /// let layout = DataLayout::from_header(&header.into()).unwrap();
+    /// let array = layout.texture_array().unwrap();
+    /// assert_eq!(array.len(), 10);
+    /// assert_eq!(array.size(), Size::new(123, 345));
+    ///
+    /// // iterate over all textures in the array
+    /// for texture in array.iter() {
+    ///     for (level, mipmap) in texture.iter_mips().enumerate() {
+    ///         println!("Mipmap {}: {}x{}", level, mipmap.width(), mipmap.height());
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// ## Cube maps
+    ///
+    /// Cube maps are a special case of texture arrays. You can differentiate
+    /// between normal texture arrays and cube maps using [`TextureArray::kind()`].
+    ///
+    /// The faces of a cube map are always stored in the order:
+    ///
+    /// 1. Positive X
+    /// 2. Negative X
+    /// 3. Positive Y
+    /// 4. Negative Y
+    /// 5. Positive Z
+    /// 6. Negative Z
+    ///
+    /// Note that cube maps come in 2 flavors: full cube maps and partial cube
+    /// maps. Partial cube maps are cube maps with fewer than 6 faces (see
+    /// [`TextureArrayKind::PartialCubeMap`]) and are **not** supported by DX10+.
+    /// In practice, partial cube maps are rarely used. This library only supports
+    /// them for completeness.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use dds::{*, header::*};
+    /// let mut header = Header::new_cube_map(256, 256, Format::BC1_UNORM).with_mipmaps();
+    /// let layout = DataLayout::from_header(&header).unwrap();
+    /// let array = layout.texture_array().unwrap();
+    /// assert_eq!(array.kind(), TextureArrayKind::CubeMaps);
+    /// assert_eq!(array.len(), 6); // 6 faces
+    /// assert_eq!(array.size(), Size::new(256, 256));
+    ///
+    /// let positive_x = array.get(0).unwrap();
+    /// let negative_x = array.get(1).unwrap();
+    /// let positive_y = array.get(2).unwrap();
+    /// let negative_y = array.get(3).unwrap();
+    /// let positive_z = array.get(4).unwrap();
+    /// let negative_z = array.get(5).unwrap();
+    /// ```
+    ///
+    /// DX10 also supports arrays of cube maps. Example:
+    ///
+    /// ```
+    /// # use dds::{*, header::*};
+    /// let mut header = Dx10Header::new_cube_map(256, 256, DxgiFormat::BC1_UNORM);
+    /// header.array_size = 3;
+    /// let layout = DataLayout::from_header(&header.into()).unwrap();
+    /// let array = layout.texture_array().unwrap();
+    /// assert_eq!(array.kind(), TextureArrayKind::CubeMaps);
+    /// assert_eq!(array.len(), 18); // 6 faces * 3 cube maps
+    /// ```
     TextureArray(TextureArray),
 }
 impl DataLayout {
@@ -759,21 +748,25 @@ impl DataLayout {
         }
     }
 
-    pub fn texture(&self) -> Option<&Texture> {
+    /// If this layout is a [`DataLayout::Texture`], returns the texture.
+    pub fn texture(&self) -> Option<Texture> {
         match self {
-            DataLayout::Texture(texture) => Some(texture),
+            DataLayout::Texture(texture) => Some(*texture),
             _ => None,
         }
     }
-    pub fn volume(&self) -> Option<&Volume> {
+    /// If this layout is a [`DataLayout::Volume`], returns the volume.
+    pub fn volume(&self) -> Option<Volume> {
         match self {
-            DataLayout::Volume(volume) => Some(volume),
+            DataLayout::Volume(volume) => Some(*volume),
             _ => None,
         }
     }
-    pub fn texture_array(&self) -> Option<&TextureArray> {
+    /// If this layout is a [`DataLayout::TextureArray`], returns the texture
+    /// array.
+    pub fn texture_array(&self) -> Option<TextureArray> {
         match self {
-            DataLayout::TextureArray(array) => Some(array),
+            DataLayout::TextureArray(array) => Some(*array),
             _ => None,
         }
     }
