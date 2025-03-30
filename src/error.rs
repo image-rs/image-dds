@@ -111,6 +111,9 @@ pub enum DecodeError {
     CannotSkipMipmapsInVolume,
     /// There are no further surfaces to decode.
     NoMoreSurfaces,
+    /// This error is returned by [`crate::Decoder::read_cube_map`] when the
+    /// user tries to read a DDS file that isn't a cube map.
+    NotACubeMap,
 
     /// The decoder has exceeded its memory limit.
     MemoryLimitExceeded,
@@ -150,6 +153,10 @@ impl std::fmt::Display for DecodeError {
             DecodeError::NoMoreSurfaces => {
                 write!(f, "No more surfaces to decode")
             }
+            DecodeError::NotACubeMap => {
+                write!(f, "The DDS file is not a cube map")
+            }
+
             DecodeError::MemoryLimitExceeded => {
                 write!(f, "Memory limit exceeded")
             }

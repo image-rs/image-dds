@@ -413,26 +413,8 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
     if let Some(array) = decoder.layout().texture_array() {
         if array.kind() == TextureArrayKind::CubeMaps && settings.allow_cube_map() {
             let out_size = Size::new(size.width * 4, size.height * 3);
-
             let mut image = Image::new_empty(Channels::Rgba, out_size);
-            let image_bytes = image.as_bytes_mut();
-            let color = ColorFormat::new(Channels::Rgba, T::PRECISION);
-            let row_pitch = color.bytes_per_pixel() as usize * out_size.width as usize;
-            let rect = Rect::new(0, 0, size.width, size.height);
-
-            let mut read_face = |offset| {
-                decoder.read_surface_rect(&mut image_bytes[offset..], row_pitch, rect, color)?;
-                decoder.skip_mipmaps()
-            };
-
-            let face_offsets = [(2, 1), (0, 1), (1, 0), (1, 2), (1, 1), (3, 1)]
-                .map(|(x, y)| (x * size.width, y * size.height));
-            for (offset_x, offset_y) in face_offsets {
-                read_face(
-                    offset_y as usize * row_pitch
-                        + offset_x as usize * color.bytes_per_pixel() as usize,
-                )?;
-            }
+            decoder.read_cube_map(image.view_mut())?;
 
             return Ok((image, decoder.info().clone()));
         }

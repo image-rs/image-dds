@@ -4,7 +4,8 @@ use crate::{
     decode, decode_rect,
     header::{Header, ParseOptions},
     iter::{SurfaceInfo, SurfaceIterator},
-    util, ColorFormat, DataLayout, DecodeError, DecodeOptions, Format, ImageViewMut, Rect, Size,
+    util, ColorFormat, CubeMapFaces, DataLayout, DecodeError, DecodeOptions, Format, ImageViewMut,
+    Rect, Size, TextureArrayKind,
 };
 
 /// Information about the header, pixel format, and data layout of a DDS file.
@@ -234,5 +235,84 @@ impl<R> Decoder<R> {
         } else {
             Err(DecodeError::CannotSkipMipmapsInVolume)
         }
+    }
+
+    /// Reads all faces of a cube map into the given image and skips any
+    /// mipmaps of those faces.
+    ///
+    /// The faces of the cube map are arranged in a shape of an unfolded cube
+    /// like this:
+    ///
+    /// ```txt
+    /// +----+----+----+----+  `.
+    /// |    | +Y |    |    |   |
+    /// +----+----+----+----+   |
+    /// | -X | +Z | +X | -Z |   | 3 * height
+    /// +----+----+----+----+   |
+    /// |    | -Y |    |    |   |
+    /// +----+----+----+----+  ´
+    /// .___________________.
+    ///      4 * width
+    /// ```
+    ///
+    /// As such, the output image buffer is expected to have a size of
+    /// `width * 4` by `height * 3`, where `width` and `height` are the
+    /// dimensions of a single cube map face.
+    ///
+    /// For partial cube maps, only the faces that are present in the DDS file
+    /// are read. The faces are arranged in the same order as for full cube
+    /// maps.
+    pub fn read_cube_map(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
+    where
+        R: Read + Seek,
+    {
+        let layout = self.layout();
+        let texture_array = layout.texture_array().ok_or(DecodeError::NotACubeMap)?;
+        let faces = match texture_array.kind() {
+            TextureArrayKind::Textures => return Err(DecodeError::NotACubeMap),
+            TextureArrayKind::CubeMaps => CubeMapFaces::ALL,
+            TextureArrayKind::PartialCubeMap(cube_map_faces) => cube_map_faces,
+        };
+
+        let face_size = texture_array.size();
+        let image_width = face_size.width.checked_mul(4);
+        let image_height = face_size.height.checked_mul(3);
+        if image_width != Some(image.width()) || image_height != Some(image.height()) {
+            return Err(DecodeError::UnexpectedSurfaceSize);
+        }
+
+        let face_offsets = [
+            (CubeMapFaces::POSITIVE_X, 2, 1),
+            (CubeMapFaces::NEGATIVE_X, 0, 1),
+            (CubeMapFaces::POSITIVE_Y, 1, 0),
+            (CubeMapFaces::NEGATIVE_Y, 1, 2),
+            (CubeMapFaces::POSITIVE_Z, 1, 1),
+            (CubeMapFaces::NEGATIVE_Z, 3, 1),
+        ];
+
+        let color = image.color();
+        let bytes_per_pixel = color.bytes_per_pixel() as usize;
+        let row_pitch = image.row_pitch();
+        let rect = Rect::new(0, 0, face_size.width, face_size.height);
+        let image_bytes = image.data;
+
+        for (_, x, y) in face_offsets
+            .into_iter()
+            .filter(|(face, _, _)| faces.contains(*face))
+        {
+            let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+            if current.size() != face_size {
+                return Err(DecodeError::UnexpectedSurfaceSize);
+            }
+
+            let offset_x = x * face_size.width;
+            let offset_y = y * face_size.height;
+            let offset = offset_y as usize * row_pitch + offset_x as usize * bytes_per_pixel;
+
+            self.read_surface_rect(&mut image_bytes[offset..], row_pitch, rect, color)?;
+            self.skip_mipmaps()?;
+        }
+
+        Ok(())
     }
 }
