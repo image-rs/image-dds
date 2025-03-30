@@ -47,10 +47,10 @@ fn bench_decoder_with(
     c.bench_function(&name, |b| {
         let header = Header::new_image(config.size.width, config.size.height, format);
 
-        let info = DdsInfo::new(header).unwrap();
-        let format = info.format();
+        let format = Format::from_header(&header).unwrap();
+        let layout = DataLayout::from_header(&header).unwrap();
 
-        let surface = info.layout().texture().unwrap().main();
+        let surface = layout.texture().unwrap().main();
         let mut bytes = random_bytes(surface.data_len() as usize).into_boxed_slice();
         (config.data_modifier)(&mut bytes);
         let mut output: Vec<u8> =
