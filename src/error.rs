@@ -49,7 +49,7 @@ pub enum LayoutError {
     /// bytes of memory.
     DataLayoutTooBig,
     /// The faces of a cube map must always be 2D textures.
-    InvalidCubeMapDimensions,
+    InvalidCubeMapFaces,
 }
 impl std::fmt::Display for LayoutError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,7 +73,7 @@ impl std::fmt::Display for LayoutError {
             LayoutError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")
             }
-            LayoutError::InvalidCubeMapDimensions => {
+            LayoutError::InvalidCubeMapFaces => {
                 write!(f, "Cube map faces must be 2D textures")
             }
         }

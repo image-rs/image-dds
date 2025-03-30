@@ -671,7 +671,7 @@ impl DataLayout {
             Header::Dx10(dx10) => {
                 if dx10.is_cube_map() {
                     if dx10.resource_dimension != ResourceDimension::Texture2D {
-                        return Err(LayoutError::InvalidCubeMapDimensions);
+                        return Err(LayoutError::InvalidCubeMapFaces);
                     }
 
                     let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
@@ -711,7 +711,7 @@ impl DataLayout {
             Header::Dx9(dx9) => {
                 if let Some(faces) = dx9.cube_map_faces() {
                     if dx9.is_volume() {
-                        return Err(LayoutError::InvalidCubeMapDimensions);
+                        return Err(LayoutError::InvalidCubeMapFaces);
                     }
 
                     let info = SurfaceLayoutInfo::from_header(header, pixel_info)?;
