@@ -49,7 +49,7 @@ pub enum LayoutError {
     /// bytes of memory.
     DataLayoutTooBig,
     /// The faces of a cube map must always be 2D textures.
-    InvalidCubeMapDimensions,
+    InvalidCubeMapFaces,
 }
 impl std::fmt::Display for LayoutError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,7 +73,7 @@ impl std::fmt::Display for LayoutError {
             LayoutError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")
             }
-            LayoutError::InvalidCubeMapDimensions => {
+            LayoutError::InvalidCubeMapFaces => {
                 write!(f, "Cube map faces must be 2D textures")
             }
         }
@@ -111,6 +111,9 @@ pub enum DecodeError {
     CannotSkipMipmapsInVolume,
     /// There are no further surfaces to decode.
     NoMoreSurfaces,
+    /// This error is returned by [`crate::Decoder::read_cube_map`] when the
+    /// user tries to read a DDS file that isn't a cube map.
+    NotACubeMap,
 
     /// The decoder has exceeded its memory limit.
     MemoryLimitExceeded,
@@ -150,6 +153,10 @@ impl std::fmt::Display for DecodeError {
             DecodeError::NoMoreSurfaces => {
                 write!(f, "No more surfaces to decode")
             }
+            DecodeError::NotACubeMap => {
+                write!(f, "The DDS file is not a cube map")
+            }
+
             DecodeError::MemoryLimitExceeded => {
                 write!(f, "Memory limit exceeded")
             }

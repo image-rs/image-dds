@@ -4,74 +4,18 @@ use crate::{
     decode, decode_rect,
     header::{Header, ParseOptions},
     iter::{SurfaceInfo, SurfaceIterator},
-    util, ColorFormat, DataLayout, DecodeError, DecodeOptions, Format, ImageViewMut, Rect, Size,
+    util, ColorFormat, CubeMapFaces, DataLayout, DecodeError, DecodeOptions, Format, ImageViewMut,
+    Rect, Size, TextureArrayKind,
 };
-
-/// Information about the header, pixel format, and data layout of a DDS file.
-///
-/// This is immutable since the data layout and format depend on the header.
-/// In particular, the data layout is guaranteed to be generated from the
-/// header.
-#[derive(Debug, Clone)]
-pub struct DdsInfo {
-    header: Header,
-    format: Format,
-    layout: DataLayout,
-}
-
-impl DdsInfo {
-    /// Creates a new decoder by reading the header from the given reader.
-    ///
-    /// This is equivalent to calling `Decoder::read_with_options(r, ParseOptions::default())`.
-    /// See [`Self::read_with_options`] for more details.
-    pub fn read<R: Read>(r: &mut R) -> Result<Self, DecodeError> {
-        Self::read_with_options(r, &ParseOptions::default())
-    }
-    /// Creates a new decoder with the given options by reading the header from the given reader.
-    ///
-    /// If this operations succeeds, the given reader will be positioned at the start of the data
-    /// section. All offsets in [`DataLayout`] are relative to this position.
-    pub fn read_with_options<R: Read>(
-        r: &mut R,
-        options: &ParseOptions,
-    ) -> Result<Self, DecodeError> {
-        let header = Header::read(r, options)?;
-        Self::new(header)
-    }
-
-    pub fn new(header: Header) -> Result<Self, DecodeError> {
-        // detect format
-        let format = Format::from_header(&header)?;
-
-        Self::new_with_format(header, format)
-    }
-    pub fn new_with_format(header: Header, format: Format) -> Result<Self, DecodeError> {
-        // data layout
-        let layout = DataLayout::from_header_with(&header, format.into())?;
-
-        Ok(Self {
-            header,
-            format,
-            layout,
-        })
-    }
-
-    pub fn header(&self) -> &Header {
-        &self.header
-    }
-    pub fn format(&self) -> Format {
-        self.format
-    }
-    pub fn layout(&self) -> DataLayout {
-        self.layout
-    }
-}
 
 /// A decoder for reading the pixel data of a DDS file.
 pub struct Decoder<R> {
     reader: R,
 
-    info: DdsInfo,
+    header: Header,
+    format: Format,
+    layout: DataLayout,
+
     iter: SurfaceIterator,
     pub options: DecodeOptions,
 }
@@ -86,28 +30,41 @@ impl<R> Decoder<R> {
     where
         R: Read,
     {
-        let info = DdsInfo::read_with_options(&mut reader, options)?;
-
-        Self::from_info(reader, info)
+        let header = Header::read(&mut reader, options)?;
+        Self::from_header(reader, header)
     }
 
-    pub fn from_info(reader: R, info: DdsInfo) -> Result<Self, DecodeError> {
+    pub fn from_header(reader: R, header: Header) -> Result<Self, DecodeError> {
+        let format = Format::from_header(&header)?;
+        Self::from_header_with(reader, header, format)
+    }
+    pub fn from_header_with(
+        reader: R,
+        header: Header,
+        format: Format,
+    ) -> Result<Self, DecodeError> {
+        let layout = DataLayout::from_header_with(&header, format.into())?;
+
         Ok(Self {
             reader,
-            iter: SurfaceIterator::new(info.layout()),
-            info,
+
+            header,
+            format,
+            layout,
+
+            iter: SurfaceIterator::new(layout),
             options: DecodeOptions::default(),
         })
     }
 
-    pub fn info(&self) -> &DdsInfo {
-        &self.info
+    pub fn header(&self) -> &Header {
+        &self.header
     }
     pub fn format(&self) -> Format {
-        self.info.format()
+        self.format
     }
     pub fn layout(&self) -> DataLayout {
-        self.info.layout()
+        self.layout
     }
 
     /// The size of the level 0 object.
@@ -117,14 +74,14 @@ impl<R> Decoder<R> {
     /// the individual faces (mipmap level 0). For volume textures, this will
     /// return the size of the first depth slice (mipmap level 0).
     pub fn main_size(&self) -> Size {
-        self.info.layout().main_size()
+        self.layout.main_size()
     }
     /// The native color of the DDS file.
     ///
     /// See [`Format::precision`] for more information about the precision of
     /// the color format.
     pub fn native_color(&self) -> ColorFormat {
-        self.info.format().color()
+        self.format.color()
     }
 
     pub fn into_reader(self) -> R {
@@ -153,7 +110,7 @@ impl<R> Decoder<R> {
             return Err(DecodeError::UnexpectedSurfaceSize);
         }
 
-        decode(&mut self.reader, image, self.info.format, &self.options)?;
+        decode(&mut self.reader, image, self.format, &self.options)?;
 
         self.iter.advance();
         Ok(())
@@ -184,7 +141,7 @@ impl<R> Decoder<R> {
             color,
             current.size(),
             rect,
-            self.info.format,
+            self.format,
             &self.options,
         )?;
 
@@ -234,5 +191,84 @@ impl<R> Decoder<R> {
         } else {
             Err(DecodeError::CannotSkipMipmapsInVolume)
         }
+    }
+
+    /// Reads all faces of a cube map into the given image and skips any
+    /// mipmaps of those faces.
+    ///
+    /// The faces of the cube map are arranged in a shape of an unfolded cube
+    /// like this:
+    ///
+    /// ```txt
+    /// +----+----+----+----+  `.
+    /// |    | +Y |    |    |   |
+    /// +----+----+----+----+   |
+    /// | -X | +Z | +X | -Z |   | 3 * height
+    /// +----+----+----+----+   |
+    /// |    | -Y |    |    |   |
+    /// +----+----+----+----+  ´
+    /// .___________________.
+    ///      4 * width
+    /// ```
+    ///
+    /// As such, the output image buffer is expected to have a size of
+    /// `width * 4` by `height * 3`, where `width` and `height` are the
+    /// dimensions of a single cube map face.
+    ///
+    /// For partial cube maps, only the faces that are present in the DDS file
+    /// are read. The faces are arranged in the same order as for full cube
+    /// maps.
+    pub fn read_cube_map(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
+    where
+        R: Read + Seek,
+    {
+        let layout = self.layout();
+        let texture_array = layout.texture_array().ok_or(DecodeError::NotACubeMap)?;
+        let faces = match texture_array.kind() {
+            TextureArrayKind::Textures => return Err(DecodeError::NotACubeMap),
+            TextureArrayKind::CubeMaps => CubeMapFaces::ALL,
+            TextureArrayKind::PartialCubeMap(cube_map_faces) => cube_map_faces,
+        };
+
+        let face_size = texture_array.size();
+        let image_width = face_size.width.checked_mul(4);
+        let image_height = face_size.height.checked_mul(3);
+        if image_width != Some(image.width()) || image_height != Some(image.height()) {
+            return Err(DecodeError::UnexpectedSurfaceSize);
+        }
+
+        let face_offsets = [
+            (CubeMapFaces::POSITIVE_X, 2, 1),
+            (CubeMapFaces::NEGATIVE_X, 0, 1),
+            (CubeMapFaces::POSITIVE_Y, 1, 0),
+            (CubeMapFaces::NEGATIVE_Y, 1, 2),
+            (CubeMapFaces::POSITIVE_Z, 1, 1),
+            (CubeMapFaces::NEGATIVE_Z, 3, 1),
+        ];
+
+        let color = image.color();
+        let bytes_per_pixel = color.bytes_per_pixel() as usize;
+        let row_pitch = image.row_pitch();
+        let rect = Rect::new(0, 0, face_size.width, face_size.height);
+        let image_bytes = image.data;
+
+        for (_, x, y) in face_offsets
+            .into_iter()
+            .filter(|(face, _, _)| faces.contains(*face))
+        {
+            let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+            if current.size() != face_size {
+                return Err(DecodeError::UnexpectedSurfaceSize);
+            }
+
+            let offset_x = x * face_size.width;
+            let offset_y = y * face_size.height;
+            let offset = offset_y as usize * row_pitch + offset_x as usize * bytes_per_pixel;
+
+            self.read_surface_rect(&mut image_bytes[offset..], row_pitch, rect, color)?;
+            self.skip_mipmaps()?;
+        }
+
+        Ok(())
     }
 }
