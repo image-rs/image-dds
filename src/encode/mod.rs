@@ -352,6 +352,10 @@ impl EncodingSupport {
     /// height that is a multiple of 4. So e.g. an image with a height of 10
     /// pixels can split into chunks with heights of 4-4-2, 8-2, 4-6, or 10.
     ///
+    /// [`crate::SplitSurface`] will automatically split the image into chunks
+    /// of the correct height, so this value is only relevant if you are
+    /// implementing your own encoder/splitter.
+    ///
     /// Note that most dithering will produce different (but not necessarily
     /// incorrect) results if the image is split into chunks. However, all BCn
     /// formats implement block-based local dithering, meaning that the dithering

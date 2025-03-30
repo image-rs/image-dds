@@ -1015,10 +1015,18 @@ pub enum MetricChannel {
 }
 pub struct Metrics {
     pub channel: MetricChannel,
-    pub psnr: f64,
-    /// This the PSNR of the image after a small blur
-    pub psnr_blur: f64,
+    pub mse: f64,
+    /// This is the MSE of the image after a small blur
+    pub mse_blur: f64,
     pub region_error: f64,
+}
+impl Metrics {
+    pub fn psnr(&self) -> f64 {
+        -10.0 * self.mse.log(10.0)
+    }
+    pub fn psnr_blur(&self) -> f64 {
+        -10.0 * self.mse_blur.log(10.0)
+    }
 }
 pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) -> Vec<Metrics> {
     assert!(org.size == compressed.size);
@@ -1027,7 +1035,7 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
     let width = org.size.width as usize;
     let height = org.size.height as usize;
 
-    fn calculate_psnr<T, F>(org: &[T], compressed: &[T], get_value: F) -> f64
+    fn calculate_mse<T, F>(org: &[T], compressed: &[T], get_value: F) -> f64
     where
         T: Copy,
         F: Fn(T) -> f64,
@@ -1038,7 +1046,7 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
             mse += diff * diff;
         }
         mse /= org.len() as f64;
-        -10.0 * mse.log10()
+        mse
     }
     fn box_blur<T, F>(image: &[T], width: usize, height: usize, get_value: F) -> Vec<f64>
     where
@@ -1115,12 +1123,12 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
         F: Copy + Fn(T) -> f64,
     {
         // PSNR
-        let psnr = calculate_psnr(org, compressed, get_value);
+        let mse = calculate_mse(org, compressed, get_value);
 
         // blurred PSNR
         let blurred_org = box_blur(org, width, height, get_value);
         let blurred_compressed = box_blur(compressed, width, height, get_value);
-        let psnr_blur = calculate_psnr(&blurred_org, &blurred_compressed, |x| x);
+        let mse_blur = calculate_mse(&blurred_org, &blurred_compressed, |x| x);
 
         // region error is just the absolute average error per 4x4 region
         const REGION_SIZE: usize = 4;
@@ -1142,10 +1150,50 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
 
         Metrics {
             channel,
-            psnr,
-            psnr_blur,
+            mse,
+            mse_blur,
             region_error,
         }
+    }
+
+    #[allow(clippy::excessive_precision)]
+    fn rgb_to_l(r: f32, g: f32, b: f32) -> f32 {
+        // OKLab
+        fn srgb_to_linear(c: f32) -> f32 {
+            if c >= 0.04045 {
+                ((c + 0.055) / 1.055).powf(2.4)
+            } else {
+                c / 12.92
+            }
+        }
+        fn cbrt(x: f32) -> f32 {
+            // This is the fast cbrt approximation from the oklab crate.
+            // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
+            // Author: Kornel (https://gitlab.com/kornelski/)
+            const B: u32 = 709957561;
+            const C: f32 = 5.4285717010e-1;
+            const D: f32 = -7.0530611277e-1;
+            const E: f32 = 1.4142856598e+0;
+            const F: f32 = 1.6071428061e+0;
+            const G: f32 = 3.5714286566e-1;
+
+            let mut t = f32::from_bits((x.to_bits() / 3).wrapping_add(B));
+            let s = C + (t * t) * (t / x);
+            t *= G + F / (s + E + D / s);
+            t
+        }
+
+        let [r, g, b] = [r, g, b].map(srgb_to_linear);
+
+        let mut l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
+        let mut m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
+        let mut s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+
+        l = cbrt(l);
+        m = cbrt(m);
+        s = cbrt(s);
+
+        l * 0.2104542553 + m * 0.7936177850 + s * -0.0040720468
     }
 
     match org.channels {
@@ -1172,7 +1220,7 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
                 width,
                 height,
                 MetricChannel::L,
-                |[r, g, b]| (r * 0.25 + g * 0.6 + b * 0.15) as f64,
+                |[r, g, b]| rgb_to_l(r, g, b) as f64,
             );
             let r = calculate_metrics(org, compressed, width, height, MetricChannel::R, |x| {
                 x[0] as f64
@@ -1196,7 +1244,7 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
                 width,
                 height,
                 MetricChannel::L,
-                |[r, g, b, a]| ((r * 0.25 + g * 0.6 + b * 0.15) * a) as f64,
+                |[r, g, b, a]| (rgb_to_l(r, g, b) * a) as f64,
             );
             let r = calculate_metrics(org, compressed, width, height, MetricChannel::R, |x| {
                 x[0] as f64
@@ -1302,6 +1350,9 @@ impl PrettyTable {
         table.add_row(header);
         table
     }
+    pub fn height(&self) -> usize {
+        self.height
+    }
 
     pub fn get(&self, x: usize, y: usize) -> &str {
         &self.cells[y * self.width + x]
@@ -1354,6 +1405,55 @@ impl PrettyTable {
             out.push_str(line.trim_end());
             out.push('\n');
             line.clear();
+        }
+    }
+
+    pub fn print_markdown(&self, out: &mut String) {
+        let column_width: Vec<usize> = (0..self.width)
+            .map(|x| {
+                (0..self.height)
+                    .map(|y| self.get(x, y).chars().count())
+                    .max()
+                    .unwrap()
+            })
+            .collect();
+
+        for y in 0..self.height {
+            #[allow(clippy::needless_range_loop)]
+            for x in 0..self.width {
+                let cell = self.get(x, y);
+                out.push_str("| ");
+                out.push_str(cell);
+                for _ in 0..column_width[x] - cell.chars().count() {
+                    out.push(' ');
+                }
+                out.push(' ');
+            }
+
+            // poor man's trim
+            while let Some(last) = out.chars().last() {
+                if last == ' ' {
+                    out.pop();
+                } else {
+                    break;
+                }
+            }
+
+            out.push('\n');
+
+            if y == 0 {
+                #[allow(clippy::needless_range_loop)]
+                for x in 0..self.width {
+                    out.push_str("| ");
+                    for _ in 0..column_width[x] {
+                        out.push('-');
+                    }
+                    if x != self.width - 1 {
+                        out.push(' ');
+                    }
+                }
+                out.push('\n');
+            }
         }
     }
 }

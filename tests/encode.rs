@@ -69,10 +69,6 @@ fn create_random_color_blocks() -> Image<f32> {
 
     image
 }
-fn compression_ratio(data: &[u8]) -> f64 {
-    let compressed = miniz_oxide::deflate::compress_to_vec(data, 6);
-    compressed.len() as f64 / data.len() as f64
-}
 
 #[test]
 fn encode_base() {
@@ -328,41 +324,31 @@ fn encode_measure_quality() {
     ];
 
     let mut output_summaries = util::OutputSummaries::new("_hashes");
-    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
-        let mut output = String::new();
+    struct ConfigMetrics(String, Vec<util::Metrics>);
+    struct ImageInfo {
+        has_alpha: bool,
+    }
+    #[allow(clippy::type_complexity)]
+    let mut collect_metrics = |case: &TestCase| -> Result<
+        Vec<(String, ImageInfo, Vec<ConfigMetrics>)>,
+        Box<dyn std::error::Error>,
+    > {
+        let options = case.options.clone();
 
-        let mut options = case.options.clone();
-        if options.is_empty() {
-            options.push(("", EncodeOptions::default()));
-        }
-        for (name, option) in &options {
-            if name.is_empty() {
-                output.push_str("Default options");
-            } else {
-                output.push_str(name);
-            }
-            output.push_str(&format!(": {:?}\n", option));
-        }
-        output.push('\n');
-
-        let mut table = util::PrettyTable::from_header(&[
-            "",
-            "",
-            "",
-            "↑PSNR",
-            "↑PSNR blur",
-            "↓Region err",
-            "↓Compress",
-        ]);
+        let mut data: Vec<(String, ImageInfo, Vec<ConfigMetrics>)> = Vec::new();
 
         for image in case.images {
-            let hash_alpha = matches!(image.image.channels, Channels::Rgba | Channels::Alpha);
-
-            table.add_empty_row();
-
             let name = &image.name;
-            let image = image.image.to_channels(case.format.channels());
-            let mut name_mentioned = false;
+            let org_image = &image.image;
+
+            let info = ImageInfo {
+                has_alpha: org_image.channels == Channels::Rgba
+                    || org_image.channels == Channels::Alpha,
+            };
+
+            let image = org_image.to_channels(case.format.channels());
+            let mut metric_list: Vec<ConfigMetrics> = Vec::new();
+
             for (opt_name, options) in &options {
                 let output_file = test_data_dir()
                     .join("output-encode/compression")
@@ -380,16 +366,82 @@ fn encode_measure_quality() {
                 let hash = util::hash_hex(&encoded_bytes);
                 output_summaries.add_output_file(&output_file, &hash);
 
-                let compression = compression_ratio(&encoded_bytes);
-                let compression = format!("{:.1}%", compression * 100.);
-
+                // get metrics
                 let metrics = util::measure_compression_quality(&image, &encoded_image);
+
+                metric_list.push(ConfigMetrics(opt_name.to_string(), metrics));
+            }
+
+            data.push((name.to_string(), info, metric_list));
+        }
+
+        // summary
+        if data.len() > 1 {
+            let mut summary: Vec<ConfigMetrics> = Vec::new();
+            for (index, (opt_name, _)) in options.iter().enumerate() {
+                let mut averages: Vec<util::Metrics> = Vec::new();
+                let scale = 1.0 / data.len() as f64;
+                for (_, _, metrics_for_config) in &data {
+                    let metrics = &metrics_for_config[index].1;
+                    for m in metrics {
+                        let avg: &mut util::Metrics = if let Some(avg) =
+                            averages.iter_mut().find(|avg| avg.channel == m.channel)
+                        {
+                            avg
+                        } else {
+                            averages.push(util::Metrics {
+                                channel: m.channel,
+                                mse: 0.0,
+                                mse_blur: 0.0,
+                                region_error: 0.0,
+                            });
+                            averages.last_mut().unwrap()
+                        };
+
+                        avg.mse += m.mse * scale;
+                        avg.mse_blur += m.mse_blur * scale;
+                        avg.region_error += m.region_error * scale;
+                    }
+                }
+
+                summary.push(ConfigMetrics(opt_name.to_string(), averages));
+            }
+            data.insert(
+                0,
+                (
+                    "Summary".to_string(),
+                    ImageInfo { has_alpha: true },
+                    summary,
+                ),
+            );
+        }
+
+        Ok(data)
+    };
+    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
+        let mut output = String::new();
+
+        let options = case.options.clone();
+        for (name, option) in &options {
+            output.push_str(&format!("- {}: {:?}\n", name, option));
+        }
+        output.push('\n');
+
+        let mut table =
+            util::PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR B", "↓Region err"]);
+
+        for (name, info, metrics_for_config) in collect_metrics(case)? {
+            table.add_empty_row();
+
+            let mut name_mentioned = false;
+            for ConfigMetrics(opt_name, metrics) in metrics_for_config {
                 let mut opt_mentioned = false;
                 let mut printed_metrics = 0;
                 for m in metrics {
-                    if m.channel == util::MetricChannel::A && !hash_alpha {
+                    if m.channel == util::MetricChannel::A && !info.has_alpha {
                         continue;
                     }
+
                     table.add_row(&[
                         if name_mentioned {
                             String::new()
@@ -402,14 +454,9 @@ fn encode_measure_quality() {
                             opt_name.to_string()
                         },
                         format!("{:?}", m.channel),
-                        format!("{:.2}", m.psnr),
-                        format!("{:.2}", m.psnr_blur),
-                        format!("{:.5}", m.region_error * 255.),
-                        if opt_mentioned {
-                            String::new()
-                        } else {
-                            compression.to_string()
-                        },
+                        format!("{:.2}", m.psnr()),
+                        format!("{:.2}", m.psnr_blur()),
+                        format!("{:>5.2}", m.region_error * 255.),
                     ]);
                     name_mentioned = true;
                     opt_mentioned = true;
@@ -421,26 +468,27 @@ fn encode_measure_quality() {
             }
         }
 
-        table.print(&mut output);
+        table.print_markdown(&mut output);
         Ok(output)
     };
 
-    let mut output = String::new();
+    let mut output = r"# Encode quality
+
+<!-- This file is generated by `tests/encode.rs` -->
+
+**Metrics:**
+- **↑PSNR:** Peak Signal to Noise Ratio.
+- **↑PSNR B:** Apply a small blur to the image and then measure PSNR. This is useful to measure the quality of dithering.
+- **↓Region err:** This measures the absolute error after downscaling the image to 25%. The error is in 8 bit. So .e.g a region of 4 means that expected absolute error per pixel is +-4/255.
+
+".to_string();
     for case in cases {
-        output.push_str(&format!("{:?}\n", case.format));
+        output.push_str(&format!("## `{:?}`\n\n", case.format));
 
-        let info = match collect_info(&case) {
-            Ok(info) => info,
-            Err(e) => format!("Error: {}", e),
+        match collect_info(&case) {
+            Ok(info) => output.push_str(&info),
+            Err(e) => output.push_str(&format!("Error: {}", e)),
         };
-
-        for line in info.lines().map(|l| l.trim_end()) {
-            if line.is_empty() {
-                output.push('\n');
-            } else {
-                output.push_str(&format!("    {}\n", line));
-            }
-        }
 
         output.push('\n');
         output.push('\n');
@@ -448,8 +496,7 @@ fn encode_measure_quality() {
     }
 
     _ = output_summaries.snapshot();
-    util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.txt"), &output)
-        .unwrap();
+    util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.md"), &output).unwrap();
 }
 
 #[test]

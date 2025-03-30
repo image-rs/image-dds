@@ -32,6 +32,8 @@ pub use layout::*;
 pub use pixel::*;
 pub use split::*;
 
+/// A convenience trait for easily converting different data representations to
+/// byte slices.
 pub trait AsBytes {
     fn as_bytes(&self) -> &[u8];
     fn as_bytes_mut(&mut self) -> &mut [u8];
