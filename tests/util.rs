@@ -373,6 +373,22 @@ impl ReadSettings {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct DdsInfo {
+    pub header: Header,
+    pub format: Format,
+    pub layout: DataLayout,
+}
+impl DdsInfo {
+    pub fn from_decoder<R>(decoder: &Decoder<R>) -> Self {
+        Self {
+            header: decoder.header().clone(),
+            format: decoder.format(),
+            layout: decoder.layout(),
+        }
+    }
+}
+
 pub fn read_dds<T: WithPrecision + Default + Copy + Castable>(
     dds_path: &Path,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
@@ -416,7 +432,7 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
             let mut image = Image::new_empty(Channels::Rgba, out_size);
             decoder.read_cube_map(image.view_mut())?;
 
-            return Ok((image, decoder.info().clone()));
+            return Ok((image, DdsInfo::from_decoder(&decoder)));
         }
     };
 
@@ -424,7 +440,7 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
     let mut image = Image::new_empty(channels, size);
     decoder.read_surface(image.view_mut())?;
 
-    Ok((image, decoder.info().clone()))
+    Ok((image, DdsInfo::from_decoder(&decoder)))
 }
 
 pub fn read_dds_png_compatible(
@@ -456,7 +472,7 @@ pub fn read_dds_rect_as_u8(
     let row_pitch = rect.width as usize * bpp;
     decoder.read_surface_rect(image.as_bytes_mut(), row_pitch, rect, color)?;
 
-    Ok((image, decoder.info().clone()))
+    Ok((image, DdsInfo::from_decoder(&decoder)))
 }
 
 pub fn to_png_compatible_channels(channels: Channels) -> (Channels, png::ColorType) {

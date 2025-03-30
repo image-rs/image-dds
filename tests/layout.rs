@@ -20,13 +20,13 @@ fn parse_data_layout_of_all_dds_files() {
         let file_len = file.metadata().unwrap().len();
 
         let options = ParseOptions::new_permissive(Some(file_len));
-        let info_result = DdsInfo::read_with_options(&mut file, &options);
-        let info = match info_result {
-            Ok(info) => info,
+        let decoder_result = Decoder::new_with_options(&mut file, &options);
+        let info = match decoder_result {
+            Ok(info) => util::DdsInfo::from_decoder(&info),
             Err(e) => panic!("Failed to decode {}\nFile: {:?}", e, file),
         };
 
-        let header = info.header();
+        let header = info.header;
 
         // skip cubemaps with array_size == 6 for now
         // https://github.com/RunDevelopment/dds/issues/4
@@ -36,8 +36,8 @@ fn parse_data_layout_of_all_dds_files() {
             }
         }
 
-        let data_len = file_len - get_header_byte_len(header);
-        let expected_len = info.layout().data_len();
+        let data_len = file_len - get_header_byte_len(&header);
+        let expected_len = info.layout.data_len();
         assert_eq!(data_len, expected_len, "File: {:?}", &dds_path);
     }
 }
@@ -66,7 +66,7 @@ fn full_layout_snapshot() {
 
         let mut options = ParseOptions::default();
         options.permissive = false;
-        let decoder = DdsInfo::read_with_options(&mut file, &options)?;
+        let decoder = Decoder::new_with_options(&mut file, &options)?;
 
         let data_len = file_len - get_header_byte_len(decoder.header());
         if data_len != decoder.layout().data_len() {
@@ -142,11 +142,11 @@ fn full_layout_snapshot() {
         let file_len = file.metadata()?.len();
 
         let options = ParseOptions::new_permissive(Some(file_len));
-        let info = DdsInfo::read_with_options(&mut file, &options)?;
+        let decoder = Decoder::new_with_options(&mut file, &options)?;
 
-        let header = info.header();
-        let format = info.format();
-        let layout = info.layout();
+        let header = decoder.header().clone();
+        let format = decoder.format();
+        let layout = decoder.layout();
         validate_region(&layout);
 
         let mut output = String::new();
@@ -155,7 +155,7 @@ fn full_layout_snapshot() {
             output.push_str(&format!("Error if strict: {}\n\n", e));
         }
 
-        let data_len = file_len - get_header_byte_len(header);
+        let data_len = file_len - get_header_byte_len(&header);
         if data_len != layout.data_len() {
             output.push_str(&format!(
                 "Data length mismatch: {} != {}\n\n",
@@ -171,7 +171,7 @@ fn full_layout_snapshot() {
         output.push('\n');
 
         // HEADER
-        util::pretty_print_header(&mut output, header);
+        util::pretty_print_header(&mut output, &header);
 
         // FORMAT INFO
         output.push_str("\nPixel Format:\n");
