@@ -184,6 +184,10 @@ fn supported_formats_metadata() {
 #[test]
 fn format_conversion() {
     for &format in util::ALL_FORMATS {
+        if format == Format::BC3_UNORM_NORMAL {
+            continue;
+        }
+
         if let Ok(dxgi) = DxgiFormat::try_from(format) {
             let roundtrip = Format::from_dxgi(dxgi).unwrap();
             assert_eq!(format, roundtrip, "DXGI -> Format -> DXGI: {:?}", format);

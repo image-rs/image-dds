@@ -85,3 +85,9 @@ BC3_UNORM_RXGB base.dds: >
 BC3_UNORM_RXGB twirl.dds: >
     e36af8d5998274722760cfb5dffcc24b0204b7420d1581c4a6bfd87d3f493cb5
 
+BC3_UNORM_NORMAL base.dds: >
+    1a0529c0277bd216e12a9800c8ba94ef80da8936add4b30e8b0d5d0ece215934
+
+BC3_UNORM_NORMAL twirl.dds: >
+    46071e36e7c0ac4c8075aceb7a22a5b94c97f1a1582b2bd93b0e9cc734b4fc6b
+

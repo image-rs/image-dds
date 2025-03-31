@@ -105,6 +105,7 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 
         // non-standard formats
         Format::BC3_UNORM_RXGB => BC3_UNORM_RXGB,
+        Format::BC3_UNORM_NORMAL => BC3_UNORM_NORMAL,
     }
 }
 

@@ -173,6 +173,7 @@ pub const ALL_FORMATS: &[Format] = &[
     Format::ASTC_12X12_UNORM,
     // non-standard formats
     Format::BC3_UNORM_RXGB,
+    Format::BC3_UNORM_NORMAL,
 ];
 
 pub const ALL_COLORS: &[ColorFormat] = &[
