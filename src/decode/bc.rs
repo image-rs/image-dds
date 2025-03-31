@@ -139,6 +139,12 @@ pub(crate) const BC3_UNORM_RXGB: DecoderSet = DecoderSet::new(&[
     rgb!(f32, 16, with_precision(blocks::bc3_rxgb_u8_rgb)),
 ]);
 
+pub(crate) const BC3_UNORM_NORMAL: DecoderSet = DecoderSet::new(&[
+    rgb!(u8, 16, blocks::bc3n_u8_rgb),
+    rgb!(u16, 16, with_precision(blocks::bc3n_u8_rgb)),
+    rgb!(f32, 16, with_precision(blocks::bc3n_u8_rgb)),
+]);
+
 pub(crate) const BC4_UNORM: DecoderSet = DecoderSet::new(&[
     gray!(u8, 8, blocks::bc4u_gray),
     gray!(u16, 8, blocks::bc4u_gray),
@@ -334,6 +340,15 @@ mod blocks {
     }
     pub(crate) fn bc3_rxgb_u8_rgb(block_bytes: [u8; 16]) -> [[u8; 3]; 16] {
         bc3_u8_rgba(block_bytes).map(|[_, g, b, r]| [r, g, b])
+    }
+    pub(crate) fn bc3n_u8_rgb(block_bytes: [u8; 16]) -> [[u8; 3]; 16] {
+        fn calc_b(r: u8, g: u8) -> u8 {
+            let x = r as f32 * (2.0 / 255.0) - 1.0;
+            let y = g as f32 * (2.0 / 255.0) - 1.0;
+            let z = (1.0 - x * x - y * y).max(0.0).sqrt();
+            (z * (0.5 * 255.0) + (0.5 * 255.0 + 0.5)) as u8
+        }
+        bc3_u8_rgba(block_bytes).map(|[_, g, _, r]| [r, g, calc_b(r, g)])
     }
     pub(crate) fn bc3_premultiplied_alpha_u8_rgba(block_bytes: [u8; 16]) -> [[u8; 4]; 16] {
         let mut pixels = bc3_u8_rgba(block_bytes);

@@ -93,3 +93,4 @@
 | ASTC_12X12_UNORM              | RGBA  U8  | 0.9 | DX10   |        | ❌        |            |        |
 | — *Non-standard*              |           |     |        |        |          |            |        |
 | BC3_UNORM_RXGB                | RGB   U8  | 8   | DX9    | RXGB   | ✔️       | ✔️ (local) | ✔️ (4) |
+| BC3_UNORM_NORMAL              | RGB   U8  | 8   | ☑️     |        | ✔️       | ✔️ (local) | ✔️ (4) |

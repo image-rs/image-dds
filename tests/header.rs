@@ -464,6 +464,10 @@ fn weird_and_invalid_headers() {
 #[test]
 fn format_from_header() {
     for &format in util::ALL_FORMATS {
+        if format == Format::BC3_UNORM_NORMAL {
+            continue;
+        }
+
         let header = Header::new_image(123, 345, format);
         let detect_format = Format::from_header(&header);
         assert!(detect_format.is_ok());

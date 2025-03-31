@@ -295,6 +295,28 @@ pub(crate) const BC3_UNORM_RXGB: EncoderSet =
     .add_flags(Flags::DITHER_COLOR)
     .with_group_size(BC3_GROUP_SIZE)]);
 
+pub(crate) const BC3_UNORM_NORMAL: EncoderSet =
+    EncoderSet::new_bc(&[Encoder::new_universal(|args| {
+        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+            let (bc1_options, bc4_options) = get_bc3_options(options);
+
+            let block_a = get_4x4_select_channel::<0>(data, row_pitch);
+            let mut block_rgb = get_4x4_rgba(data, row_pitch);
+            block_rgb.iter_mut().for_each(|pixel| {
+                pixel[0] = 1.0;
+                pixel[2] = 0.0;
+                pixel[3] = 1.0;
+            });
+
+            let bc4_block = bc4::compress_bc4_block(block_a, bc4_options);
+            let bc1_block = bc1::compress_bc1_block(block_rgb, bc1_options);
+
+            *out = concat_blocks(bc4_block, bc1_block);
+        })
+    })
+    .add_flags(Flags::DITHER_COLOR)
+    .with_group_size(BC3_GROUP_SIZE)]);
+
 fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 8] {
     let block = get_4x4_grayscale(data, row_pitch);
     bc4::compress_bc4_block(block, options)

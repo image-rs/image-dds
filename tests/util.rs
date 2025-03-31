@@ -173,6 +173,7 @@ pub const ALL_FORMATS: &[Format] = &[
     Format::ASTC_12X12_UNORM,
     // non-standard formats
     Format::BC3_UNORM_RXGB,
+    Format::BC3_UNORM_NORMAL,
 ];
 
 pub const ALL_COLORS: &[ColorFormat] = &[
@@ -333,6 +334,7 @@ impl WithPrecision for f32 {
 #[derive(Clone, Copy)]
 pub struct ReadSettings {
     pub complete_cube_map: bool,
+    pub is_bc3n: bool,
     pub force_channels: Option<Channels>,
     pub select_channels: Option<fn(Format) -> Channels>,
 }
@@ -340,6 +342,7 @@ impl ReadSettings {
     pub fn any() -> Self {
         Self {
             complete_cube_map: true,
+            is_bc3n: false,
             force_channels: None,
             select_channels: None,
         }
@@ -347,6 +350,7 @@ impl ReadSettings {
     pub fn no_cube_map() -> Self {
         Self {
             complete_cube_map: false,
+            is_bc3n: false,
             force_channels: None,
             select_channels: None,
         }
@@ -354,6 +358,7 @@ impl ReadSettings {
     pub fn force(channels: Channels) -> Self {
         Self {
             complete_cube_map: false,
+            is_bc3n: false,
             force_channels: Some(channels),
             select_channels: None,
         }
@@ -422,9 +427,13 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
     mut reader: impl std::io::Read + Seek,
     settings: ReadSettings,
 ) -> Result<(Image<T>, DdsInfo), Box<dyn std::error::Error>> {
-    let mut decoder = Decoder::new_with_options(reader, options)?;
+    let header = Header::read(&mut reader, options)?;
+    let mut format = Format::from_header(&header)?;
+    if format == Format::BC3_UNORM && settings.is_bc3n {
+        format = Format::BC3_UNORM_NORMAL;
+    }
+    let mut decoder = Decoder::from_header_with(reader, header, format)?;
     let size = decoder.main_size();
-    let format = decoder.format();
 
     if let Some(array) = decoder.layout().texture_array() {
         if array.kind() == TextureArrayKind::CubeMaps && settings.allow_cube_map() {
@@ -446,10 +455,17 @@ pub fn decode_dds_with_settings<T: WithPrecision + Default + Copy + Castable>(
 pub fn read_dds_png_compatible(
     dds_path: &Path,
 ) -> Result<(Image<u8>, DdsInfo), Box<dyn std::error::Error>> {
+    let is_bc3n = dds_path
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_ascii_lowercase()
+        .contains("bc3n");
     read_dds_with_settings(
         dds_path,
         ReadSettings {
             complete_cube_map: true,
+            is_bc3n,
             force_channels: None,
             select_channels: Some(|f| to_png_compatible_channels(f.channels()).0),
         },

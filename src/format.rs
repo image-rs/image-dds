@@ -104,6 +104,26 @@ pub enum Format {
     /// Note that this is an RGB format. The BC3-encoded R channel is commonly
     /// set to 0 to improve the quality of G and B.
     BC3_UNORM_RXGB,
+    /// This format is also called `DXT5n`, `DXT5nm`, or `BC3n`. It's intended
+    /// for storing normal maps.
+    ///
+    /// Similar to [`Format::BC3_UNORM_RXGB`], this format stores the R channel
+    /// in alpha. The B channel is discarded when encoding (set to 0), and
+    /// reconstructed when decoding using the following formula:
+    ///
+    /// ```text
+    /// B = 0.5 * sqrt(1 - (2*R - 1)^2 - (2*G - 1)^2) + 0.5
+    /// ```
+    ///
+    /// This format does **not** have a specified DXGI format or FourCC code.
+    /// As such, it cannot be detected from a DDS header. This makes it the
+    /// user's to detect this format. When creating a header, this format
+    /// will be represented by [`DxgiFormat::BC3_UNORM`].
+    ///
+    /// Note: This format is only supported for completeness. Don't actually
+    /// use it. BC7 and BC5 offer superior quality for the same compression
+    /// ratio.
+    BC3_UNORM_NORMAL,
 }
 impl Format {
     /// Returns the format of the surfaces from a DDS header.
@@ -260,6 +280,9 @@ impl TryFrom<Format> for DxgiFormat {
             Format::ASTC_10X10_UNORM => DxgiFormat::ASTC_10X10_UNORM,
             Format::ASTC_12X10_UNORM => DxgiFormat::ASTC_12X10_UNORM,
             Format::ASTC_12X12_UNORM => DxgiFormat::ASTC_12X12_UNORM,
+
+            // non-standard formats
+            Format::BC3_UNORM_NORMAL => DxgiFormat::BC3_UNORM,
 
             // cannot be represented by DXGI
             Format::R8G8B8_UNORM
