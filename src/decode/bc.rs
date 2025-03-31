@@ -343,11 +343,10 @@ mod blocks {
     }
     pub(crate) fn bc3n_u8_rgb(block_bytes: [u8; 16]) -> [[u8; 3]; 16] {
         fn calc_b(r: u8, g: u8) -> u8 {
-            let x = r as f32 * (2.0 / 255.0) + 1.0;
-            let y = g as f32 * (2.0 / 255.0) + 1.0;
+            let x = r as f32 * (2.0 / 255.0) - 1.0;
+            let y = g as f32 * (2.0 / 255.0) - 1.0;
             let z = (1.0 - x * x - y * y).max(0.0).sqrt();
-            let b = (z * (0.5 * 255.0) + (0.5 * 255.0 + 0.5)) as u8;
-            b
+            (z * (0.5 * 255.0) + (0.5 * 255.0 + 0.5)) as u8
         }
         bc3_u8_rgba(block_bytes).map(|[_, g, _, r]| [r, g, calc_b(r, g)])
     }
