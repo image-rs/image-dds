@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: rustup update --no-self-update stable && rustup default stable
-      - run: cargo clippy
+      - run: cargo clippy -- -D warnings
 
   docs:
     runs-on: ubuntu-latest

@@ -187,21 +187,12 @@ impl ColorFormatSet {
     pub const fn is_all(self) -> bool {
         self.data == Self::ALL.data
     }
-    pub const fn is_empty(self) -> bool {
-        self.data == 0
-    }
     pub const fn len(self) -> u8 {
         self.data.count_ones() as u8
     }
 
     pub const fn contains(&self, format: ColorFormat) -> bool {
         self.data & (1 << format.key()) != 0
-    }
-    pub const fn contains_all(&self, other: Self) -> bool {
-        (self.data & other.data) == other.data
-    }
-    pub const fn contains_any(&self, other: Self) -> bool {
-        (self.data & other.data) != 0
     }
 
     pub const fn union(self, other: Self) -> Self {

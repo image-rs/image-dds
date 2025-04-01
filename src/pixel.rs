@@ -59,7 +59,7 @@ pub enum PixelInfo {
 const fn pack_2_u4((a, b): (u8, u8)) -> u8 {
     debug_assert!(a < 16);
     debug_assert!(b < 16);
-    a | b << 4
+    a | (b << 4)
 }
 const fn unpack_2_u4(packed: u8) -> (u8, u8) {
     (packed & 0x0F, packed >> 4)
