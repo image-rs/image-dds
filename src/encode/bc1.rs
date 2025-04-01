@@ -694,7 +694,7 @@ impl R5G6B5Color {
 
     fn to_u16(self) -> u16 {
         self.debug_check();
-        (self.r as u16) << 11 | (self.g as u16) << 5 | self.b as u16
+        ((self.r as u16) << 11) | ((self.g as u16) << 5) | self.b as u16
     }
 
     fn debug_check(&self) {

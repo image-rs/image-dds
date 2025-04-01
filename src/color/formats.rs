@@ -508,7 +508,7 @@ pub(crate) mod fp16 {
     #[inline]
     pub fn n8(x: u16) -> u8 {
         // This is optimized implementation, combining fp16::f32 -> fp::n8 into one step.
-        let exp: u16 = x >> 10 & 0b1_1111;
+        let exp: u16 = (x >> 10) & 0b1_1111;
         let mant: u16 = x & 0b11_1111_1111;
         // Note: denorm all go to zero after rounding, so they don't need an extra branch.
         let val: u8 = if exp != 31 {
@@ -533,7 +533,7 @@ pub(crate) mod fp16 {
     #[inline]
     pub fn n16(x: u16) -> u16 {
         // This is optimized implementation, combining fp16::f32 -> fp::n16 into one step.
-        let exp: u16 = x >> 10 & 0b1_1111;
+        let exp: u16 = (x >> 10) & 0b1_1111;
         let mant: u16 = x & 0b11_1111_1111;
         let val: u16 = if exp == 0 {
             // denorm
@@ -562,7 +562,7 @@ pub(crate) mod fp16 {
     #[inline]
     pub fn f32(x: u16) -> f32 {
         // https://stackoverflow.com/questions/36008434/how-can-i-decode-f16-to-f32-using-only-the-stable-standard-library
-        let exp: u16 = x >> 10 & 0b1_1111;
+        let exp: u16 = (x >> 10) & 0b1_1111;
         let mant: u16 = x & 0b11_1111_1111;
         let val: f32 = if exp == 0 {
             // denorm
@@ -656,7 +656,7 @@ pub(crate) mod bc6h_uf16 {
     #[inline]
     pub fn n8(x: u16) -> u8 {
         // This is optimized implementation, combining fp16::f32 -> fp::n8 into one step.
-        let exp: u16 = x >> 10 & 0b1_1111;
+        let exp: u16 = (x >> 10) & 0b1_1111;
         let mant: u16 = x & 0b11_1111_1111;
 
         debug_assert!(x & 0x8000 == 0, "BC6H_UF16 values are positive.");
@@ -668,7 +668,7 @@ pub(crate) mod bc6h_uf16 {
     #[inline]
     pub fn n16(x: u16) -> u16 {
         // This is optimized implementation, combining fp16::f32 -> fp::n16 into one step.
-        let exp: u16 = x >> 10 & 0b1_1111;
+        let exp: u16 = (x >> 10) & 0b1_1111;
         let mant: u16 = x & 0b11_1111_1111;
 
         debug_assert!(x & 0x8000 == 0, "BC6H_UF16 values are positive.");
@@ -686,7 +686,7 @@ pub(crate) mod bc6h_uf16 {
     #[inline]
     pub fn f32(x: u16) -> f32 {
         // https://stackoverflow.com/questions/36008434/how-can-i-decode-f16-to-f32-using-only-the-stable-standard-library
-        let exp: u16 = x >> 10 & 0b1_1111;
+        let exp: u16 = (x >> 10) & 0b1_1111;
         let mant: u16 = x & 0b11_1111_1111;
 
         debug_assert!(x & 0x8000 == 0, "BC6H_UF16 values are positive.");
@@ -752,9 +752,9 @@ fn f32_to_unsigned_fp_e5(n: u32, mut x: f32) -> u16 {
     }
 
     let f16 = super::fp16::from_f32(x);
-    let exp: u16 = f16 >> 10 & 0b1_1111;
+    let exp: u16 = (f16 >> 10) & 0b1_1111;
     let mant: u16 = (f16 & 0b11_1111_1111) >> (10 - n);
-    exp << n | mant
+    (exp << n) | mant
 }
 /// Functions for converting `f11` values to other formats.
 pub(crate) mod fp11 {
@@ -762,7 +762,7 @@ pub(crate) mod fp11 {
 
     #[inline]
     pub fn n8(x: u16) -> u8 {
-        let exp: u16 = x >> 6 & 0b1_1111;
+        let exp: u16 = (x >> 6) & 0b1_1111;
         let mant: u16 = x & 0b11_1111;
         // no sign bit
 
@@ -779,7 +779,7 @@ pub(crate) mod fp11 {
     }
     #[inline]
     pub fn n16(x: u16) -> u16 {
-        let exp: u16 = x >> 6 & 0b1_1111;
+        let exp: u16 = (x >> 6) & 0b1_1111;
         let mant: u16 = x & 0b11_1111;
         // no sign bit
 
@@ -801,7 +801,7 @@ pub(crate) mod fp11 {
     #[inline]
     pub fn f32(x: u16) -> f32 {
         // based on f16_to_f32
-        let exp: u16 = x >> 6 & 0b1_1111;
+        let exp: u16 = (x >> 6) & 0b1_1111;
         let mant: u16 = x & 0b11_1111;
         // no sign bit
 
@@ -883,7 +883,7 @@ pub(crate) mod fp10 {
 
     #[inline]
     pub fn n8(x: u16) -> u8 {
-        let exp: u16 = x >> 5 & 0b1_1111;
+        let exp: u16 = (x >> 5) & 0b1_1111;
         let mant: u16 = x & 0b1_1111;
         // no sign bit
 
@@ -900,7 +900,7 @@ pub(crate) mod fp10 {
     }
     #[inline]
     pub fn n16(x: u16) -> u16 {
-        let exp: u16 = x >> 5 & 0b1_1111;
+        let exp: u16 = (x >> 5) & 0b1_1111;
         let mant: u16 = x & 0b1_1111;
         // no sign bit
 
@@ -922,7 +922,7 @@ pub(crate) mod fp10 {
     #[inline]
     pub fn f32(x: u16) -> f32 {
         // based on f16_to_f32
-        let exp: u16 = x >> 5 & 0b1_1111;
+        let exp: u16 = (x >> 5) & 0b1_1111;
         let mant: u16 = x & 0b1_1111;
         // no sign bit
 
@@ -1018,7 +1018,7 @@ pub(crate) mod rgb9995f {
         }
 
         // get the f32 exponent of max
-        let raw_exp = max.to_bits() >> 23 & 0xFF;
+        let raw_exp = (max.to_bits() >> 23) & 0xFF;
         let mut exp = (raw_exp as i32 - 127 + 16).max(0) as u32;
         debug_assert!(exp <= 31);
 
@@ -1041,7 +1041,7 @@ pub(crate) mod rgb9995f {
         debug_assert!(g_mant <= 511);
         debug_assert!(b_mant <= 511);
 
-        r_mant | g_mant << 9 | b_mant << 18 | exp << 27
+        r_mant | (g_mant << 9) | (b_mant << 18) | (exp << 27)
     }
 
     #[cfg(test)]
@@ -1539,7 +1539,7 @@ mod test {
         // R and G won't be tested, since they behave the same as B.
         for e in 0..=31 {
             for b in 0..=255 {
-                let i = e << 27 | b << 18;
+                let i = (e << 27) | (b << 18);
 
                 let expected = super::rgb9995f::f32(i).map(fp::n8);
                 let actual = super::rgb9995f::n8(i);
@@ -1553,7 +1553,7 @@ mod test {
         // R and G won't be tested, since they behave the same as B.
         for e in 0..=31 {
             for b in 0..=255 {
-                let i = e << 27 | b << 18;
+                let i = (e << 27) | (b << 18);
 
                 let expected = super::rgb9995f::f32(i).map(fp::n16);
                 let actual = super::rgb9995f::n16(i);

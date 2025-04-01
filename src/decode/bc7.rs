@@ -238,10 +238,10 @@ fn get_end_points_2(mode: u8, stream: &mut BitStream) -> [[u8; 4]; 2] {
             // each endpoint has its own p
             for i in 0..2 {
                 let p = stream.consume_bit() as u8;
-                r[i] = r[i] << 1 | p;
-                g[i] = g[i] << 1 | p;
-                b[i] = b[i] << 1 | p;
-                a[i] = a[i] << 1 | p;
+                r[i] = (r[i] << 1) | p;
+                g[i] = (g[i] << 1) | p;
+                b[i] = (b[i] << 1) | p;
+                a[i] = (a[i] << 1) | p;
             }
 
             for i in 0..2 {
@@ -268,12 +268,12 @@ fn get_end_points_4(mode: u8, stream: &mut BitStream) -> [[u8; 4]; 4] {
                 let p = stream.consume_bit() as u8;
                 let i0 = i * 2;
                 let i1 = i0 + 1;
-                r[i0] = r[i0] << 1 | p;
-                g[i0] = g[i0] << 1 | p;
-                b[i0] = b[i0] << 1 | p;
-                r[i1] = r[i1] << 1 | p;
-                g[i1] = g[i1] << 1 | p;
-                b[i1] = b[i1] << 1 | p;
+                r[i0] = (r[i0] << 1) | p;
+                g[i0] = (g[i0] << 1) | p;
+                b[i0] = (b[i0] << 1) | p;
+                r[i1] = (r[i1] << 1) | p;
+                g[i1] = (g[i1] << 1) | p;
+                b[i1] = (b[i1] << 1) | p;
             }
 
             for i in 0..4 {
@@ -288,9 +288,9 @@ fn get_end_points_4(mode: u8, stream: &mut BitStream) -> [[u8; 4]; 4] {
             // each endpoint has its own p
             for i in 0..4 {
                 let p = stream.consume_bit() as u8;
-                r[i] = r[i] << 1 | p;
-                g[i] = g[i] << 1 | p;
-                b[i] = b[i] << 1 | p;
+                r[i] = (r[i] << 1) | p;
+                g[i] = (g[i] << 1) | p;
+                b[i] = (b[i] << 1) | p;
             }
 
             for i in 0..4 {
@@ -306,10 +306,10 @@ fn get_end_points_4(mode: u8, stream: &mut BitStream) -> [[u8; 4]; 4] {
             // each endpoint has its own p
             for i in 0..4 {
                 let p = stream.consume_bit() as u8;
-                r[i] = r[i] << 1 | p;
-                g[i] = g[i] << 1 | p;
-                b[i] = b[i] << 1 | p;
-                a[i] = a[i] << 1 | p;
+                r[i] = (r[i] << 1) | p;
+                g[i] = (g[i] << 1) | p;
+                b[i] = (b[i] << 1) | p;
+                a[i] = (a[i] << 1) | p;
             }
 
             for i in 0..4 {
@@ -339,9 +339,9 @@ fn get_end_points_6(mode: u8, stream: &mut BitStream) -> [[u8; 4]; 6] {
             // each endpoint has its own p
             for i in 0..6 {
                 let p = stream.consume_bit() as u8;
-                r[i] = r[i] << 1 | p;
-                g[i] = g[i] << 1 | p;
-                b[i] = b[i] << 1 | p;
+                r[i] = (r[i] << 1) | p;
+                g[i] = (g[i] << 1) | p;
+                b[i] = (b[i] << 1) | p;
             }
 
             for i in 0..6 {
