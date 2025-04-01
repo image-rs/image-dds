@@ -194,12 +194,6 @@ pub(crate) mod n4 {
     #[inline(always)]
     pub fn f32(x: u8) -> f32 {
         debug_assert!(x <= 15);
-        const F: f32 = 1.0 / 15.0;
-        x as f32 * F
-    }
-    #[inline(always)]
-    pub fn f32_exact(x: u8) -> f32 {
-        debug_assert!(x <= 15);
         // Adopted from: https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // k0=3 was found by trial and error.
         const K0: f32 = 3.0;
@@ -226,12 +220,6 @@ pub(crate) mod n5 {
     }
     #[inline(always)]
     pub fn f32(x: u8) -> f32 {
-        debug_assert!(x <= 31);
-        const F: f32 = 1.0 / 31.0;
-        x as f32 * F
-    }
-    #[inline(always)]
-    pub fn f32_exact(x: u8) -> f32 {
         debug_assert!(x <= 31);
         // Adopted from: https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // k0=3 was found by trial and error.
@@ -260,12 +248,6 @@ pub(crate) mod n6 {
     #[inline(always)]
     pub fn f32(x: u8) -> f32 {
         debug_assert!(x <= 63);
-        const F: f32 = 1.0 / 63.0;
-        x as f32 * F
-    }
-    #[inline(always)]
-    pub fn f32_exact(x: u8) -> f32 {
-        debug_assert!(x <= 63);
         // Adopted from: https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // k0=5 was found by trial and error.
         const K0: f32 = 5.0;
@@ -286,11 +268,6 @@ pub(crate) mod n8 {
     }
     #[inline(always)]
     pub fn f32(x: u8) -> f32 {
-        const F: f32 = 1.0 / 255.0;
-        x as f32 * F
-    }
-    #[inline(always)]
-    pub fn f32_exact(x: u8) -> f32 {
         // https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         const K0: f32 = 3.0;
         const K1: f32 = 1.0 / (255.0 * K0);
@@ -317,12 +294,6 @@ pub(crate) mod n10 {
     #[inline(always)]
     pub fn f32(x: u16) -> f32 {
         debug_assert!(x <= 1023);
-        const F: f32 = 1.0 / 1023.0;
-        x as f32 * F
-    }
-    #[inline(always)]
-    pub fn f32_exact(x: u16) -> f32 {
-        debug_assert!(x <= 1023);
         // Adopted from: https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // k0=85 was found by trial and error.
         const K0: f32 = 85.0;
@@ -343,11 +314,6 @@ pub(crate) mod n16 {
     }
     #[inline(always)]
     pub fn f32(x: u16) -> f32 {
-        const F: f32 = 1.0 / 65535.0;
-        x as f32 * F
-    }
-    #[inline(always)]
-    pub fn f32_exact(x: u16) -> f32 {
         // Adopted from https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // I couldn't find any k0 that would work, so I used the infinite sum
         // approach from the article instead. This is slower, but oh well.
@@ -386,13 +352,6 @@ pub(crate) mod s8 {
     /// Unsigned f32.
     #[inline(always)]
     pub fn uf32(mut x: u8) -> f32 {
-        x = norm(x);
-        const F: f32 = 1.0 / 254.0;
-        x as f32 * F
-    }
-    /// Unsigned f32.
-    #[inline(always)]
-    pub fn uf32_exact(mut x: u8) -> f32 {
         x = norm(x);
         // Adopted from: https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // k0=31 was found by trial and error.
@@ -440,13 +399,6 @@ pub(crate) mod s16 {
     /// Unsigned f32.
     #[inline(always)]
     pub fn uf32(mut x: u16) -> f32 {
-        x = norm(x);
-        const F: f32 = 1.0 / 65534.0;
-        x as f32 * F
-    }
-    /// Unsigned f32.
-    #[inline(always)]
-    pub fn uf32_exact(mut x: u16) -> f32 {
         x = norm(x);
         // Adopted from: https://fgiesen.wordpress.com/2024/11/06/exact-unorm8-to-float/
         // k0=73 was found by trial and error.
@@ -1381,13 +1333,7 @@ mod test {
                 for x in 0..=$max_in {
                     let expected = (x as f64 / $max_in as f64) as f32;
                     let actual = $convert(x);
-                    if expected != actual {
-                        let rel_err = (actual as f64 - expected as f64).abs() / expected as f64;
-                        const MAX_REL_ERROR: f64 = 1.0 / $max_in as f64 / 100.0;
-                        if rel_err > MAX_REL_ERROR {
-                            assert_eq!(actual, expected, "failed for x={}, rel_err={}", x, rel_err);
-                        }
-                    }
+                    assert_eq!(actual, expected, "failed for x={}", x);
                 }
             }
         };
@@ -1400,29 +1346,6 @@ mod test {
     test_to_f32!(n8_to_f32, super::n8::f32, 255);
     test_to_f32!(n10_to_f32, super::n10::f32, 1023);
     test_to_f32!(n16_to_f32, super::n16::f32, 65535);
-
-    macro_rules! test_to_f32_exact {
-        ($name:ident, $convert:path, $max_in:expr) => {
-            #[test]
-            fn $name() {
-                assert_eq!($convert(0), 0.0);
-                assert_eq!($convert($max_in), 1.0);
-
-                for x in 0..=$max_in {
-                    let expected = (x as f64 / $max_in as f64) as f32;
-                    assert_eq!($convert(x), expected, "failed for x={}", x);
-                }
-            }
-        };
-    }
-    test_to_f32_exact!(n1_to_f32_exact, super::n1::f32, 1);
-    test_to_f32_exact!(n2_to_f32_exact, super::n2::f32, 3);
-    test_to_f32_exact!(n4_to_f32_exact, super::n4::f32_exact, 15);
-    test_to_f32_exact!(n5_to_f32_exact, super::n5::f32_exact, 31);
-    test_to_f32_exact!(n6_to_f32_exact, super::n6::f32_exact, 63);
-    test_to_f32_exact!(n8_to_f32_exact, super::n8::f32_exact, 255);
-    test_to_f32_exact!(n10_to_f32_exact, super::n10::f32_exact, 1023);
-    test_to_f32_exact!(n16_to_f32_exact, super::n16::f32_exact, 65535);
 
     macro_rules! test_snorm_to_unorm {
         ($in:ident / $in_unsigned:ident => $t:ident, $name:ident, $convert:path) => {
@@ -1462,44 +1385,13 @@ mod test {
                     let expected =
                         ((xi.max(-$in::MAX) as f64 / $in::MAX as f64 + 1.0) / 2.0) as f32;
                     let actual = $convert(x);
-                    if expected != actual {
-                        let rel_err = (actual as f64 - expected as f64).abs() / expected as f64;
-                        const MAX_REL_ERROR: f64 = 1.0 / $in::MAX as f64 / 100.0;
-                        if rel_err > MAX_REL_ERROR {
-                            assert_eq!(
-                                actual, expected,
-                                "failed for x={} (u{}), rel_err={}",
-                                xi, x, rel_err
-                            );
-                        }
-                    }
+                    assert_eq!(actual, expected, "failed for x={} (u{})", xi, x);
                 }
             }
         };
     }
     test_snorm_to_f32!(i8 / u8, s8_to_uf32, super::s8::uf32);
     test_snorm_to_f32!(i16 / u16, s16_to_uf32, super::s16::uf32);
-
-    macro_rules! test_snorm_to_f32_exact {
-        ($in:ident / $in_unsigned:ident, $name:ident, $convert:path) => {
-            #[test]
-            fn $name() {
-                assert_eq!($convert($in::MIN as $in_unsigned), 0.0);
-                assert_eq!($convert(-$in::MAX as $in_unsigned), 0.0);
-                assert_eq!($convert(0 as $in as $in_unsigned), 0.5);
-                assert_eq!($convert($in::MAX as $in_unsigned), 1.0);
-
-                for x in 0..=$in_unsigned::MAX {
-                    let xi = x as $in;
-                    let expected =
-                        ((xi.max(-$in::MAX) as f64 / $in::MAX as f64 + 1.0) / 2.0) as f32;
-                    assert_eq!($convert(x), expected, "failed for x={} (u{})", xi, x);
-                }
-            }
-        };
-    }
-    test_snorm_to_f32_exact!(i8 / u8, s8_to_uf32_exact, super::s8::uf32_exact);
-    test_snorm_to_f32_exact!(i16 / u16, s16_to_uf32_exact, super::s16::uf32_exact);
 
     #[test]
     fn fp_to_n8() {
