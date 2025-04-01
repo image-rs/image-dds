@@ -28,6 +28,7 @@ pub(crate) fn as_bytes_mut<T: Castable>(buffer: &mut [T]) -> &mut [u8] {
 }
 
 /// An implementation of `slice::as_flattened` for more Rust versions.
+#[allow(unused)]
 pub(crate) fn as_flattened<const N: usize, T>(buffer: &[[T; N]]) -> &[T]
 where
     T: Castable,
@@ -63,6 +64,7 @@ where
     from_bytes_mut(as_bytes_mut(buffer))
 }
 
+#[allow(unused)]
 pub(crate) trait IsByteArray {}
 impl<const N: usize> IsByteArray for [u8; N] {}
 pub(crate) trait NonEmpty {}
