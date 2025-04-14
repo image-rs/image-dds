@@ -84,23 +84,13 @@ impl<R> Decoder<R> {
         self.format.color()
     }
 
-    pub fn into_reader(self) -> R {
-        self.reader
-    }
-
-    /// Returns information about the surface about to be read.
-    ///
-    /// The returned value is not valid after calling `next_surface`.
-    ///
-    /// If there are no more surfaces, `None` is returned.
-    pub fn surface_info(&self) -> Option<SurfaceInfo<'_>> {
-        self.iter.current()
-    }
-
     /// Reads the next surface into the given buffer.
     ///
     /// The next surface is determined by the data layout of the DDS file. For
-    /// volume textures, this function will read the next depth slice.
+    /// volume textures, this function will read the next depth slice. See
+    /// [`Self::surface_info`] for more information about the next surface.
+    ///
+    /// If [Self::is_done] is true, this function will return an error.
     pub fn read_surface(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
     where
         R: Read,
@@ -151,8 +141,7 @@ impl<R> Decoder<R> {
 
     /// Skips over the next surface.
     ///
-    /// This behaves the same as [`Decoder::read_surface_rect`] when decoding
-    /// an empty rectangle.
+    /// Returns an error if there are no more surfaces.
     pub fn skip_surface(&mut self) -> Result<(), DecodeError>
     where
         R: Seek,
@@ -213,7 +202,8 @@ impl<R> Decoder<R> {
     ///
     /// As such, the output image buffer is expected to have a size of
     /// `width * 4` by `height * 3`, where `width` and `height` are the
-    /// dimensions of a single cube map face.
+    /// dimensions of a single cube map face. (See [`Self::main_size`] for the
+    /// size of a single face.)
     ///
     /// For partial cube maps, only the faces that are present in the DDS file
     /// are read. The faces are arranged in the same order as for full cube
@@ -270,5 +260,32 @@ impl<R> Decoder<R> {
         }
 
         Ok(())
+    }
+
+    /// Returns information about the surface about to be read.
+    ///
+    /// The returned value is not valid after calling `next_surface`.
+    ///
+    /// If there are no more surfaces, `None` is returned.
+    ///
+    /// Use [`Self::is_done`] instead of checking for `None` to determine if the
+    /// encoder is done reading.
+    pub fn surface_info(&self) -> Option<SurfaceInfo<'_>> {
+        self.iter.current()
+    }
+    /// Returns whether all surfaces that have been read.
+    ///
+    /// If `true` is returned, then attempting to read more surfaces will
+    /// always result in an error.
+    ///
+    /// See [`Self::read_surface`] for more information about reading surfaces,
+    /// and [`Self::surface_info`] for more information about the next
+    /// surface.
+    pub fn is_done(&self) -> bool {
+        self.iter.current().is_none()
+    }
+    /// Returns the underlying reader.
+    pub fn into_reader(self) -> R {
+        self.reader
     }
 }

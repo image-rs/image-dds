@@ -7,15 +7,29 @@ use crate::{
     split_encode, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Size,
 };
 
+/// An encoder for DDS files.
 pub struct Encoder<W> {
     writer: W,
     format: Format,
     layout: DataLayout,
     iter: SurfaceIterator,
+    /// The encoding options used to encode surfaces.
+    ///
+    /// Defaults: `EncodeOptions::default()`
     pub options: EncodeOptions,
     resize: Option<Box<(Aligner, ResizeState)>>,
 }
 impl<W> Encoder<W> {
+    /// Creates a new encoder and immediately writes the header to the writer.
+    ///
+    /// The format and header and given separately, because certain older and
+    /// non-standard formats cannot be detected from the header alone. I.e.
+    /// `BC3_UNORM` and `BC3_UNORM_NORMAL` have the same header. If you are
+    /// only using commonly-used formats, you can use [`Format::from_header`]
+    /// to detect the format.
+    ///
+    /// If the given format does not support encoding,
+    /// [`EncodeError::UnsupportedFormat`] is returned.
     pub fn new(mut writer: W, format: Format, header: &Header) -> Result<Self, EncodeError>
     where
         W: Write,
@@ -38,9 +52,11 @@ impl<W> Encoder<W> {
         })
     }
 
+    /// The format of the pixel data.
     pub fn format(&self) -> Format {
         self.format
     }
+    /// The layout of the data section.
     pub fn layout(&self) -> DataLayout {
         self.layout
     }
@@ -60,34 +76,6 @@ impl<W> Encoder<W> {
     /// the color format.
     pub fn native_color(&self) -> ColorFormat {
         self.format().color()
-    }
-
-    pub fn into_writer(self) -> W {
-        self.writer
-    }
-
-    /// Finishes writing the DDS file.
-    ///
-    /// This will verify that all surfaces have been written and flush the
-    /// writer.
-    pub fn finish(mut self) -> Result<(), EncodeError>
-    where
-        W: Write,
-    {
-        if self.surface_info().is_some() {
-            return Err(EncodeError::MissingSurfaces);
-        }
-        self.writer.flush()?;
-        Ok(())
-    }
-
-    /// Returns information about the surface about to be written.
-    ///
-    /// The returned value is not valid after calling `write_surface`.
-    ///
-    /// If there are no more surfaces, `None` is returned.
-    pub fn surface_info(&self) -> Option<SurfaceInfo<'_>> {
-        self.iter.current()
     }
 
     /// Writes the next surface.
@@ -183,6 +171,59 @@ impl<W> Encoder<W> {
             *resize = Some(Box::new((Aligner::new(), ResizeState::new())));
         }
         resize.as_mut().unwrap()
+    }
+
+    /// Returns information about the surface about to be written.
+    ///
+    /// The returned value only valid until the next call to
+    /// [`Self::write_surface`] or [`Self::write_surface_with`].
+    ///
+    /// If there are no more surfaces, `None` is returned.
+    ///
+    /// Use [`Self::is_done`] instead of checking for `None` to determine if the
+    /// encoder is done writing.
+    pub fn surface_info(&self) -> Option<SurfaceInfo<'_>> {
+        self.iter.current()
+    }
+    /// Returns whether all surfaces that have been written.
+    ///
+    /// If `true` is returned, then attempting to write more surfaces will
+    /// always result in an error.
+    ///
+    /// See [`Self::write_surface`] for more information about writing surfaces
+    /// and [`Self::surface_info`] for more information about the current
+    /// surface.
+    pub fn is_done(&self) -> bool {
+        self.iter.current().is_none()
+    }
+    /// Checks that the encoder is done writing and flushes the writer.
+    ///
+    /// Instead of dropping the encoder, this method should be used to ensure
+    /// that (1) the DDS file is valid and (2) all data is written to the
+    /// writer.
+    ///
+    /// If you need the writer after this call, use [`Self::into_writer`].
+    ///
+    /// This will return [`EncodeError::MissingSurfaces`] if some surfaces are
+    /// yet to be written. See [`Self::is_done`].
+    pub fn finish(mut self) -> Result<(), EncodeError>
+    where
+        W: Write,
+    {
+        if !self.is_done() {
+            return Err(EncodeError::MissingSurfaces);
+        }
+        self.writer.flush()?;
+        Ok(())
+    }
+    /// Returns the underlying writer.
+    ///
+    /// Using this method may result in the creation of invalid DDS files if
+    /// the encoder is not done yet. See [`Self::is_done`].
+    ///
+    /// Preferably, use [`Self::finish`] to ensure that the DDS file is valid.
+    pub fn into_writer(self) -> W {
+        self.writer
     }
 }
 
