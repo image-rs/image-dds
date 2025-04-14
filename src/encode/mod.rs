@@ -112,11 +112,61 @@ pub fn encode(
     format: Format,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
-    if let Some(encoders) = get_encoders(format) {
-        encoders.encode(writer, image, options)
-    } else {
-        Err(EncodeError::UnsupportedFormat(format))
+    #[cfg(feature = "rayon")]
+    if options.parallel {
+        return encode_parallel(writer, image, format, options);
     }
+
+    let encoders = get_encoders(format).ok_or(EncodeError::UnsupportedFormat(format))?;
+    encoders.encode(writer, image, options)
+}
+
+#[cfg(feature = "rayon")]
+fn encode_parallel(
+    writer: &mut dyn Write,
+    image: ImageView,
+    format: Format,
+    options: &EncodeOptions,
+) -> Result<(), EncodeError> {
+    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+    let mut options = options.clone();
+    // don't cause an infinite loop
+    options.parallel = false;
+
+    let split = crate::SplitSurface::new(image, format, &options);
+
+    // optimization for single fragment
+    if let Some(single) = split.single() {
+        return encode(writer, *single, format, &options);
+    }
+
+    let pixel_info = crate::PixelInfo::from(format);
+
+    let result: Result<Vec<Vec<u8>>, EncodeError> = split
+        .fragments()
+        .par_iter()
+        .map(|fragment| -> Result<Vec<u8>, EncodeError> {
+            let bytes: usize = pixel_info
+                .surface_bytes(fragment.size)
+                .unwrap_or(u64::MAX)
+                .try_into()
+                .expect("too many bytes");
+            let mut buffer: Vec<u8> = Vec::with_capacity(bytes);
+
+            encode(&mut buffer, *fragment, format, &options)?;
+
+            debug_assert_eq!(buffer.len(), bytes);
+            Ok(buffer)
+        })
+        .collect();
+
+    let encoded_fragments = result?;
+    for fragment in encoded_fragments {
+        writer.write_all(&fragment)?;
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -145,6 +195,22 @@ pub struct EncodeOptions {
     ///
     /// Default: [`CompressionQuality::Normal`]
     pub quality: CompressionQuality,
+    /// Whether to use rayon for parallel encoding.
+    ///
+    /// Encoding certain formats can be very computationally intensive.
+    /// Using rayon to parallelize the encoding can significantly speed up the
+    /// encoding process.
+    ///
+    /// Even if this option is enabled, the encoder may still only use a single
+    /// thread if either:
+    ///
+    /// 1. The `rayon` feature is not enabled.
+    /// 2. The format does not support parallel encoding.
+    /// 3. The image is small enough that the overhead of parallelization
+    ///    outweighs the benefits.
+    ///
+    /// Default: `true`
+    pub parallel: bool,
 }
 impl Default for EncodeOptions {
     fn default() -> Self {
@@ -152,6 +218,7 @@ impl Default for EncodeOptions {
             dithering: Dithering::None,
             error_metric: ErrorMetric::Uniform,
             quality: CompressionQuality::Normal,
+            parallel: true,
         }
     }
 }

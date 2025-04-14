@@ -1,6 +1,6 @@
-use std::{io::Write, ops::Range};
+use std::ops::Range;
 
-use crate::{encode, Dithering, EncodeError, EncodeOptions, Format, ImageView, Size};
+use crate::{Dithering, EncodeOptions, Format, ImageView, Size};
 
 /// This implements the main logic for splitting a surface into lines.
 fn split_surface_into_lines(
@@ -120,88 +120,5 @@ impl<'a> SplitSurface<'a> {
     /// The list is guaranteed to be non-empty.
     pub fn fragments(&self) -> &[ImageView<'a>] {
         &self.fragments
-    }
-
-    /// Encodes a single fragment to the writer.
-    pub fn encode_fragment(
-        &self,
-        writer: &mut dyn Write,
-        fragment: &ImageView<'a>,
-    ) -> Result<(), EncodeError> {
-        encode(writer, *fragment, self.format, &self.options)
-    }
-
-    /// Encodes all fragments to the writer.
-    ///
-    /// This will encode the fragments in parallel (if the `rayon` feature is enabled).
-    pub fn encode(&self, writer: &mut dyn Write) -> Result<(), EncodeError> {
-        self.encode_impl(writer)
-    }
-    #[cfg(feature = "rayon")]
-    fn encode_impl(&self, writer: &mut dyn Write) -> Result<(), EncodeError> {
-        use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-
-        // optimization for single fragment
-        if let Some(single) = self.single() {
-            return self.encode_fragment(writer, single);
-        }
-
-        let pixel_info = crate::PixelInfo::from(self.format);
-
-        let result: Result<Vec<Vec<u8>>, EncodeError> = self
-            .fragments
-            .par_iter()
-            .map(|fragment| -> Result<Vec<u8>, EncodeError> {
-                let bytes: usize = pixel_info
-                    .surface_bytes(fragment.size)
-                    .unwrap_or(u64::MAX)
-                    .try_into()
-                    .expect("too many bytes");
-                let mut buffer: Vec<u8> = Vec::with_capacity(bytes);
-
-                self.encode_fragment(&mut buffer, fragment)?;
-
-                debug_assert_eq!(buffer.len(), bytes);
-                Ok(buffer)
-            })
-            .collect();
-
-        let encoded_fragments = result?;
-        for fragment in encoded_fragments {
-            writer.write_all(&fragment)?;
-        }
-
-        Ok(())
-    }
-    #[cfg(not(feature = "rayon"))]
-    fn encode_impl(&self, writer: &mut dyn Write) -> Result<(), EncodeError> {
-        for fragment in &self.fragments {
-            self.encode_fragment(writer, fragment)?;
-        }
-        Ok(())
-    }
-}
-
-/// This function has the same API as [`encode()`], but it will automatically
-/// make use of the `rayon` feature to parallelize the encoding of the surface.
-///
-/// If the `rayon` feature is not enabled, this function will behave exactly
-/// like [`encode()`].
-pub fn split_encode(
-    writer: &mut dyn Write,
-    image: ImageView,
-    format: Format,
-    options: &EncodeOptions,
-) -> Result<(), EncodeError> {
-    // Only actually split the surface when rayon is available.
-    // If we don't get to encode in parallel, splitting is pure overhead.
-    #[cfg(feature = "rayon")]
-    {
-        let split = SplitSurface::new(image, format, options);
-        split.encode(writer)
-    }
-    #[cfg(not(feature = "rayon"))]
-    {
-        encode(writer, image, format, options)
     }
 }

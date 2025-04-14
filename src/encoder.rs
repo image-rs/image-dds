@@ -1,10 +1,11 @@
 use std::io::Write;
 
 use crate::{
+    encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    split_encode, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Size,
+    ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Size,
 };
 
 pub struct Encoder<W> {
@@ -136,7 +137,7 @@ impl<W> Encoder<W> {
         if current.size() != image.size() {
             return Err(EncodeError::UnexpectedSurfaceSize);
         }
-        split_encode(&mut self.writer, image, self.format, &self.options)?;
+        encode(&mut self.writer, image, self.format, &self.options)?;
         self.iter.advance();
 
         if options.generate_mipmaps
@@ -166,7 +167,7 @@ impl<W> Encoder<W> {
                 let mip =
                     ImageView::new(mip_data, mipmap_size, image.color).expect("invalid mipmap");
 
-                split_encode(&mut self.writer, mip, self.format, &self.options)?;
+                encode(&mut self.writer, mip, self.format, &self.options)?;
                 self.iter.advance();
             }
         }

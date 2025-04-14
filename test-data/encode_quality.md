@@ -9,12 +9,12 @@
 
 ## `BC1_UNORM`
 
-- fast: EncodeOptions { dithering: None, error_metric: Uniform, quality: Fast }
-- normal: EncodeOptions { dithering: None, error_metric: Uniform, quality: Normal }
-- high: EncodeOptions { dithering: None, error_metric: Uniform, quality: High }
-- dither: EncodeOptions { dithering: ColorAndAlpha, error_metric: Uniform, quality: Normal }
-- perc: EncodeOptions { dithering: None, error_metric: Perceptual, quality: High }
-- perc d: EncodeOptions { dithering: Color, error_metric: Perceptual, quality: High }
+- fast: EncodeOptions { dithering: None, error_metric: Uniform, quality: Fast, parallel: true }
+- normal: EncodeOptions { dithering: None, error_metric: Uniform, quality: Normal, parallel: true }
+- high: EncodeOptions { dithering: None, error_metric: Uniform, quality: High, parallel: true }
+- dither: EncodeOptions { dithering: ColorAndAlpha, error_metric: Uniform, quality: Normal, parallel: true }
+- perc: EncodeOptions { dithering: None, error_metric: Perceptual, quality: High, parallel: true }
+- perc d: EncodeOptions { dithering: Color, error_metric: Perceptual, quality: High, parallel: true }
 
 |                 |        |   | ↑PSNR | ↑PSNR B | ↓Region err
 | --------------- | ------ | - | ----- | ------- | -----------
@@ -388,10 +388,10 @@
 
 ## `BC4_UNORM`
 
-- fast: EncodeOptions { dithering: None, error_metric: Uniform, quality: Fast }
-- normal: EncodeOptions { dithering: None, error_metric: Uniform, quality: Normal }
-- high: EncodeOptions { dithering: None, error_metric: Uniform, quality: High }
-- dither: EncodeOptions { dithering: ColorAndAlpha, error_metric: Uniform, quality: High }
+- fast: EncodeOptions { dithering: None, error_metric: Uniform, quality: Fast, parallel: true }
+- normal: EncodeOptions { dithering: None, error_metric: Uniform, quality: Normal, parallel: true }
+- high: EncodeOptions { dithering: None, error_metric: Uniform, quality: High, parallel: true }
+- dither: EncodeOptions { dithering: ColorAndAlpha, error_metric: Uniform, quality: High, parallel: true }
 
 |                 |        |   | ↑PSNR | ↑PSNR B | ↓Region err
 | --------------- | ------ | - | ----- | ------- | -----------
@@ -430,7 +430,7 @@
 
 ## `BC4_UNORM`
 
-- ref: EncodeOptions { dithering: None, error_metric: Uniform, quality: Unreasonable }
+- ref: EncodeOptions { dithering: None, error_metric: Uniform, quality: Unreasonable, parallel: true }
 
 |          |     |   | ↑PSNR | ↑PSNR B | ↓Region err
 | -------- | --- | - | ----- | ------- | -----------
