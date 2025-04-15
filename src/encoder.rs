@@ -5,7 +5,8 @@ use crate::{
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Size,
+    ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Progress,
+    ProgressRange, Report, Size, SubProgress,
 };
 
 /// An encoder for DDS files.
@@ -89,7 +90,7 @@ impl<W> Encoder<W> {
     where
         W: Write,
     {
-        self.write_surface_impl(image, ProgressToken::none(), &WriteOptions::default())
+        self.write_surface_impl(image, None, &WriteOptions::default())
     }
 
     /// Writes the next surface.
@@ -101,37 +102,70 @@ impl<W> Encoder<W> {
     pub fn write_surface_with(
         &mut self,
         image: ImageView,
-        mut progress: impl FnMut(f32),
+        progress: Option<&mut Progress>,
         options: &WriteOptions,
     ) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        self.write_surface_impl(image, ProgressToken::new(&mut progress), options)
+        self.write_surface_impl(image, progress, options)
     }
 
     fn write_surface_impl(
         &mut self,
         image: ImageView,
-        mut progress: ProgressToken,
+        progress: Option<&mut Progress>,
         options: &WriteOptions,
     ) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        progress.report(0.0);
+        let mut sub_progress = SubProgress::new(progress);
 
+        // Get information about the current surface.
         let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
         if current.size() != image.size() {
             return Err(EncodeError::UnexpectedSurfaceSize);
         }
-        encode(&mut self.writer, image, self.format, &self.options)?;
+
+        // Figure out how many mipmaps we'll generate ahead of time.
+        let generated_mipmaps = if options.generate_mipmaps {
+            let total_mipmaps = match &self.layout {
+                DataLayout::Texture(texture) => texture.mipmaps(),
+                DataLayout::Volume(_) => 0, // volumes aren't supported
+                DataLayout::TextureArray(texture_array) => texture_array.mipmaps(),
+            };
+            total_mipmaps.saturating_sub(current.mipmap_level + 1)
+        } else {
+            0
+        };
+
+        let get_level_progress_range = move |level: u8| -> ProgressRange {
+            if generated_mipmaps == 0 {
+                ProgressRange::FULL
+            } else {
+                // This is how much progress the main surface accounts for.
+                // I determined this value experimentally, so that 50% progress
+                // roughly aligns with 50% execution time.
+                let main_surface = 0.6_f32; // 60%
+                let start = 1.0 - (1.0 - main_surface).powi(level as i32);
+                let end = 1.0 - (1.0 - main_surface).powi(level as i32 + 1);
+                ProgressRange::from_to(start, end)
+            }
+        };
+
+        // write the main surface
+        sub_progress.set_range(get_level_progress_range(0));
+        encode(
+            &mut self.writer,
+            image,
+            self.format,
+            sub_progress.get(),
+            &self.options,
+        )?;
         self.iter.advance();
 
-        if options.generate_mipmaps
-            && self.layout.volume().is_none()
-            && self.iter.current().map_or(false, |c| c.is_mipmap())
-        {
+        if generated_mipmaps > 0 {
             let (align, resize) = Self::get_or_init(&mut self.resize);
             let src = align.align(image);
 
@@ -143,7 +177,6 @@ impl<W> Encoder<W> {
                 }
 
                 count += 1;
-                progress.report(1.0 - 0.3_f32.powi(count));
 
                 let mipmap_size = current.size();
                 let mip_data = resize.resize(
@@ -155,12 +188,21 @@ impl<W> Encoder<W> {
                 let mip =
                     ImageView::new(mip_data, mipmap_size, image.color).expect("invalid mipmap");
 
-                encode(&mut self.writer, mip, self.format, &self.options)?;
+                sub_progress.set_range(get_level_progress_range(count));
+                encode(
+                    &mut self.writer,
+                    mip,
+                    self.format,
+                    sub_progress.get(),
+                    &self.options,
+                )?;
                 self.iter.advance();
             }
         }
 
-        progress.report(1.0);
+        // report 100% progress
+        sub_progress.set_original_range();
+        sub_progress.report(1.0);
 
         Ok(())
     }
@@ -281,36 +323,6 @@ impl Default for WriteOptions {
             generate_mipmaps: false,
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
-        }
-    }
-}
-
-struct ProgressToken<'a> {
-    reporter: Option<&'a mut dyn FnMut(f32)>,
-    offset: f32,
-    scale: f32,
-}
-impl<'a> ProgressToken<'a> {
-    fn none() -> Self {
-        Self {
-            reporter: None,
-            offset: 0.0,
-            scale: 1.0,
-        }
-    }
-
-    fn new(reporter: &'a mut dyn FnMut(f32)) -> Self {
-        Self {
-            reporter: Some(reporter),
-            offset: 0.0,
-            scale: 1.0,
-        }
-    }
-
-    pub fn report(&mut self, mut progress: f32) {
-        if let Some(reporter) = &mut self.reporter {
-            progress = self.offset + progress * self.scale;
-            (reporter)(progress);
         }
     }
 }

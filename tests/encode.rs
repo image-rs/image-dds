@@ -16,7 +16,7 @@ fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     writer: &mut W,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
-    encode(writer, image.view(), format, options)
+    encode(writer, image.view(), format, None, options)
 }
 fn write_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     encoder: &mut Encoder<W>,
@@ -625,7 +625,7 @@ fn encode_mipmap() {
             format,
             &Header::new_image(width, height, format).with_mipmaps(),
         )?;
-        encoder.write_surface_with(base.view(), |_| {}, &options)?;
+        encoder.write_surface_with(base.view(), None, &options)?;
         encoder.finish()?;
 
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
@@ -770,14 +770,14 @@ fn test_unaligned() {
                 let mut aligned_encoder =
                     Encoder::new(&mut aligned_encoded, format, &header).unwrap();
                 aligned_encoder
-                    .write_surface_with(aligned, |_| {}, &options)
+                    .write_surface_with(aligned, None, &options)
                     .unwrap();
                 aligned_encoder.finish().unwrap();
 
                 let mut unaligned_encoder =
                     Encoder::new(&mut unaligned_encoded, format, &header).unwrap();
                 unaligned_encoder
-                    .write_surface_with(unaligned, |_| {}, &options)
+                    .write_surface_with(unaligned, None, &options)
                     .unwrap();
                 unaligned_encoder.finish().unwrap();
 

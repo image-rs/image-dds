@@ -625,7 +625,13 @@ pub fn compare_snapshot_dds_f32(
         write_simple_dds_header(&mut output, image.size, format.try_into().unwrap())?;
 
         // convert to LE
-        encode(&mut output, image.view(), format, &EncodeOptions::default())?;
+        encode(
+            &mut output,
+            image.view(),
+            format,
+            None,
+            &EncodeOptions::default(),
+        )?;
 
         std::fs::create_dir_all(dds_path.parent().unwrap())?;
         std::fs::write(dds_path, output)?;
@@ -1477,4 +1483,18 @@ impl std::fmt::Display for PrettyTable {
         self.print(&mut out);
         write!(f, "{}", out)
     }
+}
+
+pub fn indent(indent: &str, text: &str) -> String {
+    let mut result = String::new();
+    for line in text.lines() {
+        if line.is_empty() {
+            result.push('\n');
+        } else {
+            result.push_str(indent);
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    result
 }

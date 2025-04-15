@@ -3,7 +3,7 @@ use glam::Vec4;
 use crate::{
     as_rgba_f32, cast, ch, convert_channels, convert_channels_for, fp10, fp11, fp16, n1, n10, n16,
     n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat,
-    ColorFormatSet, EncodeError, Precision,
+    ColorFormatSet, EncodeError, Precision, Report,
 };
 
 use super::{
@@ -12,6 +12,8 @@ use super::{
 };
 
 // helpers
+
+const REPORT_FREQUENCY: usize = 2048;
 
 fn uncompressed_universal<EncodedPixel>(
     args: Args,
@@ -24,6 +26,7 @@ where
         data,
         color,
         writer,
+        mut progress,
         ..
     } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
@@ -33,7 +36,13 @@ where
     let mut encoded_buffer = [EncodedPixel::default(); BUFFER_PIXELS];
 
     let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
-    for line in data.chunks(chunk_size) {
+    let chunk_count = util::div_ceil(data.len(), chunk_size);
+    for (chunk_index, line) in data.chunks(chunk_size).enumerate() {
+        // occasionally report progress
+        if chunk_index % REPORT_FREQUENCY == 0 {
+            progress.report(chunk_index as f32 / chunk_count as f32);
+        }
+
         debug_assert!(line.len() % bytes_per_pixel == 0);
         let pixels = line.len() / bytes_per_pixel;
 
@@ -60,7 +69,9 @@ where
         color,
         writer,
         width,
+        height,
         options,
+        mut progress,
         ..
     } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
@@ -81,6 +92,9 @@ where
     let mut intermediate_buffer = [[0_f32; 4]; BUFFER_PIXELS];
     let mut encoded_buffer = [EncodedPixel::default(); BUFFER_PIXELS];
 
+    let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
+    let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
+    let mut chunk_index: usize = 0;
     for row in data.chunks(width * bytes_per_pixel) {
         debug_assert!(row.len() == width * bytes_per_pixel);
 
@@ -90,8 +104,13 @@ where
         let mut error_offset = error_padding;
         let mut next_error_add = Vec4::ZERO;
 
-        let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
         for line in row.chunks(chunk_size) {
+            // occasionally report progress
+            if chunk_index % REPORT_FREQUENCY == 0 {
+                progress.report(chunk_index as f32 / chunk_count as f32);
+            }
+            chunk_index += 1;
+
             debug_assert!(line.len() % bytes_per_pixel == 0);
             let pixels = line.len() / bytes_per_pixel;
 
@@ -131,6 +150,7 @@ fn uncompressed_untyped(
         data,
         color,
         writer,
+        mut progress,
         ..
     } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
@@ -139,7 +159,13 @@ fn uncompressed_untyped(
     let encoded_buffer = cast::as_bytes_mut(&mut raw_buffer);
 
     let chuck_size = encoded_buffer.len() / bytes_per_encoded_pixel * bytes_per_pixel;
-    for line in data.chunks(chuck_size) {
+    let chunk_count = util::div_ceil(data.len(), chuck_size);
+    for (chunk_index, line) in data.chunks(chuck_size).enumerate() {
+        // occasionally report progress
+        if chunk_index % REPORT_FREQUENCY == 0 {
+            progress.report(chunk_index as f32 / chunk_count as f32);
+        }
+
         debug_assert!(line.len() % bytes_per_pixel == 0);
         let pixels = line.len() / bytes_per_pixel;
         let encoded = &mut encoded_buffer[..pixels * bytes_per_encoded_pixel];
