@@ -341,8 +341,7 @@ fn weird_and_invalid_headers() {
             .into(),
         //
         // too many mipmaps
-        Header::new_image(1, 1, Format::BC1_UNORM)
-            .with_mipmap_count(NonZeroU32::new(123456).unwrap()),
+        Header::new_image(1, 1, Format::BC1_UNORM).with_mipmap_count(123456),
         //
         // unknown pixel format
         Dx10Header::new_image(100, 100, DxgiFormat::UNKNOWN).into(),
@@ -378,16 +377,14 @@ fn weird_and_invalid_headers() {
         //
         // HUGE files
         Header::new_image(u32::MAX, u32::MAX, Format::R8_UNORM),
-        Header::new_image(u32::MAX, u32::MAX, Format::R8_UNORM)
-            .with_mipmap_count(NonZeroU32::new(5).unwrap()),
+        Header::new_image(u32::MAX, u32::MAX, Format::R8_UNORM).with_mipmap_count(5),
         Header::new_image(u32::MAX, u32::MAX, Format::R16_UNORM),
         Dx10Header::new_image(u32::MAX, 2, DxgiFormat::R8_UNORM)
             .with_array_size(u32::MAX)
             .into(),
         Header::new_volume(u32::MAX, u32::MAX, 1, Format::R8_UNORM),
         Header::new_volume(u32::MAX, u32::MAX, 2, Format::R8_UNORM),
-        Header::new_volume(u32::MAX, u32::MAX, 1, Format::R8_UNORM)
-            .with_mipmap_count(NonZeroU32::new(5).unwrap()),
+        Header::new_volume(u32::MAX, u32::MAX, 1, Format::R8_UNORM).with_mipmap_count(5),
         Header::new_volume(u32::MAX, u32::MAX, 1, Format::R16_UNORM),
         //
         // non-2D cube map
