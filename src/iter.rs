@@ -37,6 +37,7 @@ impl SurfaceInfo<'_> {
     }
 }
 
+#[derive(Clone, PartialEq)]
 pub(crate) enum SurfaceIterator {
     Texture(TextureSurfaceIterator),
     Volume(VolumeSurfaceIterator),
@@ -70,14 +71,30 @@ impl SurfaceIterator {
         }
     }
 
+    pub fn rewind(&mut self) {
+        match self {
+            Self::Texture(iter) => iter.rewind(),
+            Self::Volume(iter) => iter.rewind(),
+        }
+    }
+
     pub fn skip_mipmaps(&mut self) -> Result<u64, ()> {
         match self {
             Self::Texture(iter) => Ok(iter.skip_mipmaps()),
             Self::Volume(iter) => iter.skip_mipmaps(),
         }
     }
+
+    /// How many bytes have been read so far to reach the current surface.
+    pub fn elapsed_bytes(&self) -> u64 {
+        match self {
+            Self::Texture(iter) => iter.elapsed_bytes(),
+            Self::Volume(iter) => iter.elapsed_bytes(),
+        }
+    }
 }
 
+#[derive(Clone, PartialEq)]
 pub(crate) struct TextureSurfaceIterator {
     first: Texture,
     len: u32,
@@ -118,6 +135,15 @@ impl TextureSurfaceIterator {
         }
     }
 
+    fn rewind(&mut self) {
+        if self.current_level > 0 {
+            self.current_level -= 1;
+        } else if self.current_index > 0 {
+            self.current_index -= 1;
+            self.current_level = self.first.mipmaps() - 1;
+        }
+    }
+
     fn skip_mipmaps(&mut self) -> u64 {
         if self.current_index < self.len && self.current_level != 0 {
             let mut skipped_bytes = 0;
@@ -133,8 +159,19 @@ impl TextureSurfaceIterator {
             0
         }
     }
+
+    pub fn elapsed_bytes(&self) -> u64 {
+        // start with the full textures already read
+        let mut bytes = self.first.data_len() * self.current_index as u64;
+        // add the mipmaps of the current texture
+        for level in 0..self.current_level {
+            bytes += self.first.get(level).unwrap().data_len();
+        }
+        bytes
+    }
 }
 
+#[derive(Clone, PartialEq)]
 pub(crate) struct VolumeSurfaceIterator {
     volume: Volume,
     current_level: u8,
@@ -169,6 +206,16 @@ impl VolumeSurfaceIterator {
         }
     }
 
+    fn rewind(&mut self) {
+        if self.current_depth > 0 {
+            self.current_depth -= 1;
+        } else if self.current_level > 0 {
+            self.current_level -= 1;
+            let v = self.volume.get(self.current_level).unwrap();
+            self.current_depth = v.depth() - 1;
+        }
+    }
+
     fn skip_mipmaps(&mut self) -> Result<u64, ()> {
         // we cannot skip anything within a volume
         if self.current_depth != 0 {
@@ -188,5 +235,101 @@ impl VolumeSurfaceIterator {
         self.current_level = self.volume.mipmaps();
 
         Ok(skipped_bytes)
+    }
+
+    pub fn elapsed_bytes(&self) -> u64 {
+        let mut bytes = 0;
+
+        // start with the full volumes already read
+        for i in 0..self.current_level {
+            bytes += self.volume.get(i).unwrap().data_len();
+        }
+        // add the depth slices of the current slice
+        let current_volume = self.volume.get(self.current_level);
+        if let Some(v) = current_volume {
+            let depth_slice_bytes = v.get_depth_slice(0).map_or(0, |s| s.data_len());
+            bytes += depth_slice_bytes * self.current_depth as u64;
+        }
+
+        bytes
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Asserts that the iterator works the same as a manual iteration
+    fn assert_iter(layout: DataLayout) {
+        /// advances the iterator and checks that advance and rewind are implemented correctly
+        fn advance(iter: &mut SurfaceIterator) {
+            let state_a = iter.clone();
+            iter.advance();
+            let mut state_b = iter.clone();
+            state_b.rewind();
+            assert!(state_a == state_b);
+        }
+
+        let mut iter = SurfaceIterator::new(layout);
+        let mut elapsed_bytes = 0;
+
+        match layout {
+            DataLayout::Texture(texture) => {
+                for mip in texture.iter_mips() {
+                    let surface = iter.current().unwrap();
+                    assert_eq!(surface.size(), mip.size());
+                    assert_eq!(surface.data_len(), mip.data_len());
+                    advance(&mut iter);
+                    elapsed_bytes += mip.data_len();
+                    assert_eq!(elapsed_bytes, iter.elapsed_bytes());
+                }
+            }
+            DataLayout::TextureArray(array) => {
+                for texture in array.iter() {
+                    for mip in texture.iter_mips() {
+                        let surface = iter.current().unwrap();
+                        assert_eq!(surface.size(), mip.size());
+                        assert_eq!(surface.data_len(), mip.data_len());
+                        advance(&mut iter);
+                        elapsed_bytes += mip.data_len();
+                        assert_eq!(elapsed_bytes, iter.elapsed_bytes());
+                    }
+                }
+            }
+            DataLayout::Volume(volume) => {
+                for mip in volume.iter_mips() {
+                    for slice in mip.iter_depth_slices() {
+                        let surface = iter.current().unwrap();
+                        assert_eq!(surface.size(), slice.size());
+                        assert_eq!(surface.data_len(), slice.data_len());
+                        advance(&mut iter);
+                        elapsed_bytes += slice.data_len();
+                        assert_eq!(elapsed_bytes, iter.elapsed_bytes());
+                    }
+                }
+            }
+        }
+
+        assert!(iter.current().is_none());
+        assert_eq!(iter.elapsed_bytes(), layout.data_len());
+    }
+
+    #[test]
+    fn test_surface_iterator() {
+        use crate::{header::*, *};
+
+        fn test(header: impl Into<Header>) {
+            assert_iter(DataLayout::from_header(&header.into()).unwrap());
+        }
+
+        test(Header::new_image(100, 300, Format::BC1_UNORM));
+        // test(Header::new_image(100, 300, Format::BC1_UNORM).with_mipmap_count(5));
+        test(Header::new_image(100, 300, Format::BC1_UNORM).with_mipmaps());
+        test(Header::new_cube_map(100, 300, Format::BC1_UNORM));
+        // test(Header::new_cube_map(100, 300, Format::BC1_UNORM).with_mipmap_count(5));
+        test(Header::new_cube_map(100, 300, Format::BC1_UNORM).with_mipmaps());
+        test(Header::new_volume(100, 300, 500, Format::BC1_UNORM));
+        // test(Header::new_volume(100, 300, 500, Format::BC1_UNORM).with_mipmap_count(5));
+        test(Header::new_volume(100, 300, 500, Format::BC1_UNORM).with_mipmaps());
     }
 }
