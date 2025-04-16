@@ -148,6 +148,9 @@ fn full_layout_snapshot() {
         let format = decoder.format();
         let layout = decoder.layout();
         validate_region(&layout);
+        if layout.is_cube_map() {
+            assert!(header.is_cube_map());
+        }
 
         let mut output = String::new();
 

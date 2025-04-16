@@ -771,6 +771,25 @@ impl DataLayout {
         }
     }
 
+    /// Whether this layout is a cube map or partial cube map.
+    ///
+    /// If `true` is returned, this layout is guaranteed to be a
+    /// [`DataLayout::TextureArray`]. The [`TextureArray::kind()`] will be
+    /// either [`TextureArrayKind::CubeMaps`] or
+    /// [`TextureArrayKind::PartialCubeMap`].
+    ///
+    /// The texture array is **not** guaranteed to be contain exactly one
+    /// (partial) cube map.
+    pub fn is_cube_map(&self) -> bool {
+        matches!(
+            self,
+            DataLayout::TextureArray(TextureArray {
+                kind: TextureArrayKind::CubeMaps | TextureArrayKind::PartialCubeMap(_),
+                ..
+            })
+        )
+    }
+
     pub fn pixel_info(&self) -> PixelInfo {
         match self {
             DataLayout::Texture(texture) => texture.pixel_info(),
