@@ -1,11 +1,6 @@
 use dds::{header::*, *};
 
-use std::{
-    fs::File,
-    io::Seek,
-    num::{NonZero, NonZeroU32},
-    path::PathBuf,
-};
+use std::{fs::File, io::Seek, num::NonZero, path::PathBuf};
 
 mod util;
 

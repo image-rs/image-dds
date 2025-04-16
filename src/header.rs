@@ -56,8 +56,7 @@
 //! ```
 //! # use dds::{*, header::*};
 //! # use std::num::NonZeroU32;
-//! let header = Header::new_image(128, 256, Format::BC1_UNORM)
-//!     .with_mipmap_count(NonZeroU32::new(4).unwrap());
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM).with_mipmap_count(4);
 //! assert_eq!(header.mipmap_count().get(), 4);
 //! ```
 //!
