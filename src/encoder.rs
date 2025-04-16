@@ -4,9 +4,8 @@ use crate::{
     encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
-    sub_progress,
     resize::{Aligner, ResizeState},
-    ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Progress,
+    sub_progress, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Progress,
     ProgressRange, Report, Size,
 };
 
