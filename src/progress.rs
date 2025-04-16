@@ -127,6 +127,17 @@ impl<'a> Progress<'a> {
             ProgressInner::Bound(report) => report(progress),
         }
     }
+
+    pub(crate) fn sub_range(&mut self, range: ProgressRange) -> Progress<'_> {
+        let range = self.range.sub_range(range);
+        Progress {
+            reporter: match &mut self.reporter {
+                ProgressInner::Send(f) => ProgressInner::Send(*f),
+                ProgressInner::Bound(f) => ProgressInner::Bound(*f),
+            },
+            range,
+        }
+    }
 }
 impl Report for Progress<'_> {
     fn report(&mut self, progress: f32) {
@@ -141,44 +152,11 @@ impl Report for Option<&mut Progress<'_>> {
     }
 }
 
-pub(crate) struct SubProgress<'a, 'b> {
-    progress: Option<&'a mut Progress<'b>>,
-    original_range: ProgressRange,
-}
-impl<'a, 'b> SubProgress<'a, 'b> {
-    pub fn new(progress: Option<&'a mut Progress<'b>>) -> Self {
-        let original_range = progress.as_ref().map(|p| p.range).unwrap_or_default();
-        Self {
-            progress,
-            original_range,
-        }
-    }
-    pub fn get(&mut self) -> Option<&'_ mut Progress<'b>> {
-        self.progress.as_deref_mut()
-    }
-
-    pub fn set_range(&mut self, range: ProgressRange) {
-        if let Some(progress) = self.progress.as_mut() {
-            progress.range = self.original_range.sub_range(range);
-        }
-    }
-    pub fn set_original_range(&mut self) {
-        self.set_range(self.original_range);
-    }
-}
-impl Drop for SubProgress<'_, '_> {
-    fn drop(&mut self) {
-        if let Some(progress) = self.progress.as_mut() {
-            progress.range = self.original_range;
-        }
-    }
-}
-impl Report for SubProgress<'_, '_> {
-    fn report(&mut self, progress: f32) {
-        if let Some(reporter) = self.progress.as_mut() {
-            reporter.report(progress);
-        }
-    }
+pub(crate) fn sub_progress<'a>(
+    progress: &'a mut Option<&mut Progress>,
+    range: ProgressRange,
+) -> Option<Progress<'a>> {
+    progress.as_mut().map(|progress| progress.sub_range(range))
 }
 
 /// The current progress and a function to report it.

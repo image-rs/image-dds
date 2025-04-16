@@ -4,9 +4,10 @@ use crate::{
     encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
+    sub_progress,
     resize::{Aligner, ResizeState},
     ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Progress,
-    ProgressRange, Report, Size, SubProgress,
+    ProgressRange, Report, Size,
 };
 
 /// An encoder for DDS files.
@@ -114,14 +115,12 @@ impl<W> Encoder<W> {
     fn write_surface_impl(
         &mut self,
         image: ImageView,
-        progress: Option<&mut Progress>,
+        mut progress: Option<&mut Progress>,
         options: &WriteOptions,
     ) -> Result<(), EncodeError>
     where
         W: Write,
     {
-        let mut sub_progress = SubProgress::new(progress);
-
         // Get information about the current surface.
         let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
         if current.size() != image.size() {
@@ -155,12 +154,11 @@ impl<W> Encoder<W> {
         };
 
         // write the main surface
-        sub_progress.set_range(get_level_progress_range(0));
         encode(
             &mut self.writer,
             image,
             self.format,
-            sub_progress.get(),
+            sub_progress(&mut progress, get_level_progress_range(0)).as_mut(),
             &self.options,
         )?;
         self.iter.advance();
@@ -188,12 +186,11 @@ impl<W> Encoder<W> {
                 let mip =
                     ImageView::new(mip_data, mipmap_size, image.color).expect("invalid mipmap");
 
-                sub_progress.set_range(get_level_progress_range(count));
                 encode(
                     &mut self.writer,
                     mip,
                     self.format,
-                    sub_progress.get(),
+                    sub_progress(&mut progress, get_level_progress_range(count)).as_mut(),
                     &self.options,
                 )?;
                 self.iter.advance();
@@ -201,8 +198,7 @@ impl<W> Encoder<W> {
         }
 
         // report 100% progress
-        sub_progress.set_original_range();
-        sub_progress.report(1.0);
+        progress.report(1.0);
 
         Ok(())
     }
