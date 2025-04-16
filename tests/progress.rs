@@ -22,7 +22,7 @@ fn track_progress() {
 
     let mut rng = util::create_rng();
 
-    let mut image_rgba_u8: Image<u8> = Image::new_empty(Rgba, Size::new(2048, 2048));
+    let mut image_rgba_u8: Image<u8> = Image::new_empty(Rgba, Size::new(4096, 2048));
     rng.fill(image_rgba_u8.data.as_mut_slice());
     let mut image_gray_f32: Image<f32> = Image::new_empty(Grayscale, Size::new(1024, 1024));
     rng.fill(image_gray_f32.data.as_mut_slice());
@@ -51,6 +51,7 @@ fn track_progress() {
         format: Format,
         options: &EncodeOptions,
         image: ImageView,
+        mipmaps: bool,
     ) -> Result<String, EncodeError> {
         let mut progress_report = String::new();
         let start_time = std::time::Instant::now();
@@ -68,7 +69,7 @@ fn track_progress() {
         let mut progress = Progress::new(&mut consume_progress);
 
         let mut header = Header::new_image(image.width(), image.height(), format);
-        if format.encoding_support().unwrap().size_multiple() == SizeMultiple::ONE {
+        if mipmaps && format.encoding_support().unwrap().size_multiple() == SizeMultiple::ONE {
             header = header.with_mipmaps();
         }
 
@@ -90,8 +91,43 @@ fn track_progress() {
 
         Ok(progress_report)
     }
+    fn add_to_output(
+        output: &mut String,
+        format: Format,
+        options: &EncodeOptions,
+        image: ImageView,
+        mipmaps: bool,
+    ) {
+        let info = match test(format, options, image, mipmaps) {
+            Ok(info) => info,
+            Err(e) => format!(
+                "Failed to encode {format:?} with dither {0:?}: {e}",
+                options.dithering
+            ),
+        };
+
+        let width = image.width();
+        let height = image.height();
+        let color = image.color();
+        output.push_str(&format!(
+            "  \"Dither {0:?}: {color} Image {width}x{height}\": |\n",
+            options.dithering
+        ));
+        output.push_str(&util::indent("    ", &info));
+        output.push('\n');
+    }
 
     let output = &mut String::new();
+
+    output.push_str("With mipmaps:\n");
+    add_to_output(
+        output,
+        Format::R8G8B8A8_UNORM,
+        &options,
+        image_rgba_u8.view(),
+        true,
+    );
+    output.push_str("\n\n");
 
     for format in formats {
         output.push_str(&format!("{format:?}:\n"));
@@ -112,19 +148,7 @@ fn track_progress() {
                     continue;
                 }
 
-                let info = match test(format, &options, image) {
-                    Ok(info) => info,
-                    Err(e) => format!("Failed to encode {format:?} with dither {dither:?}: {e}"),
-                };
-
-                let width = image.width();
-                let height = image.height();
-                let color = image.color();
-                output.push_str(&format!(
-                    "  \"Dither {dither:?}: {color} Image {width}x{height}\": |\n"
-                ));
-                output.push_str(&util::indent("    ", &info));
-                output.push('\n');
+                add_to_output(output, format, &options, image, false);
             }
         }
         output.push_str("\n\n");
