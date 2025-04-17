@@ -31,7 +31,7 @@ impl<W> Encoder<W> {
     /// to detect the format.
     ///
     /// If the given format does not support encoding,
-    /// [`EncodeError::UnsupportedFormat`] is returned.
+    /// [`EncodingError::UnsupportedFormat`] is returned.
     pub fn new(mut writer: W, format: Format, header: &Header) -> Result<Self, EncodingError>
     where
         W: Write,
@@ -242,7 +242,7 @@ impl<W> Encoder<W> {
     ///
     /// If you need the writer after this call, use [`Self::into_writer`].
     ///
-    /// This will return [`EncodeError::MissingSurfaces`] if some surfaces are
+    /// This will return [`EncodingError::MissingSurfaces`] if some surfaces are
     /// yet to be written. See [`Self::is_done`].
     pub fn finish(mut self) -> Result<(), EncodingError>
     where

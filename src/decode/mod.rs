@@ -181,7 +181,7 @@ pub struct DecodeOptions {
     /// The maximum amount of memory that the decoder is allowed to allocate.
     ///
     /// If the decoder needs to allocate more memory than this limit, it will
-    /// return [`DecodeError::MemoryLimitExceeded`].
+    /// return [`DecodingError::MemoryLimitExceeded`].
     ///
     /// While most decoders can make do with a few kilobytes of stack memory,
     /// some formats require a variable amount of memory depending on the size
