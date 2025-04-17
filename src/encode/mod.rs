@@ -1,6 +1,6 @@
 use std::{io::Write, num::NonZeroU8};
 
-use crate::{EncodeError, Format, ImageView, SizeMultiple};
+use crate::{EncodeError, Format, ImageView, Progress, SizeMultiple};
 
 mod bc;
 mod bc1;
@@ -110,15 +110,16 @@ pub fn encode(
     writer: &mut dyn Write,
     image: ImageView,
     format: Format,
+    progress: Option<&mut Progress>,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
     #[cfg(feature = "rayon")]
     if options.parallel {
-        return encode_parallel(writer, image, format, options);
+        return encode_parallel(writer, image, format, progress, options);
     }
 
     let encoders = get_encoders(format).ok_or(EncodeError::UnsupportedFormat(format))?;
-    encoders.encode(writer, image, options)
+    encoders.encode(writer, image, progress, options)
 }
 
 #[cfg(feature = "rayon")]
@@ -126,9 +127,12 @@ fn encode_parallel(
     writer: &mut dyn Write,
     image: ImageView,
     format: Format,
+    mut progress: Option<&mut Progress>,
     options: &EncodeOptions,
 ) -> Result<(), EncodeError> {
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+    use crate::Report;
 
     let mut options = options.clone();
     // don't cause an infinite loop
@@ -138,15 +142,21 @@ fn encode_parallel(
 
     // optimization for single fragment
     if let Some(single) = split.single() {
-        return encode(writer, *single, format, &options);
+        return encode(writer, *single, format, progress, &options);
     }
 
-    let pixel_info = crate::PixelInfo::from(format);
+    // Prepare the parallel progress reporter. The +1 ensures that 100% is
+    // reported only after everything written to disk.
+    // Note: Parallel progress reporting is not supported for single-threaded
+    // reporters. They will do nothing.
+    let parallel_progress = crate::ParallelProgress::new(&mut progress, image.height() as u64 + 1);
 
+    let pixel_info = crate::PixelInfo::from(format);
     let result: Result<Vec<Vec<u8>>, EncodeError> = split
         .fragments()
         .par_iter()
         .map(|fragment| -> Result<Vec<u8>, EncodeError> {
+            // allocate exactly the right amount of memory
             let bytes: usize = pixel_info
                 .surface_bytes(fragment.size)
                 .unwrap_or(u64::MAX)
@@ -154,7 +164,11 @@ fn encode_parallel(
                 .expect("too many bytes");
             let mut buffer: Vec<u8> = Vec::with_capacity(bytes);
 
-            encode(&mut buffer, *fragment, format, &options)?;
+            // encode the fragment without any progress reporting.
+            // progress will be reported per fragment
+            encode(&mut buffer, *fragment, format, None, &options)?;
+
+            parallel_progress.submit(fragment.height() as u64);
 
             debug_assert_eq!(buffer.len(), bytes);
             Ok(buffer)
@@ -165,6 +179,9 @@ fn encode_parallel(
     for fragment in encoded_fragments {
         writer.write_all(&fragment)?;
     }
+
+    // Report 100%
+    progress.report(1.0);
 
     Ok(())
 }

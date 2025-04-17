@@ -1,0 +1,285 @@
+With mipmaps:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    60.00%
+    84.00%
+    93.60%
+    97.44%
+    98.98%
+    99.59%
+    99.84%
+    99.93%
+    99.97%
+    99.99%
+    100.00%
+    100.00%
+    100.00%
+    Done.
+
+
+
+R8_UNORM:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+B5G6R5_UNORM:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+R8G8B8A8_UNORM:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+R16G16B16A16_SNORM:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+R16G16B16A16_FLOAT:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+R9G9B9E5_SHAREDEXP:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+BC1_UNORM:
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+
+
+BC4_UNORM:
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+
+
+R1_UNORM:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    25.00%
+    50.00%
+    75.00%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+R8G8_B8G8_UNORM:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    25.00%
+    50.00%
+    75.00%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+Y210:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    25.00%
+    50.00%
+    75.00%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+AYUV:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+
+NV12:
+  "Dither None: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+
+

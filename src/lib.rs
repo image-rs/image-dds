@@ -13,6 +13,7 @@ pub mod header;
 mod iter;
 mod layout;
 mod pixel;
+mod progress;
 mod resize;
 mod split;
 mod util;
@@ -30,6 +31,7 @@ pub use error::*;
 pub use format::*;
 pub use layout::*;
 pub use pixel::*;
+pub use progress::*;
 pub use split::*;
 
 /// A convenience trait for easily converting different data representations to

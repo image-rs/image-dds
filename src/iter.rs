@@ -4,7 +4,7 @@ use crate::{DataLayout, DataRegion, Size, SurfaceDescriptor, Texture, Volume};
 pub struct SurfaceInfo<'a> {
     size: Size,
     len: u64,
-    mipmap_level: u8,
+    pub(crate) mipmap_level: u8,
     valid_until: std::marker::PhantomData<&'a ()>,
 }
 impl SurfaceInfo<'_> {
