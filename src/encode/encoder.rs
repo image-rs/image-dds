@@ -3,7 +3,7 @@ use std::{io::Write, num::NonZeroU8};
 use bitflags::bitflags;
 
 use crate::{
-    cast, ColorFormat, ColorFormatSet, EncodeError, ImageView, Precision, Progress, Report,
+    cast, ColorFormat, ColorFormatSet, EncodingError, ImageView, Precision, Progress, Report,
     SizeMultiple,
 };
 
@@ -24,7 +24,7 @@ impl<'a, 'b, 'c, 'd> Args<'a, 'b, 'c, 'd> {
         writer: &'b mut dyn Write,
         progress: Option<&'c mut Progress<'d>>,
         options: EncodeOptions,
-    ) -> Result<Self, EncodeError> {
+    ) -> Result<Self, EncodingError> {
         Ok(Self {
             data: image.data(),
             width: image.width() as usize,
@@ -86,13 +86,13 @@ pub(crate) struct Encoder {
     pub flags: Flags,
     group_size: PreferredGroupSize,
 
-    pub encode: fn(Args) -> Result<(), EncodeError>,
+    pub encode: fn(Args) -> Result<(), EncodingError>,
 }
 impl Encoder {
     pub const fn new(
         color_formats: ColorFormatSet,
         flags: Flags,
-        encode: fn(Args) -> Result<(), EncodeError>,
+        encode: fn(Args) -> Result<(), EncodingError>,
     ) -> Self {
         Self {
             color_formats,
@@ -101,7 +101,7 @@ impl Encoder {
             encode,
         }
     }
-    pub const fn new_universal(encode: fn(Args) -> Result<(), EncodeError>) -> Self {
+    pub const fn new_universal(encode: fn(Args) -> Result<(), EncodingError>) -> Self {
         Self::new(ColorFormatSet::ALL, Flags::empty(), encode)
     }
     pub const fn copy(color: ColorFormat) -> Self {
@@ -122,7 +122,7 @@ impl Encoder {
         self
     }
 
-    pub fn encode(&self, args: Args) -> Result<(), EncodeError> {
+    pub fn encode(&self, args: Args) -> Result<(), EncodingError> {
         assert!(
             self.color_formats.contains(args.color),
             "Picked the wrong encoder"
@@ -251,14 +251,14 @@ impl EncoderSet {
         image: ImageView,
         progress: Option<&mut Progress>,
         options: &EncodeOptions,
-    ) -> Result<(), EncodeError> {
+    ) -> Result<(), EncodingError> {
         let encoder = self.pick_encoder(image.color(), options);
         let args = Args::from(image, writer, progress, options.clone())?;
         encoder.encode(args)
     }
 }
 
-fn copy_directly(args: Args) -> Result<(), EncodeError> {
+fn copy_directly(args: Args) -> Result<(), EncodingError> {
     let Args {
         data,
         color,

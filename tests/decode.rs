@@ -358,18 +358,18 @@ fn test_rect_out_of_bounds() {
     };
 
     let result = decode_dummy(Rect::new(0, 0, 100, 100), &mut [], 0);
-    assert!(matches!(result, Err(DecodeError::RectOutOfBounds)));
+    assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
     assert_eq!(
         format!("{}", result.unwrap_err()),
         "Rectangle is out of bounds of the image size"
     );
 
     let result = decode_dummy(Rect::new(2, 2, 1, 1), &mut [], 0);
-    assert!(matches!(result, Err(DecodeError::RectOutOfBounds)));
+    assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
 
     // even empty rect can be OoB
     let result = decode_dummy(Rect::new(4, 0, 0, 0), &mut [], 0);
-    assert!(matches!(result, Err(DecodeError::RectOutOfBounds)));
+    assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
     // edge case: empty rect at the end of the image
     let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
     assert!(matches!(result, Ok(())));

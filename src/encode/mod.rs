@@ -1,6 +1,6 @@
 use std::{io::Write, num::NonZeroU8};
 
-use crate::{EncodeError, Format, ImageView, Progress, SizeMultiple};
+use crate::{EncodingError, Format, ImageView, Progress, SizeMultiple};
 
 mod bc;
 mod bc1;
@@ -112,13 +112,13 @@ pub fn encode(
     format: Format,
     progress: Option<&mut Progress>,
     options: &EncodeOptions,
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     #[cfg(feature = "rayon")]
     if options.parallel {
         return encode_parallel(writer, image, format, progress, options);
     }
 
-    let encoders = get_encoders(format).ok_or(EncodeError::UnsupportedFormat(format))?;
+    let encoders = get_encoders(format).ok_or(EncodingError::UnsupportedFormat(format))?;
     encoders.encode(writer, image, progress, options)
 }
 
@@ -129,7 +129,7 @@ fn encode_parallel(
     format: Format,
     mut progress: Option<&mut Progress>,
     options: &EncodeOptions,
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
     use crate::Report;
@@ -152,10 +152,10 @@ fn encode_parallel(
     let parallel_progress = crate::ParallelProgress::new(&mut progress, image.height() as u64 + 1);
 
     let pixel_info = crate::PixelInfo::from(format);
-    let result: Result<Vec<Vec<u8>>, EncodeError> = split
+    let result: Result<Vec<Vec<u8>>, EncodingError> = split
         .fragments()
         .par_iter()
-        .map(|fragment| -> Result<Vec<u8>, EncodeError> {
+        .map(|fragment| -> Result<Vec<u8>, EncodingError> {
             // allocate exactly the right amount of memory
             let bytes: usize = pixel_info
                 .surface_bytes(fragment.size)

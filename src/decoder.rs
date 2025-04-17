@@ -4,8 +4,8 @@ use crate::{
     decode, decode_rect,
     header::{Header, ParseOptions},
     iter::{SurfaceInfo, SurfaceIterator},
-    util, ColorFormat, CubeMapFaces, DataLayout, DecodeError, DecodeOptions, Format, ImageViewMut,
-    Rect, Size, TextureArrayKind,
+    util, ColorFormat, CubeMapFaces, DataLayout, DecodeOptions, DecodingError, Format,
+    ImageViewMut, Rect, Size, TextureArrayKind,
 };
 
 /// A decoder for reading the pixel data of a DDS file.
@@ -20,13 +20,13 @@ pub struct Decoder<R> {
     pub options: DecodeOptions,
 }
 impl<R> Decoder<R> {
-    pub fn new(reader: R) -> Result<Self, DecodeError>
+    pub fn new(reader: R) -> Result<Self, DecodingError>
     where
         R: Read,
     {
         Self::new_with_options(reader, &ParseOptions::default())
     }
-    pub fn new_with_options(mut reader: R, options: &ParseOptions) -> Result<Self, DecodeError>
+    pub fn new_with_options(mut reader: R, options: &ParseOptions) -> Result<Self, DecodingError>
     where
         R: Read,
     {
@@ -34,7 +34,7 @@ impl<R> Decoder<R> {
         Self::from_header(reader, header)
     }
 
-    pub fn from_header(reader: R, header: Header) -> Result<Self, DecodeError> {
+    pub fn from_header(reader: R, header: Header) -> Result<Self, DecodingError> {
         let format = Format::from_header(&header)?;
         Self::from_header_with(reader, header, format)
     }
@@ -42,7 +42,7 @@ impl<R> Decoder<R> {
         reader: R,
         header: Header,
         format: Format,
-    ) -> Result<Self, DecodeError> {
+    ) -> Result<Self, DecodingError> {
         let layout = DataLayout::from_header_with(&header, format.into())?;
 
         Ok(Self {
@@ -91,13 +91,13 @@ impl<R> Decoder<R> {
     /// [`Self::surface_info`] for more information about the next surface.
     ///
     /// If [Self::is_done] is true, this function will return an error.
-    pub fn read_surface(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
+    pub fn read_surface(&mut self, image: ImageViewMut) -> Result<(), DecodingError>
     where
         R: Read,
     {
-        let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+        let current = self.iter.current().ok_or(DecodingError::NoMoreSurfaces)?;
         if image.size() != current.size() {
-            return Err(DecodeError::UnexpectedSurfaceSize);
+            return Err(DecodingError::UnexpectedSurfaceSize);
         }
 
         decode(&mut self.reader, image, self.format, &self.options)?;
@@ -118,11 +118,11 @@ impl<R> Decoder<R> {
         row_pitch: usize,
         rect: Rect,
         color: ColorFormat,
-    ) -> Result<(), DecodeError>
+    ) -> Result<(), DecodingError>
     where
         R: Read + Seek,
     {
-        let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+        let current = self.iter.current().ok_or(DecodingError::NoMoreSurfaces)?;
 
         decode_rect(
             &mut self.reader,
@@ -142,11 +142,11 @@ impl<R> Decoder<R> {
     /// Skips over the next surface.
     ///
     /// Returns an error if there are no more surfaces.
-    pub fn skip_surface(&mut self) -> Result<(), DecodeError>
+    pub fn skip_surface(&mut self) -> Result<(), DecodingError>
     where
         R: Seek,
     {
-        let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+        let current = self.iter.current().ok_or(DecodingError::NoMoreSurfaces)?;
 
         util::io_skip_exact(&mut self.reader, current.data_len())?;
 
@@ -168,7 +168,7 @@ impl<R> Decoder<R> {
     ///
     /// - If the DDS file does not contain any mipmaps, this is a no-op.
     /// - Calling this at the start or end of a DDS file is a no-op.
-    pub fn skip_mipmaps(&mut self) -> Result<(), DecodeError>
+    pub fn skip_mipmaps(&mut self) -> Result<(), DecodingError>
     where
         R: Seek,
     {
@@ -178,7 +178,7 @@ impl<R> Decoder<R> {
             }
             Ok(())
         } else {
-            Err(DecodeError::CannotSkipMipmapsInVolume)
+            Err(DecodingError::CannotSkipMipmapsInVolume)
         }
     }
 
@@ -211,14 +211,14 @@ impl<R> Decoder<R> {
     ///
     /// It's recommended to use `self.layout().is_cube_map()` to determine
     /// whether the DDS file is a cube map or not.
-    pub fn read_cube_map(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
+    pub fn read_cube_map(&mut self, image: ImageViewMut) -> Result<(), DecodingError>
     where
         R: Read + Seek,
     {
         let layout = self.layout();
-        let texture_array = layout.texture_array().ok_or(DecodeError::NotACubeMap)?;
+        let texture_array = layout.texture_array().ok_or(DecodingError::NotACubeMap)?;
         let faces = match texture_array.kind() {
-            TextureArrayKind::Textures => return Err(DecodeError::NotACubeMap),
+            TextureArrayKind::Textures => return Err(DecodingError::NotACubeMap),
             TextureArrayKind::CubeMaps => CubeMapFaces::ALL,
             TextureArrayKind::PartialCubeMap(cube_map_faces) => cube_map_faces,
         };
@@ -227,7 +227,7 @@ impl<R> Decoder<R> {
         let image_width = face_size.width.checked_mul(4);
         let image_height = face_size.height.checked_mul(3);
         if image_width != Some(image.width()) || image_height != Some(image.height()) {
-            return Err(DecodeError::UnexpectedSurfaceSize);
+            return Err(DecodingError::UnexpectedSurfaceSize);
         }
 
         let face_offsets = [
@@ -249,9 +249,9 @@ impl<R> Decoder<R> {
             .into_iter()
             .filter(|(face, _, _)| faces.contains(*face))
         {
-            let current = self.iter.current().ok_or(DecodeError::NoMoreSurfaces)?;
+            let current = self.iter.current().ok_or(DecodingError::NoMoreSurfaces)?;
             if current.size() != face_size {
-                return Err(DecodeError::UnexpectedSurfaceSize);
+                return Err(DecodingError::UnexpectedSurfaceSize);
             }
 
             let offset_x = x * face_size.width;

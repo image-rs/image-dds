@@ -2,13 +2,13 @@ use std::io::{Read, Seek};
 use std::mem::size_of;
 
 use crate::{
-    Channels, ColorFormat, ColorFormatSet, DecodeError, ImageViewMut, Precision, Rect, Size,
+    Channels, ColorFormat, ColorFormatSet, DecodingError, ImageViewMut, Precision, Rect, Size,
 };
 
 use super::DecodeOptions;
 
-pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodeError>;
-pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodeError>;
+pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodingError>;
+pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodingError>;
 
 pub(crate) struct DecodeContext {
     pub color: ColorFormat,
@@ -16,19 +16,22 @@ pub(crate) struct DecodeContext {
     pub memory_limit: usize,
 }
 impl DecodeContext {
-    pub fn reserve_bytes(&mut self, bytes: usize) -> Result<(), DecodeError> {
+    pub fn reserve_bytes(&mut self, bytes: usize) -> Result<(), DecodingError> {
         if self.memory_limit < bytes {
-            return Err(DecodeError::MemoryLimitExceeded);
+            return Err(DecodingError::MemoryLimitExceeded);
         }
 
         self.memory_limit -= bytes;
         Ok(())
     }
-    pub fn alloc<T: Default + Copy>(&mut self, len: usize) -> Result<Box<[T]>, DecodeError> {
+    pub fn alloc<T: Default + Copy>(&mut self, len: usize) -> Result<Box<[T]>, DecodingError> {
         self.reserve_bytes(len * size_of::<T>())?;
         Ok(vec![T::default(); len].into_boxed_slice())
     }
-    pub fn alloc_capacity<T: Default + Copy>(&mut self, len: usize) -> Result<Vec<T>, DecodeError> {
+    pub fn alloc_capacity<T: Default + Copy>(
+        &mut self,
+        len: usize,
+    ) -> Result<Vec<T>, DecodingError> {
         self.reserve_bytes(len * size_of::<T>())?;
         Ok(Vec::with_capacity(len))
     }
@@ -54,7 +57,7 @@ impl<'a, 'b> Args<'a, 'b> {
         reader: &'a mut dyn Read,
         output: &'b mut [u8],
         context: DecodeContext,
-    ) -> Result<Self, DecodeError> {
+    ) -> Result<Self, DecodingError> {
         let bytes_per_pixel = context.color.bytes_per_pixel() as u64;
         assert_eq!(
             output.len() as u64,
@@ -79,10 +82,10 @@ impl<'a, 'b> RArgs<'a, 'b> {
         row_pitch: usize,
         rect: Rect,
         context: DecodeContext,
-    ) -> Result<Self, DecodeError> {
+    ) -> Result<Self, DecodingError> {
         // Check that the rect is within the bounds of the image.
         if !rect.is_within_bounds(context.size) {
-            return Err(DecodeError::RectOutOfBounds);
+            return Err(DecodingError::RectOutOfBounds);
         }
 
         // Check row pitch
@@ -95,7 +98,7 @@ impl<'a, 'b> RArgs<'a, 'b> {
             )
         };
         if row_pitch < min_row_pitch {
-            return Err(DecodeError::RowPitchTooSmall {
+            return Err(DecodingError::RowPitchTooSmall {
                 required_minimum: min_row_pitch,
             });
         }
@@ -109,7 +112,7 @@ impl<'a, 'b> RArgs<'a, 'b> {
                 .saturating_add(min_row_pitch)
         };
         if output.len() < required_bytes {
-            return Err(DecodeError::RectBufferTooSmall {
+            return Err(DecodingError::RectBufferTooSmall {
                 required_minimum: required_bytes,
             });
         }
@@ -218,7 +221,7 @@ impl DecoderSet {
         reader: &mut dyn Read,
         image: ImageViewMut,
         options: &DecodeOptions,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), DecodingError> {
         let color = image.color();
         let size = image.size();
 
@@ -258,7 +261,7 @@ impl DecoderSet {
         output: &mut [u8],
         row_pitch: usize,
         options: &DecodeOptions,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), DecodingError> {
         let args = RArgs::new(
             reader,
             output,

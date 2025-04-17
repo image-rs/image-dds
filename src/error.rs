@@ -83,7 +83,7 @@ impl std::error::Error for LayoutError {}
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum DecodeError {
+pub enum DecodingError {
     /// When decoding a rectangle, the rectangle is out of bounds of the size
     /// of the image.
     RectOutOfBounds,
@@ -124,79 +124,79 @@ pub enum DecodeError {
     Io(std::io::Error),
 }
 
-impl std::fmt::Display for DecodeError {
+impl std::fmt::Display for DecodingError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DecodeError::RectOutOfBounds => {
+            DecodingError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
             }
-            DecodeError::RowPitchTooSmall { required_minimum } => {
+            DecodingError::RowPitchTooSmall { required_minimum } => {
                 write!(
                     f,
                     "Row pitch too small: Must be at least `color.bytes_per_pixel() * rect.width` == {} bytes",
                     required_minimum
                 )
             }
-            DecodeError::RectBufferTooSmall { required_minimum } => {
+            DecodingError::RectBufferTooSmall { required_minimum } => {
                 write!(
                     f,
                     "Buffer too small for rectangle: required at least {} bytes",
                     required_minimum
                 )
             }
-            DecodeError::UnexpectedSurfaceSize => {
+            DecodingError::UnexpectedSurfaceSize => {
                 write!(f, "Unexpected size of the surface")
             }
-            DecodeError::CannotSkipMipmapsInVolume => {
+            DecodingError::CannotSkipMipmapsInVolume => {
                 write!(f, "Cannot skip mipmaps within a volume texture")
             }
-            DecodeError::NoMoreSurfaces => {
+            DecodingError::NoMoreSurfaces => {
                 write!(f, "No more surfaces to decode")
             }
-            DecodeError::NotACubeMap => {
+            DecodingError::NotACubeMap => {
                 write!(f, "The DDS file is not a cube map")
             }
 
-            DecodeError::MemoryLimitExceeded => {
+            DecodingError::MemoryLimitExceeded => {
                 write!(f, "Memory limit exceeded")
             }
 
-            DecodeError::Layout(error) => write!(f, "{}", error),
-            DecodeError::Format(error) => write!(f, "{}", error),
-            DecodeError::Header(error) => write!(f, "Header error: {}", error),
-            DecodeError::Io(error) => write!(f, "I/O error: {}", error),
+            DecodingError::Layout(error) => write!(f, "{}", error),
+            DecodingError::Format(error) => write!(f, "{}", error),
+            DecodingError::Header(error) => write!(f, "Header error: {}", error),
+            DecodingError::Io(error) => write!(f, "I/O error: {}", error),
         }
     }
 }
 
-impl From<LayoutError> for DecodeError {
+impl From<LayoutError> for DecodingError {
     fn from(error: LayoutError) -> Self {
-        DecodeError::Layout(error)
+        DecodingError::Layout(error)
     }
 }
-impl From<FormatError> for DecodeError {
+impl From<FormatError> for DecodingError {
     fn from(error: FormatError) -> Self {
-        DecodeError::Format(error)
+        DecodingError::Format(error)
     }
 }
-impl From<HeaderError> for DecodeError {
+impl From<HeaderError> for DecodingError {
     fn from(error: HeaderError) -> Self {
-        DecodeError::Header(error)
+        DecodingError::Header(error)
     }
 }
-impl From<std::io::Error> for DecodeError {
+impl From<std::io::Error> for DecodingError {
     fn from(error: std::io::Error) -> Self {
-        DecodeError::Io(error)
+        DecodingError::Io(error)
     }
 }
 
-impl std::error::Error for DecodeError {
+impl std::error::Error for DecodingError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            DecodeError::Layout(error) => Some(error),
-            DecodeError::Format(error) => Some(error),
-            DecodeError::Header(error) => Some(error),
-            DecodeError::Io(error) => Some(error),
+            DecodingError::Layout(error) => Some(error),
+            DecodingError::Format(error) => Some(error),
+            DecodingError::Header(error) => Some(error),
+            DecodingError::Io(error) => Some(error),
             _ => None,
         }
     }
@@ -295,7 +295,7 @@ impl std::error::Error for HeaderError {
 
 #[derive(Debug)]
 #[non_exhaustive]
-pub enum EncodeError {
+pub enum EncodingError {
     UnsupportedFormat(Format),
     InvalidSize(SizeMultiple),
     /// Returned by [`crate::encode()`] when the user tries to write a surface
@@ -317,45 +317,47 @@ pub enum EncodeError {
     Io(std::io::Error),
 }
 
-impl std::fmt::Display for EncodeError {
+impl std::fmt::Display for EncodingError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            EncodeError::UnsupportedFormat(format) => {
+            EncodingError::UnsupportedFormat(format) => {
                 write!(f, "Unsupported format: {:?}", format)
             }
-            EncodeError::InvalidSize(size) => {
+            EncodingError::InvalidSize(size) => {
                 write!(f, "Size is not a multiple of {:?}", size)
             }
-            EncodeError::EmptySurface => write!(f, "Surface has a width or height of 0"),
+            EncodingError::EmptySurface => write!(f, "Surface has a width or height of 0"),
 
-            EncodeError::UnexpectedSurfaceSize => {
+            EncodingError::UnexpectedSurfaceSize => {
                 write!(f, "Unexpected size of the surface")
             }
-            EncodeError::TooManySurfaces => write!(f, "Too many surfaces are attempted to written"),
-            EncodeError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
+            EncodingError::TooManySurfaces => {
+                write!(f, "Too many surfaces are attempted to written")
+            }
+            EncodingError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
 
-            EncodeError::Layout(err) => write!(f, "Layout error: {}", err),
-            EncodeError::Io(err) => write!(f, "IO error: {}", err),
+            EncodingError::Layout(err) => write!(f, "Layout error: {}", err),
+            EncodingError::Io(err) => write!(f, "IO error: {}", err),
         }
     }
 }
-impl std::error::Error for EncodeError {
+impl std::error::Error for EncodingError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            EncodeError::Layout(err) => Some(err),
-            EncodeError::Io(err) => Some(err),
+            EncodingError::Layout(err) => Some(err),
+            EncodingError::Io(err) => Some(err),
             _ => None,
         }
     }
 }
 
-impl From<LayoutError> for EncodeError {
+impl From<LayoutError> for EncodingError {
     fn from(err: LayoutError) -> Self {
-        EncodeError::Layout(err)
+        EncodingError::Layout(err)
     }
 }
-impl From<std::io::Error> for EncodeError {
+impl From<std::io::Error> for EncodingError {
     fn from(err: std::io::Error) -> Self {
-        EncodeError::Io(err)
+        EncodingError::Io(err)
     }
 }

@@ -1,4 +1,4 @@
-use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodeError, Report};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodingError, Report};
 
 use super::encoder::{Args, Encoder, EncoderSet, Flags};
 
@@ -33,7 +33,7 @@ fn uncompressed_universal_subsample<EncodedBlock>(
     args: Args,
     block_width: usize,
     process: fn(&[[f32; 4]], &mut [EncodedBlock]),
-) -> Result<(), EncodeError>
+) -> Result<(), EncodingError>
 where
     EncodedBlock: Default + Copy + cast::ToLe + cast::Castable,
 {

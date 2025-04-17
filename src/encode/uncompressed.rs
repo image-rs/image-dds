@@ -3,7 +3,7 @@ use glam::Vec4;
 use crate::{
     as_rgba_f32, cast, ch, convert_channels, convert_channels_for, fp10, fp11, fp16, n1, n10, n16,
     n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat,
-    ColorFormatSet, EncodeError, Precision, Report,
+    ColorFormatSet, EncodingError, Precision, Report,
 };
 
 use super::{
@@ -18,7 +18,7 @@ const REPORT_FREQUENCY: usize = 2048;
 fn uncompressed_universal<EncodedPixel>(
     args: Args,
     process: fn(&[[f32; 4]], &mut [EncodedPixel]),
-) -> Result<(), EncodeError>
+) -> Result<(), EncodingError>
 where
     EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
 {
@@ -59,7 +59,7 @@ where
     Ok(())
 }
 
-fn uncompressed_universal_dither<EncodedPixel, F>(args: Args, f: F) -> Result<(), EncodeError>
+fn uncompressed_universal_dither<EncodedPixel, F>(args: Args, f: F) -> Result<(), EncodingError>
 where
     EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
     F: Fn(Vec4) -> (EncodedPixel, Vec4),
@@ -145,7 +145,7 @@ fn uncompressed_untyped(
     args: Args,
     bytes_per_encoded_pixel: usize,
     f: fn(&[u8], ColorFormat, &mut [u8]),
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     let Args {
         data,
         color,

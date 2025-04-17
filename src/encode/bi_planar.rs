@@ -6,14 +6,14 @@ use super::{
 };
 use crate::{
     cast::{self, ToLe},
-    convert_to_rgba_f32, util, yuv10, yuv16, yuv8, EncodeError, Report, SizeMultiple,
+    convert_to_rgba_f32, util, yuv10, yuv16, yuv8, EncodingError, Report, SizeMultiple,
 };
 
 #[allow(clippy::type_complexity)]
 fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + cast::Castable>(
     args: Args,
     encode_macro_pixel: fn([[f32; 4]; 4], &EncodeOptions) -> ([P1; 4], P2),
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     const BLOCK_WIDTH: usize = 2;
     const BLOCK_HEIGHT: usize = 2;
 
@@ -30,7 +30,7 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     if width % BLOCK_WIDTH != 0 || height % BLOCK_HEIGHT != 0 {
-        return Err(EncodeError::InvalidSize(SizeMultiple::new(
+        return Err(EncodingError::InvalidSize(SizeMultiple::new(
             BLOCK_WIDTH as u8,
             BLOCK_HEIGHT as u8,
         )));
