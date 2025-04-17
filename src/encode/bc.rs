@@ -3,7 +3,7 @@
 use crate::{
     cast, ch, convert_to_rgba_f32, n4,
     util::{self, clamp_0_1},
-    EncodeError,
+    EncodeError, Report,
 };
 
 use super::{
@@ -25,13 +25,34 @@ fn block_universal<
         color,
         writer,
         width,
+        height,
         options,
+        mut progress,
         ..
     } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     let mut intermediate_buffer = vec![[0_f32; 4]; width * BLOCK_HEIGHT];
     let mut encoded_buffer = vec![[0_u8; BLOCK_BYTES]; util::div_ceil(width, BLOCK_WIDTH)];
+
+    // Report frequencies were chosen manually.
+    // I just tried to pick frequencies such that every quality level reports
+    // <50 times per second in non-parallel mode. These numbers may need to be
+    // adjusted later as algorithms improve and get faster.
+    let report_frequency = match options.quality {
+        CompressionQuality::Fast => 8192,
+        CompressionQuality::Normal => 4096,
+        CompressionQuality::High => 2048,
+        CompressionQuality::Unreasonable => 256,
+    };
+    let block_count = util::div_ceil(width, BLOCK_WIDTH) * util::div_ceil(height, BLOCK_HEIGHT);
+    let mut block_index: usize = 0;
+    let mut report_block = || {
+        if block_index % report_frequency == 0 {
+            progress.report(block_index as f32 / block_count as f32);
+        }
+        block_index += 1;
+    };
 
     let row_pitch = width * bytes_per_pixel;
     for line_group in data.chunks(row_pitch * BLOCK_HEIGHT) {
@@ -57,6 +78,7 @@ fn block_universal<
             let encoded = &mut encoded_buffer[block_index];
 
             encode_block(block, width, &options, encoded);
+            report_block();
         }
 
         // handle last partial block
@@ -77,6 +99,7 @@ fn block_universal<
 
             let encoded = &mut encoded_buffer[block_index];
             encode_block(&block_data, BLOCK_WIDTH, &options, encoded);
+            report_block();
         }
 
         writer.write_all(cast::as_bytes(&encoded_buffer))?;

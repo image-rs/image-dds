@@ -494,6 +494,9 @@ impl TextureArray {
     pub fn size(&self) -> Size {
         Size::new(self.width.get(), self.height.get())
     }
+    pub fn mipmaps(&self) -> u8 {
+        self.mipmaps.get()
+    }
 
     pub(crate) fn first(&self) -> Texture {
         Texture {

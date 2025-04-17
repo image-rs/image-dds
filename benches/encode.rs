@@ -224,7 +224,7 @@ pub fn generate_mipmaps(c: &mut Criterion) {
             let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
             let result = encoder.write_surface_with(
                 black_box(image.view()),
-                |_| {},
+                None,
                 &WriteOptions {
                     generate_mipmaps: true,
                     ..Default::default()

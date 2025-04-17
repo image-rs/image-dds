@@ -1,14 +1,14 @@
 // helpers
 
-use crate::{
-    cast::{self, ToLe},
-    convert_to_rgba_f32, yuv10, yuv16, yuv8, EncodeError, SizeMultiple,
-};
-
 use super::{
     encoder::{Args, Encoder, EncoderSet},
     EncodeOptions,
 };
+use crate::{
+    cast::{self, ToLe},
+    convert_to_rgba_f32, util, yuv10, yuv16, yuv8, EncodeError, Report, SizeMultiple,
+};
+
 #[allow(clippy::type_complexity)]
 fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + cast::Castable>(
     args: Args,
@@ -24,6 +24,7 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         width,
         height,
         options,
+        mut progress,
         ..
     } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
@@ -40,7 +41,14 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     let mut plane2: Vec<P2> = Vec::new();
 
     let row_pitch = width * bytes_per_pixel;
-    for line_group in data.chunks(row_pitch * BLOCK_HEIGHT) {
+    let line_group_count = util::div_ceil(height, BLOCK_HEIGHT);
+    let report_frequency = util::div_ceil(1024 * 1024, width * BLOCK_HEIGHT);
+    for (group_index, line_group) in data.chunks(row_pitch * BLOCK_HEIGHT).enumerate() {
+        if group_index % report_frequency == 0 {
+            // occasionally report progress
+            progress.report(group_index as f32 / line_group_count as f32);
+        }
+
         debug_assert!(line_group.len() % row_pitch == 0);
         let rows_in_group = line_group.len() / row_pitch;
 

@@ -1,4 +1,4 @@
-use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodeError};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodeError, Report};
 
 use super::encoder::{Args, Encoder, EncoderSet, Flags};
 
@@ -42,6 +42,8 @@ where
         color,
         writer,
         width,
+        height,
+        mut progress,
         ..
     } = args;
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
@@ -52,12 +54,22 @@ where
     let mut intermediate_buffer = [[0_f32; 4]; BUFFER_PIXELS];
     let mut encoded_buffer = [EncodedBlock::default(); BUFFER_PIXELS / 2];
 
+    let chunk_pixels = BUFFER_PIXELS / block_width * block_width;
+    let chunk_size = chunk_pixels * bytes_per_pixel;
+
+    let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
+    let mut chunk_index: usize = 0;
+
     for y_line in data.chunks(width * bytes_per_pixel) {
         debug_assert!(y_line.len() == width * bytes_per_pixel);
 
-        let chunk_pixels = BUFFER_PIXELS / block_width * block_width;
-        let chunk_size = chunk_pixels * bytes_per_pixel;
         for chunk in y_line.chunks(chunk_size) {
+            if chunk_index % 4096 == 0 {
+                // occasionally report progress
+                progress.report(chunk_index as f32 / chunk_count as f32);
+            }
+            chunk_index += 1;
+
             let pixels = chunk.len() / bytes_per_pixel;
 
             let intermediate = &mut intermediate_buffer[..pixels];

@@ -2,22 +2,27 @@ use std::{io::Write, num::NonZeroU8};
 
 use bitflags::bitflags;
 
-use crate::{cast, ColorFormat, ColorFormatSet, EncodeError, ImageView, Precision, SizeMultiple};
+use crate::{
+    cast, ColorFormat, ColorFormatSet, EncodeError, ImageView, Precision, Progress, Report,
+    SizeMultiple,
+};
 
 use super::{Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize};
 
-pub(crate) struct Args<'a, 'b> {
+pub(crate) struct Args<'a, 'b, 'c, 'd> {
     pub data: &'a [u8],
     pub width: usize,
     pub height: usize,
     pub color: ColorFormat,
     pub writer: &'b mut dyn Write,
+    pub progress: Option<&'c mut Progress<'d>>,
     pub options: EncodeOptions,
 }
-impl<'a, 'b> Args<'a, 'b> {
+impl<'a, 'b, 'c, 'd> Args<'a, 'b, 'c, 'd> {
     fn from(
         image: ImageView<'a>,
         writer: &'b mut dyn Write,
+        progress: Option<&'c mut Progress<'d>>,
         options: EncodeOptions,
     ) -> Result<Self, EncodeError> {
         Ok(Self {
@@ -26,6 +31,7 @@ impl<'a, 'b> Args<'a, 'b> {
             height: image.height() as usize,
             color: image.color(),
             writer,
+            progress,
             options,
         })
     }
@@ -243,10 +249,11 @@ impl EncoderSet {
         &self,
         writer: &mut dyn Write,
         image: ImageView,
+        progress: Option<&mut Progress>,
         options: &EncodeOptions,
     ) -> Result<(), EncodeError> {
         let encoder = self.pick_encoder(image.color(), options);
-        let args = Args::from(image, writer, options.clone())?;
+        let args = Args::from(image, writer, progress, options.clone())?;
         encoder.encode(args)
     }
 }
@@ -256,8 +263,11 @@ fn copy_directly(args: Args) -> Result<(), EncodeError> {
         data,
         color,
         writer,
+        mut progress,
         ..
     } = args;
+
+    progress.report(0.0);
 
     // We can always just write everything directly on LE systems
     // and when the precision is U8
