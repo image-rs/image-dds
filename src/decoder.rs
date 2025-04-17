@@ -208,6 +208,9 @@ impl<R> Decoder<R> {
     /// For partial cube maps, only the faces that are present in the DDS file
     /// are read. The faces are arranged in the same order as for full cube
     /// maps.
+    ///
+    /// It's recommended to use `self.layout().is_cube_map()` to determine
+    /// whether the DDS file is a cube map or not.
     pub fn read_cube_map(&mut self, image: ImageViewMut) -> Result<(), DecodeError>
     where
         R: Read + Seek,
