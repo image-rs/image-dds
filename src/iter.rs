@@ -323,13 +323,13 @@ mod tests {
         }
 
         test(Header::new_image(100, 300, Format::BC1_UNORM));
-        // test(Header::new_image(100, 300, Format::BC1_UNORM).with_mipmap_count(5));
+        test(Header::new_image(100, 300, Format::BC1_UNORM).with_mipmap_count(5));
         test(Header::new_image(100, 300, Format::BC1_UNORM).with_mipmaps());
         test(Header::new_cube_map(100, 300, Format::BC1_UNORM));
-        // test(Header::new_cube_map(100, 300, Format::BC1_UNORM).with_mipmap_count(5));
+        test(Header::new_cube_map(100, 300, Format::BC1_UNORM).with_mipmap_count(5));
         test(Header::new_cube_map(100, 300, Format::BC1_UNORM).with_mipmaps());
         test(Header::new_volume(100, 300, 500, Format::BC1_UNORM));
-        // test(Header::new_volume(100, 300, 500, Format::BC1_UNORM).with_mipmap_count(5));
+        test(Header::new_volume(100, 300, 500, Format::BC1_UNORM).with_mipmap_count(5));
         test(Header::new_volume(100, 300, 500, Format::BC1_UNORM).with_mipmaps());
     }
 }
