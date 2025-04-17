@@ -56,8 +56,7 @@
 //! ```
 //! # use dds::{*, header::*};
 //! # use std::num::NonZeroU32;
-//! let header = Header::new_image(128, 256, Format::BC1_UNORM)
-//!     .with_mipmap_count(NonZeroU32::new(4).unwrap());
+//! let header = Header::new_image(128, 256, Format::BC1_UNORM).with_mipmap_count(4);
 //! assert_eq!(header.mipmap_count().get(), 4);
 //! ```
 //!
@@ -709,7 +708,17 @@ impl Header {
     /// A builder-pattern-style method to set the mipmap count of the header.
     ///
     /// For an easier way to enable mipmapping, use [`Header::with_mipmaps`].
-    pub fn with_mipmap_count(mut self, mipmap_count: NonZeroU32) -> Header {
+    ///
+    /// # Panics
+    ///
+    /// If the mipmap count is 0.
+    #[track_caller]
+    pub fn with_mipmap_count(mut self, mipmap_count: u32) -> Header {
+        if mipmap_count == 0 {
+            panic!("Mipmap count must be greater than 0");
+        }
+        let mipmap_count = NonZeroU32::new(mipmap_count).unwrap();
+
         match &mut self {
             Header::Dx9(header) => header.mipmap_count = mipmap_count,
             Header::Dx10(header) => header.mipmap_count = mipmap_count,
@@ -726,7 +735,7 @@ impl Header {
                 .max(self.depth().unwrap_or(1)),
         );
 
-        self.with_mipmap_count(max)
+        self.with_mipmap_count(max.get())
     }
 
     /// Converts this header into a DX9 header if possible. If the header is a
@@ -821,7 +830,7 @@ impl Header {
             mipmap.saturating_add(1),
         ];
         for guess in guesses.into_iter().filter_map(NonZeroU32::new) {
-            let new_header = self.clone().with_mipmap_count(guess);
+            let new_header = self.clone().with_mipmap_count(guess.get());
 
             if test(&new_header) {
                 *self = new_header;
