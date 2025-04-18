@@ -272,7 +272,7 @@ impl<R> Decoder<R> {
     ///
     /// Note that this operation does **not** bring the decoder into a known
     /// (working) state after an error occurred.
-    pub fn rewind_to_previous_surface(&mut self) -> Result<(), DecodeError>
+    pub fn rewind_to_previous_surface(&mut self) -> Result<(), DecodingError>
     where
         R: Seek,
     {
@@ -290,7 +290,7 @@ impl<R> Decoder<R> {
     ///
     /// Note that this operation does **not** bring the decoder into a known
     /// (working) state after an error occurred.
-    pub fn rewind_to_start(&mut self) -> Result<(), DecodeError>
+    pub fn rewind_to_start(&mut self) -> Result<(), DecodingError>
     where
         R: Seek,
     {
