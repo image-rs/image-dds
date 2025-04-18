@@ -265,6 +265,44 @@ impl<R> Decoder<R> {
         Ok(())
     }
 
+    /// Moves to the reader back the previous surface, allowing it to be read
+    /// again.
+    ///
+    /// If there is no previous surface, this function will do nothing.
+    ///
+    /// Note that this operation does **not** bring the decoder into a known
+    /// (working) state after an error occurred.
+    pub fn rewind_to_previous_surface(&mut self) -> Result<(), DecodingError>
+    where
+        R: Seek,
+    {
+        let current_bytes = self.iter.elapsed_bytes();
+        self.iter.rewind();
+        let previous_bytes = self.iter.elapsed_bytes();
+        let seek = previous_bytes as i64 - current_bytes as i64;
+        self.reader.seek(std::io::SeekFrom::Current(seek))?;
+
+        Ok(())
+    }
+
+    /// Moves to the reader to the start of the data section of the DDS file,
+    /// making it possible to read the DDS file again.
+    ///
+    /// Note that this operation does **not** bring the decoder into a known
+    /// (working) state after an error occurred.
+    pub fn rewind_to_start(&mut self) -> Result<(), DecodingError>
+    where
+        R: Seek,
+    {
+        let elapsed_bytes = self.iter.elapsed_bytes();
+        let seek = -(elapsed_bytes as i64);
+        self.reader.seek(std::io::SeekFrom::Current(seek))?;
+
+        self.iter = SurfaceIterator::new(self.layout);
+
+        Ok(())
+    }
+
     /// Returns information about the surface about to be read.
     ///
     /// The returned value is not valid after calling `next_surface`.
