@@ -1,6 +1,13 @@
 # DDS De/Encoder
 
-A DDS decoder and encoder focused on speed and correctness written in 100% safe Rust.
+A DDS decoder and encoder written in 100% safe Rust.
+
+## Features
+
+- Supports over 70 formats for decoding and most for encoding. See below for details.
+- Both high-level and low-level APIs for decoding and encoding.
+- Automatic multi-threading with rayon.
+- Simple mipmap generation.
 
 ## Supported formats
 
@@ -11,7 +18,7 @@ This library supports a total of over 70 formats for decoding, including:
 - Over 30 uncompressed formats. E.g. `R8G8B8A8_UNORM`, `R9G9B9E5_SHAREDEXP`, `R32G32B32_FLOAT`.
 - Many YUV formats. E.g. `AYUV`, `Y416`, `YUY2`, `NV12`.
 
-Most formats support encoding. Notable exceptions are the ASTC formats ([#23](https://github.com/RunDevelopment/dds/issues/23)), BC7 ([#20](https://github.com/RunDevelopment/dds/issues/20)), and BC6 (currently not planned).
+Most formats support encoding. Notable exceptions are the ASTC formats ([#23](https://github.com/image-rs/image-dds/issues/23)), BC7 ([#20](https://github.com/image-rs/image-dds/issues/20)), and BC6 (currently not planned).
 
 For a full list of all support formats and their capabilities, see [this document](./supported-formats.md).
 
