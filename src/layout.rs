@@ -3,7 +3,7 @@ use std::num::{NonZeroU32, NonZeroU8};
 use bitflags::bitflags;
 
 use crate::header::{Caps2, Header, ResourceDimension};
-use crate::DecodeError;
+use crate::DecodingError;
 use crate::{
     util::{get_mipmap_size, NON_ZERO_U32_ONE},
     LayoutError, PixelInfo, Size,
@@ -665,7 +665,7 @@ pub enum DataLayout {
     TextureArray(TextureArray),
 }
 impl DataLayout {
-    pub fn from_header(header: &Header) -> Result<Self, DecodeError> {
+    pub fn from_header(header: &Header) -> Result<Self, DecodingError> {
         let layout = Self::from_header_with(header, PixelInfo::from_header(header)?)?;
         Ok(layout)
     }

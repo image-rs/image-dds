@@ -3,7 +3,7 @@
 use crate::{
     cast, ch, convert_to_rgba_f32, n4,
     util::{self, clamp_0_1},
-    EncodeError, Report,
+    EncodingError, Report,
 };
 
 use super::{
@@ -19,7 +19,7 @@ fn block_universal<
 >(
     args: Args,
     encode_block: fn(&[[f32; 4]], usize, &EncodeOptions, &mut [u8; BLOCK_BYTES]),
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     let Args {
         data,
         color,

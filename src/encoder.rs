@@ -5,8 +5,8 @@ use crate::{
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    sub_progress, ColorFormat, DataLayout, EncodeError, EncodeOptions, Format, ImageView, Progress,
-    ProgressRange, Report, Size,
+    sub_progress, ColorFormat, DataLayout, EncodeOptions, EncodingError, Format, ImageView,
+    Progress, ProgressRange, Report, Size,
 };
 
 /// An encoder for DDS files.
@@ -31,13 +31,13 @@ impl<W> Encoder<W> {
     /// to detect the format.
     ///
     /// If the given format does not support encoding,
-    /// [`EncodeError::UnsupportedFormat`] is returned.
-    pub fn new(mut writer: W, format: Format, header: &Header) -> Result<Self, EncodeError>
+    /// [`EncodingError::UnsupportedFormat`] is returned.
+    pub fn new(mut writer: W, format: Format, header: &Header) -> Result<Self, EncodingError>
     where
         W: Write,
     {
         if format.encoding_support().is_none() {
-            return Err(EncodeError::UnsupportedFormat(format));
+            return Err(EncodingError::UnsupportedFormat(format));
         }
 
         let layout = DataLayout::from_header_with(header, format.into())?;
@@ -86,7 +86,7 @@ impl<W> Encoder<W> {
     /// volume textures, this function will write the next depth slice.
     ///
     /// See [`Self::surface_info`] for more information about the surface.
-    pub fn write_surface(&mut self, image: ImageView) -> Result<(), EncodeError>
+    pub fn write_surface(&mut self, image: ImageView) -> Result<(), EncodingError>
     where
         W: Write,
     {
@@ -104,7 +104,7 @@ impl<W> Encoder<W> {
         image: ImageView,
         progress: Option<&mut Progress>,
         options: &WriteOptions,
-    ) -> Result<(), EncodeError>
+    ) -> Result<(), EncodingError>
     where
         W: Write,
     {
@@ -116,14 +116,14 @@ impl<W> Encoder<W> {
         image: ImageView,
         mut progress: Option<&mut Progress>,
         options: &WriteOptions,
-    ) -> Result<(), EncodeError>
+    ) -> Result<(), EncodingError>
     where
         W: Write,
     {
         // Get information about the current surface.
-        let current = self.iter.current().ok_or(EncodeError::TooManySurfaces)?;
+        let current = self.iter.current().ok_or(EncodingError::TooManySurfaces)?;
         if current.size() != image.size() {
-            return Err(EncodeError::UnexpectedSurfaceSize);
+            return Err(EncodingError::UnexpectedSurfaceSize);
         }
 
         // Figure out how many mipmaps we'll generate ahead of time.
@@ -242,14 +242,14 @@ impl<W> Encoder<W> {
     ///
     /// If you need the writer after this call, use [`Self::into_writer`].
     ///
-    /// This will return [`EncodeError::MissingSurfaces`] if some surfaces are
+    /// This will return [`EncodingError::MissingSurfaces`] if some surfaces are
     /// yet to be written. See [`Self::is_done`].
-    pub fn finish(mut self) -> Result<(), EncodeError>
+    pub fn finish(mut self) -> Result<(), EncodingError>
     where
         W: Write,
     {
         if !self.is_done() {
-            return Err(EncodeError::MissingSurfaces);
+            return Err(EncodingError::MissingSurfaces);
         }
         self.writer.flush()?;
         Ok(())
