@@ -18,7 +18,7 @@ pub(crate) use decoder::*;
 use sub_sampled::*;
 use uncompressed::*;
 
-use crate::{ColorFormat, DecodeError, Format, ImageViewMut, Rect, Size};
+use crate::{ColorFormat, DecodingError, Format, ImageViewMut, Rect, Size};
 
 pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
     match format {
@@ -132,7 +132,7 @@ pub fn decode(
     image: ImageViewMut,
     format: Format,
     options: &DecodeOptions,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     get_decoders(format).decode(reader, image, options)
 }
 
@@ -169,7 +169,7 @@ pub fn decode_rect<R: Read + Seek>(
     rect: Rect,
     format: Format,
     options: &DecodeOptions,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     let reader = reader as &mut dyn ReadSeek;
     let decoders = get_decoders(format);
     decoders.decode_rect(color, reader, size, rect, output, row_pitch, options)
@@ -181,7 +181,7 @@ pub struct DecodeOptions {
     /// The maximum amount of memory that the decoder is allowed to allocate.
     ///
     /// If the decoder needs to allocate more memory than this limit, it will
-    /// return [`DecodeError::MemoryLimitExceeded`].
+    /// return [`DecodingError::MemoryLimitExceeded`].
     ///
     /// While most decoders can make do with a few kilobytes of stack memory,
     /// some formats require a variable amount of memory depending on the size

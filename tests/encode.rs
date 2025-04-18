@@ -15,13 +15,13 @@ fn encode_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     format: Format,
     writer: &mut W,
     options: &EncodeOptions,
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     encode(writer, image.view(), format, None, options)
 }
 fn write_image<T: WithPrecision + util::Castable, W: std::io::Write>(
     encoder: &mut Encoder<W>,
     image: &Image<T>,
-) -> Result<(), EncodeError> {
+) -> Result<(), EncodingError> {
     encoder.write_surface(image.view())
 }
 fn encode_decode(

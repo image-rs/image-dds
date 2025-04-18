@@ -5,7 +5,7 @@ use std::io::Read;
 use std::mem::size_of;
 
 use crate::util::round_down_to_multiple;
-use crate::{cast, util::div_ceil, DecodeError, Rect, Size};
+use crate::{cast, util::div_ceil, DecodingError, Rect, Size};
 use crate::{convert_channels_for, util, Channels, ColorFormat};
 
 use super::{DecodeContext, ReadSeek};
@@ -92,7 +92,7 @@ pub(crate) fn for_each_pixel_untyped(
     native_color: ColorFormat,
     pixel_size: PixelSize,
     process_pixels: ProcessPixelsFn,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     fn inner(
         r: &mut dyn Read,
         buf: &mut [u8],
@@ -100,7 +100,7 @@ pub(crate) fn for_each_pixel_untyped(
         native_color: ColorFormat,
         size_of_in: usize,
         process_pixels: ProcessPixelsFn,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), DecodingError> {
         let buf_color = context.color;
         let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
         assert!(buf.len() % buf_bytes_per_pixel == 0);
@@ -146,7 +146,7 @@ pub(crate) fn for_each_pixel_rect_untyped(
     native_color: ColorFormat,
     pixel_size: PixelSize,
     process_pixels: ProcessPixelsFn,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn ReadSeek,
@@ -157,7 +157,7 @@ pub(crate) fn for_each_pixel_rect_untyped(
         native_color: ColorFormat,
         size_of_in: usize,
         process_pixels: ProcessPixelsFn,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), DecodingError> {
         let size = context.size;
         let buf_color = context.color;
 
@@ -532,7 +532,7 @@ pub(crate) fn for_each_block_untyped<
     context: DecodeContext,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn Read,
@@ -542,7 +542,7 @@ pub(crate) fn for_each_block_untyped<
         bytes_per_block: usize,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), DecodingError> {
         let size = context.size;
         let buf_color = context.color;
 
@@ -624,7 +624,7 @@ pub(crate) fn for_each_block_rect_untyped<
     rect: Rect,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn ReadSeek,
@@ -636,7 +636,7 @@ pub(crate) fn for_each_block_rect_untyped<
         bytes_per_block: usize,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
-    ) -> Result<(), DecodeError> {
+    ) -> Result<(), DecodingError> {
         let size = context.size;
         let buf_color = context.color;
 
@@ -1013,7 +1013,7 @@ impl UntypedPixelBuffer {
         self.buf.len() / self.bytes_per_pixel
     }
 
-    fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[u8], DecodeError> {
+    fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[u8], DecodingError> {
         let full_pixel_bytes = self.buf.len() / self.bytes_per_pixel * self.bytes_per_pixel;
         let bytes_to_read = full_pixel_bytes.min(self.bytes_left);
         assert!(bytes_to_read > 0);
@@ -1042,7 +1042,7 @@ impl UntypedLineBuffer {
         bytes_per_line: usize,
         height: usize,
         context: &mut DecodeContext,
-    ) -> Result<Self, DecodeError> {
+    ) -> Result<Self, DecodingError> {
         const TARGET_BUFFER_SIZE: usize = 64 * 1024; // 64 KB
 
         let lines_in_buffer = (TARGET_BUFFER_SIZE / bytes_per_line).clamp(1, height);
@@ -1059,7 +1059,7 @@ impl UntypedLineBuffer {
     }
 
     // CURSE YOU, lack of trait up-casting
-    fn next_line<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<Option<&[u8]>, DecodeError> {
+    fn next_line<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<Option<&[u8]>, DecodingError> {
         if self.current_line_start >= self.buf_filled {
             if self.lines_on_disk == 0 {
                 // all lines have been read
@@ -1180,7 +1180,7 @@ pub(crate) fn for_each_bi_planar(
     native_color: ColorFormat,
     info: BiPlaneInfo,
     process_bi_planar: ProcessBiPlanarFn,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     let size = context.size;
     let buf_color = context.color;
     debug_assert_eq!(buf_color.precision, native_color.precision);
@@ -1244,7 +1244,7 @@ pub(crate) fn for_each_bi_planar_rect(
     native_color: ColorFormat,
     info: BiPlaneInfo,
     process_bi_planar: ProcessBiPlanarFn,
-) -> Result<(), DecodeError> {
+) -> Result<(), DecodingError> {
     let size = context.size;
     let buf_color = context.color;
     debug_assert_eq!(buf_color.precision, native_color.precision);

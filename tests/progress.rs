@@ -52,7 +52,7 @@ fn track_progress() {
         options: &EncodeOptions,
         image: ImageView,
         mipmaps: bool,
-    ) -> Result<String, EncodeError> {
+    ) -> Result<String, EncodingError> {
         let mut progress_report = String::new();
         let start_time = std::time::Instant::now();
         let log_time = |progress_report: &mut String| {
@@ -181,7 +181,11 @@ fn forward_progress() {
 
     let formats = [Format::BC1_UNORM, Format::BC4_UNORM];
 
-    fn test(format: Format, options: &EncodeOptions, image: ImageView) -> Result<(), EncodeError> {
+    fn test(
+        format: Format,
+        options: &EncodeOptions,
+        image: ImageView,
+    ) -> Result<(), EncodingError> {
         let mut last_progress = 0.0;
         let mut consume_progress = |progress| {
             assert!(progress >= last_progress);
