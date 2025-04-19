@@ -34,43 +34,6 @@ pub use pixel::*;
 pub use progress::*;
 pub use split::*;
 
-/// A convenience trait for easily converting different data representations to
-/// byte slices.
-pub trait AsBytes {
-    fn as_bytes(&self) -> &[u8];
-    fn as_bytes_mut(&mut self) -> &mut [u8];
-}
-macro_rules! for_slices {
-    ($($t:ty),*) => {
-        $(
-            impl AsBytes for [$t] {
-                fn as_bytes(&self) -> &[u8] {
-                    cast::as_bytes(self)
-                }
-                fn as_bytes_mut(&mut self) -> &mut [u8] {
-                    cast::as_bytes_mut(self)
-                }
-            }
-        )*
-    };
-}
-for_slices!(u8, u16, f32);
-macro_rules! for_array_slices {
-    ($($t:ty),*) => {
-        $(
-            impl<const N: usize> AsBytes for [[$t; N]] {
-                fn as_bytes(&self) -> &[u8] {
-                    cast::as_bytes(self)
-                }
-                fn as_bytes_mut(&mut self) -> &mut [u8] {
-                    cast::as_bytes_mut(self)
-                }
-            }
-        )*
-    };
-}
-for_array_slices!(u8, u16, f32);
-
 /// A borrowed slice of image data.
 #[derive(Clone, Copy)]
 pub struct ImageView<'a> {
@@ -82,11 +45,9 @@ impl<'a> ImageView<'a> {
     /// Creates a new image view from the given data, size, and color format.
     ///
     /// The data must be the correct size for the given size and color format.
-    /// If `data.as_bytes().len() != size.pixels() * color.bytes_per_pixel()`,
+    /// If `data.len() != size.pixels() * color.bytes_per_pixel()`,
     /// then `None` is returned.
-    pub fn new<B: AsBytes + ?Sized>(data: &'a B, size: Size, color: ColorFormat) -> Option<Self> {
-        let data = data.as_bytes();
-
+    pub fn new(data: &'a [u8], size: Size, color: ColorFormat) -> Option<Self> {
         if data.len() as u64 != size.pixels().saturating_mul(color.bytes_per_pixel() as u64) {
             return None;
         }
@@ -125,15 +86,9 @@ impl<'a> ImageViewMut<'a> {
     /// Creates a new image view from the given data, size, and color format.
     ///
     /// The data must be the correct size for the given size and color format.
-    /// If `data.as_bytes().len() != size.pixels() * color.bytes_per_pixel()`,
+    /// If `data.len() != size.pixels() * color.bytes_per_pixel()`,
     /// then `None` is returned.
-    pub fn new<B: AsBytes + ?Sized>(
-        data: &'a mut B,
-        size: Size,
-        color: ColorFormat,
-    ) -> Option<Self> {
-        let data = data.as_bytes_mut();
-
+    pub fn new(data: &'a mut [u8], size: Size, color: ColorFormat) -> Option<Self> {
         if data.len() as u64 != size.pixels().saturating_mul(color.bytes_per_pixel() as u64) {
             return None;
         }
