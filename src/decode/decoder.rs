@@ -219,7 +219,7 @@ impl DecoderSet {
     pub fn decode(
         &self,
         reader: &mut dyn Read,
-        image: ImageViewMut,
+        mut image: ImageViewMut,
         options: &DecodeOptions,
     ) -> Result<(), DecodingError> {
         let color = image.color();
@@ -227,7 +227,7 @@ impl DecoderSet {
 
         let args = Args::new(
             reader,
-            image.data,
+            image.data(),
             DecodeContext {
                 color,
                 size,
