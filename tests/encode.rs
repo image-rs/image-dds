@@ -88,10 +88,7 @@ fn encode_base() {
                 // round down to the nearest multiple
                 let w_mul = size_multiple.width;
                 let h_mul = size_multiple.height;
-                size = Size::new(
-                    (size.width / w_mul) * w_mul,
-                    (size.height / h_mul) * h_mul,
-                );
+                size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
             }
         };
 
