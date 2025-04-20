@@ -411,7 +411,13 @@ impl PreferredGroupSize {
 }
 
 pub(crate) type SizeMultiple = (NonZeroU8, NonZeroU8);
-const SIZE_MUL_2X2: SizeMultiple = (NonZeroU8::new(2).unwrap(), NonZeroU8::new(2).unwrap());
+const SIZE_MUL_2X2: SizeMultiple = {
+    if let Some(two) = NonZeroU8::new(2) {
+        (two, two)
+    } else {
+        unreachable!()
+    }
+};
 
 /// Describes the extent of support for encoding a format.
 #[derive(Debug, Clone, Copy)]
