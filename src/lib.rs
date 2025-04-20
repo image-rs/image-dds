@@ -95,7 +95,7 @@ impl<'a> ImageViewMut<'a> {
         Some(Self { data, size, color })
     }
 
-    pub fn data(&'a mut self) -> &'a mut [u8] {
+    pub fn data(&mut self) -> &mut [u8] {
         self.data
     }
 
