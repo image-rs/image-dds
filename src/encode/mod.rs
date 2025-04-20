@@ -480,17 +480,25 @@ impl EncodingSupport {
     /// If `Some` is returned, the width and height of the returned value are
     /// both non-zero, and at least one of them is greater than 1.
     ///
+    /// Use [`EncodingSupport::supports_size()`] to check if a given image size
+    /// is supported by the format.
+    ///
     /// # Example
     ///
     /// ```
     /// # use dds::*;
+    /// let format = Format::NV12;
+    /// let encoding = format.encoding_support().unwrap();
+    ///
     /// assert_eq!(
-    ///     Format::NV12.encoding_support().unwrap().size_multiple(),
+    ///     encoding.size_multiple(),
     ///     Some(Size {
     ///         width: 2,
     ///         height: 2,
     ///     })
     /// );
+    /// assert_eq!(encoding.supports_size(Size::new(2, 2)), true);
+    /// assert_eq!(encoding.supports_size(Size::new(3, 2)), false);
     /// ```
     pub const fn size_multiple(&self) -> Option<Size> {
         if let Some((w, h)) = self.size_multiple {
@@ -500,6 +508,17 @@ impl EncodingSupport {
             })
         } else {
             None
+        }
+    }
+    /// Whether the given image size is supported for encoding.
+    ///
+    /// This will always return `true` if [`EncodingSupport::size_multiple()`]
+    /// is `None`.
+    pub const fn supports_size(&self, size: Size) -> bool {
+        if let Some((w, h)) = self.size_multiple {
+            size.width % w.get() as u32 == 0 && size.height % h.get() as u32 == 0
+        } else {
+            true
         }
     }
 
