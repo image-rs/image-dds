@@ -59,6 +59,11 @@ pub(crate) const NON_ZERO_U32_ONE: NonZeroU32 = {
 };
 
 pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> NonZeroU32 {
+    // avoid overflow
+    if level >= 31 {
+        return NON_ZERO_U32_ONE;
+    }
+
     let size = main_size >> level;
     if let Some(size) = NonZeroU32::new(size) {
         size
@@ -176,5 +181,22 @@ mod test {
         assert_eq!(1.0, super::clamp_0_1(1.0));
         assert_eq!(1.0, super::clamp_0_1(2.0));
         assert_eq!(0.0, super::clamp_0_1(f32::NAN));
+    }
+
+    #[test]
+    fn mipmap() {
+        assert_eq!(super::get_mipmap_size(100, 0).get(), 100);
+        assert_eq!(super::get_mipmap_size(100, 1).get(), 50);
+        assert_eq!(super::get_mipmap_size(100, 2).get(), 25);
+        assert_eq!(super::get_mipmap_size(100, 3).get(), 12);
+        assert_eq!(super::get_mipmap_size(100, 4).get(), 6);
+        assert_eq!(super::get_mipmap_size(100, 5).get(), 3);
+        assert_eq!(super::get_mipmap_size(100, 6).get(), 1);
+        assert_eq!(super::get_mipmap_size(100, 7).get(), 1);
+        assert_eq!(super::get_mipmap_size(100, 8).get(), 1);
+        assert_eq!(super::get_mipmap_size(100, 20).get(), 1);
+        assert_eq!(super::get_mipmap_size(100, 31).get(), 1);
+        assert_eq!(super::get_mipmap_size(100, 32).get(), 1);
+        assert_eq!(super::get_mipmap_size(100, 100).get(), 1);
     }
 }
