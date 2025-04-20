@@ -198,5 +198,10 @@ mod test {
         assert_eq!(super::get_mipmap_size(100, 31).get(), 1);
         assert_eq!(super::get_mipmap_size(100, 32).get(), 1);
         assert_eq!(super::get_mipmap_size(100, 100).get(), 1);
+
+        assert_eq!(super::get_mipmap_size(u32::MAX, 29).get(), 7);
+        assert_eq!(super::get_mipmap_size(u32::MAX, 30).get(), 3);
+        assert_eq!(super::get_mipmap_size(u32::MAX, 31).get(), 1);
+        assert_eq!(super::get_mipmap_size(u32::MAX, 32).get(), 1);
     }
 }
