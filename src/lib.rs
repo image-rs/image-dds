@@ -93,7 +93,7 @@ impl<'a> ImageViewMut<'a> {
         Some(Self { data, size, color })
     }
 
-    pub fn data(&'a mut self) -> &'a mut [u8] {
+    pub fn data(&mut self) -> &mut [u8] {
         self.data
     }
 
@@ -157,11 +157,6 @@ impl Size {
             width: util::get_mipmap_size(self.width, level).get(),
             height: util::get_mipmap_size(self.height, level).get(),
         }
-    }
-}
-impl From<(u32, u32)> for Size {
-    fn from((width, height): (u32, u32)) -> Self {
-        Self { width, height }
     }
 }
 

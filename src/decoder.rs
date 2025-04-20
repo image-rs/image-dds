@@ -211,7 +211,7 @@ impl<R> Decoder<R> {
     ///
     /// It's recommended to use `self.layout().is_cube_map()` to determine
     /// whether the DDS file is a cube map or not.
-    pub fn read_cube_map(&mut self, image: ImageViewMut) -> Result<(), DecodingError>
+    pub fn read_cube_map(&mut self, mut image: ImageViewMut) -> Result<(), DecodingError>
     where
         R: Read + Seek,
     {
@@ -243,7 +243,7 @@ impl<R> Decoder<R> {
         let bytes_per_pixel = color.bytes_per_pixel() as usize;
         let row_pitch = image.row_pitch();
         let rect = Rect::new(0, 0, face_size.width, face_size.height);
-        let image_bytes = image.data;
+        let image_bytes = image.data();
 
         for (_, x, y) in face_offsets
             .into_iter()

@@ -19,7 +19,7 @@ impl Default for BenchConfig {
     fn default() -> Self {
         Self {
             data_modifier: Box::new(|_| {}),
-            size: (4096, 4096).into(),
+            size: Size::new(4096, 4096),
             name: String::new(),
         }
     }
@@ -165,11 +165,11 @@ pub fn uncompressed(c: &mut Criterion) {
     // block-compressed formats
     bench_decoder(c, Format::BC1_UNORM, Rgba, U8);
     bench_decoder_with(c, Format::BC1_UNORM, Rgba, U8, |c| {
-        c.size = (4095, 4095).into();
+        c.size = Size::new(4095, 4095);
     });
     bench_decoder(c, Format::BC1_UNORM, Rgb, U8);
     bench_decoder_with(c, Format::BC1_UNORM, Rgb, U8, |c| {
-        c.size = (4095, 4095).into();
+        c.size = Size::new(4095, 4095);
     });
     bench_decoder(c, Format::BC4_UNORM, Grayscale, U8);
     bench_decoder(c, Format::BC4_SNORM, Grayscale, U8);
@@ -178,27 +178,27 @@ pub fn uncompressed(c: &mut Criterion) {
     });
     bench_decoder_with(c, Format::BC6H_SF16, Rgb, U8, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
-        c.size = (1024, 1024).into();
+        c.size = Size::new(1024, 1024);
     });
     bench_decoder_with(c, Format::BC6H_SF16, Rgb, U16, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
-        c.size = (1024, 1024).into();
+        c.size = Size::new(1024, 1024);
     });
     bench_decoder_with(c, Format::BC6H_SF16, Rgb, F32, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
-        c.size = (1024, 1024).into();
+        c.size = Size::new(1024, 1024);
     });
     bench_decoder_with(c, Format::BC6H_UF16, Rgb, U8, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
-        c.size = (1024, 1024).into();
+        c.size = Size::new(1024, 1024);
     });
     bench_decoder_with(c, Format::BC6H_UF16, Rgb, U16, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
-        c.size = (1024, 1024).into();
+        c.size = Size::new(1024, 1024);
     });
     bench_decoder_with(c, Format::BC6H_UF16, Rgb, F32, |c| {
         c.data_modifier = Box::new(random_bc6_modes);
-        c.size = (1024, 1024).into();
+        c.size = Size::new(1024, 1024);
     });
 }
 
@@ -213,7 +213,7 @@ pub fn bc7_modes(c: &mut Criterion) {
                 set_bc7_modes(data, mode);
             });
             c.name = format!("mode {mode}");
-            c.size = (1024, 1024).into();
+            c.size = Size::new(1024, 1024);
         });
     }
 }
