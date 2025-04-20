@@ -84,7 +84,15 @@ fn encode_base() {
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
         let mut size = base_u8.size;
         if let Some(support) = format.encoding_support() {
-            size = size.round_down_to_multiple(support.size_multiple());
+            if let Some(size_multiple) = support.size_multiple() {
+                // round down to the nearest multiple
+                let w_mul = size_multiple.width;
+                let h_mul = size_multiple.height;
+                size = Size::new(
+                    (size.width / w_mul) * w_mul,
+                    (size.height / h_mul) * h_mul,
+                );
+            }
         };
 
         let mut output = Vec::new();
@@ -577,7 +585,7 @@ fn encode_all_color_formats() {
 
     for &format in util::ALL_FORMATS {
         if let Some(support) = format.encoding_support() {
-            if support.size_multiple() != SizeMultiple::ONE {
+            if support.size_multiple().is_some() {
                 continue;
             }
         } else {

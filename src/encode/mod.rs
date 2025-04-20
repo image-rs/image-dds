@@ -1,6 +1,6 @@
 use std::{io::Write, num::NonZeroU8};
 
-use crate::{EncodingError, Format, ImageView, Progress, SizeMultiple};
+use crate::{EncodingError, Format, ImageView, Progress, Size};
 
 mod bc;
 mod bc1;
@@ -410,13 +410,16 @@ impl PreferredGroupSize {
     }
 }
 
+pub(crate) type SizeMultiple = (NonZeroU8, NonZeroU8);
+const SIZE_MUL_2X2: SizeMultiple = (NonZeroU8::new(2).unwrap(), NonZeroU8::new(2).unwrap());
+
 /// Describes the extent of support for encoding a format.
 #[derive(Debug, Clone, Copy)]
 pub struct EncodingSupport {
     dithering: Dithering,
     split_height: Option<NonZeroU8>,
     local_dithering: bool,
-    size_multiple: SizeMultiple,
+    size_multiple: Option<SizeMultiple>,
     group_size: PreferredGroupSize,
 }
 
@@ -466,12 +469,38 @@ impl EncodingSupport {
     pub const fn local_dithering(&self) -> bool {
         self.local_dithering
     }
-    /// The size multiple of the encoded image.
+    /// The size multiple of the encoded image, if any.
     ///
-    /// If the dimensions of the image are not multiples of this size, the
-    /// encoder with return an error.
-    pub const fn size_multiple(&self) -> SizeMultiple {
-        self.size_multiple
+    /// Some formats require the image to be a multiple of a certain size.
+    /// E.g. `NV12` requires the image to be a multiple of 2x2 pixels, meaning that
+    /// the width and height of the image must be even.
+    ///
+    /// Formats that can encode images of any size will return `None`.
+    ///
+    /// If `Some` is returned, the width and height of the returned value are
+    /// both non-zero, and at least one of them is greater than 1.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use dds::*;
+    /// assert_eq!(
+    ///     Format::NV12.encoding_support().unwrap().size_multiple(),
+    ///     Some(Size {
+    ///         width: 2,
+    ///         height: 2,
+    ///     })
+    /// );
+    /// ```
+    pub const fn size_multiple(&self) -> Option<Size> {
+        if let Some((w, h)) = self.size_multiple {
+            Some(Size {
+                width: w.get() as u32,
+                height: h.get() as u32,
+            })
+        } else {
+            None
+        }
     }
 
     pub(crate) fn group_size(&self) -> PreferredGroupSize {
