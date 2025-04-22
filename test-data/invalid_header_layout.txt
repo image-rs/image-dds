@@ -202,7 +202,7 @@ Header:
         dxgi_format: UNKNOWN (0)
 
 Error:
-    DXGI format UNKNOWN (0) is not supported for decoding
+    Unsupported DXGI format: UNKNOWN (0)
 
 
 
@@ -212,7 +212,7 @@ Header:
     format: FourCC(0x0)
 
 Error:
-    Unsupported FourCC(0x0) in DX10 header extension
+    Unsupported FourCC pixel format: FourCC(0x0)
 
 
 

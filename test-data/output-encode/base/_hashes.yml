@@ -161,55 +161,55 @@ BC5_SNORM.dds: >
     87a0da7787d1e5134fd6ae91b8e01ce7b4b608490060da797830bfad74d7ffa5
 
 BC6H_UF16.dds: >
-    Error: Unsupported format: BC6H_UF16
+    Error: Unsupported format for encoding: BC6H_UF16
 
 BC6H_SF16.dds: >
-    Error: Unsupported format: BC6H_SF16
+    Error: Unsupported format for encoding: BC6H_SF16
 
 BC7_UNORM.dds: >
-    Error: Unsupported format: BC7_UNORM
+    Error: Unsupported format for encoding: BC7_UNORM
 
 ASTC_4X4_UNORM.dds: >
-    Error: Unsupported format: ASTC_4X4_UNORM
+    Error: Unsupported format for encoding: ASTC_4X4_UNORM
 
 ASTC_5X4_UNORM.dds: >
-    Error: Unsupported format: ASTC_5X4_UNORM
+    Error: Unsupported format for encoding: ASTC_5X4_UNORM
 
 ASTC_5X5_UNORM.dds: >
-    Error: Unsupported format: ASTC_5X5_UNORM
+    Error: Unsupported format for encoding: ASTC_5X5_UNORM
 
 ASTC_6X5_UNORM.dds: >
-    Error: Unsupported format: ASTC_6X5_UNORM
+    Error: Unsupported format for encoding: ASTC_6X5_UNORM
 
 ASTC_6X6_UNORM.dds: >
-    Error: Unsupported format: ASTC_6X6_UNORM
+    Error: Unsupported format for encoding: ASTC_6X6_UNORM
 
 ASTC_8X5_UNORM.dds: >
-    Error: Unsupported format: ASTC_8X5_UNORM
+    Error: Unsupported format for encoding: ASTC_8X5_UNORM
 
 ASTC_8X6_UNORM.dds: >
-    Error: Unsupported format: ASTC_8X6_UNORM
+    Error: Unsupported format for encoding: ASTC_8X6_UNORM
 
 ASTC_8X8_UNORM.dds: >
-    Error: Unsupported format: ASTC_8X8_UNORM
+    Error: Unsupported format for encoding: ASTC_8X8_UNORM
 
 ASTC_10X5_UNORM.dds: >
-    Error: Unsupported format: ASTC_10X5_UNORM
+    Error: Unsupported format for encoding: ASTC_10X5_UNORM
 
 ASTC_10X6_UNORM.dds: >
-    Error: Unsupported format: ASTC_10X6_UNORM
+    Error: Unsupported format for encoding: ASTC_10X6_UNORM
 
 ASTC_10X8_UNORM.dds: >
-    Error: Unsupported format: ASTC_10X8_UNORM
+    Error: Unsupported format for encoding: ASTC_10X8_UNORM
 
 ASTC_10X10_UNORM.dds: >
-    Error: Unsupported format: ASTC_10X10_UNORM
+    Error: Unsupported format for encoding: ASTC_10X10_UNORM
 
 ASTC_12X10_UNORM.dds: >
-    Error: Unsupported format: ASTC_12X10_UNORM
+    Error: Unsupported format for encoding: ASTC_12X10_UNORM
 
 ASTC_12X12_UNORM.dds: >
-    Error: Unsupported format: ASTC_12X12_UNORM
+    Error: Unsupported format for encoding: ASTC_12X12_UNORM
 
 BC3_UNORM_RXGB.dds: >
     d5d5d409d9c5a472b958b24b074614b71114103e1db1c063eb78744972667c4a

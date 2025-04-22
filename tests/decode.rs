@@ -417,3 +417,102 @@ fn test_unaligned() {
         }
     }
 }
+
+#[test]
+fn test_decoder_errors() {
+    fn new_decoder_32x32() -> Decoder<Cursor<Vec<u8>>> {
+        let header = Header::new_image(32, 32, Format::R8G8B8A8_UNORM);
+        let len = DataLayout::from_header(&header).unwrap().data_len();
+        let data = vec![0_u8; len as usize];
+        Decoder::from_header(Cursor::new(data), header).unwrap()
+    }
+    fn new_decoder_16x16x16() -> Decoder<Cursor<Vec<u8>>> {
+        let header = Header::new_volume(16, 16, 16, Format::R8G8B8A8_UNORM);
+        let len = DataLayout::from_header(&header).unwrap().data_len();
+        let data = vec![0_u8; len as usize];
+        Decoder::from_header(Cursor::new(data), header).unwrap()
+    }
+
+    {
+        // wrong surface size
+        let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(32, 16));
+        let mut decoder = new_decoder_32x32();
+
+        let result = decoder.read_surface(image.view_mut());
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, DecodingError::UnexpectedSurfaceSize));
+        assert_eq!(err.to_string(), "Unexpected surface size");
+    }
+
+    {
+        // no more surfaces
+        let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(32, 32));
+        let mut decoder = new_decoder_32x32();
+        decoder.read_surface(image.view_mut()).unwrap(); // read first and only surface
+        decoder.rewind_to_previous_surface().unwrap(); // rewind to the first surface
+        decoder.skip_surface().unwrap(); // skip the first surface
+
+        let result = decoder.read_surface(image.view_mut());
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, DecodingError::NoMoreSurfaces));
+        assert_eq!(err.to_string(), "No more surfaces to decode");
+    }
+
+    {
+        // not a cube map
+        let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(32 * 4, 32 * 3));
+        let mut decoder = new_decoder_32x32();
+
+        let result = decoder.read_cube_map(image.view_mut());
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, DecodingError::NotACubeMap));
+        assert_eq!(err.to_string(), "The DDS file is not a cube map");
+    }
+
+    {
+        // skip within volume
+        let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(16, 16));
+        let mut decoder = new_decoder_16x16x16();
+        decoder.skip_mipmaps().unwrap(); // does nothing
+        decoder.read_surface(image.view_mut()).unwrap(); // read first depth slice
+
+        let result = decoder.skip_mipmaps();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, DecodingError::CannotSkipMipmapsInVolume));
+        assert_eq!(
+            err.to_string(),
+            "Cannot skip mipmaps within a volume texture"
+        );
+    }
+}
+
+#[test]
+fn test_memory_limit() {
+    fn new_decoder_nv12() -> Decoder<Cursor<Vec<u8>>> {
+        let header = Header::new_image(64, 64, Format::NV12);
+        let len = DataLayout::from_header(&header).unwrap().data_len();
+        let data = vec![0_u8; len as usize];
+        Decoder::from_header(Cursor::new(data), header).unwrap()
+    }
+
+    let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(64, 64));
+    let mut decoder = new_decoder_nv12();
+
+    // reading without a memory limit works just fine
+    decoder.read_surface(image.view_mut()).unwrap();
+    decoder.rewind_to_start().unwrap();
+    decoder.read_surface(image.view_mut()).unwrap();
+    decoder.rewind_to_start().unwrap();
+
+    // memory limit results in an error
+    decoder.options.memory_limit = 0;
+    let result = decoder.read_surface(image.view_mut());
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(err, DecodingError::MemoryLimitExceeded));
+    assert_eq!(err.to_string(), "Memory limit exceeded");
+}
