@@ -18,8 +18,6 @@ mod resize;
 mod split;
 mod util;
 
-use std::num::NonZeroU8;
-
 pub use color::*;
 pub use decode::{decode, decode_rect, DecodeOptions};
 pub use decoder::*;
@@ -160,41 +158,6 @@ impl Size {
             width: util::get_mipmap_size(self.width, level).get(),
             height: util::get_mipmap_size(self.height, level).get(),
         }
-    }
-
-    pub const fn is_multiple_of(&self, multiple: SizeMultiple) -> bool {
-        self.width % multiple.width_multiple.get() as u32 == 0
-            && self.height % multiple.height_multiple.get() as u32 == 0
-    }
-    pub const fn round_down_to_multiple(&self, multiple: SizeMultiple) -> Self {
-        Self {
-            width: self.width - self.width % multiple.width_multiple.get() as u32,
-            height: self.height - self.height % multiple.height_multiple.get() as u32,
-        }
-    }
-}
-
-// TODO: Rethink this API
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SizeMultiple {
-    pub width_multiple: NonZeroU8,
-    pub height_multiple: NonZeroU8,
-}
-impl SizeMultiple {
-    pub const ONE: Self = Self::new(1, 1);
-    // TODO: rename
-    pub const M2_2: Self = Self::new(2, 2);
-
-    const fn new(width_multiple: u8, height_multiple: u8) -> Self {
-        if let Some(width_multiple) = NonZeroU8::new(width_multiple) {
-            if let Some(height_multiple) = NonZeroU8::new(height_multiple) {
-                return Self {
-                    width_multiple,
-                    height_multiple,
-                };
-            }
-        }
-        panic!("SizeMultiple must be non-zero");
     }
 }
 

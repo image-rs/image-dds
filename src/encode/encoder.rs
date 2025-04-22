@@ -4,10 +4,11 @@ use bitflags::bitflags;
 
 use crate::{
     cast, ColorFormat, ColorFormatSet, EncodingError, ImageView, Precision, Progress, Report,
-    SizeMultiple,
 };
 
-use super::{Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize};
+use super::{
+    Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize, SizeMultiple, SIZE_MUL_2X2,
+};
 
 pub(crate) struct Args<'a, 'b, 'c, 'd> {
     pub data: &'a [u8],
@@ -143,7 +144,7 @@ bitflags! {
 pub(crate) struct EncoderSet {
     flags: EncodeFormatFlags,
     split_height: Option<NonZeroU8>,
-    size_multiple: SizeMultiple,
+    size_multiple: Option<SizeMultiple>,
     encoders: &'static [Encoder],
 }
 impl EncoderSet {
@@ -178,7 +179,7 @@ impl EncoderSet {
         Self {
             flags,
             split_height: NonZeroU8::new(1),
-            size_multiple: SizeMultiple::ONE,
+            size_multiple: None,
             encoders,
         }
     }
@@ -191,7 +192,7 @@ impl EncoderSet {
     pub const fn new_bi_planar(encoders: &'static [Encoder]) -> Self {
         let mut set = Self::new(encoders);
         set.split_height = None;
-        set.size_multiple = SizeMultiple::M2_2;
+        set.size_multiple = Some(SIZE_MUL_2X2);
         set
     }
 

@@ -1,12 +1,14 @@
 // helpers
 
+use std::num::NonZeroU32;
+
 use super::{
     encoder::{Args, Encoder, EncoderSet},
     EncodeOptions,
 };
 use crate::{
     cast::{self, ToLe},
-    convert_to_rgba_f32, util, yuv10, yuv16, yuv8, EncodingError, Report, SizeMultiple,
+    convert_to_rgba_f32, util, yuv10, yuv16, yuv8, EncodingError, Report,
 };
 
 #[allow(clippy::type_complexity)]
@@ -30,10 +32,10 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
 
     if width % BLOCK_WIDTH != 0 || height % BLOCK_HEIGHT != 0 {
-        return Err(EncodingError::InvalidSize(SizeMultiple::new(
-            BLOCK_WIDTH as u8,
-            BLOCK_HEIGHT as u8,
-        )));
+        return Err(EncodingError::InvalidSize(
+            NonZeroU32::new(BLOCK_WIDTH as u32).unwrap(),
+            NonZeroU32::new(BLOCK_HEIGHT as u32).unwrap(),
+        ));
     }
 
     let mut intermediate_buffer = vec![[0_f32; 4]; width * BLOCK_HEIGHT];
