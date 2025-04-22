@@ -833,7 +833,7 @@ mod errors {
         let result = encoder.write_surface(image.view());
         assert!(result.is_err());
         let err = result.err().unwrap();
-        assert!(matches!(err, EncodingError::InvalidSize(_)));
+        assert!(matches!(err, EncodingError::InvalidSize(_, _)));
         assert_eq!(err.to_string(), "Size must be a multiple of 2x2");
     }
 
