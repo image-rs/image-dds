@@ -25,7 +25,7 @@ where
         );
 
         let width = footprint.block_width() as usize;
-        astc_decode::astc_decode_block(bytes, footprint, |x, y, [r, g, b, a]| {
+        astc_decode::astc_decode_block(bytes, footprint, move |x, y, [r, g, b, a]| {
             out[y as usize * width + x as usize] = [
                 NormConvert::to(r),
                 NormConvert::to(g),
