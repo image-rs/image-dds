@@ -1,15 +1,17 @@
 [package]
 name = "dds"
 version = "0.1.0"
-license = "MIT OR Apache-2.0"
-
-description = "DDS de/encoding library in pure safe Rust"
-categories = ["multimedia::images"]
-authors = ["Michael Schmidt"]
-repository = "https://github.com/RunDevelopment/dds"
-
 edition = "2021"
 rust-version = "1.63.0"
+
+license = "MIT OR Apache-2.0"
+description = "DDS de/encoder written in 100% safe Rust"
+authors = ["Michael Schmidt"]
+
+repository = "https://github.com/image-rs/image-dds"
+homepage = "https://github.com/image-rs/image-dds"
+categories = ["multimedia::images", "multimedia::encoding"]
+
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

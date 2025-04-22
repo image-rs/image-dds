@@ -151,6 +151,7 @@ impl Size {
     /// assert_eq!(size.get_mipmap(8), Size::new(1, 1));
     /// assert_eq!(size.get_mipmap(9), Size::new(1, 1));
     /// // From now on, it's always 1x1
+    /// assert_eq!(size.get_mipmap(255), Size::new(1, 1));
     /// ```
     pub const fn get_mipmap(&self, level: u8) -> Self {
         Self {
