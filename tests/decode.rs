@@ -341,41 +341,6 @@ fn neg_infinity_bc6_blocks() {
 }
 
 #[test]
-fn test_rect_out_of_bounds() {
-    // decodes a dummy 2x3 image to GRAY U8
-    let decode_dummy = |rect: Rect, output: &mut [u8], row_pitch: usize| {
-        let data: &[u8] = &[0, 0, 0, 0, 0, 0];
-        dds::decode_rect(
-            &mut std::io::Cursor::new(data),
-            output,
-            row_pitch,
-            ColorFormat::GRAYSCALE_U8,
-            Size::new(2, 3),
-            rect,
-            Format::R8_UNORM,
-            &DecodeOptions::default(),
-        )
-    };
-
-    let result = decode_dummy(Rect::new(0, 0, 100, 100), &mut [], 0);
-    assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
-    assert_eq!(
-        format!("{}", result.unwrap_err()),
-        "Rectangle is out of bounds of the image size"
-    );
-
-    let result = decode_dummy(Rect::new(2, 2, 1, 1), &mut [], 0);
-    assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
-
-    // even empty rect can be OoB
-    let result = decode_dummy(Rect::new(4, 0, 0, 0), &mut [], 0);
-    assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
-    // edge case: empty rect at the end of the image
-    let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
-    assert!(matches!(result, Ok(())));
-}
-
-#[test]
 fn test_unaligned() {
     // dummy image data of the encoded image
     let mut dummy_data = vec![0_u8; 4096];
@@ -418,8 +383,9 @@ fn test_unaligned() {
     }
 }
 
-#[test]
-fn test_decoder_errors() {
+mod errors {
+    use super::*;
+
     fn new_decoder_32x32() -> Decoder<Cursor<Vec<u8>>> {
         let header = Header::new_image(32, 32, Format::R8G8B8A8_UNORM);
         let len = DataLayout::from_header(&header).unwrap().data_len();
@@ -433,8 +399,8 @@ fn test_decoder_errors() {
         Decoder::from_header(Cursor::new(data), header).unwrap()
     }
 
-    {
-        // wrong surface size
+    #[test]
+    fn wrong_surface_size() {
         let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(32, 16));
         let mut decoder = new_decoder_32x32();
 
@@ -445,8 +411,8 @@ fn test_decoder_errors() {
         assert_eq!(err.to_string(), "Unexpected surface size");
     }
 
-    {
-        // no more surfaces
+    #[test]
+    fn no_more_surfaces() {
         let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(32, 32));
         let mut decoder = new_decoder_32x32();
         decoder.read_surface(image.view_mut()).unwrap(); // read first and only surface
@@ -460,8 +426,8 @@ fn test_decoder_errors() {
         assert_eq!(err.to_string(), "No more surfaces to decode");
     }
 
-    {
-        // not a cube map
+    #[test]
+    fn not_a_cube_map() {
         let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(32 * 4, 32 * 3));
         let mut decoder = new_decoder_32x32();
 
@@ -472,8 +438,8 @@ fn test_decoder_errors() {
         assert_eq!(err.to_string(), "The DDS file is not a cube map");
     }
 
-    {
-        // skip within volume
+    #[test]
+    fn cannot_skip_mipmaps_in_volume() {
         let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(16, 16));
         let mut decoder = new_decoder_16x16x16();
         decoder.skip_mipmaps().unwrap(); // does nothing
@@ -488,31 +454,66 @@ fn test_decoder_errors() {
             "Cannot skip mipmaps within a volume texture"
         );
     }
-}
 
-#[test]
-fn test_memory_limit() {
-    fn new_decoder_nv12() -> Decoder<Cursor<Vec<u8>>> {
-        let header = Header::new_image(64, 64, Format::NV12);
-        let len = DataLayout::from_header(&header).unwrap().data_len();
-        let data = vec![0_u8; len as usize];
-        Decoder::from_header(Cursor::new(data), header).unwrap()
+    #[test]
+    fn memory_limit() {
+        fn new_decoder_nv12() -> Decoder<Cursor<Vec<u8>>> {
+            let header = Header::new_image(64, 64, Format::NV12);
+            let len = DataLayout::from_header(&header).unwrap().data_len();
+            let data = vec![0_u8; len as usize];
+            Decoder::from_header(Cursor::new(data), header).unwrap()
+        }
+
+        let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(64, 64));
+        let mut decoder = new_decoder_nv12();
+
+        // reading without a memory limit works just fine
+        decoder.read_surface(image.view_mut()).unwrap();
+        decoder.rewind_to_start().unwrap();
+        decoder.read_surface(image.view_mut()).unwrap();
+        decoder.rewind_to_start().unwrap();
+
+        // memory limit results in an error
+        decoder.options.memory_limit = 0;
+        let result = decoder.read_surface(image.view_mut());
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err, DecodingError::MemoryLimitExceeded));
+        assert_eq!(err.to_string(), "Memory limit exceeded");
     }
 
-    let mut image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(64, 64));
-    let mut decoder = new_decoder_nv12();
+    #[test]
+    fn rect_out_of_bounds() {
+        // decodes a dummy 2x3 image to GRAY U8
+        let decode_dummy = |rect: Rect, output: &mut [u8], row_pitch: usize| {
+            let data: &[u8] = &[0, 0, 0, 0, 0, 0];
+            dds::decode_rect(
+                &mut std::io::Cursor::new(data),
+                output,
+                row_pitch,
+                ColorFormat::GRAYSCALE_U8,
+                Size::new(2, 3),
+                rect,
+                Format::R8_UNORM,
+                &DecodeOptions::default(),
+            )
+        };
 
-    // reading without a memory limit works just fine
-    decoder.read_surface(image.view_mut()).unwrap();
-    decoder.rewind_to_start().unwrap();
-    decoder.read_surface(image.view_mut()).unwrap();
-    decoder.rewind_to_start().unwrap();
+        let result = decode_dummy(Rect::new(0, 0, 100, 100), &mut [], 0);
+        assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
+        assert_eq!(
+            format!("{}", result.unwrap_err()),
+            "Rectangle is out of bounds of the image size"
+        );
 
-    // memory limit results in an error
-    decoder.options.memory_limit = 0;
-    let result = decoder.read_surface(image.view_mut());
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(matches!(err, DecodingError::MemoryLimitExceeded));
-    assert_eq!(err.to_string(), "Memory limit exceeded");
+        let result = decode_dummy(Rect::new(2, 2, 1, 1), &mut [], 0);
+        assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
+
+        // even empty rect can be OoB
+        let result = decode_dummy(Rect::new(4, 0, 0, 0), &mut [], 0);
+        assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
+        // edge case: empty rect at the end of the image
+        let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
+        assert!(matches!(result, Ok(())));
+    }
 }
