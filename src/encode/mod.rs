@@ -1,6 +1,9 @@
-use std::{io::Write, num::NonZeroU8};
+use std::{
+    io::Write,
+    num::{NonZeroU32, NonZeroU8},
+};
 
-use crate::{EncodingError, Format, ImageView, Progress, SizeMultiple};
+use crate::{EncodingError, Format, ImageView, Progress, Size};
 
 mod bc;
 mod bc1;
@@ -410,13 +413,22 @@ impl PreferredGroupSize {
     }
 }
 
+pub(crate) type SizeMultiple = (NonZeroU8, NonZeroU8);
+const SIZE_MUL_2X2: SizeMultiple = {
+    if let Some(two) = NonZeroU8::new(2) {
+        (two, two)
+    } else {
+        unreachable!()
+    }
+};
+
 /// Describes the extent of support for encoding a format.
 #[derive(Debug, Clone, Copy)]
 pub struct EncodingSupport {
     dithering: Dithering,
     split_height: Option<NonZeroU8>,
     local_dithering: bool,
-    size_multiple: SizeMultiple,
+    size_multiple: Option<SizeMultiple>,
     group_size: PreferredGroupSize,
 }
 
@@ -466,12 +478,59 @@ impl EncodingSupport {
     pub const fn local_dithering(&self) -> bool {
         self.local_dithering
     }
-    /// The size multiple of the encoded image.
+    /// The size multiple of the encoded image, if any.
     ///
-    /// If the dimensions of the image are not multiples of this size, the
-    /// encoder with return an error.
-    pub const fn size_multiple(&self) -> SizeMultiple {
-        self.size_multiple
+    /// Some formats require the image to be a multiple of a certain size.
+    /// E.g. `NV12` requires the image to be a multiple of 2x2 pixels, meaning that
+    /// the width and height of the image must be even.
+    ///
+    /// Formats that can encode images of any size will return `None`.
+    ///
+    /// If `Some` is returned, the width and height of the returned value are
+    /// both non-zero, and at least one of them is greater than 1.
+    ///
+    /// Use [`EncodingSupport::supports_size()`] to check if a given image size
+    /// is supported by the format.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use dds::*;
+    /// # use std::num::NonZeroU32;
+    /// let format = Format::NV12;
+    /// let encoding = format.encoding_support().unwrap();
+    ///
+    /// assert_eq!(
+    ///     encoding.size_multiple(),
+    ///     Some((NonZeroU32::new(2).unwrap(), NonZeroU32::new(2).unwrap()))
+    /// );
+    /// assert_eq!(encoding.supports_size(Size::new(2, 2)), true);
+    /// assert_eq!(encoding.supports_size(Size::new(3, 2)), false);
+    /// ```
+    pub const fn size_multiple(&self) -> Option<(NonZeroU32, NonZeroU32)> {
+        if let Some((w, h)) = self.size_multiple {
+            if let (Some(w), Some(h)) = (
+                NonZeroU32::new(w.get() as u32),
+                NonZeroU32::new(h.get() as u32),
+            ) {
+                Some((w, h))
+            } else {
+                unreachable!()
+            }
+        } else {
+            None
+        }
+    }
+    /// Whether the given image size is supported for encoding.
+    ///
+    /// This will always return `true` if [`EncodingSupport::size_multiple()`]
+    /// is `None`.
+    pub const fn supports_size(&self, size: Size) -> bool {
+        if let Some((w, h)) = self.size_multiple {
+            size.width % w.get() as u32 == 0 && size.height % h.get() as u32 == 0
+        } else {
+            true
+        }
     }
 
     pub(crate) fn group_size(&self) -> PreferredGroupSize {

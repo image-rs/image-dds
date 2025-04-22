@@ -111,12 +111,8 @@ fn supported_formats_metadata() {
                     "❌".to_string()
                 };
 
-                let size_multiple = encoding.size_multiple();
-                let size_mul = if size_multiple != SizeMultiple::ONE {
-                    format!(
-                        "{}x{}",
-                        size_multiple.width_multiple, size_multiple.height_multiple
-                    )
+                let size_mul = if let Some((w, h)) = encoding.size_multiple() {
+                    format!("{w}x{h}")
                 } else {
                     "".to_string()
                 };

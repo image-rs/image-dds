@@ -69,7 +69,7 @@ fn track_progress() {
         let mut progress = Progress::new(&mut consume_progress);
 
         let mut header = Header::new_image(image.width(), image.height(), format);
-        if mipmaps && format.encoding_support().unwrap().size_multiple() == SizeMultiple::ONE {
+        if mipmaps && format.encoding_support().unwrap().size_multiple().is_none() {
             header = header.with_mipmaps();
         }
 
@@ -194,7 +194,7 @@ fn forward_progress() {
         let mut progress = Progress::new(&mut consume_progress);
 
         let mut header = Header::new_image(image.width(), image.height(), format);
-        if format.encoding_support().unwrap().size_multiple() == SizeMultiple::ONE {
+        if format.encoding_support().unwrap().size_multiple().is_none() {
             header = header.with_mipmaps();
         }
 

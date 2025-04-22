@@ -1,6 +1,8 @@
+use std::num::NonZeroU32;
+
 use crate::{
     header::{DxgiFormat, FourCC, Header},
-    Format, SizeMultiple,
+    Format,
 };
 
 #[derive(Debug)]
@@ -299,7 +301,7 @@ pub enum EncodingError {
     /// Returned by [`crate::Encoder`] and [`crate::encode()`] when the format
     /// does not support encoding.
     UnsupportedFormat(Format),
-    InvalidSize(SizeMultiple),
+    InvalidSize(NonZeroU32, NonZeroU32),
 
     /// Returned by [`crate::Encoder`] when the user tries to write a surface
     /// with a size that is different from the size declared in the header.
@@ -322,13 +324,8 @@ impl std::fmt::Display for EncodingError {
             EncodingError::UnsupportedFormat(format) => {
                 write!(f, "Unsupported format for encoding: {:?}", format)
             }
-            EncodingError::InvalidSize(size) => {
-                write!(
-                    f,
-                    "Size must be a multiple of {}x{}",
-                    size.width_multiple.get(),
-                    size.height_multiple.get()
-                )
+            EncodingError::InvalidSize(width, height) => {
+                write!(f, "Size is not a multiple of {width}x{height}")
             }
 
             EncodingError::UnexpectedSurfaceSize => {

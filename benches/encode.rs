@@ -202,7 +202,7 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, normal, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, high, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
-    bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
+    // bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
 }
 
 pub fn generate_mipmaps(c: &mut Criterion) {
@@ -239,8 +239,8 @@ pub fn generate_mipmaps(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    encode_uncompressed,
+    // encode_uncompressed,
     encode_compressed,
-    generate_mipmaps
+    // generate_mipmaps
 );
 criterion_main!(benches);
