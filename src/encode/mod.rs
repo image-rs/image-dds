@@ -1,4 +1,7 @@
-use std::{io::Write, num::NonZeroU8};
+use std::{
+    io::Write,
+    num::{NonZeroU32, NonZeroU8},
+};
 
 use crate::{EncodingError, Format, ImageView, Progress, Size};
 
@@ -493,25 +496,27 @@ impl EncodingSupport {
     ///
     /// ```
     /// # use dds::*;
+    /// # use std::num::NonZeroU32;
     /// let format = Format::NV12;
     /// let encoding = format.encoding_support().unwrap();
     ///
     /// assert_eq!(
     ///     encoding.size_multiple(),
-    ///     Some(Size {
-    ///         width: 2,
-    ///         height: 2,
-    ///     })
+    ///     Some((NonZeroU32::new(2).unwrap(), NonZeroU32::new(2).unwrap()))
     /// );
     /// assert_eq!(encoding.supports_size(Size::new(2, 2)), true);
     /// assert_eq!(encoding.supports_size(Size::new(3, 2)), false);
     /// ```
-    pub const fn size_multiple(&self) -> Option<Size> {
+    pub const fn size_multiple(&self) -> Option<(NonZeroU32, NonZeroU32)> {
         if let Some((w, h)) = self.size_multiple {
-            Some(Size {
-                width: w.get() as u32,
-                height: h.get() as u32,
-            })
+            if let (Some(w), Some(h)) = (
+                NonZeroU32::new(w.get() as u32),
+                NonZeroU32::new(h.get() as u32),
+            ) {
+                Some((w, h))
+            } else {
+                unreachable!()
+            }
         } else {
             None
         }

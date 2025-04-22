@@ -1,6 +1,8 @@
+use std::num::NonZeroU32;
+
 use crate::{
     header::{DxgiFormat, FourCC, Header},
-    Format, Size,
+    Format,
 };
 
 #[derive(Debug)]
@@ -297,7 +299,7 @@ impl std::error::Error for HeaderError {
 #[non_exhaustive]
 pub enum EncodingError {
     UnsupportedFormat(Format),
-    InvalidSize(Size),
+    InvalidSize(NonZeroU32, NonZeroU32),
     /// Returned by [`crate::encode()`] when the user tries to write a surface
     /// with width or height of 0.
     EmptySurface,
@@ -323,12 +325,8 @@ impl std::fmt::Display for EncodingError {
             EncodingError::UnsupportedFormat(format) => {
                 write!(f, "Unsupported format: {:?}", format)
             }
-            EncodingError::InvalidSize(size) => {
-                write!(
-                    f,
-                    "Size is not a multiple of {}x{}",
-                    size.width, size.height
-                )
+            EncodingError::InvalidSize(width, height) => {
+                write!(f, "Size is not a multiple of {width}x{height}")
             }
             EncodingError::EmptySurface => write!(f, "Surface has a width or height of 0"),
 

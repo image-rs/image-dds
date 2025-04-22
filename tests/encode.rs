@@ -84,10 +84,10 @@ fn encode_base() {
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
         let mut size = base_u8.size;
         if let Some(support) = format.encoding_support() {
-            if let Some(size_multiple) = support.size_multiple() {
+            if let Some((w_mul, h_mul)) = support.size_multiple() {
                 // round down to the nearest multiple
-                let w_mul = size_multiple.width;
-                let h_mul = size_multiple.height;
+                let w_mul = w_mul.get();
+                let h_mul = h_mul.get();
                 size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
             }
         };

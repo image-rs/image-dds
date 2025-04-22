@@ -111,8 +111,8 @@ fn supported_formats_metadata() {
                     "❌".to_string()
                 };
 
-                let size_mul = if let Some(size_multiple) = encoding.size_multiple() {
-                    format!("{}x{}", size_multiple.width, size_multiple.height)
+                let size_mul = if let Some((w, h)) = encoding.size_multiple() {
+                    format!("{w}x{h}")
                 } else {
                     "".to_string()
                 };
