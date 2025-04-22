@@ -16,10 +16,10 @@ impl std::fmt::Display for FormatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FormatError::UnsupportedDxgiFormat(format) => {
-                write!(f, "DXGI format {:?} is not supported for decoding", format)
+                write!(f, "Unsupported DXGI format: {:?}", format)
             }
             FormatError::UnsupportedFourCC(four_cc) => {
-                write!(f, "Unsupported {:?} in DX10 header extension", four_cc)
+                write!(f, "Unsupported FourCC pixel format: {:?}", four_cc)
             }
             FormatError::UnsupportedPixelFormat => {
                 write!(f, "Unsupported pixel format in the DDS header")
@@ -147,7 +147,7 @@ impl std::fmt::Display for DecodingError {
                 )
             }
             DecodingError::UnexpectedSurfaceSize => {
-                write!(f, "Unexpected size of the surface")
+                write!(f, "Unexpected surface size")
             }
             DecodingError::CannotSkipMipmapsInVolume => {
                 write!(f, "Cannot skip mipmaps within a volume texture")
@@ -298,11 +298,10 @@ impl std::error::Error for HeaderError {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EncodingError {
+    /// Returned by [`crate::Encoder`] and [`crate::encode()`] when the format
+    /// does not support encoding.
     UnsupportedFormat(Format),
     InvalidSize(NonZeroU32, NonZeroU32),
-    /// Returned by [`crate::encode()`] when the user tries to write a surface
-    /// with width or height of 0.
-    EmptySurface,
 
     /// Returned by [`crate::Encoder`] when the user tries to write a surface
     /// with a size that is different from the size declared in the header.
@@ -323,15 +322,14 @@ impl std::fmt::Display for EncodingError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             EncodingError::UnsupportedFormat(format) => {
-                write!(f, "Unsupported format: {:?}", format)
+                write!(f, "Unsupported format for encoding: {:?}", format)
             }
             EncodingError::InvalidSize(width, height) => {
-                write!(f, "Size is not a multiple of {width}x{height}")
+                write!(f, "Size must be a multiple of {width}x{height}")
             }
-            EncodingError::EmptySurface => write!(f, "Surface has a width or height of 0"),
 
             EncodingError::UnexpectedSurfaceSize => {
-                write!(f, "Unexpected size of the surface")
+                write!(f, "Unexpected surface size")
             }
             EncodingError::TooManySurfaces => {
                 write!(f, "Too many surfaces are attempted to written")

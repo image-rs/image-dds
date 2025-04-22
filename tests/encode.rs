@@ -795,3 +795,101 @@ fn test_unaligned() {
         }
     }
 }
+
+mod errors {
+    use super::*;
+
+    #[test]
+    fn unsupported_format() {
+        let result = Encoder::new(
+            std::io::sink(),
+            Format::ASTC_10X10_UNORM,
+            &Header::new_image(1, 1, Format::ASTC_10X10_UNORM),
+        );
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(
+            err,
+            EncodingError::UnsupportedFormat(Format::ASTC_10X10_UNORM)
+        ));
+        assert_eq!(
+            err.to_string(),
+            "Unsupported format for encoding: ASTC_10X10_UNORM"
+        );
+    }
+
+    #[test]
+    fn size_multiple() {
+        // size is required to be multiple of a certain number
+        // NV12 requires 2x2
+        let mut encoder = Encoder::new(
+            std::io::sink(),
+            Format::NV12,
+            &Header::new_image(5, 5, Format::NV12),
+        )
+        .unwrap();
+        let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(5, 5));
+
+        let result = encoder.write_surface(image.view());
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(err, EncodingError::InvalidSize(_, _)));
+        assert_eq!(err.to_string(), "Size must be a multiple of 2x2");
+    }
+
+    #[test]
+    fn wrong_surface_size() {
+        let mut encoder = Encoder::new(
+            std::io::sink(),
+            Format::R8_UNORM,
+            &Header::new_image(8, 8, Format::R8_UNORM),
+        )
+        .unwrap();
+        let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(8, 10));
+
+        let result = encoder.write_surface(image.view());
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(err, EncodingError::UnexpectedSurfaceSize));
+        assert_eq!(err.to_string(), "Unexpected surface size");
+    }
+
+    #[test]
+    fn too_many_surfaces() {
+        let mut encoder = Encoder::new(
+            std::io::sink(),
+            Format::R8_UNORM,
+            &Header::new_image(8, 8, Format::R8_UNORM),
+        )
+        .unwrap();
+        let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(8, 8));
+        encoder.write_surface(image.view()).unwrap(); // write surface
+
+        let result = encoder.write_surface(image.view());
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(err, EncodingError::TooManySurfaces));
+        assert_eq!(
+            err.to_string(),
+            "Too many surfaces are attempted to written"
+        );
+    }
+
+    #[test]
+    fn missing_surfaces() {
+        let mut encoder = Encoder::new(
+            std::io::sink(),
+            Format::R8_UNORM,
+            &Header::new_image(8, 8, Format::R8_UNORM).with_mipmaps(),
+        )
+        .unwrap();
+        let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(8, 8));
+        encoder.write_surface(image.view()).unwrap(); // write surface
+
+        let result = encoder.finish();
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(err, EncodingError::MissingSurfaces));
+        assert_eq!(err.to_string(), "Not enough surfaces have been written");
+    }
+}
