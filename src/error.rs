@@ -325,7 +325,7 @@ impl std::fmt::Display for EncodingError {
                 write!(f, "Unsupported format for encoding: {:?}", format)
             }
             EncodingError::InvalidSize(width, height) => {
-                write!(f, "Size is not a multiple of {width}x{height}")
+                write!(f, "Size must be a multiple of {width}x{height}")
             }
 
             EncodingError::UnexpectedSurfaceSize => {
