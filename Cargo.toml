@@ -6,7 +6,7 @@ rust-version = "1.63.0"
 
 license = "MIT OR Apache-2.0"
 description = "DDS de/encoder written in 100% safe Rust"
-authors = ["Michael Schmidt"]
+authors = ["The image-rs Developers"]
 
 repository = "https://github.com/image-rs/image-dds"
 homepage = "https://github.com/image-rs/image-dds"
