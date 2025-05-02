@@ -94,3 +94,12 @@ jobs:
         run: sudo systemctl start docker
       - name: Cross-Run Tests using QEMU
         run: cross test --no-fail-fast --target ${{ matrix.arch }} -- --nocapture
+
+  fuzz_decoder:
+    name: Fuzzing Decoder
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo install cargo-fuzz
+      - run: cargo fuzz run decoder --no-default-features -- -max_total_time=15 -max_len=512000
