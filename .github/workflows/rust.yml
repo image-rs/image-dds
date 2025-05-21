@@ -48,16 +48,24 @@ jobs:
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo test --no-fail-fast -- --nocapture
 
-  msrv:
+  msrv_minimal_versions:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        toolchain:
-          - 1.63.0
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - run: cargo check
+
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: Generate Cargo.lock with minimal-version dependencies
+        run: cargo -Zminimal-versions generate-lockfile
+
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: 1.63.0
+      - name: Cache Cargo Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: build
+        run: cargo build -v
 
   # make sure the crate works with all features enabled/disabled
   features:
