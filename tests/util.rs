@@ -9,7 +9,7 @@ use std::{
     io::Seek,
     path::{Path, PathBuf},
 };
-use zerocopy::{FromBytes, Immutable, IntoBytes, Ref};
+use zerocopy::{FromBytes, Immutable, IntoBytes};
 use Precision::*;
 
 pub fn create_rng() -> impl rand::Rng {
@@ -47,10 +47,10 @@ pub fn hash_hex_f32(data: &[f32]) -> String {
 pub trait Castable: FromBytes + IntoBytes + Immutable {}
 impl<T: FromBytes + IntoBytes + Immutable> Castable for T {}
 pub fn from_bytes<T: Castable>(bytes: &[u8]) -> Option<&[T]> {
-    Ref::from_bytes(bytes).ok().map(Ref::into_ref)
+    FromBytes::ref_from_bytes(bytes).ok()
 }
 pub fn from_bytes_mut<T: Castable>(bytes: &mut [u8]) -> Option<&mut [T]> {
-    Ref::from_bytes(bytes).ok().map(Ref::into_mut)
+    FromBytes::mut_from_bytes(bytes).ok()
 }
 pub fn as_bytes_mut<T: Castable>(buffer: &mut [T]) -> &mut [u8] {
     buffer.as_mut_bytes()
