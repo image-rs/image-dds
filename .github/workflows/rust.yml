@@ -48,18 +48,7 @@ jobs:
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo test --no-fail-fast -- --nocapture
 
-  msrv:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        toolchain:
-          - 1.63.0
-    steps:
-      - uses: actions/checkout@v4
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
-      - run: cargo check
-
-  minimal_versions:
+  msrv_minimal_versions:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
