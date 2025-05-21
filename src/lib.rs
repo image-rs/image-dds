@@ -1,3 +1,144 @@
+//! # DDS
+//!
+//! A Rust library for decoding and encoding DDS (DirectDraw Surface) files.
+//!
+//! ## The DDS format
+//!
+//! DDS is a container format for storing compressed and uncompressed textures,
+//! cube maps, volumes, buffers, and arrays of the before. It is used by
+//! DirectX, OpenGL, Vulkan, and other graphics APIs.
+//!
+//! A DDS files has 2 parts: a header and a data section. The header describes
+//! the type of data in the file (e.g. a BC1-compressed 100x200px texture) and
+//! determines the layout of the data section. The data section then contains
+//! the binary pixel data.
+//!
+//! ## Features
+//!
+//! - `rayon` (default): Parallel encoding using the `rayon` crate.
+//!
+//!   This feature will enable parallel encoding of DDS files. Both the
+//!   high-level [`Encoder`] and low-level [`encode()`] functions will use this
+//!   feature to speed up processing.
+//!
+//! All features marked with "(default)" are enabled by default.
+//!
+//! ## Usage
+//!
+//! ### Decoding
+//!
+//! The [`Decoder`] type is the high-level interface for decoding DDS files.
+//!
+//! The most common case, a single image, can be decoded as follows:
+//!
+//! ```no_run
+//! # use dds::*;
+//! # use std::fs::File;
+//! let file = File::open("path/to/file.dds").unwrap();
+//! let mut decoder = Decoder::new(file).unwrap();
+//! // make sure the file is a single image
+//! assert!(decoder.layout().texture().is_some());
+//! // prepare a buffer to decode into
+//! let mut data = vec![0u8; decoder.main_size().pixels() as usize * 4];
+//! // create an image view from the buffer
+//! let view = ImageViewMut::new(&mut data, decoder.main_size(), ColorFormat::RGBA_U8).unwrap();
+//! // decode the image into the buffer
+//! decoder.read_surface(view).unwrap();
+//! ```
+//!
+//! Cube maps can be detected using `decoder.layout().is_cube_map()` and decoded
+//! with [`Decoder::read_cube_map`].
+//!
+//! Volumes have to be read one depth slice at a time using [`Decoder::read_surface`].
+//!
+//! It is also possible to decode a rectangle of a surface using
+//! [`Decoder::read_surface_rect`].
+//!
+//! ### Encoding
+//!
+//! Since the data of a DDS file is determined by the header, the first step to
+//! encoding a DDS file is to create a header. See the documentation of
+//! the [`crate::header`] module for more details.
+//!
+//! ```no_run
+//! # use dds::{*, header::*};
+//! # use std::fs::File;
+//! fn save_rgba_image(
+//!     file: &mut File,
+//!     image_data: &[u8],
+//!     width: u32,
+//!     height: u32,
+//! ) -> Result<(), EncodingError> {
+//!     let format = Format::BC1_UNORM;
+//!     let header = Header::new_image(width, height, format);
+//!
+//!     let mut encoder = Encoder::new(file, format, &header)?;
+//!     encoder.options.quality = CompressionQuality::Fast;
+//!
+//!     let view = ImageView::new(image_data, Size::new(width, height), ColorFormat::RGBA_U8)
+//!         .expect("invalid image data");
+//!     encoder.write_surface(view)?;
+//!     encoder.finish()?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Note the use of [`Encoder::finish()`]. This method will verify that the
+//! file contains all necessary data.
+//!
+//! To create DDS files with mipmaps, use [`Encoder::write_surface_with`]:
+//!
+//! ```no_run
+//! # use dds::{*, header::*};
+//! # use std::fs::File;
+//! fn save_rgba_image_with_mipmaps(
+//!     file: &mut File,
+//!     image_data: &[u8],
+//!     width: u32,
+//!     height: u32,
+//! ) -> Result<(), EncodingError> {
+//!     let format = Format::BC1_UNORM;
+//!     let header = Header::new_image(width, height, format).with_mipmaps();
+//!
+//!     let mut encoder = Encoder::new(file, format, &header)?;
+//!     encoder.options.quality = CompressionQuality::Fast;
+//!
+//!     let view = ImageView::new(image_data, Size::new(width, height), ColorFormat::RGBA_U8)
+//!         .expect("invalid image data");
+//!     let write_options = WriteOptions {
+//!         generate_mipmaps: true,
+//!         ..Default::default()
+//!     };
+//!     encoder.write_surface_with(view, None, &write_options)?;
+//!     encoder.finish()?;
+//!     Ok(())
+//! }
+//! ```
+//!
+//! Cube maps can be created by encoding their 6 faces in the order:
+//! +X -X +Y -Y +Z -Z.
+//!
+//! Volumes have to be encoded one depth slice at a time using [`Encoder::write_surface`].
+//!
+//! ### Progress reporting
+//!
+//! The decoder is generally so fast that progress reporting is not needed.
+//!
+//! The encoder, however, can take a long time to encode large images. Use the
+//! `progress` parameter of the [`Encoder::write_surface_with`] method to get
+//! periodic updates on the encoding progress. See the [`Progress`] type for
+//! more details.
+//!
+//! ### Low-level API
+//!
+//! Besides the `Encoder` and `Decoder` types, the library also exposes a low-level
+//! API for encoding and decoding DDS surfaces. It should generally not be
+//! necessary to use this API.
+//!
+//! The [`encode()`] and [`decode()`] functions are used to encode and decode a
+//! single DDS surface. The [`SplitSurface`] type can be used to split a surface
+//! into multiple fragments for parallel encoding.
+
 #![forbid(unsafe_code)]
 
 mod cast;

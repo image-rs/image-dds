@@ -9,6 +9,8 @@ use crate::{
 };
 
 /// A decoder for reading the pixel data of a DDS file.
+///
+/// See crate-level documentation for usage examples.
 pub struct Decoder<R> {
     reader: R,
 
@@ -20,12 +22,19 @@ pub struct Decoder<R> {
     pub options: DecodeOptions,
 }
 impl<R> Decoder<R> {
+    /// Creates a new decoder from the given reader.
+    ///
+    /// Same as [`Self::new_with_options`] with default options.
     pub fn new(reader: R) -> Result<Self, DecodingError>
     where
         R: Read,
     {
         Self::new_with_options(reader, &ParseOptions::default())
     }
+    /// Creates a new decoder from the given reader.
+    ///
+    /// This will read the header from the reader. How the header is read can
+    /// be configured with the given options.
     pub fn new_with_options(mut reader: R, options: &ParseOptions) -> Result<Self, DecodingError>
     where
         R: Read,
@@ -34,10 +43,19 @@ impl<R> Decoder<R> {
         Self::from_header(reader, header)
     }
 
+    /// Creates a new decoder from the given reader and header.
+    ///
+    /// Same as [`Self::from_header_with`] with the [`Format`] being detected
+    /// from the given header.
     pub fn from_header(reader: R, header: Header) -> Result<Self, DecodingError> {
         let format = Format::from_header(&header)?;
         Self::from_header_with(reader, header, format)
     }
+    /// Creates a new decoder from the given reader, header, and format.
+    ///
+    /// Calling this method will NOT read data from the reader. The header and
+    /// format are used to determine the layout of the data in the DDS file.
+    /// The reader will only be used again when reading surfaces or seeking.
     pub fn from_header_with(
         reader: R,
         header: Header,
