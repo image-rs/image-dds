@@ -45,8 +45,8 @@ fn decode_all_dds_files() {
             Ok(hash) => hash,
             Err(e) => {
                 let path = dds_path.strip_prefix(util::test_data_dir()).unwrap();
-                eprintln!("Failed to convert {:?}: {}", path, e);
-                format!("Error: {}", e)
+                eprintln!("Failed to convert {path:?}: {e}");
+                format!("Error: {e}")
             }
         };
 
@@ -206,7 +206,7 @@ fn decode_rect() {
         let mut test = |rect| {
             if let Err(e) = single_rect(&test_image, rect) {
                 let path = test_image.strip_prefix(util::test_data_dir()).unwrap();
-                eprintln!("Failed to convert {:?}: {}", path, e);
+                eprintln!("Failed to convert {path:?}: {e}");
                 failed_count += 1;
             }
         };
@@ -219,7 +219,7 @@ fn decode_rect() {
         let mut test_patchwork = || {
             if let Err(e) = patchwork(&test_image) {
                 let path = test_image.strip_prefix(util::test_data_dir()).unwrap();
-                eprintln!("Failed to convert {:?}: {}", path, e);
+                eprintln!("Failed to convert {path:?}: {e}");
                 failed_count += 1;
             }
         };
@@ -227,7 +227,7 @@ fn decode_rect() {
         test_patchwork();
     }
     if failed_count > 0 {
-        panic!("{} tests failed", failed_count);
+        panic!("{failed_count} tests failed");
     }
 }
 
@@ -267,9 +267,7 @@ fn decode_all_color_formats() {
                     util::convert_channels(&reference.data, reference.channels, channels);
                 assert!(
                     reference == image.data,
-                    "Failed {:?} for {:?}",
-                    channels,
-                    dds_path
+                    "Failed {channels:?} for {dds_path:?}"
                 );
             }
             {
@@ -278,9 +276,7 @@ fn decode_all_color_formats() {
                     util::convert_channels(&reference.data, reference.channels, channels);
                 assert!(
                     reference == u16_to_u8(&image.data),
-                    "Failed {:?} for {:?}",
-                    channels,
-                    dds_path
+                    "Failed {channels:?} for {dds_path:?}"
                 )
             }
             {
@@ -289,9 +285,7 @@ fn decode_all_color_formats() {
                     util::convert_channels(&reference.data, reference.channels, channels);
                 assert!(
                     reference == f32_to_u8(&image.data),
-                    "Failed {:?} for {:?}",
-                    channels,
-                    dds_path
+                    "Failed {channels:?} for {dds_path:?}"
                 )
             }
         }
@@ -303,12 +297,12 @@ fn decode_all_color_formats() {
     for dds_path in util::example_dds_files() {
         if let Err(e) = test_color_formats(&dds_path) {
             let path = dds_path.strip_prefix(util::test_data_dir()).unwrap();
-            eprintln!("Failed for {:?}: {}", path, e);
+            eprintln!("Failed for {path:?}: {e}");
             failed_count += 1;
         }
     }
     if failed_count > 0 {
-        panic!("{} tests failed", failed_count);
+        panic!("{failed_count} tests failed");
     }
 }
 
@@ -336,7 +330,7 @@ fn neg_infinity_bc6_blocks() {
         .unwrap();
 
         let has_non_finite = image.data.iter().copied().any(|x| !x.is_finite());
-        assert!(has_non_finite, "Block {:#x} did not decode to -INF", block);
+        assert!(has_non_finite, "Block {block:#x} did not decode to -INF");
     }
 }
 
@@ -378,7 +372,7 @@ fn test_unaligned() {
             dds::decode(&mut dummy_data.as_slice(), aligned_view, format, &options).unwrap();
             dds::decode(&mut dummy_data.as_slice(), unaligned_view, format, &options).unwrap();
 
-            assert_eq!(aligned, unaligned, "Failed for {:?} {:?}", format, color);
+            assert_eq!(aligned, unaligned, "Failed for {format:?} {color:?}");
         }
     }
 }

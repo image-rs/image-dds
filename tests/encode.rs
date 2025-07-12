@@ -78,7 +78,7 @@ fn encode_base() {
     let base_f32 = base_u8.to_f32();
 
     fn get_output_path(format: Format) -> PathBuf {
-        let name = format!("{:?}.dds", format);
+        let name = format!("{format:?}.dds");
         test_data_dir().join("output-encode/base").join(&name)
     }
     let test = |format: Format, dds_path: &Path| -> Result<String, Box<dyn std::error::Error>> {
@@ -131,7 +131,7 @@ fn encode_base() {
 #[test]
 fn encode_dither() {
     fn get_output_dds(format: Format, name: &str) -> PathBuf {
-        let name = format!("{:?} {}.dds", format, name);
+        let name = format!("{format:?} {name}.dds");
         test_data_dir().join("output-encode/dither").join(&name)
     }
     fn test(
@@ -428,7 +428,7 @@ fn encode_measure_quality() {
 
         let options = case.options.clone();
         for (name, option) in &options {
-            output.push_str(&format!("- {}: {:?}\n", name, option));
+            output.push_str(&format!("- {name}: {option:?}\n"));
         }
         output.push('\n');
 
@@ -492,7 +492,7 @@ fn encode_measure_quality() {
 
         match collect_info(&case) {
             Ok(info) => output.push_str(&info),
-            Err(e) => output.push_str(&format!("Error: {}", e)),
+            Err(e) => output.push_str(&format!("Error: {e}")),
         };
 
         output.push('\n');
@@ -600,15 +600,15 @@ fn encode_all_color_formats() {
         encode_image(&base_f32, format, &mut encoded_f32, &options).unwrap();
 
         if encoded_u8 != encoded_u16 {
-            failures.push_str(&format!("{:?} u8 != u16\n", format));
+            failures.push_str(&format!("{format:?} u8 != u16\n"));
         }
         if encoded_u8 != encoded_f32 {
-            failures.push_str(&format!("{:?} u8 != f32\n", format));
+            failures.push_str(&format!("{format:?} u8 != f32\n"));
         }
     }
 
     if !failures.is_empty() {
-        panic!("Failed for formats:\n{}", failures);
+        panic!("Failed for formats:\n{failures}");
     }
 }
 
@@ -707,7 +707,7 @@ fn encode_mipmap() {
 
         let snapshot_file = util::test_data_dir()
             .join("output-encode/mipmaps")
-            .join(format!("{}.png", name));
+            .join(format!("{name}.png"));
 
         summaries.add_output_file_result(
             &snapshot_file,
@@ -788,8 +788,7 @@ fn test_unaligned() {
 
                 assert_eq!(
                     aligned_encoded, unaligned_encoded,
-                    "Failed for {:?} {:?} {:?}",
-                    format, color, options
+                    "Failed for {format:?} {color:?} {options:?}"
                 );
             }
         }

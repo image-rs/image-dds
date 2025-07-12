@@ -161,7 +161,7 @@ mod test {
         for a in 0..255 {
             for b in 1..255 {
                 let expected = (a as f64 / b as f64).ceil() as u8;
-                assert_eq!(super::div_ceil(a, b), expected, "a={}, b={}", a, b);
+                assert_eq!(super::div_ceil(a, b), expected, "a={a}, b={b}");
             }
         }
     }
@@ -170,7 +170,7 @@ mod test {
         for i in -126..=127 {
             let expected = 2.0f32.powi(i as i32);
             let actual = super::two_powi(i);
-            assert_eq!(actual, expected, "i={}", i);
+            assert_eq!(actual, expected, "i={i}");
         }
     }
     #[test]

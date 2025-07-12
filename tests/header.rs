@@ -207,12 +207,11 @@ fn convert_header_snapshot() {
 
             if (converted_format, converted_back_format) != (format, format) {
                 output.push_str("\nChanged format during conversion:\n");
-                output.push_str(&format!("    Original:       {:?}\n", format));
-                output.push_str(&format!("    Converted:      {:?}\n", converted_format));
+                output.push_str(&format!("    Original:       {format:?}\n"));
+                output.push_str(&format!("    Converted:      {converted_format:?}\n"));
                 if converted_back_format != format {
                     output.push_str(&format!(
-                        "    Converted back: {:?}\n",
-                        converted_back_format
+                        "    Converted back: {converted_back_format:?}\n"
                     ));
                 }
             }
@@ -438,7 +437,7 @@ fn weird_and_invalid_headers() {
         let strict = Header::from_raw(raw, &options);
         match &strict {
             Ok(strict) => util::pretty_print_header(output, strict),
-            Err(err) => output.push_str(&format!("error: {}\n", err)),
+            Err(err) => output.push_str(&format!("error: {err}\n")),
         }
 
         output.push_str("\nPermissive parsing ");
@@ -449,7 +448,7 @@ fn weird_and_invalid_headers() {
         } else {
             match &permissive {
                 Ok(permissive) => util::pretty_print_header(output, permissive),
-                Err(err) => output.push_str(&format!("error: {}\n", err)),
+                Err(err) => output.push_str(&format!("error: {err}\n")),
             }
         }
 
