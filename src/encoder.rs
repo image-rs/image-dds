@@ -10,6 +10,8 @@ use crate::{
 };
 
 /// An encoder for DDS files.
+///
+/// See crate-level documentation for usage examples.
 pub struct Encoder<W> {
     writer: W,
     format: Format,

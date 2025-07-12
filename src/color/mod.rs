@@ -85,9 +85,9 @@ impl ColorFormat {
         self.channels.count() * self.precision.size()
     }
 
-    /// The number of bytes per pixel in a decoded surface/output buffer.
+    /// The number of **bytes** in a decoded surface/output buffer.
     ///
-    /// If the number if bytes is larger than `isize::MAX`, `None` is returned.
+    /// If the number of bytes is larger than `isize::MAX`, `None` is returned.
     pub fn buffer_size(&self, size: Size) -> Option<usize> {
         let bytes_per_pixel = self.bytes_per_pixel() as u64;
         let pixels = size.pixels();
