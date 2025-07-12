@@ -217,7 +217,7 @@ impl std::fmt::Debug for PixelInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Fixed { bytes_per_pixel } => {
-                write!(f, "Fixed({} bytes/px)", bytes_per_pixel)
+                write!(f, "Fixed({bytes_per_pixel} bytes/px)")
             }
             Self::Block(block) => write!(
                 f,
@@ -481,8 +481,7 @@ mod test {
                 assert_eq!(
                     pixel.bits_per_pixel(),
                     bits_per_pixel_from_size as u32,
-                    "Failed for {:?}",
-                    pixel
+                    "Failed for {pixel:?}"
                 );
             }
         }
@@ -497,7 +496,7 @@ mod test {
             }
 
             let result = PixelInfo::try_from(dxgi);
-            assert!(result.is_ok(), "Failed for {:?}", dxgi);
+            assert!(result.is_ok(), "Failed for {dxgi:?}");
         }
     }
 
@@ -510,7 +509,7 @@ mod test {
                 let dxgi_info = PixelInfo::try_from(dxgi).unwrap();
                 let format_info = PixelInfo::from(format);
 
-                assert_eq!(dxgi_info, format_info, "Failed for {:?}", dxgi);
+                assert_eq!(dxgi_info, format_info, "Failed for {dxgi:?}");
             }
         }
     }

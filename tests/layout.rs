@@ -18,7 +18,7 @@ fn parse_data_layout_of_all_dds_files() {
         let decoder_result = Decoder::new_with_options(&mut file, &options);
         let info = match decoder_result {
             Ok(info) => util::DdsInfo::from_decoder(&info),
-            Err(e) => panic!("Failed to decode {}\nFile: {:?}", e, file),
+            Err(e) => panic!("Failed to decode {e}\nFile: {file:?}"),
         };
 
         let header = info.header;
@@ -150,7 +150,7 @@ fn full_layout_snapshot() {
         let mut output = String::new();
 
         if let Err(e) = strict_header(dds_path) {
-            output.push_str(&format!("Error if strict: {}\n\n", e));
+            output.push_str(&format!("Error if strict: {e}\n\n"));
         }
 
         let data_len = file_len - get_header_byte_len(&header);
@@ -173,7 +173,7 @@ fn full_layout_snapshot() {
 
         // FORMAT INFO
         output.push_str("\nPixel Format:\n");
-        output.push_str(&format!("    format: {:?}", format));
+        output.push_str(&format!("    format: {format:?}"));
         if header.is_srgb() {
             output.push_str(" (sRGB)");
         }
@@ -197,14 +197,14 @@ fn full_layout_snapshot() {
 
         let info = match collect_info(&dds_path) {
             Ok(info) => info,
-            Err(e) => format!("Error: {}", e),
+            Err(e) => format!("Error: {e}"),
         };
 
         for line in info.lines() {
             if line.is_empty() {
                 output.push('\n');
             } else {
-                output.push_str(&format!("    {}\n", line));
+                output.push_str(&format!("    {line}\n"));
             }
         }
 
@@ -405,7 +405,7 @@ fn weird_and_invalid_headers() {
 
         match DataLayout::from_header(header) {
             Ok(layout) => util::pretty_print_data_layout(output, &layout),
-            Err(e) => output.push_str(&format!("Error:\n    {}\n", e)),
+            Err(e) => output.push_str(&format!("Error:\n    {e}\n")),
         };
 
         output.push_str("\n\n\n");
