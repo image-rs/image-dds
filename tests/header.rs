@@ -210,9 +210,7 @@ fn convert_header_snapshot() {
                 output.push_str(&format!("    Original:       {format:?}\n"));
                 output.push_str(&format!("    Converted:      {converted_format:?}\n"));
                 if converted_back_format != format {
-                    output.push_str(&format!(
-                        "    Converted back: {converted_back_format:?}\n"
-                    ));
+                    output.push_str(&format!("    Converted back: {converted_back_format:?}\n"));
                 }
             }
         } else {
