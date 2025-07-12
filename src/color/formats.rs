@@ -834,7 +834,7 @@ pub(crate) mod fp11 {
             // all negative values should go to zero
             let negative_values = [-0.0, -1.0, -1e-20, f32::NEG_INFINITY];
             for value in negative_values {
-                assert_eq!(fp11::f32(fp11::from_f32(value)), 0.0, "value: {}", value);
+                assert_eq!(fp11::f32(fp11::from_f32(value)), 0.0, "value: {value}");
             }
 
             // the following can be presented exactly
@@ -853,7 +853,7 @@ pub(crate) mod fp11 {
             for value in exact_values {
                 let f11 = fp11::from_f32(value);
                 let f32 = fp11::f32(f11);
-                assert_eq!(value, f32, "value: {}", value);
+                assert_eq!(value, f32, "value: {value}");
             }
             assert_eq!(fp11::from_f32(f32::NAN), 0b11111_111111);
             assert!(fp11::f32(fp11::from_f32(f32::NAN)).is_nan());
@@ -871,7 +871,7 @@ pub(crate) mod fp11 {
             for (value, expected) in inexact_values {
                 let f11 = fp11::from_f32(value);
                 let f32 = fp11::f32(f11);
-                assert_eq!(expected, f32, "value: {}", value);
+                assert_eq!(expected, f32, "value: {value}");
             }
         }
     }
@@ -1429,7 +1429,7 @@ mod test {
         for i in 0..=u16::MAX {
             let expected = super::fp::n8(super::fp16::f32(i));
             let actual = super::fp16::n8(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
     #[test]
@@ -1437,7 +1437,7 @@ mod test {
         for i in 0..=u16::MAX {
             let expected = super::fp::n16(super::fp16::f32(i));
             let actual = super::fp16::n16(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
 
@@ -1462,7 +1462,7 @@ mod test {
         for i in all_bc6h_uf16_values() {
             let expected = super::fp16::n8(i);
             let actual = super::bc6h_uf16::n8(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
     #[test]
@@ -1470,7 +1470,7 @@ mod test {
         for i in all_bc6h_uf16_values() {
             let expected = super::fp16::n16(i);
             let actual = super::bc6h_uf16::n16(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
     #[test]
@@ -1478,7 +1478,7 @@ mod test {
         for i in all_bc6h_uf16_values() {
             let expected = super::fp16::f32(i);
             let actual = super::bc6h_uf16::f32(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
 
@@ -1487,7 +1487,7 @@ mod test {
         for i in 0..2048 {
             let expected = super::fp::n8(super::fp11::f32(i));
             let actual = super::fp11::n8(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
     #[test]
@@ -1495,7 +1495,7 @@ mod test {
         for i in 0..2048 {
             let expected = super::fp::n16(super::fp11::f32(i));
             let actual = super::fp11::n16(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
 
@@ -1504,7 +1504,7 @@ mod test {
         for i in 0..1024 {
             let expected = super::fp::n8(super::fp10::f32(i));
             let actual = super::fp10::n8(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
     #[test]
@@ -1512,7 +1512,7 @@ mod test {
         for i in 0..1024 {
             let expected = super::fp::n16(super::fp10::f32(i));
             let actual = super::fp10::n16(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
 
@@ -1521,7 +1521,7 @@ mod test {
         for i in 0..1024 {
             let expected = super::fp::n8(super::xr10::f32(i));
             let actual = super::xr10::n8(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
     #[test]
@@ -1529,7 +1529,7 @@ mod test {
         for i in 0..1024 {
             let expected = super::fp::n16(super::xr10::f32(i));
             let actual = super::xr10::n16(i);
-            assert_eq!(actual, expected, "failed for i={}", i);
+            assert_eq!(actual, expected, "failed for i={i}");
         }
     }
 
@@ -1543,7 +1543,7 @@ mod test {
 
                 let expected = super::rgb9995f::f32(i).map(fp::n8);
                 let actual = super::rgb9995f::n8(i);
-                assert_eq!(actual, expected, "failed for exp={} mant={}", e, b);
+                assert_eq!(actual, expected, "failed for exp={e} mant={b}");
             }
         }
     }
@@ -1557,7 +1557,7 @@ mod test {
 
                 let expected = super::rgb9995f::f32(i).map(fp::n16);
                 let actual = super::rgb9995f::n16(i);
-                assert_eq!(actual, expected, "failed for exp={} mant={}", e, b);
+                assert_eq!(actual, expected, "failed for exp={e} mant={b}");
             }
         }
     }

@@ -16,10 +16,10 @@ impl std::fmt::Display for FormatError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FormatError::UnsupportedDxgiFormat(format) => {
-                write!(f, "Unsupported DXGI format: {:?}", format)
+                write!(f, "Unsupported DXGI format: {format:?}")
             }
             FormatError::UnsupportedFourCC(four_cc) => {
-                write!(f, "Unsupported FourCC pixel format: {:?}", four_cc)
+                write!(f, "Unsupported FourCC pixel format: {four_cc:?}")
             }
             FormatError::UnsupportedPixelFormat => {
                 write!(f, "Unsupported pixel format in the DDS header")
@@ -59,8 +59,7 @@ impl std::fmt::Display for LayoutError {
             LayoutError::TooManyMipMaps(mipmaps) => {
                 write!(
                     f,
-                    "Too many mipmaps ({}), the maximum supported is 255",
-                    mipmaps
+                    "Too many mipmaps ({mipmaps}), the maximum supported is 255"
                 )
             }
             LayoutError::MissingDepth => {
@@ -70,7 +69,7 @@ impl std::fmt::Display for LayoutError {
                 write!(f, "The width, height, or depth of the texture is zero")
             }
             LayoutError::ArraySizeTooBig(size) => {
-                write!(f, "Array size {} is too large", size)
+                write!(f, "Array size {size} is too large")
             }
             LayoutError::DataLayoutTooBig => {
                 write!(f, "Data layout described by the header is too large")
@@ -136,15 +135,13 @@ impl std::fmt::Display for DecodingError {
             DecodingError::RowPitchTooSmall { required_minimum } => {
                 write!(
                     f,
-                    "Row pitch too small: Must be at least `color.bytes_per_pixel() * rect.width` == {} bytes",
-                    required_minimum
+                    "Row pitch too small: Must be at least `color.bytes_per_pixel() * rect.width` == {required_minimum} bytes"
                 )
             }
             DecodingError::RectBufferTooSmall { required_minimum } => {
                 write!(
                     f,
-                    "Buffer too small for rectangle: required at least {} bytes",
-                    required_minimum
+                    "Buffer too small for rectangle: required at least {required_minimum} bytes"
                 )
             }
             DecodingError::UnexpectedSurfaceSize => {
@@ -164,10 +161,10 @@ impl std::fmt::Display for DecodingError {
                 write!(f, "Memory limit exceeded")
             }
 
-            DecodingError::Layout(error) => write!(f, "{}", error),
-            DecodingError::Format(error) => write!(f, "{}", error),
-            DecodingError::Header(error) => write!(f, "Header error: {}", error),
-            DecodingError::Io(error) => write!(f, "I/O error: {}", error),
+            DecodingError::Layout(error) => write!(f, "{error}"),
+            DecodingError::Format(error) => write!(f, "{error}"),
+            DecodingError::Header(error) => write!(f, "Header error: {error}"),
+            DecodingError::Io(error) => write!(f, "I/O error: {error}"),
         }
     }
 }
@@ -232,24 +229,22 @@ impl std::fmt::Display for HeaderError {
                 )
             }
             HeaderError::InvalidHeaderSize(size) => {
-                write!(f, "Invalid DDS header size of {}, expected 124", size)
+                write!(f, "Invalid DDS header size of {size}, expected 124")
             }
             HeaderError::InvalidPixelFormatSize(size) => {
                 write!(
                     f,
-                    "Invalid DDS header pixel format size of {}, expected 32",
-                    size
+                    "Invalid DDS header pixel format size of {size}, expected 32"
                 )
             }
             HeaderError::InvalidRgbBitCount(count) => {
                 write!(
                     f,
-                    "Invalid DDS header pixel format rgb_bit_count of {}, expected 8, 16, 24, or 32",
-                    count
+                    "Invalid DDS header pixel format rgb_bit_count of {count}, expected 8, 16, 24, or 32"
                 )
             }
             HeaderError::InvalidDxgiFormat(format) => {
-                write!(f, "Invalid DXGI format {} in DX10 header extension", format)
+                write!(f, "Invalid DXGI format {format} in DX10 header extension")
             }
             HeaderError::InvalidResourceDimension(dimension) => {
                 let label = match dimension {
@@ -262,22 +257,20 @@ impl std::fmt::Display for HeaderError {
                 };
                 write!(
                     f,
-                    "Invalid resource dimension {}{} in DX10 header extension",
-                    dimension, label
+                    "Invalid resource dimension {dimension}{label} in DX10 header extension"
                 )
             }
             HeaderError::InvalidAlphaMode(mode) => {
-                write!(f, "Invalid alpha mode {} in DX10 header extension", mode)
+                write!(f, "Invalid alpha mode {mode} in DX10 header extension")
             }
             HeaderError::InvalidArraySizeForTexture3D(array_size) => {
                 write!(
                     f,
-                    "Invalid array size {} for a texture 3D in DX10 header extension",
-                    array_size
+                    "Invalid array size {array_size} for a texture 3D in DX10 header extension"
                 )
             }
 
-            HeaderError::Io(error) => write!(f, "I/O error: {}", error),
+            HeaderError::Io(error) => write!(f, "I/O error: {error}"),
         }
     }
 }
@@ -323,7 +316,7 @@ impl std::fmt::Display for EncodingError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             EncodingError::UnsupportedFormat(format) => {
-                write!(f, "Unsupported format for encoding: {:?}", format)
+                write!(f, "Unsupported format for encoding: {format:?}")
             }
             EncodingError::InvalidSize(width, height) => {
                 write!(f, "Size must be a multiple of {width}x{height}")
@@ -337,8 +330,8 @@ impl std::fmt::Display for EncodingError {
             }
             EncodingError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
 
-            EncodingError::Layout(err) => write!(f, "Layout error: {}", err),
-            EncodingError::Io(err) => write!(f, "IO error: {}", err),
+            EncodingError::Layout(err) => write!(f, "Layout error: {err}"),
+            EncodingError::Io(err) => write!(f, "IO error: {err}"),
         }
     }
 }

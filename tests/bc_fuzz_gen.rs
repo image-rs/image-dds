@@ -72,7 +72,7 @@ fn bc7_mode_1_2_3() {
     // Mode 1/2/3 have 6 partition bits and otherwise nothing interesting
     for mode in 1..=3 {
         let mut file =
-            File::create(format!("test-data/images/bc fuzz/bc7 mode {}.dds", mode)).unwrap();
+            File::create(format!("test-data/images/bc fuzz/bc7 mode {mode}.dds")).unwrap();
         let mut rng = util::create_rng();
         create_bc_data(&mut file, 128, 64, DxgiFormat::BC7_UNORM, |_, y| {
             let mut block = u128::from_le_bytes(random_block(&mut rng));

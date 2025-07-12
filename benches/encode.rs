@@ -85,9 +85,9 @@ where
     Image<T>: ImageAsBytes,
 {
     let color = image.color();
-    let mut name = format!("{:?}: {}", format, color);
+    let mut name = format!("{format:?}: {color}");
     if options != &EncodeOptions::default() {
-        name += &format!(" - {:?}", options);
+        name += &format!(" - {options:?}");
     }
 
     c.bench_function(&name, |b| {
