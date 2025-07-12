@@ -11,16 +11,26 @@ use crate::{
 
 /// An encoder for DDS files.
 ///
-/// See crate-level documentation for usage examples.
+/// See [crate-level documentation](crate) for usage examples.
 pub struct Encoder<W> {
+    // internal state
     writer: W,
     format: Format,
     layout: DataLayout,
     iter: SurfaceIterator,
+
     /// The encoding options used to encode surfaces.
     ///
     /// Defaults: `EncodeOptions::default()`
-    pub options: EncodeOptions,
+    pub encoding: EncodeOptions,
+    /// Options regarding automatic mipmap generation.
+    ///
+    /// Set `self.mipmaps.generate = true` to enable automatic mipmap generation.
+    ///
+    /// Defaults: `MipmapOptions::default()`
+    pub mipmaps: MipmapOptions,
+
+    // internal cache for resizing
     resize: Option<Box<(Aligner, ResizeState)>>,
 }
 impl<W> Encoder<W> {
@@ -51,7 +61,8 @@ impl<W> Encoder<W> {
             format,
             layout,
             iter: SurfaceIterator::new(layout),
-            options: EncodeOptions::default(),
+            encoding: EncodeOptions::default(),
+            mipmaps: MipmapOptions::default(),
             resize: None,
         })
     }
@@ -88,36 +99,37 @@ impl<W> Encoder<W> {
     /// volume textures, this function will write the next depth slice.
     ///
     /// See [`Self::surface_info`] for more information about the surface.
+    ///
+    /// If [`self.mipmaps.generate`](MipmapOptions::generate) is set to `true`
+    /// and the header specifies mipmaps, this function will automatically
+    /// generate mipmaps for the surface. The only exception is volume depth
+    /// slices, which are not supported for mipmap generation.
     pub fn write_surface(&mut self, image: ImageView) -> Result<(), EncodingError>
     where
         W: Write,
     {
-        self.write_surface_impl(image, None, &WriteOptions::default())
+        self.write_surface_impl(image, None)
     }
 
-    /// Writes the next surface.
+    /// Writes the next surface with progress.
     ///
-    /// The next surface is determined by the data layout of the DDS file. For
-    /// volume textures, this function will write the next depth slice.
-    ///
-    /// See [`Self::surface_info`] for more information about the surface.
-    pub fn write_surface_with(
+    /// Behaves like [`Self::write_surface`], but also reports progress.
+    /// Single-threaded progress reporter may cause negatively impact performance.
+    pub fn write_surface_with_progress(
         &mut self,
         image: ImageView,
-        progress: Option<&mut Progress>,
-        options: &WriteOptions,
+        progress: &mut Progress,
     ) -> Result<(), EncodingError>
     where
         W: Write,
     {
-        self.write_surface_impl(image, progress, options)
+        self.write_surface_impl(image, Some(progress))
     }
 
     fn write_surface_impl(
         &mut self,
         image: ImageView,
         mut progress: Option<&mut Progress>,
-        options: &WriteOptions,
     ) -> Result<(), EncodingError>
     where
         W: Write,
@@ -129,7 +141,7 @@ impl<W> Encoder<W> {
         }
 
         // Figure out how many mipmaps we'll generate ahead of time.
-        let generated_mipmaps = if options.generate_mipmaps {
+        let generated_mipmaps = if self.mipmaps.generate {
             let total_mipmaps = match &self.layout {
                 DataLayout::Texture(texture) => texture.mipmaps(),
                 DataLayout::Volume(_) => 0, // volumes aren't supported
@@ -160,7 +172,7 @@ impl<W> Encoder<W> {
             image,
             self.format,
             sub_progress(&mut progress, get_level_progress_range(0)).as_mut(),
-            &self.options,
+            &self.encoding,
         )?;
         self.iter.advance();
 
@@ -181,8 +193,8 @@ impl<W> Encoder<W> {
                 let mip_data = resize.resize(
                     &src,
                     mipmap_size,
-                    options.resize_straight_alpha,
-                    options.resize_filter,
+                    self.mipmaps.resize_straight_alpha,
+                    self.mipmaps.resize_filter,
                 );
                 let mip =
                     ImageView::new(mip_data, mipmap_size, image.color).expect("invalid mipmap");
@@ -192,7 +204,7 @@ impl<W> Encoder<W> {
                     mip,
                     self.format,
                     sub_progress(&mut progress, get_level_progress_range(count)).as_mut(),
-                    &self.options,
+                    &self.encoding,
                 )?;
                 self.iter.advance();
             }
@@ -216,7 +228,7 @@ impl<W> Encoder<W> {
     /// Returns information about the surface about to be written.
     ///
     /// The returned value only valid until the next call to
-    /// [`Self::write_surface`] or [`Self::write_surface_with`].
+    /// [`Self::write_surface`] or [`Self::write_surface_with_progress`].
     ///
     /// If there are no more surfaces, `None` is returned.
     ///
@@ -282,7 +294,7 @@ impl Default for ResizeFilter {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct WriteOptions {
+pub struct MipmapOptions {
     /// Whether to generate mipmaps for the texture.
     ///
     /// Since the encoder knows exactly how many mipmaps are needed, it will
@@ -293,7 +305,7 @@ pub struct WriteOptions {
     /// ignore the option.
     ///
     /// Default: `false`
-    pub generate_mipmaps: bool,
+    pub generate: bool,
     /// Whether the alpha channel (if any) is straight alpha.
     ///
     /// This is important when generating mipmaps. Resizing RGBA with straight
@@ -314,10 +326,10 @@ pub struct WriteOptions {
     /// Default: [`ResizeFilter::Box`]
     pub resize_filter: ResizeFilter,
 }
-impl Default for WriteOptions {
+impl Default for MipmapOptions {
     fn default() -> Self {
         Self {
-            generate_mipmaps: false,
+            generate: false,
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
         }

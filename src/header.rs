@@ -435,8 +435,8 @@ pub struct ParseOptions {
     ///
     /// If this option is set to `true`, the decoder will (1) ignore invalid
     /// header values that would otherwise cause the decoder to reject the file
-    /// and (2) attempt to fix the header to read the file correctly. To fix the
-    /// header, [`Self::file_len`] must be provided.
+    /// and (2) attempt to fix the header to read the file correctly. To fix
+    /// certain headers, [`Self::file_len`] must be provided.
     ///
     /// Defaults to `false`.
     pub permissive: bool,

@@ -102,19 +102,20 @@ pub enum DecodingError {
         required_minimum: usize,
     },
 
-    /// Returned by [`crate::Decoder::read_surface`] when the user tries to
-    /// decode a surface into an image that is not the same size as the
-    /// surface.
+    /// Returned by [`Decoder::read_surface`](crate::Decoder::read_surface)
+    /// when the user tries to decode a surface into an image that is not the
+    /// same size as the surface.
     UnexpectedSurfaceSize,
     /// When decoding a volume texture, it is not allowed to skip mipmaps
     /// within a volume.
     ///
-    /// See [`crate::Decoder::skip_mipmaps`] for more details.
+    /// See [`Decoder::skip_mipmaps`](crate::Decoder::skip_mipmaps) for more
+    /// details.
     CannotSkipMipmapsInVolume,
     /// There are no further surfaces to decode.
     NoMoreSurfaces,
-    /// This error is returned by [`crate::Decoder::read_cube_map`] when the
-    /// user tries to read a DDS file that isn't a cube map.
+    /// This error is returned by [`Decoder::read_cube_map`](crate::Decoder::read_cube_map)
+    /// when the user tries to read a DDS file that isn't a cube map.
     NotACubeMap,
 
     /// The decoder has exceeded its memory limit.
@@ -298,19 +299,19 @@ impl std::error::Error for HeaderError {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum EncodingError {
-    /// Returned by [`crate::Encoder`] and [`crate::encode()`] when the format
+    /// Returned by [`Encoder`](crate::Encoder) and [`encode()`](crate::encode()) when the format
     /// does not support encoding.
     UnsupportedFormat(Format),
     InvalidSize(NonZeroU32, NonZeroU32),
 
-    /// Returned by [`crate::Encoder`] when the user tries to write a surface
+    /// Returned by [`Encoder`](crate::Encoder) when the user tries to write a surface
     /// with a size that is different from the size declared in the header.
     UnexpectedSurfaceSize,
-    /// Returned by [`crate::Encoder`] when the encoder has already written all
+    /// Returned by [`Encoder`](crate::Encoder) when the encoder has already written all
     /// surfaces declared in the header, but the user attempts to write
     /// additional surfaces.
     TooManySurfaces,
-    /// Returned by [`crate::Encoder::finish()`] when the encoder has not
+    /// Returned by [`Encoder::finish()`](crate::Encoder::finish()) when the encoder has not
     /// written all surfaces declared in the header.
     MissingSurfaces,
 

@@ -37,7 +37,7 @@ fn encode_decode(
         &Header::new_image(image.size.width, image.size.height, format),
     )
     .unwrap();
-    encoder.options = options.clone();
+    encoder.encoding = options.clone();
     encoder.write_surface(image.view()).unwrap();
     encoder.finish().unwrap();
 
@@ -98,7 +98,7 @@ fn encode_base() {
             format,
             &Header::new_image(size.width, size.height, format),
         )?;
-        encoder.options.quality = CompressionQuality::High;
+        encoder.encoding.quality = CompressionQuality::High;
 
         // and now the image data
         if format.precision() == Precision::U16 {
@@ -145,8 +145,8 @@ fn encode_dither() {
             format,
             &Header::new_image(image.size.width, image.size.height, format),
         )?;
-        encoder.options.quality = CompressionQuality::High;
-        encoder.options.dithering = Dithering::ColorAndAlpha;
+        encoder.encoding.quality = CompressionQuality::High;
+        encoder.encoding.dithering = Dithering::ColorAndAlpha;
         encoder.write_surface(image.view())?;
         encoder.finish()?;
 
@@ -618,7 +618,7 @@ fn encode_mipmap() {
     fn create_mipmap_image(
         snap_path: &Path,
         format: Format,
-        options: WriteOptions,
+        mipmaps: MipmapOptions,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let base = util::read_png_u8(&get_sample("base.png"))?;
         let width = base.size.width;
@@ -630,7 +630,8 @@ fn encode_mipmap() {
             format,
             &Header::new_image(width, height, format).with_mipmaps(),
         )?;
-        encoder.write_surface_with(base.view(), None, &options)?;
+        encoder.mipmaps = mipmaps;
+        encoder.write_surface(base.view())?;
         encoder.finish()?;
 
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
@@ -665,37 +666,37 @@ fn encode_mipmap() {
     }
 
     let options = [
-        WriteOptions {
+        MipmapOptions {
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
-            ..WriteOptions::default()
+            ..MipmapOptions::default()
         },
-        WriteOptions {
+        MipmapOptions {
             resize_straight_alpha: false,
             resize_filter: ResizeFilter::Box,
-            ..WriteOptions::default()
+            ..MipmapOptions::default()
         },
-        WriteOptions {
+        MipmapOptions {
             resize_filter: ResizeFilter::Nearest,
-            ..WriteOptions::default()
+            ..MipmapOptions::default()
         },
-        WriteOptions {
+        MipmapOptions {
             resize_filter: ResizeFilter::Triangle,
-            ..WriteOptions::default()
+            ..MipmapOptions::default()
         },
-        WriteOptions {
+        MipmapOptions {
             resize_filter: ResizeFilter::Mitchell,
-            ..WriteOptions::default()
+            ..MipmapOptions::default()
         },
-        WriteOptions {
+        MipmapOptions {
             resize_filter: ResizeFilter::Lanczos3,
-            ..WriteOptions::default()
+            ..MipmapOptions::default()
         },
     ];
 
     let mut summaries = util::OutputSummaries::new("_hashes");
     for mut option in options {
-        option.generate_mipmaps = true;
+        option.generate = true;
 
         let mut name = "base @ ".to_string();
         name.push_str(if option.resize_straight_alpha {
@@ -754,42 +755,40 @@ fn test_unaligned() {
             let aligned = ImageView::new(aligned, size, color).unwrap();
             let unaligned = ImageView::new(unaligned, size, color).unwrap();
 
-            for options in [
-                WriteOptions {
-                    generate_mipmaps: false,
-                    ..WriteOptions::default()
+            for mipmaps in [
+                MipmapOptions {
+                    generate: false,
+                    ..MipmapOptions::default()
                 },
-                WriteOptions {
-                    generate_mipmaps: true,
-                    ..WriteOptions::default()
+                MipmapOptions {
+                    generate: true,
+                    ..MipmapOptions::default()
                 },
             ] {
                 aligned_encoded.clear();
                 unaligned_encoded.clear();
 
                 let mut header = Header::new_image(size.width, size.height, format);
-                if options.generate_mipmaps {
+                if mipmaps.generate {
                     header = header.with_mipmaps();
                 }
 
                 let mut aligned_encoder =
                     Encoder::new(&mut aligned_encoded, format, &header).unwrap();
-                aligned_encoder
-                    .write_surface_with(aligned, None, &options)
-                    .unwrap();
+                aligned_encoder.mipmaps = mipmaps;
+                aligned_encoder.write_surface(aligned).unwrap();
                 aligned_encoder.finish().unwrap();
 
                 let mut unaligned_encoder =
                     Encoder::new(&mut unaligned_encoded, format, &header).unwrap();
-                unaligned_encoder
-                    .write_surface_with(unaligned, None, &options)
-                    .unwrap();
+                unaligned_encoder.mipmaps = mipmaps;
+                unaligned_encoder.write_surface(unaligned).unwrap();
                 unaligned_encoder.finish().unwrap();
 
                 assert_eq!(
                     aligned_encoded, unaligned_encoded,
                     "Failed for {:?} {:?} {:?}",
-                    format, color, options
+                    format, color, mipmaps
                 );
             }
         }

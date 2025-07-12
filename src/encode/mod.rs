@@ -449,7 +449,7 @@ impl EncodingSupport {
     /// height that is a multiple of 4. So e.g. an image with a height of 10
     /// pixels can split into chunks with heights of 4-4-2, 8-2, 4-6, or 10.
     ///
-    /// [`crate::SplitSurface`] will automatically split the image into chunks
+    /// [`SplitSurface`](crate::SplitSurface) will automatically split the image into chunks
     /// of the correct height, so this value is only relevant if you are
     /// implementing your own encoder/splitter.
     ///

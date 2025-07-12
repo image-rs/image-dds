@@ -14,7 +14,7 @@ use crate::{util::div_ceil, Format, FormatError, Size};
 /// - and more.
 ///
 /// The main purpose of this enum is to provide a way to calculate the byte size
-/// of a surface to create the [`crate::DataLayout`] of a DDS file.
+/// of a surface to create the [`DataLayout`](crate::DataLayout) of a DDS file.
 ///
 /// ## Unsupported pixel formats
 ///

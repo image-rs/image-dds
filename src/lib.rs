@@ -15,13 +15,14 @@
 //!
 //! ## Features
 //!
-//! - `rayon` (default): Parallel encoding using the `rayon` crate.
+//! - `rayon` *(default)*: Parallel encoding using the
+//!   [`rayon` crate](https://crates.io/crates/rayon).
 //!
 //!   This feature will enable parallel encoding of DDS files. Both the
-//!   high-level [`Encoder`] and low-level [`encode()`] functions will use this
-//!   feature to speed up processing.
+//!   high-level [`Encoder`] and low-level [`encode()`] functions will take
+//!   advantage of `rayon` for faster processing, but may use more memory.
 //!
-//! All features marked with "(default)" are enabled by default.
+//! All features marked with "*(default)*" are enabled by default.
 //!
 //! ## Usage
 //!
@@ -29,40 +30,49 @@
 //!
 //! The [`Decoder`] type is the high-level interface for decoding DDS files.
 //!
-//! The most common case, a single image, can be decoded as follows:
+//! The most common case, a single texture, can be decoded as follows:
 //!
 //! ```no_run
-//! # use dds::*;
-//! # use std::fs::File;
+//! use std::fs::File;
 //! let file = File::open("path/to/file.dds").unwrap();
-//! let mut decoder = Decoder::new(file).unwrap();
-//! // make sure the file is a single image
-//! assert!(decoder.layout().texture().is_some());
-//! // prepare a buffer to decode into
-//! let mut data = vec![0u8; decoder.main_size().pixels() as usize * 4];
-//! // create an image view from the buffer
-//! let view = ImageViewMut::new(&mut data, decoder.main_size(), ColorFormat::RGBA_U8).unwrap();
-//! // decode the image into the buffer
+//! let mut decoder = dds::Decoder::new(file).unwrap();
+//! // ensure the file contains a single texture
+//! assert!(decoder.layout().is_texture());
+//! // prepare a buffer to decode as 8-bit RGBA
+//! let size = decoder.main_size();
+//! let mut data = vec![0_u8; size.pixels() as usize * 4];
+//! let view = dds::ImageViewMut::new(&mut data, size, dds::ColorFormat::RGBA_U8).unwrap();
+//! // decode into the buffer
 //! decoder.read_surface(view).unwrap();
 //! ```
 //!
-//! Cube maps can be detected using `decoder.layout().is_cube_map()` and decoded
-//! with [`Decoder::read_cube_map`].
+//! Cube maps, volumes, and texture arrays can be detected using the
+//! [`DataLayout`] returned by [`Decoder::layout()`]. This contains all the
+//! necessary information to interpret the contents of the DDS file.
 //!
-//! Volumes have to be read one depth slice at a time using [`Decoder::read_surface`].
+//! As for decoding those contents:
 //!
-//! It is also possible to decode a rectangle of a surface using
-//! [`Decoder::read_surface_rect`].
+//! - Texture arrays can be decoded one texture at a time using
+//!   [`Decoder::read_surface`]. Use [`Decoder::skip_mipmaps`] to skip over any
+//!   mipmaps that may be present.
+//! - Cube maps can either be decoded as a whole using [`Decoder::read_cube_map`]
+//!   or one face at a time using [`Decoder::read_surface`] just like texture
+//!   arrays.
+//! - Volumes have to be decoded one depth slice at a time using
+//!   [`Decoder::read_surface`].
+//!
+//! If you only need a portion of a surface, use [`Decoder::read_surface_rect`].
 //!
 //! ### Encoding
 //!
 //! Since the data of a DDS file is determined by the header, the first step to
 //! encoding a DDS file is to create a header. See the documentation of
-//! the [`crate::header`] module for more details.
+//! the [`dds::header`](crate::header) module for more details.
 //!
 //! ```no_run
-//! # use dds::{*, header::*};
-//! # use std::fs::File;
+//! use dds::{*, header::*};
+//! use std::fs::File;
+//!
 //! fn save_rgba_image(
 //!     file: &mut File,
 //!     image_data: &[u8],
@@ -73,7 +83,7 @@
 //!     let header = Header::new_image(width, height, format);
 //!
 //!     let mut encoder = Encoder::new(file, format, &header)?;
-//!     encoder.options.quality = CompressionQuality::Fast;
+//!     encoder.encoding.quality = CompressionQuality::Fast;
 //!
 //!     let view = ImageView::new(image_data, Size::new(width, height), ColorFormat::RGBA_U8)
 //!         .expect("invalid image data");
@@ -84,13 +94,16 @@
 //! ```
 //!
 //! Note the use of [`Encoder::finish()`]. This method will verify that the
-//! file contains all necessary data.
+//! file has been created correctly and contains all necessary data. Always
+//! use [`Encoder::finish()`] instead of dropping the encoder.
 //!
-//! To create DDS files with mipmaps, use [`Encoder::write_surface_with`]:
+//! To create DDS files with mipmaps, we simply create a header with mipmaps and
+//! enable automatic mipmap generation in the encoder:
 //!
 //! ```no_run
-//! # use dds::{*, header::*};
-//! # use std::fs::File;
+//! use dds::{*, header::*};
+//! use std::fs::File;
+//!
 //! fn save_rgba_image_with_mipmaps(
 //!     file: &mut File,
 //!     image_data: &[u8],
@@ -98,36 +111,46 @@
 //!     height: u32,
 //! ) -> Result<(), EncodingError> {
 //!     let format = Format::BC1_UNORM;
+//!     // Create a header with mipmaps
 //!     let header = Header::new_image(width, height, format).with_mipmaps();
 //!
 //!     let mut encoder = Encoder::new(file, format, &header)?;
-//!     encoder.options.quality = CompressionQuality::Fast;
+//!     encoder.encoding.quality = CompressionQuality::Fast;
+//!     encoder.mipmaps.generate = true; // Enable automatic mipmap generation
 //!
 //!     let view = ImageView::new(image_data, Size::new(width, height), ColorFormat::RGBA_U8)
 //!         .expect("invalid image data");
-//!     let write_options = WriteOptions {
-//!         generate_mipmaps: true,
-//!         ..Default::default()
-//!     };
-//!     encoder.write_surface_with(view, None, &write_options)?;
+//!     encoder.write_surface(view)?;
 //!     encoder.finish()?;
 //!     Ok(())
 //! }
 //! ```
 //!
-//! Cube maps can be created by encoding their 6 faces in the order:
-//! +X -X +Y -Y +Z -Z.
+//! Note: If the header does not specify mipmaps, no mipmaps will be generated
+//! even if automatic mipmap generation is enabled.
 //!
-//! Volumes have to be encoded one depth slice at a time using [`Encoder::write_surface`].
+//! For other types of data:
+//!
+//! - Texture arrays can be encoded using [`Encoder::write_surface`] for each
+//!   texture in the array.
+//! - Cube maps, like texture arrays, can be encoded using [`Encoder::write_surface`]
+//!   for each face. The order of the faces must be +X, -X, +Y, -Y, +Z, -Z.
+//!   Writing whole cube maps at once is not supported.
+//! - Volumes can be encoded one depth slice at a time using
+//!   [`Encoder::write_surface`].
+//!
+//!   Automatic mipmap generation is **not** supported for volumes. If enabled,
+//!   the options will be silently ignored and no mipmaps will be generated.
 //!
 //! ### Progress reporting
 //!
-//! The decoder is generally so fast that progress reporting is not needed.
+//! The decoder is generally so fast that progress reporting is not needed for
+//! decoding a single surface.
 //!
 //! The encoder, however, can take a long time to encode large images. Use the
-//! `progress` parameter of the [`Encoder::write_surface_with`] method to get
-//! periodic updates on the encoding progress. See the [`Progress`] type for
-//! more details.
+//! `progress` parameter of the [`Encoder::write_surface_with_progress`] method
+//! to get periodic updates on the encoding progress. See the [`Progress`] type
+//! for more details.
 //!
 //! ### Low-level API
 //!
