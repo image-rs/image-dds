@@ -74,16 +74,10 @@ fn track_progress() {
         }
 
         let mut encoder = Encoder::new(std::io::sink(), format, &header)?;
-        encoder.options = options.clone();
+        encoder.encoding = options.clone();
+        encoder.mipmaps.generate = true;
 
-        encoder.write_surface_with(
-            image,
-            Some(&mut progress),
-            &WriteOptions {
-                generate_mipmaps: true,
-                ..Default::default()
-            },
-        )?;
+        encoder.write_surface_with_progress(image, &mut progress)?;
         encoder.finish()?;
 
         log_time(&mut progress_report);
@@ -199,16 +193,10 @@ fn forward_progress() {
         }
 
         let mut encoder = Encoder::new(std::io::sink(), format, &header)?;
-        encoder.options = options.clone();
+        encoder.encoding = options.clone();
+        encoder.mipmaps.generate = true;
 
-        encoder.write_surface_with(
-            image,
-            Some(&mut progress),
-            &WriteOptions {
-                generate_mipmaps: true,
-                ..Default::default()
-            },
-        )?;
+        encoder.write_surface_with_progress(image, &mut progress)?;
         encoder.finish()?;
 
         Ok(())

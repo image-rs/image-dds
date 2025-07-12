@@ -55,7 +55,8 @@ impl Default for ProgressRange {
     }
 }
 
-/// A progress reporter used by [`crate::Encoder`] and [`crate::encode()`].
+/// A progress reporter used by [`Encoder`](crate::Encoder) and
+/// [`encode()`](crate::encode()).
 ///
 /// This structure is just a wrapper around a function that handles progress
 /// reports. A progress report is a single `f32` value between 0 to 1

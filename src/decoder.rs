@@ -10,7 +10,7 @@ use crate::{
 
 /// A decoder for reading the pixel data of a DDS file.
 ///
-/// See crate-level documentation for usage examples.
+/// See [crate-level documentation](crate) for usage examples.
 pub struct Decoder<R> {
     reader: R,
 

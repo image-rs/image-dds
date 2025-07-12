@@ -1,5 +1,9 @@
 # DDS De/Encoder
 
+[![crates.io](https://img.shields.io/crates/v/dds.svg)](https://crates.io/crates/dds)
+[![Documentation](https://docs.rs/image/badge.svg)](https://docs.rs/dds)
+[![Build Status](https://github.com/image-rs/image-dds/workflows/Rust%20CI/badge.svg)](https://github.com/image-rs/image-dds/actions)
+
 A DDS decoder and encoder written in 100% safe Rust.
 
 ## Features
@@ -8,6 +12,10 @@ A DDS decoder and encoder written in 100% safe Rust.
 - Both high-level and low-level APIs for decoding and encoding.
 - Automatic multi-threading with rayon.
 - Simple mipmap generation.
+
+## Usage
+
+See [crate documentation](https://docs.rs/dds/).
 
 ## Supported formats
 

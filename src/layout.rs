@@ -548,7 +548,8 @@ impl DataRegion for TextureArray {
 /// interface to iterate over the surfaces/volumes.
 ///
 /// Note: [`DataLayout`] provides no methods to read the data itself. Use
-/// [`crate::Decoder`] or [`crate::Encoder`] to read/write the data section.
+/// [`Decoder`](crate::Decoder) or [`Encoder`](crate::Encoder) to read/write the
+/// data section.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DataLayout {
     /// A single texture with mipmaps (if any).
@@ -774,6 +775,18 @@ impl DataLayout {
         }
     }
 
+    /// Whether this layout is a [`DataLayout::Texture`].
+    pub fn is_texture(&self) -> bool {
+        matches!(self, DataLayout::Texture(_))
+    }
+    /// Whether this layout is a [`DataLayout::Volume`].
+    pub fn is_volume(&self) -> bool {
+        matches!(self, DataLayout::Volume(_))
+    }
+    /// Whether this layout is a [`DataLayout::TextureArray`].
+    pub fn is_texture_array(&self) -> bool {
+        matches!(self, DataLayout::TextureArray(_))
+    }
     /// Whether this layout is a cube map or partial cube map.
     ///
     /// If `true` is returned, this layout is guaranteed to be a
@@ -782,7 +795,8 @@ impl DataLayout {
     /// [`TextureArrayKind::PartialCubeMap`].
     ///
     /// The texture array is **not** guaranteed to be contain exactly one
-    /// (partial) cube map.
+    /// (partial) cube map, meaning that the texture array may contain
+    /// multiple (partial) cube maps.
     pub fn is_cube_map(&self) -> bool {
         matches!(
             self,

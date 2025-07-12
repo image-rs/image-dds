@@ -100,7 +100,7 @@ where
 
             let header = Header::new_image(image.size.width, image.size.height, format);
             let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
-            encoder.options = black_box(options).clone();
+            encoder.encoding = black_box(options).clone();
             let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
             black_box(encoder.finish()).unwrap();
@@ -222,14 +222,8 @@ pub fn generate_mipmaps(c: &mut Criterion) {
 
             let header = Header::new_image(image.size.width, image.size.height, format);
             let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
-            let result = encoder.write_surface_with(
-                black_box(image.view()),
-                None,
-                &WriteOptions {
-                    generate_mipmaps: true,
-                    ..Default::default()
-                },
-            );
+            encoder.mipmaps.generate = true; // enable mipmap generation for this test
+            let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
             black_box(encoder.finish()).unwrap();
             assert!(!black_box(&output).is_empty());
