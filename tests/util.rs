@@ -24,7 +24,7 @@ pub fn hash_hex(data: &[u8]) -> String {
 
     let mut hex = String::new();
     for byte in bytes.iter() {
-        hex.push_str(&format!("{:02x}", byte));
+        hex.push_str(&format!("{byte:02x}"));
     }
     hex
 }
@@ -39,7 +39,7 @@ pub fn hash_hex_f32(data: &[f32]) -> String {
 
     let mut hex = String::new();
     for byte in bytes.iter() {
-        hex.push_str(&format!("{:02x}", byte));
+        hex.push_str(&format!("{byte:02x}"));
     }
     hex
 }
@@ -571,7 +571,7 @@ pub fn update_snapshot_png_u8(
 
     // write output PNG
     if !is_ci() {
-        println!("Writing PNG: {:?}", png_path);
+        println!("Writing PNG: {png_path:?}");
         let mut output = Vec::new();
         let mut encoder = png::Encoder::new(&mut output, image.size.width, image.size.height);
         encoder.set_color(color);
@@ -613,7 +613,7 @@ pub fn compare_snapshot_dds_f32(
 
     // write output DDS
     if !is_ci() {
-        println!("Writing DDS: {:?}", dds_path);
+        println!("Writing DDS: {dds_path:?}");
 
         let format = match image.channels {
             Channels::Grayscale => Format::R32_FLOAT,
@@ -752,14 +752,14 @@ pub fn compare_snapshot_text(
 
     // write snapshot
     if !is_ci() {
-        println!("Writing snapshot: {:?}", snapshot_file);
+        println!("Writing snapshot: {snapshot_file:?}");
 
         std::fs::create_dir_all(snapshot_file.parent().unwrap()).unwrap();
         std::fs::write(snapshot_file, text.replace("\n", native_line_ends)).unwrap();
     }
 
     if !file_exists {
-        Err(format!("Snapshot file not found: {:?}", snapshot_file).into())
+        Err(format!("Snapshot file not found: {snapshot_file:?}").into())
     } else {
         Err("Snapshot differs from expected.".into())
     }
@@ -790,7 +790,7 @@ pub fn pretty_print_header(out: &mut String, header: &Header) {
 
             match &dx9.pixel_format {
                 Dx9PixelFormat::FourCC(four_cc) => {
-                    out.push_str(&format!("    format: {:?}\n", four_cc));
+                    out.push_str(&format!("    format: {four_cc:?}\n"));
                 }
                 Dx9PixelFormat::Mask(pixel_format) => {
                     out.push_str("    format: masked\n");
@@ -847,11 +847,11 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
 
     let size = raw.pitch_or_linear_size;
     if raw.flags.contains(DdsFlags::PITCH) && !raw.flags.contains(DdsFlags::LINEAR_SIZE) {
-        out.push_str(&format!("    pitch: {:?}\n", size));
+        out.push_str(&format!("    pitch: {size:?}\n"));
     } else if !raw.flags.contains(DdsFlags::PITCH) && raw.flags.contains(DdsFlags::LINEAR_SIZE) {
-        out.push_str(&format!("    linear_size: {:?}\n", size));
+        out.push_str(&format!("    linear_size: {size:?}\n"));
     } else {
-        out.push_str(&format!("    pitch_or_linear_size: {:?}\n", size));
+        out.push_str(&format!("    pitch_or_linear_size: {size:?}\n"));
     }
 
     out.push_str(&format!("    mipmap_count: {:?}", raw.mipmap_count));
@@ -867,7 +867,7 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
             out.push_str(&format!("        0..={}: 0\n", zero_prefix - 1));
         }
         for i in zero_prefix..raw.reserved1.len() {
-            out.push_str(&format!("           {:>2}: ", i));
+            out.push_str(&format!("           {i:>2}: "));
 
             let n = raw.reserved1[i];
             let bytes = n.to_le_bytes();
@@ -878,7 +878,7 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
                 }
                 out.push_str(" (ASCII)");
             } else {
-                out.push_str(&format!("{:#010X} {}", n, n));
+                out.push_str(&format!("{n:#010X} {n}"));
             }
 
             out.push('\n');
@@ -936,7 +936,7 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
 
         out.push_str("        dxgi_format: ");
         if let Ok(dxgi) = DxgiFormat::try_from(dx10.dxgi_format) {
-            out.push_str(&format!("{:?}", dxgi));
+            out.push_str(&format!("{dxgi:?}"));
         } else {
             out.push_str(&format!("{:?}", dx10.dxgi_format));
         }
@@ -944,7 +944,7 @@ pub fn pretty_print_raw_header(out: &mut String, raw: &RawHeader) {
 
         out.push_str("        resource_dimension: ");
         if let Ok(dim) = ResourceDimension::try_from(dx10.resource_dimension) {
-            out.push_str(&format!("{:?}", dim));
+            out.push_str(&format!("{dim:?}"));
         } else {
             out.push_str(&format!("{:?}", dx10.resource_dimension));
         }
@@ -1300,12 +1300,12 @@ impl OutputSummaries {
         let name = file_path.file_name().unwrap().to_string_lossy();
 
         let mut lines = String::new();
-        lines.push_str(&format!("{}: >\n", name));
+        lines.push_str(&format!("{name}: >\n"));
         for l in info.lines().map(|l| l.trim_end()) {
             if l.is_empty() {
                 lines.push('\n');
             } else {
-                lines.push_str(&format!("    {}\n", l));
+                lines.push_str(&format!("    {l}\n"));
             }
         }
         lines.push('\n');
@@ -1317,10 +1317,10 @@ impl OutputSummaries {
         file_path: &Path,
         error: &E,
     ) {
-        eprintln!("Failed for: {:?}", file_path);
-        eprintln!("Error: {}", error);
+        eprintln!("Failed for: {file_path:?}");
+        eprintln!("Error: {error}");
 
-        self.add_output_file(file_path, &format!("Error: {}", error));
+        self.add_output_file(file_path, &format!("Error: {error}"));
     }
     pub fn add_output_file_result(
         &mut self,
@@ -1347,7 +1347,7 @@ impl OutputSummaries {
     #[track_caller]
     pub fn snapshot_or_fail(&self) {
         if let Err(e) = self.snapshot() {
-            panic!("Some tests failed: {}", e);
+            panic!("Some tests failed: {e}");
         }
     }
 }
@@ -1481,7 +1481,7 @@ impl std::fmt::Display for PrettyTable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut out = String::new();
         self.print(&mut out);
-        write!(f, "{}", out)
+        write!(f, "{out}")
     }
 }
 

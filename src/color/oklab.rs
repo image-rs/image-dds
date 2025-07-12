@@ -153,13 +153,11 @@ mod tests {
 
                     assert!(
                         (color - srgb).abs().max_element() < 1e-4,
-                        "{:?} -> {:?}",
-                        color,
-                        srgb
+                        "{color:?} -> {srgb:?}"
                     );
 
-                    assert!(oklab.max_element() <= 1.0, "{:?} -> {:?}", color, oklab);
-                    assert!(oklab.min_element() >= 0.0, "{:?} -> {:?}", color, oklab);
+                    assert!(oklab.max_element() <= 1.0, "{color:?} -> {oklab:?}");
+                    assert!(oklab.min_element() >= 0.0, "{color:?} -> {oklab:?}");
                 }
             }
         }
@@ -179,32 +177,23 @@ mod tests {
 
                     assert!(
                         (fast_oklab - ref_oklab).abs().max_element() < 1e-3,
-                        "{:?} -> fast: {:?} vs ref: {:?}",
-                        color,
-                        fast_oklab,
-                        ref_oklab
+                        "{color:?} -> fast: {fast_oklab:?} vs ref: {ref_oklab:?}"
                     );
 
                     let srgb = fast_oklab_to_srgb(fast_oklab);
 
                     assert!(
                         (color - srgb).abs().max_element() < 2.5e-3,
-                        "{:?} -> {:?}",
-                        color,
-                        srgb
+                        "{color:?} -> {srgb:?}"
                     );
 
                     assert!(
                         fast_oklab.max_element() <= 1.0,
-                        "{:?} -> {:?}",
-                        color,
-                        fast_oklab
+                        "{color:?} -> {fast_oklab:?}"
                     );
                     assert!(
                         fast_oklab.min_element() >= 0.0,
-                        "{:?} -> {:?}",
-                        color,
-                        fast_oklab
+                        "{color:?} -> {fast_oklab:?}"
                     );
                 }
             }
@@ -218,7 +207,7 @@ mod tests {
             let l = Reference::srgb_to_linear(c);
             let c2 = Reference::linear_to_srgb(l);
 
-            assert!((c - c2).abs() < 1e-6, "{} -> {}", c, c2);
+            assert!((c - c2).abs() < 1e-6, "{c} -> {c2}");
         }
 
         for c in 0..=255 {
@@ -226,9 +215,9 @@ mod tests {
             let l = Fast::srgb_to_linear(c);
             let c2 = Fast::linear_to_srgb(l);
 
-            assert!((c - c2).abs() < 2.5e-3, "{} -> {}", c, c2);
-            assert!((0.0..=1.0).contains(&l), "{} -> {}", c, l);
-            assert!((0.0..=1.0).contains(&c2), "{} -> {}", c, l);
+            assert!((c - c2).abs() < 2.5e-3, "{c} -> {c2}");
+            assert!((0.0..=1.0).contains(&l), "{c} -> {l}");
+            assert!((0.0..=1.0).contains(&c2), "{c} -> {l}");
         }
 
         assert_eq!(Reference::srgb_to_linear(0.0), 0.0);

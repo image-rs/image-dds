@@ -135,7 +135,7 @@ fn track_progress() {
         let supports_dither = format
             .encoding_support()
             .map_or(false, |e| e.dithering() != Dithering::None);
-        let is_slow_format = format!("{:?}", format).contains("BC");
+        let is_slow_format = format!("{format:?}").contains("BC");
 
         for dither in [Dithering::None, Dithering::ColorAndAlpha] {
             if dither != Dithering::None && !supports_dither {

@@ -38,7 +38,7 @@ fn bench_decoder_with(
     create_config(&mut config);
 
     let color = ColorFormat::new(channels, precision);
-    let mut name = format!("{:?} -> {}", format, color);
+    let mut name = format!("{format:?} -> {color}");
     if !config.name.is_empty() {
         name += " - ";
         name += &config.name;

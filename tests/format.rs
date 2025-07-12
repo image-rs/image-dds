@@ -39,7 +39,7 @@ fn supported_formats_metadata() {
             table.add_empty_row();
             table
                 .get_mut(0, table.height() - 1)
-                .push_str(&format!("— *{}*", category));
+                .push_str(&format!("— *{category}*"));
         }
 
         let bpp = {
@@ -50,9 +50,9 @@ fn supported_formats_metadata() {
             // round to one decimal
             let bpp = (bpp * 10.0).round() / 10.0;
             if bpp == bpp.round() {
-                format!("{:.0}", bpp)
+                format!("{bpp:.0}")
             } else {
-                format!("{:.1}", bpp)
+                format!("{bpp:.1}")
             }
         };
 
@@ -66,7 +66,7 @@ fn supported_formats_metadata() {
         };
 
         let four_cc = if let Ok(four_cc) = FourCC::try_from(format) {
-            let f = format!("{:?}", four_cc);
+            let f = format!("{four_cc:?}");
             if let Some(short) = f.strip_prefix("FourCC(").and_then(|f| f.strip_suffix(")")) {
                 short.to_string()
             } else {
@@ -105,7 +105,7 @@ fn supported_formats_metadata() {
                     if split_height.get() == 1 {
                         "✔️".to_string()
                     } else {
-                        format!("✔️ ({})", split_height)
+                        format!("✔️ ({split_height})")
                     }
                 } else {
                     "❌".to_string()
@@ -128,7 +128,7 @@ fn supported_formats_metadata() {
             };
 
         table.add_row(&[
-            format!("{:?}", format),
+            format!("{format:?}"),
             format!(
                 "{:5} {:?}",
                 short_name(format.channels()),
@@ -186,16 +186,12 @@ fn format_conversion() {
 
         if let Ok(dxgi) = DxgiFormat::try_from(format) {
             let roundtrip = Format::from_dxgi(dxgi).unwrap();
-            assert_eq!(format, roundtrip, "DXGI -> Format -> DXGI: {:?}", format);
+            assert_eq!(format, roundtrip, "DXGI -> Format -> DXGI: {format:?}");
         }
 
         if let Ok(four_cc) = FourCC::try_from(format) {
             let roundtrip = Format::from_four_cc(four_cc).unwrap();
-            assert_eq!(
-                format, roundtrip,
-                "FourCC -> Format -> FourCC: {:?}",
-                format
-            );
+            assert_eq!(format, roundtrip, "FourCC -> Format -> FourCC: {format:?}");
         }
     }
 }
