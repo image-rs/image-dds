@@ -18,13 +18,25 @@ impl Aligner {
         let bytes_per_pixel = color.bytes_per_pixel() as usize;
         debug_assert_eq!(size.pixels() as usize * bytes_per_pixel, data.len());
 
-        let view = if is_aligned(data, color.precision.size() as usize) {
+        let view = if !image.is_contiguous() {
+            // Right now, the implementation assumes that the data to be
+            // contiguous, so we need to copy it to an aligned buffer line by line.
+            let aligned_slice = get_aligned_slice(&mut self.buffer, size, bytes_per_pixel);
+            let bytes_per_row = size.width as usize * bytes_per_pixel;
+            for (y, data_row) in image.rows().enumerate() {
+                debug_assert_eq!(data_row.len(), bytes_per_row);
+                let a_start = y * bytes_per_pixel;
+                let a_end = a_start + bytes_per_pixel;
+                aligned_slice[a_start..a_end].copy_from_slice(data_row);
+            }
+            aligned_slice
+        } else if is_aligned(data, color.precision.size() as usize) {
             data
         } else {
             // the image data isn't aligned, so we need to copy it to an aligned buffer
-            let src_slice = get_aligned_slice(&mut self.buffer, size, bytes_per_pixel);
-            src_slice.copy_from_slice(data);
-            src_slice
+            let aligned_slice = get_aligned_slice(&mut self.buffer, size, bytes_per_pixel);
+            aligned_slice.copy_from_slice(data);
+            aligned_slice
         };
 
         AlignedView { view, size, color }

@@ -202,18 +202,68 @@ pub struct ImageView<'a> {
     data: &'a [u8],
     size: Size,
     color: ColorFormat,
+    row_pitch: usize,
 }
 impl<'a> ImageView<'a> {
-    /// Creates a new image view from the given data, size, and color format.
+    /// Creates a new contiguous image view from the given data, size, and color
+    /// format.
     ///
     /// The data must be the correct size for the given size and color format.
     /// If `data.len() != size.pixels() * color.bytes_per_pixel()`,
     /// then `None` is returned.
-    pub fn new(data: &'a [u8], size: Size, color: ColorFormat) -> Option<Self> {
+    pub fn new(data: &'a [u8], mut size: Size, color: ColorFormat) -> Option<Self> {
+        if size.is_empty() {
+            size = Size::new(0, 0);
+        }
+
         if data.len() as u64 != size.pixels().saturating_mul(color.bytes_per_pixel() as u64) {
             return None;
         }
-        Some(Self { data, size, color })
+        let row_pitch = size.width as usize * color.bytes_per_pixel() as usize;
+
+        Some(Self {
+            data,
+            size,
+            color,
+            row_pitch,
+        })
+    }
+    /// Creates a new image view from the given data, row pitch, size, and color
+    /// format.
+    ///
+    /// The data and row pitch must be the correct size for the given size and
+    /// color format. If `row_pitch < width * color.bytes_per_pixel()` or the
+    /// data length is too short, then `None` will be returned.
+    ///
+    /// Note: The data slice will be truncated to the exact addressable length
+    /// based on row pitch and size.
+    pub fn new_with(
+        data: &'a [u8],
+        mut row_pitch: usize,
+        mut size: Size,
+        color: ColorFormat,
+    ) -> Option<Self> {
+        if size.is_empty() {
+            size = Size::new(0, 0);
+            row_pitch = 0;
+        }
+
+        let bytes_per_row = size.width as usize * color.bytes_per_pixel() as usize;
+        if row_pitch < bytes_per_row {
+            return None;
+        }
+
+        let addressable_len = row_pitch * size.height.saturating_sub(1) as usize + bytes_per_row;
+        if data.len() < addressable_len {
+            return None;
+        }
+
+        Some(Self {
+            data: &data[..addressable_len],
+            size,
+            color,
+            row_pitch,
+        })
     }
 
     pub fn data(&self) -> &'a [u8] {
@@ -233,8 +283,64 @@ impl<'a> ImageView<'a> {
     pub fn color(&self) -> ColorFormat {
         self.color
     }
+
     pub fn row_pitch(&self) -> usize {
-        self.size.width as usize * self.color.bytes_per_pixel() as usize
+        self.row_pitch
+    }
+    /// Returns `true` if the data is contiguous in memory.
+    pub fn is_contiguous(&self) -> bool {
+        self.row_pitch * self.height() as usize == self.data.len()
+    }
+
+    /// Returns a new image view that is a cropped version of this image.
+    ///
+    /// ## Panics
+    ///
+    /// If the rectangle is not within the bounds of the image size.
+    pub fn cropped(&self, rect: Rect) -> Self {
+        assert!(
+            rect.is_within_bounds(self.size),
+            "Rectangle {:?} is not within bounds of size {:?}",
+            rect,
+            self.size
+        );
+
+        if rect.size().is_empty() {
+            return Self {
+                data: &[],
+                size: Size::new(0, 0),
+                color: self.color,
+                row_pitch: 0,
+            };
+        }
+
+        let bytes_per_row = rect.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (rect.y as usize * self.row_pitch)
+            + (rect.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((rect.height - 1) as usize * self.row_pitch) + bytes_per_row;
+
+        Self {
+            data: &self.data[start..end],
+            size: rect.size(),
+            color: self.color,
+            row_pitch: self.row_pitch,
+        }
+    }
+
+    pub(crate) fn rows(self) -> impl Iterator<Item = &'a [u8]> {
+        let height = if self.size.is_empty() {
+            0
+        } else {
+            self.size.height as usize
+        };
+        let bytes_per_row = self.width() as usize * self.color.bytes_per_pixel() as usize;
+        let data = self.data;
+
+        (0..height).map(move |y| {
+            let start = y * self.row_pitch;
+            let end = start + bytes_per_row;
+            &data[start..end]
+        })
     }
 }
 
