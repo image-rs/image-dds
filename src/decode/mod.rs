@@ -18,7 +18,7 @@ pub(crate) use decoder::*;
 use sub_sampled::*;
 use uncompressed::*;
 
-use crate::{ColorFormat, DecodingError, Format, ImageViewMut, Rect, Size};
+use crate::{util, DecodingError, Format, ImageViewMut, PixelInfo, Rect, Size};
 
 pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
     match format {
@@ -139,10 +139,8 @@ pub fn decode(
 /// Decodes a rectangle of the image data of a surface from the given reader
 /// and writes it to the given output buffer.
 ///
-/// ## Row pitch and the output buffer
-///
-/// The `row_pitch` parameter specifies the number of bytes between the start
-/// of one row and the start of the next row in the output buffer.
+/// Note: `image.size() == rect.size()` must hold true, otherwise the
+/// operation will fail with a `DecodingError::InvalidRect`.
 ///
 /// ## State of the reader
 ///
@@ -159,20 +157,34 @@ pub fn decode(
 /// ## Panics
 ///
 /// This method will only panic in the given reader panics while reading.
-#[allow(clippy::too_many_arguments)]
 pub fn decode_rect<R: Read + Seek>(
     reader: &mut R,
-    output: &mut [u8],
-    row_pitch: usize,
-    color: ColorFormat,
-    size: Size,
+    image: ImageViewMut,
     rect: Rect,
+    surface_size: Size,
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
+    if image.size() != rect.size() {
+        return Err(DecodingError::UnexpectedRectSize);
+    }
+    if !rect.is_within_bounds(surface_size) {
+        return Err(DecodingError::RectOutOfBounds);
+    }
+
+    let offset = Offset::new(rect.x, rect.y);
     let reader = reader as &mut dyn ReadSeek;
+
+    if image.size().is_empty() {
+        // skip the entire surface
+        let pixel_info = PixelInfo::from(format);
+        let bytes = pixel_info.surface_bytes(image.size()).unwrap_or(u64::MAX);
+        util::io_skip_exact(reader, bytes)?;
+        return Ok(());
+    }
+
     let decoders = get_decoders(format);
-    decoders.decode_rect(color, reader, size, rect, output, row_pitch, options)
+    decoders.decode_rect(reader, image, offset, surface_size, options)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

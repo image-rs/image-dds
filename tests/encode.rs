@@ -637,26 +637,19 @@ fn encode_mipmap() {
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
         let mut decoded: Image<u8> =
             Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
-        let color = ColorFormat::RGBA_U8;
-        let stride = decoded.size.width as usize * 4;
-        decoder.read_surface_rect(
-            decoded.as_bytes_mut(),
-            stride,
-            Rect::new(0, 0, width, height),
-            color,
-        )?;
+        decoder.read_surface(decoded.view_mut().cropped(Rect::new(0, 0, width, height)))?;
         let mut offset_y = 0;
         while let Some(info) = decoder.surface_info() {
             let mip_size = info.size();
 
-            decoder.read_surface_rect(
-                &mut decoded.as_bytes_mut()[offset_y * stride + (width as usize * 4)..],
-                stride,
-                Rect::new(0, 0, mip_size.width, mip_size.height),
-                color,
-            )?;
+            decoder.read_surface(decoded.view_mut().cropped(Rect::new(
+                width,
+                offset_y,
+                mip_size.width,
+                mip_size.height,
+            )))?;
 
-            offset_y += mip_size.height as usize;
+            offset_y += mip_size.height;
         }
 
         _ = util::update_snapshot_png_u8(snap_path, &decoded)?;

@@ -481,12 +481,9 @@ pub fn read_dds_rect_as_u8(
     let mut decoder = Decoder::new(file)?;
 
     let channels = to_png_compatible_channels(decoder.format().channels()).0;
-    let color = ColorFormat::new(channels, U8);
-    let bpp = color.bytes_per_pixel() as usize;
 
     let mut image = Image::new_empty(channels, rect.size());
-    let row_pitch = rect.width as usize * bpp;
-    decoder.read_surface_rect(image.as_bytes_mut(), row_pitch, rect, color)?;
+    decoder.read_surface_rect(image.view_mut(), rect)?;
 
     Ok((image, DdsInfo::from_decoder(&decoder)))
 }
