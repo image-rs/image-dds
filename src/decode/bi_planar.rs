@@ -42,13 +42,12 @@ macro_rules! underlying {
             |Args(r, out, context)| {
                 for_each_bi_planar(r, out, context, NATIVE_COLOR, INFO, process_bi_planar)
             },
-            |RArgs(r, out, row_pitch, rect, context)| {
+            |RArgs(r, out, offset, context)| {
                 for_each_bi_planar_rect(
                     r,
                     out,
-                    row_pitch,
+                    offset,
                     context,
-                    rect,
                     NATIVE_COLOR,
                     INFO,
                     process_bi_planar,

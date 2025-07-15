@@ -36,15 +36,15 @@ where
     EncodedBlock: Default + Copy + cast::ToLe + cast::Castable,
 {
     let Args {
-        data,
-        color,
+        image,
         writer,
-        width,
-        height,
         mut progress,
         ..
     } = args;
+    let color = image.color();
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
 
     assert!(block_width >= 2);
 
@@ -58,7 +58,7 @@ where
     let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
     let mut chunk_index: usize = 0;
 
-    for (y_index, y_line) in data.chunks(width * bytes_per_pixel).enumerate() {
+    for (y_index, y_line) in image.rows().enumerate() {
         debug_assert!(y_line.len() == width * bytes_per_pixel);
 
         for chunk in y_line.chunks(chunk_size) {

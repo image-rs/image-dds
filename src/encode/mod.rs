@@ -13,6 +13,7 @@ mod bi_planar;
 mod encoder;
 mod sub_sampled;
 mod uncompressed;
+mod write_util;
 
 use bc::*;
 use bi_planar::*;
@@ -135,13 +136,13 @@ fn encode_parallel(
 ) -> Result<(), EncodingError> {
     use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-    use crate::Report;
+    use crate::{ParallelProgress, PixelInfo, Report, SplitSurface};
 
     let mut options = options.clone();
     // don't cause an infinite loop
     options.parallel = false;
 
-    let split = crate::SplitSurface::new(image, format, &options);
+    let split = SplitSurface::new(image, format, &options);
 
     // optimization for single fragment
     if let Some(single) = split.single() {
@@ -152,9 +153,9 @@ fn encode_parallel(
     // reported only after everything written to disk.
     // Note: Parallel progress reporting is not supported for single-threaded
     // reporters. They will do nothing.
-    let parallel_progress = crate::ParallelProgress::new(&mut progress, image.height() as u64 + 1);
+    let parallel_progress = ParallelProgress::new(&mut progress, image.height() as u64 + 1);
 
-    let pixel_info = crate::PixelInfo::from(format);
+    let pixel_info = PixelInfo::from(format);
     let result: Result<Vec<Vec<u8>>, EncodingError> = split
         .fragments()
         .par_iter()

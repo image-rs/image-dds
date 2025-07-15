@@ -6,7 +6,6 @@ use std::{
 
 use dds::{header::*, *};
 use rand::RngCore;
-use Precision::*;
 
 mod util;
 
@@ -152,7 +151,6 @@ fn decode_rect() {
         let header = Header::read(&mut file, &Default::default())?;
         let format = Format::from_header(&header)?;
         let size = header.size();
-        let target_color = ColorFormat::new(Channels::Rgba, U8);
 
         // read in the whole DDS surface, because we need to read it multiple times
         let layout = DataLayout::from_header(&header)?;
@@ -178,17 +176,19 @@ fn decode_rect() {
                     y_window[1] - y_window[0],
                 );
 
-                let image_x = rect.x as usize + x_index;
-                let image_y = rect.y as usize + y_index;
+                let image_x = rect.x + x_index as u32;
+                let image_y = rect.y + y_index as u32;
 
-                let stride = image.stride();
+                let image =
+                    image
+                        .view_mut()
+                        .cropped(Rect::new(image_x, image_y, rect.width, rect.height));
+
                 dds::decode_rect(
                     &mut Cursor::new(surface.as_slice()),
-                    &mut image.data[(image_y * stride + image_x * 4)..],
-                    stride,
-                    target_color,
-                    size,
+                    image,
                     rect,
+                    size,
                     format,
                     &DecodeOptions::default(),
                 )?;
@@ -377,6 +377,46 @@ fn test_unaligned() {
     }
 }
 
+#[test]
+fn test_row_pitch() {
+    // dummy image data of the encoded image
+    let surface_size = Size::new(7, 13);
+    let mut dummy_data = vec![0_u8; surface_size.pixels() as usize * 16];
+    util::create_rng().fill_bytes(dummy_data.as_mut_slice());
+
+    let options = DecodeOptions::default();
+
+    for &format in util::ALL_FORMATS {
+        for &color in util::ALL_COLORS {
+            let bpp = color.bytes_per_pixel() as usize;
+
+            let mut cont_buffer = vec![0_u8; surface_size.pixels() as usize * bpp];
+            let cont_view = ImageViewMut::new(&mut cont_buffer, surface_size, color).unwrap();
+
+            let non_cont_size = Size::new(50, 55);
+            let non_cont_rect = Rect::new(8, 31, surface_size.width, surface_size.height);
+            let mut non_cont_buffer = vec![255_u8; non_cont_size.pixels() as usize * bpp];
+            let non_cont_view = ImageViewMut::new(&mut non_cont_buffer, non_cont_size, color)
+                .unwrap()
+                .cropped(non_cont_rect);
+
+            assert_eq!(cont_view.size(), non_cont_view.size());
+
+            dds::decode(&mut dummy_data.as_slice(), cont_view, format, &options).unwrap();
+            dds::decode(&mut dummy_data.as_slice(), non_cont_view, format, &options).unwrap();
+
+            let mut cont_view = ImageViewMut::new(&mut cont_buffer, surface_size, color).unwrap();
+            let mut non_cont_view = ImageViewMut::new(&mut non_cont_buffer, non_cont_size, color)
+                .unwrap()
+                .cropped(non_cont_rect);
+
+            for (r1, r2) in cont_view.rows_mut().zip(non_cont_view.rows_mut()) {
+                assert_eq!(r1, r2, "Failed for {format:?} {color:?}");
+            }
+        }
+    }
+}
+
 mod errors {
     use super::*;
 
@@ -479,35 +519,35 @@ mod errors {
     #[test]
     fn rect_out_of_bounds() {
         // decodes a dummy 2x3 image to GRAY U8
-        let decode_dummy = |rect: Rect, output: &mut [u8], row_pitch: usize| {
+        let decode_dummy = |rect: Rect| {
+            let mut image = util::Image::<u8>::new_empty(Channels::Grayscale, rect.size());
             let data: &[u8] = &[0, 0, 0, 0, 0, 0];
+
             dds::decode_rect(
                 &mut std::io::Cursor::new(data),
-                output,
-                row_pitch,
-                ColorFormat::GRAYSCALE_U8,
-                Size::new(2, 3),
+                image.view_mut(),
                 rect,
+                Size::new(2, 3),
                 Format::R8_UNORM,
                 &DecodeOptions::default(),
             )
         };
 
-        let result = decode_dummy(Rect::new(0, 0, 100, 100), &mut [], 0);
+        let result = decode_dummy(Rect::new(0, 0, 100, 100));
         assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
         assert_eq!(
             format!("{}", result.unwrap_err()),
             "Rectangle is out of bounds of the image size"
         );
 
-        let result = decode_dummy(Rect::new(2, 2, 1, 1), &mut [], 0);
+        let result = decode_dummy(Rect::new(2, 2, 1, 1));
         assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
 
         // even empty rect can be OoB
-        let result = decode_dummy(Rect::new(4, 0, 0, 0), &mut [], 0);
+        let result = decode_dummy(Rect::new(4, 0, 0, 0));
         assert!(matches!(result, Err(DecodingError::RectOutOfBounds)));
         // edge case: empty rect at the end of the image
-        let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
+        let result = decode_dummy(Rect::new(2, 3, 0, 0));
         assert!(matches!(result, Ok(())));
     }
 }

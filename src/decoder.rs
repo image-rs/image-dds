@@ -127,15 +127,14 @@ impl<R> Decoder<R> {
     /// Reads a rectangle of the next surface into the given buffer.
     ///
     /// Similarly to [`Decoder::read_surface`], this operation will consume the
-    /// current surface and advance to the next one. It is not possible to read
-    /// multiple rectangles from the same surface. If this is what you want to
-    /// do, use the [`decode_rect`] function instead.
+    /// current surface and advance to the next one. Reading multiple rectangles
+    /// from the same surface is possible with [`Decoder::rewind_to_previous_surface`].
+    ///
+    /// This function will return an error if `image.size() != rect.size()`.
     pub fn read_surface_rect(
         &mut self,
-        buffer: &mut [u8],
-        row_pitch: usize,
+        image: ImageViewMut,
         rect: Rect,
-        color: ColorFormat,
     ) -> Result<(), DecodingError>
     where
         R: Read + Seek,
@@ -144,11 +143,9 @@ impl<R> Decoder<R> {
 
         decode_rect(
             &mut self.reader,
-            buffer,
-            row_pitch,
-            color,
-            current.size(),
+            image,
             rect,
+            current.size(),
             self.format,
             &self.options,
         )?;
@@ -258,10 +255,7 @@ impl<R> Decoder<R> {
         ];
 
         let color = image.color();
-        let bytes_per_pixel = color.bytes_per_pixel() as usize;
         let row_pitch = image.row_pitch();
-        let rect = Rect::new(0, 0, face_size.width, face_size.height);
-        let image_bytes = image.data();
 
         for (_, x, y) in face_offsets
             .into_iter()
@@ -274,9 +268,21 @@ impl<R> Decoder<R> {
 
             let offset_x = x * face_size.width;
             let offset_y = y * face_size.height;
-            let offset = offset_y as usize * row_pitch + offset_x as usize * bytes_per_pixel;
 
-            self.read_surface_rect(&mut image_bytes[offset..], row_pitch, rect, color)?;
+            let crop = ImageViewMut::new_with(
+                image.cropped_data(Rect::new(
+                    offset_x,
+                    offset_y,
+                    face_size.width,
+                    face_size.height,
+                )),
+                row_pitch,
+                face_size,
+                color,
+            )
+            .expect("Failed to create cropped image view");
+
+            self.read_surface(crop)?;
             self.skip_mipmaps()?;
         }
 
