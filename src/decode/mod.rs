@@ -129,11 +129,11 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// This method will only panic in the given reader panics while reading.
 pub fn decode(
     reader: &mut dyn Read,
-    image: ImageViewMut,
+    mut image: ImageViewMut,
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
-    get_decoders(format).decode(reader, image, options)
+    get_decoders(format).decode(reader, &mut image, options)
 }
 
 /// Decodes a rectangle of the image data of a surface from the given reader
@@ -159,32 +159,44 @@ pub fn decode(
 /// This method will only panic in the given reader panics while reading.
 pub fn decode_rect<R: Read + Seek>(
     reader: &mut R,
-    image: ImageViewMut,
+    mut image: ImageViewMut,
     rect: Rect,
     surface_size: Size,
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
-    if image.size() != rect.size() {
-        return Err(DecodingError::UnexpectedRectSize);
-    }
-    if !rect.is_within_bounds(surface_size) {
-        return Err(DecodingError::RectOutOfBounds);
-    }
-
-    let offset = Offset::new(rect.x, rect.y);
     let reader = reader as &mut dyn ReadSeek;
 
-    if image.size().is_empty() {
-        // skip the entire surface
-        let pixel_info = PixelInfo::from(format);
-        let bytes = pixel_info.surface_bytes(image.size()).unwrap_or(u64::MAX);
-        util::io_skip_exact(reader, bytes)?;
-        return Ok(());
-    }
+    return inner(reader, &mut image, rect, surface_size, format, options);
 
-    let decoders = get_decoders(format);
-    decoders.decode_rect(reader, image, offset, surface_size, options)
+    fn inner(
+        reader: &mut dyn ReadSeek,
+        image: &mut ImageViewMut,
+        rect: Rect,
+        surface_size: Size,
+        format: Format,
+        options: &DecodeOptions,
+    ) -> Result<(), DecodingError> {
+        if image.size() != rect.size() {
+            return Err(DecodingError::UnexpectedRectSize);
+        }
+        if !rect.is_within_bounds(surface_size) {
+            return Err(DecodingError::RectOutOfBounds);
+        }
+
+        let offset = Offset::new(rect.x, rect.y);
+
+        if image.size().is_empty() {
+            // skip the entire surface
+            let pixel_info = PixelInfo::from(format);
+            let bytes = pixel_info.surface_bytes(image.size()).unwrap_or(u64::MAX);
+            util::io_skip_exact(reader, bytes)?;
+            return Ok(());
+        }
+
+        let decoders = get_decoders(format);
+        decoders.decode_rect(reader, image, offset, surface_size, options)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

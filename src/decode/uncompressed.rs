@@ -89,23 +89,23 @@ macro_rules! rgba {
 // buffer. This allows for some very efficient decoding.
 // Note that this is only an optimization, and not required for correctness.
 
-const COPY_U8: DecodeFn = |Args(r, mut out, _)| {
-    read_exact_image(r, &mut out)?;
+const COPY_U8: DecodeFn = |Args(r, out, _)| {
+    read_exact_image(r, out)?;
     Ok(())
 };
-const COPY_U16: DecodeFn = |Args(r, mut out, _)| {
-    read_exact_image(r, &mut out)?;
-    for_each_slice(&mut out, cast::slice_le_to_ne_16);
+const COPY_U16: DecodeFn = |Args(r, out, _)| {
+    read_exact_image(r, out)?;
+    for_each_slice(out, cast::slice_le_to_ne_16);
     Ok(())
 };
-const COPY_U32: DecodeFn = |Args(r, mut out, _)| {
-    read_exact_image(r, &mut out)?;
-    for_each_slice(&mut out, cast::slice_le_to_ne_32);
+const COPY_U32: DecodeFn = |Args(r, out, _)| {
+    read_exact_image(r, out)?;
+    for_each_slice(out, cast::slice_le_to_ne_32);
     Ok(())
 };
-const COPY_S8: DecodeFn = |Args(r, mut out, _)| {
-    read_exact_image(r, &mut out)?;
-    for_each_slice(&mut out, |out| out.iter_mut().for_each(|v| *v = s8::n8(*v)));
+const COPY_S8: DecodeFn = |Args(r, out, _)| {
+    read_exact_image(r, out)?;
+    for_each_slice(out, |out| out.iter_mut().for_each(|v| *v = s8::n8(*v)));
     Ok(())
 };
 
@@ -186,11 +186,11 @@ pub(crate) const B8G8R8A8_UNORM: DecoderSet = DecoderSet::new(&[
     rgba!(u16, [u8; 4], |bgra| bgra.swap_rb().map(n8::n16)),
     rgba!(f32, [u8; 4], |bgra| bgra.swap_rb().map(n8::f32)),
 ])
-.add_specialized(Rgba, U8, |Args(r, mut out, _)| {
+.add_specialized(Rgba, U8, |Args(r, out, _)| {
     // read everything in BGRA order
-    read_exact_image(r, &mut out)?;
+    read_exact_image(r, out)?;
     // swap R and B
-    for_each_slice(&mut out, |out| {
+    for_each_slice(out, |out| {
         for i in (0..out.len()).step_by(4) {
             out.swap(i, i + 2);
         }

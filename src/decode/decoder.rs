@@ -59,15 +59,15 @@ impl<T: Read + Seek> ReadSeek for T {}
 /// The "fix" is to wrap all mutable references in a struct so that compiler
 /// can't see them in the type signature of the function pointer anymore. Truly
 /// silly, and thankfully not necessary on never compiler versions.
-pub(crate) struct Args<'a, 'b>(
+pub(crate) struct Args<'a, 'b, 'c>(
     pub &'a mut dyn Read,
-    pub ImageViewMut<'b>,
+    pub &'b mut ImageViewMut<'c>,
     pub DecodeContext,
 );
 
-pub(crate) struct RArgs<'a, 'b>(
+pub(crate) struct RArgs<'a, 'b, 'c>(
     pub &'a mut dyn ReadSeek,
-    pub ImageViewMut<'b>,
+    pub &'b mut ImageViewMut<'c>,
     pub Offset,
     pub DecodeContext,
 );
@@ -170,7 +170,7 @@ impl DecoderSet {
     pub fn decode(
         &self,
         reader: &mut dyn Read,
-        image: ImageViewMut,
+        image: &mut ImageViewMut,
         options: &DecodeOptions,
     ) -> Result<(), DecodingError> {
         let color = image.color();
@@ -204,7 +204,7 @@ impl DecoderSet {
     pub fn decode_rect(
         &self,
         reader: &mut dyn ReadSeek,
-        image: ImageViewMut,
+        image: &mut ImageViewMut,
         offset: Offset,
         surface_size: Size,
         options: &DecodeOptions,

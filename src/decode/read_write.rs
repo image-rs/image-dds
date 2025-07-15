@@ -88,7 +88,7 @@ pub(crate) fn process_pixels_helper_unroll<const UNROLL: usize, InPixel, OutPixe
 /// Helper method for decoding UNCOMPRESSED formats.
 pub(crate) fn for_each_pixel_untyped(
     r: &mut dyn Read,
-    mut image: ImageViewMut,
+    image: &mut ImageViewMut,
     mut context: DecodeContext,
     native_color: ColorFormat,
     pixel_size: PixelSize,
@@ -121,7 +121,7 @@ pub(crate) fn for_each_pixel_untyped(
 /// `process_pixels` has the same semantics as in `for_each_pixel_untyped`.
 pub(crate) fn for_each_pixel_rect_untyped(
     r: &mut dyn ReadSeek,
-    mut image: ImageViewMut,
+    image: &mut ImageViewMut,
     offset: Offset,
     mut context: DecodeContext,
     native_color: ColorFormat,
@@ -486,14 +486,14 @@ pub(crate) fn for_each_block_untyped<
     OutPixel,
 >(
     r: &mut dyn Read,
-    image: ImageViewMut,
+    image: &mut ImageViewMut,
     context: DecodeContext,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodingError> {
     fn inner(
         r: &mut dyn Read,
-        mut image: ImageViewMut,
+        image: &mut ImageViewMut,
         mut context: DecodeContext,
         block_size: (usize, usize),
         bytes_per_block: usize,
@@ -573,7 +573,7 @@ pub(crate) fn for_each_block_rect_untyped<
     const BYTES_PER_BLOCK: usize,
 >(
     r: &mut dyn ReadSeek,
-    image: ImageViewMut,
+    image: &mut ImageViewMut,
     offset: Offset,
     context: DecodeContext,
     native_color: ColorFormat,
@@ -582,7 +582,7 @@ pub(crate) fn for_each_block_rect_untyped<
     #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn ReadSeek,
-        mut image: ImageViewMut,
+        image: &mut ImageViewMut,
         offset: Offset,
         mut context: DecodeContext,
         block_size: (usize, usize),
@@ -1099,7 +1099,7 @@ pub(crate) struct BiPlaneInfo {
 }
 pub(crate) fn for_each_bi_planar(
     r: &mut dyn Read,
-    mut image: ImageViewMut,
+    image: &mut ImageViewMut,
     mut context: DecodeContext,
     native_color: ColorFormat,
     info: BiPlaneInfo,
@@ -1155,7 +1155,7 @@ pub(crate) fn for_each_bi_planar(
 }
 pub(crate) fn for_each_bi_planar_rect(
     r: &mut dyn ReadSeek,
-    mut image: ImageViewMut,
+    image: &mut ImageViewMut,
     offset: Offset,
     mut context: DecodeContext,
     native_color: ColorFormat,
