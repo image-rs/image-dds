@@ -16,7 +16,7 @@ include = [
 	"src/",
 	"benches/",
 	"README.md",
-	"CHANGELOG.md",
+	"CHANGES.md",
 	"supported-formats.md",
 	"LICENSE-APACHE",
 	"LICENSE-MIT",
