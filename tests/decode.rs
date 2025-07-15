@@ -377,6 +377,46 @@ fn test_unaligned() {
     }
 }
 
+#[test]
+fn test_row_pitch() {
+    // dummy image data of the encoded image
+    let surface_size = Size::new(7, 13);
+    let mut dummy_data = vec![0_u8; surface_size.pixels() as usize * 16];
+    util::create_rng().fill_bytes(dummy_data.as_mut_slice());
+
+    let options = DecodeOptions::default();
+
+    for &format in util::ALL_FORMATS {
+        for &color in util::ALL_COLORS {
+            let bpp = color.bytes_per_pixel() as usize;
+
+            let mut cont_buffer = vec![0_u8; surface_size.pixels() as usize * bpp];
+            let cont_view = ImageViewMut::new(&mut cont_buffer, surface_size, color).unwrap();
+
+            let non_cont_size = Size::new(50, 55);
+            let non_cont_rect = Rect::new(8, 31, surface_size.width, surface_size.height);
+            let mut non_cont_buffer = vec![255_u8; non_cont_size.pixels() as usize * bpp];
+            let non_cont_view = ImageViewMut::new(&mut non_cont_buffer, non_cont_size, color)
+                .unwrap()
+                .cropped(non_cont_rect);
+
+            assert_eq!(cont_view.size(), non_cont_view.size());
+
+            dds::decode(&mut dummy_data.as_slice(), cont_view, format, &options).unwrap();
+            dds::decode(&mut dummy_data.as_slice(), non_cont_view, format, &options).unwrap();
+
+            let mut cont_view = ImageViewMut::new(&mut cont_buffer, surface_size, color).unwrap();
+            let mut non_cont_view = ImageViewMut::new(&mut non_cont_buffer, non_cont_size, color)
+                .unwrap()
+                .cropped(non_cont_rect);
+
+            for (r1, r2) in cont_view.rows_mut().zip(non_cont_view.rows_mut()) {
+                assert_eq!(r1, r2, "Failed for {format:?} {color:?}");
+            }
+        }
+    }
+}
+
 mod errors {
     use super::*;
 

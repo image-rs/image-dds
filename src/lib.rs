@@ -327,7 +327,8 @@ impl<'a> ImageView<'a> {
         }
     }
 
-    pub(crate) fn rows(self) -> impl Iterator<Item = &'a [u8]> {
+    #[doc(hidden)]
+    pub fn rows(self) -> impl Iterator<Item = &'a [u8]> {
         let height = if self.size.is_empty() {
             0
         } else {
@@ -496,7 +497,8 @@ impl<'a> ImageViewMut<'a> {
         &mut self.data[start..end]
     }
 
-    pub(crate) fn rows_mut(&mut self) -> impl Iterator<Item = &'_ mut [u8]> {
+    #[doc(hidden)]
+    pub fn rows_mut(&mut self) -> impl Iterator<Item = &'_ mut [u8]> {
         let bytes_per_row = self.bytes_per_row();
 
         self.data

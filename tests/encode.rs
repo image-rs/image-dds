@@ -809,10 +809,10 @@ fn test_row_pitch() {
     }
     let cont_image = ImageView::new(&cont, image.size(), ColorFormat::RGB_U8).unwrap();
 
-    // // check that the two images are the same
-    // for (row, cont_row) in image.rows().zip(cont_image.rows()) {
-    //     assert_eq!(row, cont_row, "Row mismatch");
-    // }
+    // check that the two images are the same
+    for (row, cont_row) in image.rows().zip(cont_image.rows()) {
+        assert_eq!(row, cont_row, "Row mismatch");
+    }
 
     for format in util::ALL_FORMATS.iter().copied() {
         let Some(encoding) = format.encoding_support() else {
