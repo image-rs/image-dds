@@ -24,16 +24,40 @@ impl DecodeContext {
         self.memory_limit -= bytes;
         Ok(())
     }
+    /// Allocates a boxed slice of `T` with the given length, initialized to `T::default()`.
     pub fn alloc<T: Default + Copy>(&mut self, len: usize) -> Result<Box<[T]>, DecodingError> {
         self.reserve_bytes(len * size_of::<T>())?;
-        Ok(vec![T::default(); len].into_boxed_slice())
+
+        let mut buf = Vec::new();
+        buf.try_reserve_exact(len)
+            .map_err(|_| DecodingError::MemoryLimitExceeded)?;
+        buf.resize(len, T::default());
+
+        Ok(buf.into_boxed_slice())
     }
-    pub fn alloc_capacity<T: Default + Copy>(
+    /// Allocates a boxed slice of bytes with the given length, reading exactly
+    /// that many bytes from the provided reader.
+    pub fn alloc_read<R: Read + ?Sized>(
         &mut self,
         len: usize,
-    ) -> Result<Vec<T>, DecodingError> {
-        self.reserve_bytes(len * size_of::<T>())?;
-        Ok(Vec::with_capacity(len))
+        r: &mut R,
+    ) -> Result<Box<[u8]>, DecodingError> {
+        self.reserve_bytes(len)?;
+
+        let mut buf = Vec::new();
+        buf.try_reserve_exact(len)
+            .map_err(|_| DecodingError::MemoryLimitExceeded)?;
+
+        let take = len as u64;
+        let copied = std::io::copy(&mut r.take(take), &mut buf)?;
+        if copied < take {
+            return Err(DecodingError::Io(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "Failed to read enough bytes",
+            )));
+        }
+
+        Ok(buf.into_boxed_slice())
     }
 }
 
