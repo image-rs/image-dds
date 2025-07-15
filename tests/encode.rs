@@ -789,67 +789,72 @@ fn test_unaligned() {
 
 #[test]
 fn test_row_pitch() {
-    let backing_size = Size::new(256, 256);
-    let mut buffer = vec![0_u8; backing_size.pixels() as usize * 3];
-    util::create_rng().fill_bytes(&mut buffer);
-    let backing = ImageView::new(&buffer, backing_size, ColorFormat::RGB_U8).unwrap();
+    for &color in util::ALL_COLORS {
+        let bpp = color.bytes_per_pixel() as usize;
 
-    // I'm using prime numbers for the rect to make things as difficult as possible for the impl
-    let image = backing.cropped(Rect::new(13, 29, 89, 53));
+        let backing_size = Size::new(256, 256);
+        let mut buffer = vec![0_u8; backing_size.pixels() as usize * bpp];
+        util::create_rng().fill_bytes(&mut buffer);
+        let backing = ImageView::new(&buffer, backing_size, color).unwrap();
 
-    // create a contiguous version of the image
-    let mut cont = vec![0_u8; image.size().pixels() as usize * 3];
-    let row_pitch = image.row_pitch();
-    let bytes_per_row = image.size().width as usize * image.color().bytes_per_pixel() as usize;
-    let data = image.data();
-    for y in 0..image.size().height as usize {
-        let src_row = &data[y * row_pitch..][..bytes_per_row];
-        let dst_row = &mut cont[y * bytes_per_row..][..bytes_per_row];
-        dst_row.copy_from_slice(src_row);
-    }
-    let cont_image = ImageView::new(&cont, image.size(), ColorFormat::RGB_U8).unwrap();
+        // I'm using prime numbers for the rect to make things as difficult as possible for the impl
+        let image = backing.cropped(Rect::new(13, 29, 17, 51));
 
-    // check that the two images are the same
-    for (row, cont_row) in image.rows().zip(cont_image.rows()) {
-        assert_eq!(row, cont_row, "Row mismatch");
-    }
+        // create a contiguous version of the image
+        let mut cont = vec![0_u8; image.size().pixels() as usize * bpp];
+        let row_pitch = image.row_pitch();
+        let bytes_per_row = image.size().width as usize * bpp;
+        let data = image.data();
+        for y in 0..image.size().height as usize {
+            let src_row = &data[y * row_pitch..][..bytes_per_row];
+            let dst_row = &mut cont[y * bytes_per_row..][..bytes_per_row];
+            dst_row.copy_from_slice(src_row);
+        }
+        let cont_image = ImageView::new(&cont, image.size(), color).unwrap();
 
-    for format in util::ALL_FORMATS.iter().copied() {
-        let Some(encoding) = format.encoding_support() else {
-            // encoding isn't supported
-            continue;
-        };
-
-        let mut size = image.size();
-        if !encoding.supports_size(size) {
-            let (w_mul, h_mul) = encoding.size_multiple().unwrap();
-            // round down to the nearest multiple
-            let w_mul = w_mul.get();
-            let h_mul = h_mul.get();
-            size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
+        // check that the two images are the same
+        for (row, cont_row) in image.rows().zip(cont_image.rows()) {
+            assert_eq!(row, cont_row, "Row mismatch");
         }
 
-        let image = image.cropped(Rect::new(0, 0, size.width, size.height));
-        let cont_image = cont_image.cropped(Rect::new(0, 0, size.width, size.height));
+        for format in util::ALL_FORMATS.iter().copied() {
+            let Some(encoding) = format.encoding_support() else {
+                // encoding isn't supported
+                continue;
+            };
 
-        let header = Header::new_image(size.width, size.height, format);
+            let mut size = image.size();
+            if !encoding.supports_size(size) {
+                let (w_mul, h_mul) = encoding.size_multiple().unwrap();
+                // round down to the nearest multiple
+                let w_mul = w_mul.get();
+                let h_mul = h_mul.get();
+                size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
+            }
 
-        let mut cont_encoded = Vec::new();
-        let mut cont_encoder = Encoder::new(&mut cont_encoded, format, &header).unwrap();
-        cont_encoder.write_surface(cont_image).unwrap();
-        cont_encoder.finish().unwrap();
+            let image = image.cropped(Rect::new(0, 0, size.width, size.height));
+            let cont_image = cont_image.cropped(Rect::new(0, 0, size.width, size.height));
 
-        let mut non_cont_encoded = Vec::new();
-        let mut non_cont_encoder = Encoder::new(&mut non_cont_encoded, format, &header).unwrap();
-        non_cont_encoder.write_surface(image).unwrap();
-        non_cont_encoder.finish().unwrap();
+            let header = Header::new_image(size.width, size.height, format);
 
-        assert_eq!(
-            cont_encoded.len(),
-            non_cont_encoded.len(),
-            "Failed for {format:?}"
-        );
-        assert!(cont_encoded == non_cont_encoded, "Failed for {format:?}");
+            let mut cont_encoded = Vec::new();
+            let mut cont_encoder = Encoder::new(&mut cont_encoded, format, &header).unwrap();
+            cont_encoder.write_surface(cont_image).unwrap();
+            cont_encoder.finish().unwrap();
+
+            let mut non_cont_encoded = Vec::new();
+            let mut non_cont_encoder =
+                Encoder::new(&mut non_cont_encoded, format, &header).unwrap();
+            non_cont_encoder.write_surface(image).unwrap();
+            non_cont_encoder.finish().unwrap();
+
+            assert_eq!(
+                cont_encoded.len(),
+                non_cont_encoded.len(),
+                "Failed for {format:?}"
+            );
+            assert!(cont_encoded == non_cont_encoded, "Failed for {format:?}");
+        }
     }
 }
 
