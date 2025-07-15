@@ -16,7 +16,6 @@ impl Aligner {
         let data = image.data();
 
         let bytes_per_pixel = color.bytes_per_pixel() as usize;
-        debug_assert_eq!(size.pixels() as usize * bytes_per_pixel, data.len());
 
         let view = if !image.is_contiguous() {
             // Right now, the implementation assumes that the data to be
@@ -25,8 +24,8 @@ impl Aligner {
             let bytes_per_row = size.width as usize * bytes_per_pixel;
             for (y, data_row) in image.rows().enumerate() {
                 debug_assert_eq!(data_row.len(), bytes_per_row);
-                let a_start = y * bytes_per_pixel;
-                let a_end = a_start + bytes_per_pixel;
+                let a_start = y * bytes_per_row;
+                let a_end = a_start + bytes_per_row;
                 aligned_slice[a_start..a_end].copy_from_slice(data_row);
             }
             aligned_slice
