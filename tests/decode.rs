@@ -510,4 +510,32 @@ mod errors {
         let result = decode_dummy(Rect::new(2, 3, 0, 0), &mut [], 0);
         assert!(matches!(result, Ok(())));
     }
+
+    #[test]
+    fn out_of_memory() {
+        // To decode a P016 image, the decoder needs to allocate a buffer for
+        // the first plane. Creating an invalid image with width=2^32-1, each
+        // line of the first plane will require roughly 8GB of memory. Forcing
+        // the decoder to read 4096 lines, will cause it allocate 4096*8GB=32TB
+        // of memory, which should be OOM.
+        let output_size = Size::new(1, 4096);
+        let mut output_buffer = vec![0_u8; output_size.pixels() as usize];
+        let surface_size = Size::new(u32::MAX, output_size.height);
+
+        let mut options = DecodeOptions::default();
+        options.memory_limit = usize::MAX; // disable memory limit
+
+        let result = dds::decode_rect(
+            &mut std::io::empty(),
+            &mut output_buffer,
+            output_size.width as usize,
+            ColorFormat::GRAYSCALE_U8,
+            surface_size,
+            Rect::new(0, 0, output_size.width, output_size.height),
+            Format::P016,
+            &options,
+        );
+
+        assert!(matches!(result, Err(DecodingError::MemoryLimitExceeded)));
+    }
 }
