@@ -184,7 +184,7 @@ pub fn decode_rect<R: Read + Seek>(
         if image.size().is_empty() {
             // skip the entire surface
             let pixel_info = PixelInfo::from(format);
-            let bytes = pixel_info.surface_bytes(image.size()).unwrap_or(u64::MAX);
+            let bytes = pixel_info.surface_bytes(surface_size).unwrap_or(u64::MAX);
             util::io_skip_exact(reader, bytes)?;
             return Ok(());
         }

@@ -225,6 +225,34 @@ fn decode_rect() {
     }
 }
 
+/// Checks that decoding an empty rectangle is (1) supported and (2) behaves
+/// the same way skipping the surface would.
+#[test]
+fn decode_empty_rect() {
+    let width: u32 = 7;
+    let height: u32 = 13;
+    let mut dummy_data = vec![0_u8; (width * height) as usize];
+    let header = Header::new_image(width, height, Format::R8_UNORM);
+    let expected_pos = width as u64 * height as u64;
+
+    // first: skip the surface
+    {
+        let mut reader = Cursor::new(&mut dummy_data);
+        let mut decoder = Decoder::from_header(&mut reader, header.clone()).unwrap();
+        decoder.skip_surface().unwrap();
+        assert_eq!(reader.position(), expected_pos);
+    }
+
+    // second: decode an empty rectangle
+    {
+        let mut reader = Cursor::new(&mut dummy_data);
+        let mut decoder = Decoder::from_header(&mut reader, header.clone()).unwrap();
+        let image = ImageViewMut::new(&mut [], Size::new(0, 0), ColorFormat::RGBA_U8).unwrap();
+        decoder.read_surface_rect(image, Offset::ZERO).unwrap();
+        assert_eq!(reader.position(), expected_pos);
+    }
+}
+
 /// Checks that all color formats are decoded correctly.
 ///
 /// The idea here is that if you decode as u8, you should get same result as
