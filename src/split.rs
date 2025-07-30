@@ -70,13 +70,13 @@ impl<'a> SplitView<'a> {
             return None;
         }
 
-        let group_height_64 = (group_pixels / size.width as u64) / split_height.get() as u64
-            * split_height.get() as u64;
-        if group_height_64 >= u32::MAX as u64 {
-            return None;
-        }
+        // it's important that the group height is divisible by the split height,
+        let split_height_64 = split_height.get() as u64;
+        let group_height_maybe_zero =
+            u32::try_from((group_pixels / size.width as u64) / split_height_64 * split_height_64)
+                .ok()?;
 
-        let group_height = NonZeroU32::new(group_height_64 as u32).unwrap_or(split_height.into());
+        let group_height = NonZeroU32::new(group_height_maybe_zero).unwrap_or(split_height.into());
 
         Some(group_height)
     }
