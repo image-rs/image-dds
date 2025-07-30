@@ -22,7 +22,7 @@ pub struct SplitView<'a> {
 }
 
 impl<'a> SplitView<'a> {
-    /// Creates a new `SplitSurface` with exactly one fragment that covers the whole surface.
+    /// Creates a new `SplitView` with exactly one fragment that covers the whole surface.
     pub fn new_single(image: ImageView<'a>) -> Self {
         Self {
             image,
@@ -31,7 +31,7 @@ impl<'a> SplitView<'a> {
         }
     }
 
-    /// Creates a new `SplitSurface` from the given image, format, and options.
+    /// Creates a new `SplitView` from the given image, format, and options.
     pub fn new(image: ImageView<'a>, format: Format, options: &EncodeOptions) -> Self {
         if let Some(group_height) = Self::group_height_of(image.size(), format, options) {
             let len = util::div_ceil(image.height(), group_height.get());
