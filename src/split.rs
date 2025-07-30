@@ -1,124 +1,130 @@
-use std::ops::Range;
+use std::num::NonZeroU32;
 
-use crate::{Dithering, EncodeOptions, Format, ImageView, Size};
+use crate::{util, Dithering, EncodeOptions, Format, ImageView, Size};
 
-/// This implements the main logic for splitting a surface into lines.
-fn split_surface_into_lines(
-    size: Size,
-    format: Format,
-    options: &EncodeOptions,
-) -> Option<Vec<Range<u32>>> {
-    if size.is_empty() {
-        return None;
-    }
-
-    let support = format.encoding_support()?;
-    let split_height = support.split_height()?;
-
-    // dithering destroys our ability to split the surface into lines,
-    // because it would create visible seams
-    if !support.local_dithering()
-        && options.dithering.intersect(support.dithering()) != Dithering::None
-    {
-        return None;
-    }
-
-    let group_pixels = support
-        .group_size()
-        .get_group_pixels(options.quality)
-        .max(1);
-    if group_pixels >= size.pixels() {
-        // the image is small enough that it's not worth splitting
-        return None;
-    }
-
-    let group_height = u64::clamp(
-        (group_pixels / size.width as u64) / split_height.get() as u64 * split_height.get() as u64,
-        split_height.get() as u64,
-        u32::MAX as u64,
-    ) as u32;
-
-    let mut lines = Vec::new();
-    let mut y: u32 = 0;
-    while y < size.height {
-        let end = y.saturating_add(group_height).min(size.height);
-        lines.push(y..end);
-        y = end;
-    }
-
-    Some(lines)
+/// An [`ImageView`] that has been split into horizontal fragments.
+///
+/// ## Purpose
+///
+/// The main use case of this type is to allow end users to implement custom
+/// concurrent/parallel encoding schemes. The parallel encoding implemented by
+/// [`encode`](crate::encode()) may not fit every use case, so this type can be
+/// used to split a single [`ImageView`] into multiple fragments that can be
+/// encoded independently.
+///
+/// Note that split views depend on the [`Format`] and [`EncodeOptions`] that
+/// are used to create them. The encoding fragments with different formats
+/// or options may yield unexpected results.
+pub struct SplitView<'a> {
+    image: ImageView<'a>,
+    len: u32,
+    group_height: Option<NonZeroU32>,
 }
 
-pub struct SplitSurface<'a> {
-    fragments: Box<[ImageView<'a>]>,
-    format: Format,
-    options: EncodeOptions,
-}
-
-impl<'a> SplitSurface<'a> {
+impl<'a> SplitView<'a> {
     /// Creates a new `SplitSurface` with exactly one fragment that covers the whole surface.
-    pub fn from_single_fragment(
-        image: ImageView<'a>,
-        format: Format,
-        options: &EncodeOptions,
-    ) -> Self {
+    pub fn new_single(image: ImageView<'a>) -> Self {
         Self {
-            fragments: vec![image].into_boxed_slice(),
-            format,
-            options: options.clone(),
+            image,
+            len: 1,
+            group_height: None,
         }
     }
 
+    /// Creates a new `SplitSurface` from the given image, format, and options.
     pub fn new(image: ImageView<'a>, format: Format, options: &EncodeOptions) -> Self {
-        if let Some(ranges) = split_surface_into_lines(image.size(), format, options) {
-            let row_pitch = image.row_pitch();
-
-            let fragments = ranges
-                .into_iter()
-                .map(move |range| {
-                    let start = range.start as usize * row_pitch;
-                    let end = range.end as usize * row_pitch;
-                    let height = range.end - range.start;
-                    ImageView::new(
-                        &image.data[start..end],
-                        Size::new(image.width(), height),
-                        image.color,
-                    )
-                    .expect("invalid split")
-                })
-                .collect::<Vec<_>>()
-                .into_boxed_slice();
+        if let Some(group_height) = Self::group_height_of(image.size(), format, options) {
+            let len = util::div_ceil(image.height(), group_height.get());
 
             Self {
-                fragments,
-                format,
-                options: options.clone(),
+                image,
+                len,
+                group_height: Some(group_height),
             }
         } else {
-            Self::from_single_fragment(image, format, options)
+            Self::new_single(image)
+        }
+    }
+    fn group_height_of(size: Size, format: Format, options: &EncodeOptions) -> Option<NonZeroU32> {
+        if size.is_empty() {
+            return None;
+        }
+
+        let support = format.encoding_support()?;
+        let split_height = support.split_height()?;
+
+        // dithering destroys our ability to split the surface into lines,
+        // because it would create visible seams
+        if !support.local_dithering()
+            && options.dithering.intersect(support.dithering()) != Dithering::None
+        {
+            return None;
+        }
+
+        let group_pixels = support
+            .group_size()
+            .get_group_pixels(options.quality)
+            .max(1);
+        if group_pixels >= size.pixels() {
+            // the image is small enough that it's not worth splitting
+            return None;
+        }
+
+        let group_height_64 = (group_pixels / size.width as u64) / split_height.get() as u64
+            * split_height.get() as u64;
+        if group_height_64 >= u32::MAX as u64 {
+            return None;
+        }
+
+        let group_height = NonZeroU32::new(group_height_64 as u32).unwrap_or(split_height.into());
+
+        Some(group_height)
+    }
+
+    /// Returns the number of fragments that make up this split surface.
+    ///
+    /// This is guaranteed to be at least 1.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> u32 {
+        self.len
+    }
+
+    pub fn get(&self, index: u32) -> Option<ImageView<'a>> {
+        if index >= self.len {
+            return None;
+        }
+
+        if let Some(group_height) = self.group_height {
+            let start_y = index * group_height.get();
+            let end_y = start_y
+                .saturating_add(group_height.get())
+                .min(self.image.height());
+            debug_assert!(start_y < self.image.height());
+
+            let fragment_height = end_y - start_y;
+            let start = start_y as usize * self.image.row_pitch();
+            let end = end_y as usize * self.image.row_pitch();
+
+            Some(
+                ImageView::new(
+                    &self.image.data[start..end],
+                    Size::new(self.image.width(), fragment_height),
+                    self.image.color,
+                )
+                .expect("invalid split"),
+            )
+        } else {
+            Some(self.image)
         }
     }
 
     /// If this split surface consists of only a single fragment, returns that
     /// fragment.
-    pub fn single(&self) -> Option<&ImageView<'a>> {
-        if self.fragments.len() == 1 {
-            self.fragments.first()
+    pub fn single(&self) -> Option<ImageView<'a>> {
+        if self.len() == 1 {
+            Some(self.image)
         } else {
             None
         }
-    }
-
-    pub fn format(&self) -> Format {
-        self.format
-    }
-    pub fn options(&self) -> &EncodeOptions {
-        &self.options
-    }
-    /// The list of fragments that make up the surface.
-    ///
-    /// The list is guaranteed to be non-empty.
-    pub fn fragments(&self) -> &[ImageView<'a>] {
-        &self.fragments
     }
 }
