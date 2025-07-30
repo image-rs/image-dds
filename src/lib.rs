@@ -297,15 +297,14 @@ impl<'a> ImageView<'a> {
     /// ## Panics
     ///
     /// If the rectangle is not within the bounds of the image size.
-    pub fn cropped(&self, rect: Rect) -> Self {
+    pub fn cropped(&self, offset: Offset, size: Size) -> Self {
         assert!(
-            rect.is_within_bounds(self.size),
-            "Rectangle {:?} is not within bounds of size {:?}",
-            rect,
+            self.size.contains_rect(offset, size),
+            "The rectangle defined by {offset:?} and {size:?} is not within bounds of size {:?}",
             self.size
         );
 
-        if rect.size().is_empty() {
+        if size.is_empty() {
             return Self {
                 data: &[],
                 size: Size::new(0, 0),
@@ -314,14 +313,14 @@ impl<'a> ImageView<'a> {
             };
         }
 
-        let bytes_per_row = rect.width as usize * self.color.bytes_per_pixel() as usize;
-        let start = (rect.y as usize * self.row_pitch)
-            + (rect.x as usize * self.color.bytes_per_pixel() as usize);
-        let end = start + ((rect.height - 1) as usize * self.row_pitch) + bytes_per_row;
+        let bytes_per_row = size.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (offset.y as usize * self.row_pitch)
+            + (offset.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((size.height - 1) as usize * self.row_pitch) + bytes_per_row;
 
         Self {
             data: &self.data[start..end],
-            size: rect.size(),
+            size,
             color: self.color,
             row_pitch: self.row_pitch,
         }
@@ -448,15 +447,14 @@ impl<'a> ImageViewMut<'a> {
     /// ## Panics
     ///
     /// If the rectangle is not within the bounds of the image size.
-    pub fn cropped(self, rect: Rect) -> Self {
+    pub fn cropped(self, offset: Offset, size: Size) -> Self {
         assert!(
-            rect.is_within_bounds(self.size),
-            "Rectangle {:?} is not within bounds of size {:?}",
-            rect,
+            self.size.contains_rect(offset, size),
+            "The rectangle defined by {offset:?} and {size:?} is not within bounds of size {:?}",
             self.size
         );
 
-        if rect.size().is_empty() {
+        if size.is_empty() {
             return Self {
                 data: &mut [],
                 size: Size::new(0, 0),
@@ -465,34 +463,33 @@ impl<'a> ImageViewMut<'a> {
             };
         }
 
-        let bytes_per_row = rect.width as usize * self.color.bytes_per_pixel() as usize;
-        let start = (rect.y as usize * self.row_pitch)
-            + (rect.x as usize * self.color.bytes_per_pixel() as usize);
-        let end = start + ((rect.height - 1) as usize * self.row_pitch) + bytes_per_row;
+        let bytes_per_row = size.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (offset.y as usize * self.row_pitch)
+            + (offset.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((size.height - 1) as usize * self.row_pitch) + bytes_per_row;
 
         Self {
             data: &mut self.data[start..end],
-            size: rect.size(),
+            size,
             color: self.color,
             row_pitch: self.row_pitch,
         }
     }
-    pub(crate) fn cropped_data(&mut self, rect: Rect) -> &mut [u8] {
+    pub(crate) fn cropped_data(&mut self, offset: Offset, size: Size) -> &mut [u8] {
         assert!(
-            rect.is_within_bounds(self.size),
-            "Rectangle {:?} is not within bounds of size {:?}",
-            rect,
+            self.size.contains_rect(offset, size),
+            "The rectangle defined by {offset:?} and {size:?} is not within bounds of size {:?}",
             self.size
         );
 
-        if rect.size().is_empty() {
+        if size.is_empty() {
             return &mut [];
         }
 
-        let bytes_per_row = rect.width as usize * self.color.bytes_per_pixel() as usize;
-        let start = (rect.y as usize * self.row_pitch)
-            + (rect.x as usize * self.color.bytes_per_pixel() as usize);
-        let end = start + ((rect.height - 1) as usize * self.row_pitch) + bytes_per_row;
+        let bytes_per_row = size.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (offset.y as usize * self.row_pitch)
+            + (offset.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((size.height - 1) as usize * self.row_pitch) + bytes_per_row;
 
         &mut self.data[start..end]
     }
@@ -562,38 +559,24 @@ impl Size {
             height: util::get_mipmap_size(self.height, level).get(),
         }
     }
+
+    pub(crate) fn contains_rect(&self, offset: Offset, size: Size) -> bool {
+        // use u64 to prevent overflow
+        let end_x = offset.x as u64 + size.width as u64;
+        let end_y = offset.y as u64 + size.height as u64;
+        end_x <= self.width as u64 && end_y <= self.height as u64
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Rect {
+pub struct Offset {
     pub x: u32,
     pub y: u32,
-    pub width: u32,
-    pub height: u32,
 }
-impl Rect {
-    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
+impl Offset {
+    pub const ZERO: Self = Self { x: 0, y: 0 };
 
-    pub const fn size(&self) -> Size {
-        Size::new(self.width, self.height)
-    }
-
-    /// Returns `true` if this rectangle is completely within the bounds of the
-    /// given size.
-    ///
-    /// This means that `self.x + self.width <= size.width` and
-    /// `self.y + self.height <= size.height`.
-    pub(crate) fn is_within_bounds(&self, size: Size) -> bool {
-        // use u64 to prevent overflow
-        let end_x = self.x as u64 + self.width as u64;
-        let end_y = self.y as u64 + self.height as u64;
-        end_x <= size.width as u64 && end_y <= size.height as u64
+    pub const fn new(x: u32, y: u32) -> Self {
+        Self { x, y }
     }
 }

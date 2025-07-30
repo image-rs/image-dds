@@ -4,9 +4,8 @@
 use std::io::Read;
 use std::mem::size_of;
 
-use crate::decode::Offset;
 use crate::util::round_down_to_multiple;
-use crate::{cast, util::div_ceil, DecodingError, Size};
+use crate::{cast, util::div_ceil, DecodingError, Offset, Size};
 use crate::{convert_channels_for, util, Channels, ColorFormat, ImageViewMut};
 
 use super::{DecodeContext, ReadSeek};

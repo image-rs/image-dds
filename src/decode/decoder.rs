@@ -1,20 +1,11 @@
 use std::io::{Read, Seek};
 use std::mem::size_of;
 
-use crate::{Channels, ColorFormat, ColorFormatSet, DecodingError, ImageViewMut, Precision, Size};
+use crate::{
+    Channels, ColorFormat, ColorFormatSet, DecodingError, ImageViewMut, Offset, Precision, Size,
+};
 
 use super::DecodeOptions;
-
-#[derive(Clone, Copy)]
-pub(crate) struct Offset {
-    pub x: u32,
-    pub y: u32,
-}
-impl Offset {
-    pub const fn new(x: u32, y: u32) -> Self {
-        Self { x, y }
-    }
-}
 
 pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodingError>;
 pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodingError>;

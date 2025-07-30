@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{util, Dithering, EncodeOptions, Format, ImageView, Rect, Size};
+use crate::{util, Dithering, EncodeOptions, Format, ImageView, Offset, Size};
 
 /// This implements the main logic for splitting a surface into lines.
 fn split_surface_into_lines(
@@ -73,8 +73,10 @@ impl<'a> SplitSurface<'a> {
             Self {
                 fragments: ranges
                     .map(|range| {
-                        let height = range.end - range.start;
-                        image.cropped(Rect::new(0, range.start, image.width(), height))
+                        image.cropped(
+                            Offset::new(0, range.start),
+                            Size::new(image.width(), range.end - range.start),
+                        )
                     })
                     .collect(),
                 format,

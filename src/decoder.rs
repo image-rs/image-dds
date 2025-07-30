@@ -5,7 +5,7 @@ use crate::{
     header::{Header, ParseOptions},
     iter::{SurfaceInfo, SurfaceIterator},
     util, ColorFormat, CubeMapFaces, DataLayout, DecodeOptions, DecodingError, Format,
-    ImageViewMut, Rect, Size, TextureArrayKind,
+    ImageViewMut, Offset, Size, TextureArrayKind,
 };
 
 /// A decoder for reading the pixel data of a DDS file.
@@ -124,17 +124,16 @@ impl<R> Decoder<R> {
         Ok(())
     }
 
-    /// Reads a rectangle of the next surface into the given buffer.
+    /// Reads a rectangle of the next surface into the given buffer. The
+    /// rectangle is defined by the given offset and the size of `image`.
     ///
     /// Similarly to [`Decoder::read_surface`], this operation will consume the
     /// current surface and advance to the next one. Reading multiple rectangles
     /// from the same surface is possible with [`Decoder::rewind_to_previous_surface`].
-    ///
-    /// This function will return an error if `image.size() != rect.size()`.
     pub fn read_surface_rect(
         &mut self,
         image: ImageViewMut,
-        rect: Rect,
+        offset: Offset,
     ) -> Result<(), DecodingError>
     where
         R: Read + Seek,
@@ -144,7 +143,7 @@ impl<R> Decoder<R> {
         decode_rect(
             &mut self.reader,
             image,
-            rect,
+            offset,
             current.size(),
             self.format,
             &self.options,
@@ -266,16 +265,10 @@ impl<R> Decoder<R> {
                 return Err(DecodingError::UnexpectedSurfaceSize);
             }
 
-            let offset_x = x * face_size.width;
-            let offset_y = y * face_size.height;
+            let offset = Offset::new(x * face_size.width, y * face_size.height);
 
             let crop = ImageViewMut::new_with(
-                image.cropped_data(Rect::new(
-                    offset_x,
-                    offset_y,
-                    face_size.width,
-                    face_size.height,
-                )),
+                image.cropped_data(offset, face_size),
                 row_pitch,
                 face_size,
                 color,

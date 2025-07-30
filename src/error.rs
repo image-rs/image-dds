@@ -88,10 +88,6 @@ pub enum DecodingError {
     /// When decoding a rectangle, the rectangle is out of bounds of the size
     /// of the image.
     RectOutOfBounds,
-    /// Returned by [`Decoder::read_surface_rect`](crate::Decoder::read_surface_rect)
-    /// and [`decode()`](crate::decode()) when the size of the image does not
-    /// match the size of the rectangle.
-    UnexpectedRectSize,
 
     /// Returned by [`Decoder::read_surface`](crate::Decoder::read_surface)
     /// when the user tries to decode a surface into an image that is not the
@@ -123,9 +119,6 @@ impl std::fmt::Display for DecodingError {
         match self {
             DecodingError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
-            }
-            DecodingError::UnexpectedRectSize => {
-                write!(f, "Unexpected rectangle size")
             }
             DecodingError::UnexpectedSurfaceSize => {
                 write!(f, "Unexpected surface size")

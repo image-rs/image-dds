@@ -637,17 +637,16 @@ fn encode_mipmap() {
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
         let mut decoded: Image<u8> =
             Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
-        decoder.read_surface(decoded.view_mut().cropped(Rect::new(0, 0, width, height)))?;
+        decoder.read_surface(decoded.view_mut().cropped(Offset::ZERO, base.size))?;
         let mut offset_y = 0;
         while let Some(info) = decoder.surface_info() {
             let mip_size = info.size();
 
-            decoder.read_surface(decoded.view_mut().cropped(Rect::new(
-                width,
-                offset_y,
-                mip_size.width,
-                mip_size.height,
-            )))?;
+            decoder.read_surface(
+                decoded
+                    .view_mut()
+                    .cropped(Offset::new(width, offset_y), mip_size),
+            )?;
 
             offset_y += mip_size.height;
         }
@@ -798,7 +797,7 @@ fn test_row_pitch() {
         let backing = ImageView::new(&buffer, backing_size, color).unwrap();
 
         // I'm using prime numbers for the rect to make things as difficult as possible for the impl
-        let image = backing.cropped(Rect::new(13, 29, 17, 51));
+        let image = backing.cropped(Offset::new(13, 29), Size::new(17, 51));
 
         // create a contiguous version of the image
         let mut cont = vec![0_u8; image.size().pixels() as usize * bpp];
@@ -832,8 +831,8 @@ fn test_row_pitch() {
                 size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
             }
 
-            let image = image.cropped(Rect::new(0, 0, size.width, size.height));
-            let cont_image = cont_image.cropped(Rect::new(0, 0, size.width, size.height));
+            let image = image.cropped(Offset::ZERO, size);
+            let cont_image = cont_image.cropped(Offset::ZERO, size);
 
             let mut header = Header::new_image(size.width, size.height, format);
             if encoding.size_multiple().is_none() {

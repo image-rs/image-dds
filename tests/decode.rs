@@ -8,6 +8,7 @@ use dds::{header::*, *};
 use rand::RngCore;
 
 mod util;
+use util::Rect;
 
 #[test]
 fn decode_all_dds_files() {
@@ -150,7 +151,7 @@ fn decode_rect() {
         let mut file = File::open(dds_path)?;
         let header = Header::read(&mut file, &Default::default())?;
         let format = Format::from_header(&header)?;
-        let size = header.size();
+        let surface_size = header.size();
 
         // read in the whole DDS surface, because we need to read it multiple times
         let layout = DataLayout::from_header(&header)?;
@@ -160,8 +161,8 @@ fn decode_rect() {
 
         // patch it all together
         let break_points = [0.0, 0.2, 0.3333, 0.6, 0.62, 1.0];
-        let patches_x = break_points.map(|x| f32::round(x * size.width as f32) as u32);
-        let patches_y = break_points.map(|x| f32::round(x * size.height as f32) as u32);
+        let patches_x = break_points.map(|x| f32::round(x * surface_size.width as f32) as u32);
+        let patches_y = break_points.map(|x| f32::round(x * surface_size.height as f32) as u32);
         let skip = (2, 2);
         for (y_index, y_window) in patches_y.windows(2).enumerate() {
             for (x_index, x_window) in patches_x.windows(2).enumerate() {
@@ -169,26 +170,19 @@ fn decode_rect() {
                     continue;
                 }
 
-                let rect = Rect::new(
-                    x_window[0],
-                    y_window[0],
-                    x_window[1] - x_window[0],
-                    y_window[1] - y_window[0],
+                let offset = Offset::new(x_window[0], y_window[0]);
+                let size = Size::new(x_window[1] - x_window[0], y_window[1] - y_window[0]);
+
+                let image = image.view_mut().cropped(
+                    Offset::new(offset.x + x_index as u32, offset.y + y_index as u32),
+                    size,
                 );
-
-                let image_x = rect.x + x_index as u32;
-                let image_y = rect.y + y_index as u32;
-
-                let image =
-                    image
-                        .view_mut()
-                        .cropped(Rect::new(image_x, image_y, rect.width, rect.height));
 
                 dds::decode_rect(
                     &mut Cursor::new(surface.as_slice()),
                     image,
-                    rect,
-                    size,
+                    offset,
+                    surface_size,
                     format,
                     &DecodeOptions::default(),
                 )?;
@@ -394,11 +388,11 @@ fn test_row_pitch() {
             let cont_view = ImageViewMut::new(&mut cont_buffer, surface_size, color).unwrap();
 
             let non_cont_size = Size::new(50, 55);
-            let non_cont_rect = Rect::new(8, 31, surface_size.width, surface_size.height);
+            let non_cont_offset = Offset::new(8, 31);
             let mut non_cont_buffer = vec![255_u8; non_cont_size.pixels() as usize * bpp];
             let non_cont_view = ImageViewMut::new(&mut non_cont_buffer, non_cont_size, color)
                 .unwrap()
-                .cropped(non_cont_rect);
+                .cropped(non_cont_offset, surface_size);
 
             assert_eq!(cont_view.size(), non_cont_view.size());
 
@@ -408,7 +402,7 @@ fn test_row_pitch() {
             let mut cont_view = ImageViewMut::new(&mut cont_buffer, surface_size, color).unwrap();
             let mut non_cont_view = ImageViewMut::new(&mut non_cont_buffer, non_cont_size, color)
                 .unwrap()
-                .cropped(non_cont_rect);
+                .cropped(non_cont_offset, surface_size);
 
             for (r1, r2) in cont_view.rows_mut().zip(non_cont_view.rows_mut()) {
                 assert_eq!(r1, r2, "Failed for {format:?} {color:?}");
@@ -526,7 +520,7 @@ mod errors {
             dds::decode_rect(
                 &mut std::io::Cursor::new(data),
                 image.view_mut(),
-                rect,
+                rect.offset(),
                 Size::new(2, 3),
                 Format::R8_UNORM,
                 &DecodeOptions::default(),

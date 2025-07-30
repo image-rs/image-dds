@@ -18,7 +18,7 @@ pub(crate) use decoder::*;
 use sub_sampled::*;
 use uncompressed::*;
 
-use crate::{util, DecodingError, Format, ImageViewMut, PixelInfo, Rect, Size};
+use crate::{util, DecodingError, Format, ImageViewMut, Offset, PixelInfo, Size};
 
 pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
     match format {
@@ -139,8 +139,8 @@ pub fn decode(
 /// Decodes a rectangle of the image data of a surface from the given reader
 /// and writes it to the given output buffer.
 ///
-/// Note: `image.size() == rect.size()` must hold true, otherwise the
-/// operation will fail with a `DecodingError::InvalidRect`.
+/// Note: The rectangle to decode is defined by `offset` and the size of
+/// `image`. The rectangle must be within the bounds of the surface size.
 ///
 /// ## State of the reader
 ///
@@ -160,31 +160,26 @@ pub fn decode(
 pub fn decode_rect<R: Read + Seek>(
     reader: &mut R,
     mut image: ImageViewMut,
-    rect: Rect,
+    offset: Offset,
     surface_size: Size,
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
     let reader = reader as &mut dyn ReadSeek;
 
-    return inner(reader, &mut image, rect, surface_size, format, options);
+    return inner(reader, &mut image, offset, surface_size, format, options);
 
     fn inner(
         reader: &mut dyn ReadSeek,
         image: &mut ImageViewMut,
-        rect: Rect,
+        offset: Offset,
         surface_size: Size,
         format: Format,
         options: &DecodeOptions,
     ) -> Result<(), DecodingError> {
-        if image.size() != rect.size() {
-            return Err(DecodingError::UnexpectedRectSize);
-        }
-        if !rect.is_within_bounds(surface_size) {
+        if !surface_size.contains_rect(offset, image.size()) {
             return Err(DecodingError::RectOutOfBounds);
         }
-
-        let offset = Offset::new(rect.x, rect.y);
 
         if image.size().is_empty() {
             // skip the entire surface

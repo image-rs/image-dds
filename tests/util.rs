@@ -191,6 +191,43 @@ pub const ALL_COLORS: &[ColorFormat] = &[
     ColorFormat::RGBA_F32,
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Rect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+impl Rect {
+    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    pub fn offset(&self) -> Offset {
+        Offset::new(self.x, self.y)
+    }
+    pub const fn size(&self) -> Size {
+        Size::new(self.width, self.height)
+    }
+
+    /// Returns `true` if this rectangle is completely within the bounds of the
+    /// given size.
+    ///
+    /// This means that `self.x + self.width <= size.width` and
+    /// `self.y + self.height <= size.height`.
+    pub(crate) fn is_within_bounds(&self, size: Size) -> bool {
+        // use u64 to prevent overflow
+        let end_x = self.x as u64 + self.width as u64;
+        let end_y = self.y as u64 + self.height as u64;
+        end_x <= size.width as u64 && end_y <= size.height as u64
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Image<T> {
@@ -483,7 +520,7 @@ pub fn read_dds_rect_as_u8(
     let channels = to_png_compatible_channels(decoder.format().channels()).0;
 
     let mut image = Image::new_empty(channels, rect.size());
-    decoder.read_surface_rect(image.view_mut(), rect)?;
+    decoder.read_surface_rect(image.view_mut(), rect.offset())?;
 
     Ok((image, DdsInfo::from_decoder(&decoder)))
 }
