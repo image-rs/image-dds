@@ -33,7 +33,7 @@ impl<'a> SplitView<'a> {
 
     /// Creates a new `SplitView` from the given image, format, and options.
     pub fn new(image: ImageView<'a>, format: Format, options: &EncodeOptions) -> Self {
-        if let Some(group_height) = Self::group_height_of(image.size(), format, options) {
+        if let Some(group_height) = get_group_height(image.size(), format, options) {
             let len = util::div_ceil(image.height(), group_height.get());
 
             Self {
@@ -44,41 +44,6 @@ impl<'a> SplitView<'a> {
         } else {
             Self::new_single(image)
         }
-    }
-    fn group_height_of(size: Size, format: Format, options: &EncodeOptions) -> Option<NonZeroU32> {
-        if size.is_empty() {
-            return None;
-        }
-
-        let support = format.encoding_support()?;
-        let split_height = support.split_height()?;
-
-        // dithering destroys our ability to split the surface into lines,
-        // because it would create visible seams
-        if !support.local_dithering()
-            && options.dithering.intersect(support.dithering()) != Dithering::None
-        {
-            return None;
-        }
-
-        let group_pixels = support
-            .group_size()
-            .get_group_pixels(options.quality)
-            .max(1);
-        if group_pixels >= size.pixels() {
-            // the image is small enough that it's not worth splitting
-            return None;
-        }
-
-        // it's important that the group height is divisible by the split height,
-        let split_height_64 = split_height.get() as u64;
-        let group_height_maybe_zero =
-            u32::try_from((group_pixels / size.width as u64) / split_height_64 * split_height_64)
-                .ok()?;
-
-        let group_height = NonZeroU32::new(group_height_maybe_zero).unwrap_or(split_height.into());
-
-        Some(group_height)
     }
 
     /// Returns the number of fragments that make up this split surface.
@@ -127,4 +92,40 @@ impl<'a> SplitView<'a> {
             None
         }
     }
+}
+
+fn get_group_height(size: Size, format: Format, options: &EncodeOptions) -> Option<NonZeroU32> {
+    if size.is_empty() {
+        return None;
+    }
+
+    let support = format.encoding_support()?;
+    let split_height = support.split_height()?;
+
+    // dithering destroys our ability to split the surface into lines,
+    // because it would create visible seams
+    if !support.local_dithering()
+        && options.dithering.intersect(support.dithering()) != Dithering::None
+    {
+        return None;
+    }
+
+    let group_pixels = support
+        .group_size()
+        .get_group_pixels(options.quality)
+        .max(1);
+    if group_pixels >= size.pixels() {
+        // the image is small enough that it's not worth splitting
+        return None;
+    }
+
+    // it's important that the group height is divisible by the split height,
+    let split_height_64 = split_height.get() as u64;
+    let group_height_maybe_zero =
+        u32::try_from((group_pixels / size.width as u64) / split_height_64 * split_height_64)
+            .ok()?;
+
+    let group_height = NonZeroU32::new(group_height_maybe_zero).unwrap_or(split_height.into());
+
+    Some(group_height)
 }
