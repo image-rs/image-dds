@@ -117,10 +117,12 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// Such overflows typically result in a crash, which violates the no panics
 /// guarantee of the [`decode`] and [`decode_rect`] functions.
 fn check_likely_overflow(surface_size: Size, format: Format) -> Result<(), DecodingError> {
+    const LIMIT: u64 = isize::MAX as u64;
+
     let info = PixelInfo::from(format);
     let surface_bytes = info.surface_bytes(surface_size);
     if let Some(surface_bytes) = surface_bytes {
-        if surface_bytes <= usize::MAX as u64 {
+        if surface_bytes <= LIMIT {
             return Ok(());
         }
     }
