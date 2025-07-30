@@ -1191,7 +1191,7 @@ pub(crate) fn for_each_bi_planar(
 
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
-    let plane1 = context.alloc_read(plain1_bytes_per_line * size.height as usize, r)?;
+    let plane1 = context.alloc_read(plain1_bytes_per_line as u64 * size.height as u64, r)?;
 
     // Step 2: Go through plane 2
     let uv_width = div_ceil(size.width, info.sub_sampling.0 as u32) as usize;
@@ -1252,7 +1252,7 @@ pub(crate) fn for_each_bi_planar_rect(
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
     util::io_skip_exact(r, plain1_bytes_per_line as u64 * rect.y as u64)?;
-    let plane1 = context.alloc_read(plain1_bytes_per_line * rect.height as usize, r)?;
+    let plane1 = context.alloc_read(plain1_bytes_per_line as u64 * rect.height as u64, r)?;
     util::io_skip_exact(
         r,
         plain1_bytes_per_line as u64 * (size.height - rect.y - rect.height) as u64,

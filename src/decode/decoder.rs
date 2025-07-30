@@ -39,18 +39,18 @@ impl DecodeContext {
     /// that many bytes from the provided reader.
     pub fn alloc_read<R: Read + ?Sized>(
         &mut self,
-        len: usize,
+        len: u64,
         r: &mut R,
     ) -> Result<Box<[u8]>, DecodingError> {
-        self.reserve_bytes(len)?;
+        let len_usize = usize::try_from(len).map_err(|_| DecodingError::MemoryLimitExceeded)?;
+        self.reserve_bytes(len_usize)?;
 
         let mut buf = Vec::new();
-        buf.try_reserve_exact(len)
+        buf.try_reserve_exact(len_usize)
             .map_err(|_| DecodingError::MemoryLimitExceeded)?;
 
-        let take = len as u64;
-        let copied = std::io::copy(&mut r.take(take), &mut buf)?;
-        if copied < take {
+        let copied = std::io::copy(&mut r.take(len), &mut buf)?;
+        if copied < len {
             return Err(DecodingError::Io(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
                 "Failed to read enough bytes",
