@@ -117,6 +117,10 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
 /// Such overflows typically result in a crash, which violates the no panics
 /// guarantee of the [`decode`] and [`decode_rect`] functions.
 fn check_likely_overflow(surface_size: Size, format: Format) -> Result<(), DecodingError> {
+    /// The limit is intentionally set to `isize::MAX` instead of `usize::MAX`
+    /// to prevent overflow in intermediate calculations. Certain index
+    /// calculations may involve intermediate results that are larger than the
+    /// final indexes.
     const LIMIT: u64 = isize::MAX as u64;
 
     let info = PixelInfo::from(format);
