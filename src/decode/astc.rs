@@ -84,13 +84,12 @@ macro_rules! astc_decoder {
                     process_blocks,
                 )
             },
-            |RArgs(r, out, row_pitch, rect, context)| {
+            |RArgs(r, out, offset, context)| {
                 for_each_block_rect_untyped::<BLOCK_WIDTH, BLOCK_HEIGHT, BYTES_PER_BLOCK>(
                     r,
                     out,
-                    row_pitch,
+                    offset,
                     context,
-                    rect,
                     NATIVE_COLOR,
                     process_blocks,
                 )

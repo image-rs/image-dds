@@ -1,7 +1,9 @@
 // helpers
 
 use crate::{
-    cast, ch, convert_to_rgba_f32, n4,
+    cast, ch,
+    encode::write_util::for_each_f32_rgba_rows,
+    n4,
     util::{self, clamp_0_1},
     EncodingError, Report,
 };
@@ -21,18 +23,15 @@ fn block_universal<
     encode_block: fn(&[[f32; 4]], usize, &EncodeOptions, &mut [u8; BLOCK_BYTES]),
 ) -> Result<(), EncodingError> {
     let Args {
-        data,
-        color,
+        image,
         writer,
-        width,
-        height,
         options,
         mut progress,
         ..
     } = args;
-    let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
 
-    let mut intermediate_buffer = vec![[0_f32; 4]; width * BLOCK_HEIGHT];
     let mut encoded_buffer = vec![[0_u8; BLOCK_BYTES]; util::div_ceil(width, BLOCK_WIDTH)];
 
     // Report frequencies were chosen manually.
@@ -54,27 +53,12 @@ fn block_universal<
         block_index += 1;
     };
 
-    let row_pitch = width * bytes_per_pixel;
-    for line_group in data.chunks(row_pitch * BLOCK_HEIGHT) {
-        debug_assert!(line_group.len() % row_pitch == 0);
-        let rows_in_group = line_group.len() / row_pitch;
-
-        // fill the intermediate buffer
-        convert_to_rgba_f32(
-            color,
-            line_group,
-            &mut intermediate_buffer[..rows_in_group * width],
-        );
-        for i in 0..(BLOCK_HEIGHT - rows_in_group) {
-            // copy the first line to fill the rest
-            intermediate_buffer.copy_within(..width, (rows_in_group + i) * width);
-        }
-
+    for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| {
         // handle full blocks
         #[allow(clippy::needless_range_loop)]
         for block_index in 0..width / BLOCK_WIDTH {
             let block_start = block_index * BLOCK_WIDTH;
-            let block = &intermediate_buffer[block_start..];
+            let block = &rows[block_start..];
             let encoded = &mut encoded_buffer[block_index];
 
             encode_block(block, width, &options, encoded);
@@ -91,7 +75,7 @@ fn block_universal<
             let mut block_data = vec![[0_f32; 4]; BLOCK_WIDTH * BLOCK_HEIGHT];
             for i in 0..BLOCK_HEIGHT {
                 let row = &mut block_data[i * BLOCK_WIDTH..(i + 1) * BLOCK_WIDTH];
-                let partial_row = &intermediate_buffer[block_start + i * width..][..block_width];
+                let partial_row = &rows[block_start + i * width..][..block_width];
                 row[..block_width].copy_from_slice(partial_row);
                 let last = partial_row.last().copied().unwrap_or_default();
                 row[block_width..].fill(last);
@@ -102,8 +86,8 @@ fn block_universal<
             report_block();
         }
 
-        writer.write_all(cast::as_bytes(&encoded_buffer))?;
-    }
+        writer.write_all(cast::as_bytes(&encoded_buffer))
+    })?;
 
     Ok(())
 }

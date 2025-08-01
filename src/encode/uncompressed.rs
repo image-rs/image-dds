@@ -1,9 +1,10 @@
 use glam::Vec4;
 
 use crate::{
-    as_rgba_f32, cast, ch, convert_channels, convert_channels_for, fp10, fp11, fp16, n1, n10, n16,
-    n2, n4, n5, n6, n8, rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat,
-    ColorFormatSet, EncodingError, Precision, Report,
+    as_rgba_f32, cast, ch, convert_channels, convert_channels_for,
+    encode::write_util::for_each_chunk, fp10, fp11, fp16, n1, n10, n16, n2, n4, n5, n6, n8,
+    rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat, ColorFormatSet,
+    EncodingError, Precision, Report,
 };
 
 use super::{
@@ -23,38 +24,38 @@ where
     EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
 {
     let Args {
-        data,
-        color,
+        image,
         writer,
         mut progress,
         ..
     } = args;
-    let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let color = image.color();
 
     const BUFFER_PIXELS: usize = 512;
     let mut intermediate_buffer = [[0_f32; 4]; BUFFER_PIXELS];
     let mut encoded_buffer = [EncodedPixel::default(); BUFFER_PIXELS];
 
-    let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
-    let chunk_count = util::div_ceil(data.len(), chunk_size);
-    for (chunk_index, line) in data.chunks(chunk_size).enumerate() {
-        // occasionally report progress
-        if chunk_index % REPORT_FREQUENCY == 0 {
-            progress.report(chunk_index as f32 / chunk_count as f32);
-        }
+    let chunk_count = util::div_ceil(image.size().pixels() as usize, BUFFER_PIXELS);
+    let mut chunk_index = 0;
+    for_each_chunk(
+        image,
+        &mut encoded_buffer,
+        1,
+        |partial, encoded| {
+            let intermediate = &mut intermediate_buffer[..encoded.len()];
+            process(as_rgba_f32(color, partial, intermediate), encoded);
+        },
+        |encoded| {
+            // occasionally report progress
+            if chunk_index % REPORT_FREQUENCY == 0 {
+                progress.report(chunk_index as f32 / chunk_count as f32);
+            }
+            chunk_index += 1;
 
-        debug_assert!(line.len() % bytes_per_pixel == 0);
-        let pixels = line.len() / bytes_per_pixel;
-
-        let intermediate = &mut intermediate_buffer[..pixels];
-        let encoded = &mut encoded_buffer[..pixels];
-
-        process(as_rgba_f32(color, line, intermediate), encoded);
-
-        cast::ToLe::to_le(encoded);
-
-        writer.write_all(cast::as_bytes(encoded))?;
-    }
+            cast::ToLe::to_le(encoded);
+            writer.write_all(cast::as_bytes(encoded))
+        },
+    )?;
 
     Ok(())
 }
@@ -65,16 +66,16 @@ where
     F: Fn(Vec4) -> (EncodedPixel, Vec4),
 {
     let Args {
-        data,
-        color,
+        image,
         writer,
-        width,
-        height,
         options,
         mut progress,
         ..
     } = args;
+    let color = image.color();
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
 
     let error_padding = 2;
     let mut error_buffer = vec![Vec4::ZERO; 2 * (width + error_padding * 2)];
@@ -95,7 +96,7 @@ where
     let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
     let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
     let mut chunk_index: usize = 0;
-    for row in data.chunks(width * bytes_per_pixel) {
+    for row in image.rows() {
         debug_assert!(row.len() == width * bytes_per_pixel);
 
         // prepare error buffers
@@ -147,33 +148,37 @@ fn uncompressed_untyped(
     f: fn(&[u8], ColorFormat, &mut [u8]),
 ) -> Result<(), EncodingError> {
     let Args {
-        data,
-        color,
+        image,
         writer,
         mut progress,
         ..
     } = args;
-    let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let color = image.color();
 
     let mut raw_buffer = [0_u32; 1024];
     let encoded_buffer = cast::as_bytes_mut(&mut raw_buffer);
 
-    let chuck_size = encoded_buffer.len() / bytes_per_encoded_pixel * bytes_per_pixel;
-    let chunk_count = util::div_ceil(data.len(), chuck_size);
-    for (chunk_index, line) in data.chunks(chuck_size).enumerate() {
-        // occasionally report progress
-        if chunk_index % REPORT_FREQUENCY == 0 {
-            progress.report(chunk_index as f32 / chunk_count as f32);
-        }
+    let chunk_count = util::div_ceil(
+        image.size().pixels() as usize,
+        encoded_buffer.len() / bytes_per_encoded_pixel,
+    );
+    let mut chunk_index = 0;
 
-        debug_assert!(line.len() % bytes_per_pixel == 0);
-        let pixels = line.len() / bytes_per_pixel;
-        let encoded = &mut encoded_buffer[..pixels * bytes_per_encoded_pixel];
+    for_each_chunk(
+        image,
+        encoded_buffer,
+        bytes_per_encoded_pixel,
+        |partial, encoded| f(partial, color, encoded),
+        |encoded| {
+            // occasionally report progress
+            if chunk_index % REPORT_FREQUENCY == 0 {
+                progress.report(chunk_index as f32 / chunk_count as f32);
+            }
+            chunk_index += 1;
 
-        f(line, color, encoded);
-
-        writer.write_all(encoded)?;
-    }
+            writer.write_all(encoded)
+        },
+    )?;
 
     Ok(())
 }

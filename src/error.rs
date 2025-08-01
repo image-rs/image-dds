@@ -88,18 +88,6 @@ pub enum DecodingError {
     /// When decoding a rectangle, the rectangle is out of bounds of the size
     /// of the image.
     RectOutOfBounds,
-    /// When decoding a rectangle, the row pitch is too small.
-    ///
-    /// A row pitch must be at least `color.bytes_per_pixel() * rect.width` bytes.
-    RowPitchTooSmall {
-        required_minimum: usize,
-    },
-    /// When decoding a rectangle, the buffer is too small.
-    ///
-    /// A buffer much have at least `row_pitch * rect.height` bytes.
-    RectBufferTooSmall {
-        required_minimum: usize,
-    },
 
     /// Returned by [`Decoder::read_surface`](crate::Decoder::read_surface)
     /// when the user tries to decode a surface into an image that is not the
@@ -131,18 +119,6 @@ impl std::fmt::Display for DecodingError {
         match self {
             DecodingError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
-            }
-            DecodingError::RowPitchTooSmall { required_minimum } => {
-                write!(
-                    f,
-                    "Row pitch too small: Must be at least `color.bytes_per_pixel() * rect.width` == {required_minimum} bytes"
-                )
-            }
-            DecodingError::RectBufferTooSmall { required_minimum } => {
-                write!(
-                    f,
-                    "Buffer too small for rectangle: required at least {required_minimum} bytes"
-                )
             }
             DecodingError::UnexpectedSurfaceSize => {
                 write!(f, "Unexpected surface size")

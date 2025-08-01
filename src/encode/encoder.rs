@@ -3,7 +3,8 @@ use std::{io::Write, num::NonZeroU8};
 use bitflags::bitflags;
 
 use crate::{
-    cast, ColorFormat, ColorFormatSet, EncodingError, ImageView, Precision, Progress, Report,
+    cast, encode::write_util::for_each_chunk, ColorFormat, ColorFormatSet, EncodingError,
+    ImageView, Precision, Progress, Report,
 };
 
 use super::{
@@ -11,10 +12,7 @@ use super::{
 };
 
 pub(crate) struct Args<'a, 'b, 'c, 'd> {
-    pub data: &'a [u8],
-    pub width: usize,
-    pub height: usize,
-    pub color: ColorFormat,
+    pub image: ImageView<'a>,
     pub writer: &'b mut dyn Write,
     pub progress: Option<&'c mut Progress<'d>>,
     pub options: EncodeOptions,
@@ -27,10 +25,7 @@ impl<'a, 'b, 'c, 'd> Args<'a, 'b, 'c, 'd> {
         options: EncodeOptions,
     ) -> Result<Self, EncodingError> {
         Ok(Self {
-            data: image.data(),
-            width: image.width() as usize,
-            height: image.height() as usize,
-            color: image.color(),
+            image,
             writer,
             progress,
             options,
@@ -110,7 +105,7 @@ impl Encoder {
             color_formats: ColorFormatSet::from_single(color),
             flags: Flags::exact_for(color.precision),
             group_size: PreferredGroupSize::EntireImage,
-            encode: |args| copy_directly(args),
+            encode: copy_directly,
         }
     }
 
@@ -125,7 +120,7 @@ impl Encoder {
 
     pub fn encode(&self, args: Args) -> Result<(), EncodingError> {
         assert!(
-            self.color_formats.contains(args.color),
+            self.color_formats.contains(args.image.color()),
             "Picked the wrong encoder"
         );
 
@@ -261,33 +256,36 @@ impl EncoderSet {
 
 fn copy_directly(args: Args) -> Result<(), EncodingError> {
     let Args {
-        data,
-        color,
+        image,
         writer,
         mut progress,
         ..
     } = args;
+    let color = image.color();
 
     progress.report(0.0);
 
-    // We can always just write everything directly on LE systems
-    // and when the precision is U8
-    if cfg!(target_endian = "little") || color.precision == Precision::U8 {
-        writer.write_all(data)?;
+    // sometimes we can always just write everything directly without any processing
+    if image.is_contiguous() && (cfg!(target_endian = "little") || color.precision == Precision::U8)
+    {
+        writer.write_all(image.data())?;
         return Ok(());
     }
 
-    // We need to convert to LE, so we need to allocate a buffer
-    let mut buffer = [0_u8; 4096];
-    let chuck_size = buffer.len();
-
-    for chunk in data.chunks(chuck_size) {
-        debug_assert!(chunk.len() % color.precision.size() as usize == 0);
-        let chunk_buffer = &mut buffer[..chunk.len()];
-        chunk_buffer.copy_from_slice(chunk);
-        cast::slice_ne_to_le(color.precision, chunk_buffer);
-        writer.write_all(chunk_buffer)?;
-    }
+    for_each_chunk(
+        image,
+        &mut [0_u8; 4096],
+        image.color().bytes_per_pixel() as usize,
+        |image_chunk, buffer| {
+            debug_assert_eq!(image_chunk.len(), buffer.len());
+            buffer.copy_from_slice(image_chunk);
+        },
+        |buffer| {
+            debug_assert!(buffer.len() % color.precision.size() as usize == 0);
+            cast::slice_ne_to_le(color.precision, buffer);
+            writer.write_all(buffer)
+        },
+    )?;
 
     Ok(())
 }
