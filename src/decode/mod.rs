@@ -18,7 +18,7 @@ pub(crate) use decoder::*;
 use sub_sampled::*;
 use uncompressed::*;
 
-use crate::{ColorFormat, DecodingError, Format, ImageViewMut, PixelInfo, Rect, Size};
+use crate::{util, DecodingError, Format, ImageViewMut, Offset, PixelInfo, Size};
 
 pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
     match format {
@@ -154,22 +154,20 @@ fn check_likely_overflow(surface_size: Size, format: Format) -> Result<(), Decod
 /// This method will only panic in the given reader panics while reading.
 pub fn decode(
     reader: &mut dyn Read,
-    image: ImageViewMut,
+    mut image: ImageViewMut,
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
     check_likely_overflow(image.size(), format)?;
 
-    get_decoders(format).decode(reader, image, options)
+    get_decoders(format).decode(reader, &mut image, options)
 }
 
 /// Decodes a rectangle of the image data of a surface from the given reader
 /// and writes it to the given output buffer.
 ///
-/// ## Row pitch and the output buffer
-///
-/// The `row_pitch` parameter specifies the number of bytes between the start
-/// of one row and the start of the next row in the output buffer.
+/// Note: The rectangle to decode is defined by `offset` and the size of
+/// `image`. The rectangle must be within the bounds of the surface size.
 ///
 /// ## State of the reader
 ///
@@ -186,22 +184,43 @@ pub fn decode(
 /// ## Panics
 ///
 /// This method will only panic in the given reader panics while reading.
-#[allow(clippy::too_many_arguments)]
 pub fn decode_rect<R: Read + Seek>(
     reader: &mut R,
-    output: &mut [u8],
-    row_pitch: usize,
-    color: ColorFormat,
-    size: Size,
-    rect: Rect,
+    mut image: ImageViewMut,
+    offset: Offset,
+    surface_size: Size,
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
-    check_likely_overflow(size, format)?;
+    check_likely_overflow(surface_size, format)?;
 
     let reader = reader as &mut dyn ReadSeek;
-    let decoders = get_decoders(format);
-    decoders.decode_rect(color, reader, size, rect, output, row_pitch, options)
+
+    return inner(reader, &mut image, offset, surface_size, format, options);
+
+    fn inner(
+        reader: &mut dyn ReadSeek,
+        image: &mut ImageViewMut,
+        offset: Offset,
+        surface_size: Size,
+        format: Format,
+        options: &DecodeOptions,
+    ) -> Result<(), DecodingError> {
+        if !surface_size.contains_rect(offset, image.size()) {
+            return Err(DecodingError::RectOutOfBounds);
+        }
+
+        if image.size().is_empty() {
+            // skip the entire surface
+            let pixel_info = PixelInfo::from(format);
+            let bytes = pixel_info.surface_bytes(surface_size).unwrap_or(u64::MAX);
+            util::io_skip_exact(reader, bytes)?;
+            return Ok(());
+        }
+
+        let decoders = get_decoders(format);
+        decoders.decode_rect(reader, image, offset, surface_size, options)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

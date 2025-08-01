@@ -2,7 +2,7 @@ use std::io::{Read, Seek};
 use std::mem::size_of;
 
 use crate::{
-    Channels, ColorFormat, ColorFormatSet, DecodingError, ImageViewMut, Precision, Rect, Size,
+    Channels, ColorFormat, ColorFormatSet, DecodingError, ImageViewMut, Offset, Precision, Size,
 };
 
 use super::DecodeOptions;
@@ -11,8 +11,7 @@ pub(crate) type DecodeFn = fn(args: Args) -> Result<(), DecodingError>;
 pub(crate) type DecodeRectFn = fn(args: RArgs) -> Result<(), DecodingError>;
 
 pub(crate) struct DecodeContext {
-    pub color: ColorFormat,
-    pub size: Size,
+    pub surface_size: Size,
     pub memory_limit: usize,
 }
 impl DecodeContext {
@@ -75,75 +74,18 @@ impl<T: Read + Seek> ReadSeek for T {}
 /// The "fix" is to wrap all mutable references in a struct so that compiler
 /// can't see them in the type signature of the function pointer anymore. Truly
 /// silly, and thankfully not necessary on never compiler versions.
-pub(crate) struct Args<'a, 'b>(pub &'a mut dyn Read, pub &'b mut [u8], pub DecodeContext);
-impl<'a, 'b> Args<'a, 'b> {
-    pub fn new(
-        reader: &'a mut dyn Read,
-        output: &'b mut [u8],
-        context: DecodeContext,
-    ) -> Result<Self, DecodingError> {
-        let bytes_per_pixel = context.color.bytes_per_pixel() as u64;
-        assert_eq!(
-            output.len() as u64,
-            context.size.pixels().saturating_mul(bytes_per_pixel)
-        );
-
-        Ok(Self(reader, output, context))
-    }
-}
-
-pub(crate) struct RArgs<'a, 'b>(
-    pub &'a mut dyn ReadSeek,
-    pub &'b mut [u8],
-    pub usize,
-    pub Rect,
+pub(crate) struct Args<'a, 'b, 'c>(
+    pub &'a mut dyn Read,
+    pub &'b mut ImageViewMut<'c>,
     pub DecodeContext,
 );
-impl<'a, 'b> RArgs<'a, 'b> {
-    pub fn new(
-        reader: &'a mut dyn ReadSeek,
-        output: &'b mut [u8],
-        row_pitch: usize,
-        rect: Rect,
-        context: DecodeContext,
-    ) -> Result<Self, DecodingError> {
-        // Check that the rect is within the bounds of the image.
-        if !rect.is_within_bounds(context.size) {
-            return Err(DecodingError::RectOutOfBounds);
-        }
 
-        // Check row pitch
-        let min_row_pitch = if rect.size().is_empty() {
-            0
-        } else {
-            usize::saturating_mul(
-                rect.width as usize,
-                context.color.bytes_per_pixel() as usize,
-            )
-        };
-        if row_pitch < min_row_pitch {
-            return Err(DecodingError::RowPitchTooSmall {
-                required_minimum: min_row_pitch,
-            });
-        }
-
-        // Check that the buffer is long enough
-        // saturate to usize::MAX on overflow
-        let required_bytes = if rect.size().is_empty() {
-            0
-        } else {
-            usize::saturating_mul(row_pitch, (rect.height - 1) as usize)
-                .saturating_add(min_row_pitch)
-        };
-        if output.len() < required_bytes {
-            return Err(DecodingError::RectBufferTooSmall {
-                required_minimum: required_bytes,
-            });
-        }
-
-        Ok(Self(reader, output, row_pitch, rect, context))
-    }
-}
+pub(crate) struct RArgs<'a, 'b, 'c>(
+    pub &'a mut dyn ReadSeek,
+    pub &'b mut ImageViewMut<'c>,
+    pub Offset,
+    pub DecodeContext,
+);
 
 /// Contains decode functions directly. These functions can be used as is.
 pub(crate) struct Decoder {
@@ -243,21 +185,20 @@ impl DecoderSet {
     pub fn decode(
         &self,
         reader: &mut dyn Read,
-        mut image: ImageViewMut,
+        image: &mut ImageViewMut,
         options: &DecodeOptions,
     ) -> Result<(), DecodingError> {
         let color = image.color();
         let size = image.size();
 
-        let args = Args::new(
+        let args = Args(
             reader,
-            image.data(),
+            image,
             DecodeContext {
-                color,
-                size,
+                surface_size: size,
                 memory_limit: options.memory_limit,
             },
-        )?;
+        );
 
         // never decode empty images
         if size.is_empty() {
@@ -275,33 +216,27 @@ impl DecoderSet {
         (decoder.decode_fn)(args)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn decode_rect(
         &self,
-        color: ColorFormat,
         reader: &mut dyn ReadSeek,
-        size: Size,
-        rect: Rect,
-        output: &mut [u8],
-        row_pitch: usize,
+        image: &mut ImageViewMut,
+        offset: Offset,
+        surface_size: Size,
         options: &DecodeOptions,
     ) -> Result<(), DecodingError> {
-        let args = RArgs::new(
+        let color = image.color();
+
+        debug_assert!(!image.size().is_empty());
+
+        let args = RArgs(
             reader,
-            output,
-            row_pitch,
-            rect,
+            image,
+            offset,
             DecodeContext {
-                color,
-                size,
+                surface_size,
                 memory_limit: options.memory_limit,
             },
-        )?;
-
-        // never decode empty rectangles
-        if rect.size().is_empty() {
-            return Ok(());
-        }
+        );
 
         let decoder = self.get_decoder(color);
         (decoder.decode_rect_fn)(args)
