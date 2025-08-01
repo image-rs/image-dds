@@ -159,8 +159,8 @@
 //! necessary to use this API.
 //!
 //! The [`encode()`] and [`decode()`] functions are used to encode and decode a
-//! single DDS surface. The [`SplitSurface`] type can be used to split a surface
-//! into multiple fragments for parallel encoding.
+//! single DDS surface. [`SplitView`] can be used to split a surface into
+//! multiple fragments for parallel encoding.
 
 #![forbid(unsafe_code)]
 
