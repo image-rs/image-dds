@@ -109,6 +109,31 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
     }
 }
 
+/// Returns [`DecodingError::MemoryLimitExceeded`] if the surface consumes more
+/// bytes in its encoded state than `usize` can represent.
+///
+/// While the decoder can in principle decode images larger than this, there are
+/// certain edge cases which may cause some numeric operations to overflow.
+/// Such overflows typically result in a crash, which violates the no panics
+/// guarantee of the [`decode`] and [`decode_rect`] functions.
+fn check_likely_overflow(surface_size: Size, format: Format) -> Result<(), DecodingError> {
+    /// The limit is intentionally set to `isize::MAX` instead of `usize::MAX`
+    /// to prevent overflow in intermediate calculations. Certain index
+    /// calculations may involve intermediate results that are larger than the
+    /// final indexes.
+    const LIMIT: u64 = isize::MAX as u64;
+
+    let info = PixelInfo::from(format);
+    let surface_bytes = info.surface_bytes(surface_size);
+    if let Some(surface_bytes) = surface_bytes {
+        if surface_bytes <= LIMIT {
+            return Ok(());
+        }
+    }
+
+    Err(DecodingError::MemoryLimitExceeded)
+}
+
 /// Decodes the image data of a surface from the given reader and writes it
 /// to the given output buffer.
 ///
@@ -133,6 +158,8 @@ pub fn decode(
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
+    check_likely_overflow(image.size(), format)?;
+
     get_decoders(format).decode(reader, &mut image, options)
 }
 
@@ -165,6 +192,8 @@ pub fn decode_rect<R: Read + Seek>(
     format: Format,
     options: &DecodeOptions,
 ) -> Result<(), DecodingError> {
+    check_likely_overflow(surface_size, format)?;
+
     let reader = reader as &mut dyn ReadSeek;
 
     return inner(reader, &mut image, offset, surface_size, format, options);
