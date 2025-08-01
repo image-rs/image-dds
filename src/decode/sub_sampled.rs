@@ -41,13 +41,12 @@ macro_rules! underlying {
                     process_blocks,
                 )
             },
-            |RArgs(r, out, row_pitch, rect, context)| {
+            |RArgs(r, out, offset, context)| {
                 for_each_block_rect_untyped::<2, 1, BYTES_PER_BLOCK>(
                     r,
                     out,
-                    row_pitch,
+                    offset,
                     context,
-                    rect,
                     NATIVE_COLOR,
                     process_blocks,
                 )
@@ -94,13 +93,12 @@ macro_rules! r1 {
                     process_blocks,
                 )
             },
-            |RArgs(r, out, row_pitch, rect, context)| {
+            |RArgs(r, out, offset, context)| {
                 for_each_block_rect_untyped::<8, 1, 1>(
                     r,
                     out,
-                    row_pitch,
+                    offset,
                     context,
-                    rect,
                     NATIVE_COLOR,
                     process_blocks,
                 )

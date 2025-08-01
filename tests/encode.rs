@@ -637,26 +637,18 @@ fn encode_mipmap() {
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
         let mut decoded: Image<u8> =
             Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
-        let color = ColorFormat::RGBA_U8;
-        let stride = decoded.size.width as usize * 4;
-        decoder.read_surface_rect(
-            decoded.as_bytes_mut(),
-            stride,
-            Rect::new(0, 0, width, height),
-            color,
-        )?;
+        decoder.read_surface(decoded.view_mut().cropped(Offset::ZERO, base.size))?;
         let mut offset_y = 0;
         while let Some(info) = decoder.surface_info() {
             let mip_size = info.size();
 
-            decoder.read_surface_rect(
-                &mut decoded.as_bytes_mut()[offset_y * stride + (width as usize * 4)..],
-                stride,
-                Rect::new(0, 0, mip_size.width, mip_size.height),
-                color,
+            decoder.read_surface(
+                decoded
+                    .view_mut()
+                    .cropped(Offset::new(width, offset_y), mip_size),
             )?;
 
-            offset_y += mip_size.height as usize;
+            offset_y += mip_size.height;
         }
 
         _ = util::update_snapshot_png_u8(snap_path, &decoded)?;
@@ -790,6 +782,84 @@ fn test_unaligned() {
                     "Failed for {format:?} {color:?} {mipmaps:?}"
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn test_row_pitch() {
+    for &color in util::ALL_COLORS {
+        let bpp = color.bytes_per_pixel() as usize;
+
+        let backing_size = Size::new(256, 256);
+        let mut buffer = vec![0_u8; backing_size.pixels() as usize * bpp];
+        util::create_rng().fill_bytes(&mut buffer);
+        let backing = ImageView::new(&buffer, backing_size, color).unwrap();
+
+        // I'm using prime numbers for the rect to make things as difficult as possible for the impl
+        let image = backing.cropped(Offset::new(13, 29), Size::new(17, 51));
+
+        // create a contiguous version of the image
+        let mut cont = vec![0_u8; image.size().pixels() as usize * bpp];
+        let row_pitch = image.row_pitch();
+        let bytes_per_row = image.size().width as usize * bpp;
+        let data = image.data();
+        for y in 0..image.size().height as usize {
+            let src_row = &data[y * row_pitch..][..bytes_per_row];
+            let dst_row = &mut cont[y * bytes_per_row..][..bytes_per_row];
+            dst_row.copy_from_slice(src_row);
+        }
+        let cont_image = ImageView::new(&cont, image.size(), color).unwrap();
+
+        // check that the two images are the same
+        for (row, cont_row) in image.rows().zip(cont_image.rows()) {
+            assert_eq!(row, cont_row, "Row mismatch");
+        }
+
+        for format in util::ALL_FORMATS.iter().copied() {
+            let Some(encoding) = format.encoding_support() else {
+                // encoding isn't supported
+                continue;
+            };
+
+            let mut size = image.size();
+            if !encoding.supports_size(size) {
+                let (w_mul, h_mul) = encoding.size_multiple().unwrap();
+                // round down to the nearest multiple
+                let w_mul = w_mul.get();
+                let h_mul = h_mul.get();
+                size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
+            }
+
+            let image = image.cropped(Offset::ZERO, size);
+            let cont_image = cont_image.cropped(Offset::ZERO, size);
+
+            let mut header = Header::new_image(size.width, size.height, format);
+            if encoding.size_multiple().is_none() {
+                // size multiple make mipmaps difficult, so only do them for
+                // formats that support images of any size.
+                header = header.with_mipmaps();
+            }
+
+            let mut cont_encoded = Vec::new();
+            let mut cont_encoder = Encoder::new(&mut cont_encoded, format, &header).unwrap();
+            cont_encoder.mipmaps.generate = true;
+            cont_encoder.write_surface(cont_image).unwrap();
+            cont_encoder.finish().unwrap();
+
+            let mut non_cont_encoded = Vec::new();
+            let mut non_cont_encoder =
+                Encoder::new(&mut non_cont_encoded, format, &header).unwrap();
+            non_cont_encoder.mipmaps.generate = true;
+            non_cont_encoder.write_surface(image).unwrap();
+            non_cont_encoder.finish().unwrap();
+
+            assert_eq!(
+                cont_encoded.len(),
+                non_cont_encoded.len(),
+                "Failed for {format:?}"
+            );
+            assert!(cont_encoded == non_cont_encoded, "Failed for {format:?}");
         }
     }
 }

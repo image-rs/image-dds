@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::{util, Dithering, EncodeOptions, Format, ImageView, Size};
+use crate::{util, Dithering, EncodeOptions, Format, ImageView, Offset, Size};
 
 /// An [`ImageView`] that has been split into horizontal fragments.
 ///
@@ -67,17 +67,11 @@ impl<'a> SplitView<'a> {
             debug_assert!(start_y < self.image.height());
 
             let fragment_height = end_y - start_y;
-            let start = start_y as usize * self.image.row_pitch();
-            let end = end_y as usize * self.image.row_pitch();
 
-            Some(
-                ImageView::new(
-                    &self.image.data[start..end],
-                    Size::new(self.image.width(), fragment_height),
-                    self.image.color,
-                )
-                .expect("invalid split"),
-            )
+            Some(self.image.cropped(
+                Offset::new(0, start_y),
+                Size::new(self.image.width(), fragment_height),
+            ))
         } else {
             Some(self.image)
         }

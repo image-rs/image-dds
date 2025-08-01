@@ -202,18 +202,68 @@ pub struct ImageView<'a> {
     data: &'a [u8],
     size: Size,
     color: ColorFormat,
+    row_pitch: usize,
 }
 impl<'a> ImageView<'a> {
-    /// Creates a new image view from the given data, size, and color format.
+    /// Creates a new contiguous image view from the given data, size, and color
+    /// format.
     ///
     /// The data must be the correct size for the given size and color format.
     /// If `data.len() != size.pixels() * color.bytes_per_pixel()`,
     /// then `None` is returned.
-    pub fn new(data: &'a [u8], size: Size, color: ColorFormat) -> Option<Self> {
+    pub fn new(data: &'a [u8], mut size: Size, color: ColorFormat) -> Option<Self> {
+        if size.is_empty() {
+            size = Size::new(0, 0);
+        }
+
         if data.len() as u64 != size.pixels().saturating_mul(color.bytes_per_pixel() as u64) {
             return None;
         }
-        Some(Self { data, size, color })
+        let row_pitch = size.width as usize * color.bytes_per_pixel() as usize;
+
+        Some(Self {
+            data,
+            size,
+            color,
+            row_pitch,
+        })
+    }
+    /// Creates a new image view from the given data, row pitch, size, and color
+    /// format.
+    ///
+    /// The data and row pitch must be the correct size for the given size and
+    /// color format. If `row_pitch < width * color.bytes_per_pixel()` or the
+    /// data length is too short, then `None` will be returned.
+    ///
+    /// Note: The data slice will be truncated to the exact addressable length
+    /// based on row pitch and size.
+    pub fn new_with(
+        data: &'a [u8],
+        mut row_pitch: usize,
+        mut size: Size,
+        color: ColorFormat,
+    ) -> Option<Self> {
+        if size.is_empty() {
+            size = Size::new(0, 0);
+            row_pitch = 0;
+        }
+
+        let bytes_per_row = size.width as usize * color.bytes_per_pixel() as usize;
+        if row_pitch < bytes_per_row {
+            return None;
+        }
+
+        let addressable_len = row_pitch * size.height.saturating_sub(1) as usize + bytes_per_row;
+        if data.len() < addressable_len {
+            return None;
+        }
+
+        Some(Self {
+            data: &data[..addressable_len],
+            size,
+            color,
+            row_pitch,
+        })
     }
 
     pub fn data(&self) -> &'a [u8] {
@@ -233,8 +283,64 @@ impl<'a> ImageView<'a> {
     pub fn color(&self) -> ColorFormat {
         self.color
     }
+
     pub fn row_pitch(&self) -> usize {
-        self.size.width as usize * self.color.bytes_per_pixel() as usize
+        self.row_pitch
+    }
+    /// Returns `true` if the data is contiguous in memory.
+    pub fn is_contiguous(&self) -> bool {
+        self.row_pitch * self.height() as usize == self.data.len()
+    }
+
+    /// Returns a new image view that is a cropped version of this image.
+    ///
+    /// ## Panics
+    ///
+    /// If the rectangle is not within the bounds of the image size.
+    pub fn cropped(&self, offset: Offset, size: Size) -> Self {
+        assert!(
+            self.size.contains_rect(offset, size),
+            "The rectangle defined by {offset:?} and {size:?} is not within bounds of size {:?}",
+            self.size
+        );
+
+        if size.is_empty() {
+            return Self {
+                data: &[],
+                size: Size::new(0, 0),
+                color: self.color,
+                row_pitch: 0,
+            };
+        }
+
+        let bytes_per_row = size.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (offset.y as usize * self.row_pitch)
+            + (offset.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((size.height - 1) as usize * self.row_pitch) + bytes_per_row;
+
+        Self {
+            data: &self.data[start..end],
+            size,
+            color: self.color,
+            row_pitch: self.row_pitch,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn rows(self) -> impl Iterator<Item = &'a [u8]> {
+        let height = if self.size.is_empty() {
+            0
+        } else {
+            self.size.height as usize
+        };
+        let bytes_per_row = self.width() as usize * self.color.bytes_per_pixel() as usize;
+        let data = self.data;
+
+        (0..height).map(move |y| {
+            let start = y * self.row_pitch;
+            let end = start + bytes_per_row;
+            &data[start..end]
+        })
     }
 }
 
@@ -243,18 +349,68 @@ pub struct ImageViewMut<'a> {
     data: &'a mut [u8],
     size: Size,
     color: ColorFormat,
+    row_pitch: usize,
 }
 impl<'a> ImageViewMut<'a> {
-    /// Creates a new image view from the given data, size, and color format.
+    /// Creates a new contiguous image view from the given data, size, and color
+    /// format.
     ///
     /// The data must be the correct size for the given size and color format.
     /// If `data.len() != size.pixels() * color.bytes_per_pixel()`,
     /// then `None` is returned.
-    pub fn new(data: &'a mut [u8], size: Size, color: ColorFormat) -> Option<Self> {
+    pub fn new(data: &'a mut [u8], mut size: Size, color: ColorFormat) -> Option<Self> {
+        if size.is_empty() {
+            size = Size::new(0, 0);
+        }
+
         if data.len() as u64 != size.pixels().saturating_mul(color.bytes_per_pixel() as u64) {
             return None;
         }
-        Some(Self { data, size, color })
+        let row_pitch = size.width as usize * color.bytes_per_pixel() as usize;
+
+        Some(Self {
+            data,
+            size,
+            color,
+            row_pitch,
+        })
+    }
+    /// Creates a new image view from the given data, row pitch, size, and color
+    /// format.
+    ///
+    /// The data and row pitch must be the correct size for the given size and
+    /// color format. If `row_pitch < width * color.bytes_per_pixel()` or the
+    /// data length is too short, then `None` will be returned.
+    ///
+    /// Note: The data slice will be truncated to the exact addressable length
+    /// based on row pitch and size.
+    pub fn new_with(
+        data: &'a mut [u8],
+        mut row_pitch: usize,
+        mut size: Size,
+        color: ColorFormat,
+    ) -> Option<Self> {
+        if size.is_empty() {
+            size = Size::new(0, 0);
+            row_pitch = 0;
+        }
+
+        let bytes_per_row = size.width as usize * color.bytes_per_pixel() as usize;
+        if row_pitch < bytes_per_row {
+            return None;
+        }
+
+        let addressable_len = row_pitch * size.height.saturating_sub(1) as usize + bytes_per_row;
+        if data.len() < addressable_len {
+            return None;
+        }
+
+        Some(Self {
+            data: &mut data[..addressable_len],
+            size,
+            color,
+            row_pitch,
+        })
     }
 
     pub fn data(&mut self) -> &mut [u8] {
@@ -274,8 +430,88 @@ impl<'a> ImageViewMut<'a> {
     pub fn color(&self) -> ColorFormat {
         self.color
     }
+
     pub fn row_pitch(&self) -> usize {
-        self.size.width as usize * self.color.bytes_per_pixel() as usize
+        self.row_pitch
+    }
+    pub(crate) fn bytes_per_row(&self) -> usize {
+        self.width() as usize * self.color.bytes_per_pixel() as usize
+    }
+    /// Returns `true` if the data is contiguous in memory.
+    pub fn is_contiguous(&self) -> bool {
+        self.row_pitch * self.height() as usize == self.data.len()
+    }
+
+    /// Returns a new image view that is a cropped version of this image.
+    ///
+    /// ## Panics
+    ///
+    /// If the rectangle is not within the bounds of the image size.
+    pub fn cropped(self, offset: Offset, size: Size) -> Self {
+        assert!(
+            self.size.contains_rect(offset, size),
+            "The rectangle defined by {offset:?} and {size:?} is not within bounds of size {:?}",
+            self.size
+        );
+
+        if size.is_empty() {
+            return Self {
+                data: &mut [],
+                size: Size::new(0, 0),
+                color: self.color,
+                row_pitch: 0,
+            };
+        }
+
+        let bytes_per_row = size.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (offset.y as usize * self.row_pitch)
+            + (offset.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((size.height - 1) as usize * self.row_pitch) + bytes_per_row;
+
+        Self {
+            data: &mut self.data[start..end],
+            size,
+            color: self.color,
+            row_pitch: self.row_pitch,
+        }
+    }
+    pub(crate) fn cropped_data(&mut self, offset: Offset, size: Size) -> &mut [u8] {
+        assert!(
+            self.size.contains_rect(offset, size),
+            "The rectangle defined by {offset:?} and {size:?} is not within bounds of size {:?}",
+            self.size
+        );
+
+        if size.is_empty() {
+            return &mut [];
+        }
+
+        let bytes_per_row = size.width as usize * self.color.bytes_per_pixel() as usize;
+        let start = (offset.y as usize * self.row_pitch)
+            + (offset.x as usize * self.color.bytes_per_pixel() as usize);
+        let end = start + ((size.height - 1) as usize * self.row_pitch) + bytes_per_row;
+
+        &mut self.data[start..end]
+    }
+
+    #[doc(hidden)]
+    pub fn rows_mut(&mut self) -> impl Iterator<Item = &'_ mut [u8]> {
+        let bytes_per_row = self.bytes_per_row();
+
+        self.data
+            .chunks_mut(self.row_pitch)
+            .map(move |row| &mut row[..bytes_per_row])
+    }
+    pub(crate) fn get_row(&mut self, y: usize) -> &mut [u8] {
+        let start = y * self.row_pitch;
+        let end = start + self.bytes_per_row();
+        &mut self.data[start..end]
+    }
+    pub(crate) fn get_row_range(&mut self, y: usize, height: usize) -> &mut [u8] {
+        debug_assert!(height > 0, "Height must be greater than 0");
+        let start = y * self.row_pitch;
+        let end = start + (height - 1) * self.row_pitch + self.bytes_per_row();
+        &mut self.data[start..end]
     }
 }
 
@@ -323,38 +559,24 @@ impl Size {
             height: util::get_mipmap_size(self.height, level).get(),
         }
     }
+
+    pub(crate) fn contains_rect(&self, offset: Offset, size: Size) -> bool {
+        // use u64 to prevent overflow
+        let end_x = offset.x as u64 + size.width as u64;
+        let end_y = offset.y as u64 + size.height as u64;
+        end_x <= self.width as u64 && end_y <= self.height as u64
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Rect {
+pub struct Offset {
     pub x: u32,
     pub y: u32,
-    pub width: u32,
-    pub height: u32,
 }
-impl Rect {
-    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self {
-            x,
-            y,
-            width,
-            height,
-        }
-    }
+impl Offset {
+    pub const ZERO: Self = Self { x: 0, y: 0 };
 
-    pub const fn size(&self) -> Size {
-        Size::new(self.width, self.height)
-    }
-
-    /// Returns `true` if this rectangle is completely within the bounds of the
-    /// given size.
-    ///
-    /// This means that `self.x + self.width <= size.width` and
-    /// `self.y + self.height <= size.height`.
-    pub(crate) fn is_within_bounds(&self, size: Size) -> bool {
-        // use u64 to prevent overflow
-        let end_x = self.x as u64 + self.width as u64;
-        let end_y = self.y as u64 + self.height as u64;
-        end_x <= size.width as u64 && end_y <= size.height as u64
+    pub const fn new(x: u32, y: u32) -> Self {
+        Self { x, y }
     }
 }
