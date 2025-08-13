@@ -163,6 +163,9 @@
 //! into multiple fragments for parallel encoding.
 
 #![forbid(unsafe_code)]
+#![warn(clippy::cast_possible_wrap)]
+#![warn(clippy::cast_sign_loss)]
+#![warn(clippy::cast_possible_truncation)]
 
 mod cast;
 mod color;
