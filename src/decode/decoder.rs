@@ -25,7 +25,10 @@ impl DecodeContext {
     }
     /// Allocates a boxed slice of `T` with the given length, initialized to `T::default()`.
     pub fn alloc<T: Default + Copy>(&mut self, len: usize) -> Result<Box<[T]>, DecodingError> {
-        self.reserve_bytes(len * size_of::<T>())?;
+        let bytes = len
+            .checked_mul(size_of::<T>())
+            .ok_or(DecodingError::MemoryLimitExceeded)?;
+        self.reserve_bytes(bytes)?;
 
         let mut buf = Vec::new();
         buf.try_reserve_exact(len)
