@@ -105,7 +105,8 @@ pub enum DecodingError {
     /// when the user tries to read a DDS file that isn't a cube map.
     NotACubeMap,
 
-    /// The decoder has exceeded its memory limit.
+    /// The decoder has exceeded its memory limit or was unable to allocate
+    /// memory.
     MemoryLimitExceeded,
 
     Layout(LayoutError),

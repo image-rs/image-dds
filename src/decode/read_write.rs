@@ -1109,9 +1109,7 @@ pub(crate) fn for_each_bi_planar(
 
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
-    let plane1_size = plain1_bytes_per_line * size.height as usize;
-    let mut plane1 = context.alloc_capacity(plane1_size)?;
-    read_exact_into(r, &mut plane1, plane1_size)?;
+    let plane1 = context.alloc_read(plain1_bytes_per_line as u64 * size.height as u64, r)?;
 
     // Step 2: Go through plane 2
     let uv_width = div_ceil(size.width, info.sub_sampling.0 as u32) as usize;
@@ -1170,9 +1168,7 @@ pub(crate) fn for_each_bi_planar_rect(
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = surface_size.width as usize * info.plane1_element_size as usize;
     util::io_skip_exact(r, plain1_bytes_per_line as u64 * offset.y as u64)?;
-    let plane1_bytes = plain1_bytes_per_line * image_height as usize;
-    let mut plane1 = context.alloc_capacity(plane1_bytes)?;
-    read_exact_into(r, &mut plane1, plane1_bytes)?;
+    let plane1 = context.alloc_read(plain1_bytes_per_line as u64 * image_height as u64, r)?;
     util::io_skip_exact(
         r,
         plain1_bytes_per_line as u64 * (surface_size.height - offset.y - image_height) as u64,
@@ -1244,26 +1240,6 @@ pub(crate) fn for_each_bi_planar_rect(
     }
 
     util::io_skip_exact(r, uv_after as u64 * uv_bytes_per_line as u64)?;
-
-    Ok(())
-}
-
-fn read_exact_into<R: Read + ?Sized>(
-    r: &mut R,
-    buf: &mut Vec<u8>,
-    count: usize,
-) -> Result<(), std::io::Error> {
-    buf.clear();
-    buf.reserve(count);
-
-    let take = count as u64;
-    let copied = std::io::copy(&mut r.take(take), buf)?;
-    if copied < take {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::UnexpectedEof,
-            "Failed to read enough bytes",
-        ));
-    }
 
     Ok(())
 }
