@@ -57,7 +57,7 @@ impl SurfaceIterator {
         }
     }
 
-    pub fn current(&self) -> Option<SurfaceInfo> {
+    pub fn current(&self) -> Option<SurfaceInfo<'_>> {
         match self {
             Self::Texture(iter) => iter.current(),
             Self::Volume(iter) => iter.current(),
@@ -111,7 +111,7 @@ impl TextureSurfaceIterator {
         }
     }
 
-    fn current(&self) -> Option<SurfaceInfo> {
+    fn current(&self) -> Option<SurfaceInfo<'_>> {
         if self.current_index < self.len {
             let desc = self.first.get(self.current_level);
             debug_assert!(desc.is_some());
@@ -186,7 +186,7 @@ impl VolumeSurfaceIterator {
         }
     }
 
-    fn current(&self) -> Option<SurfaceInfo> {
+    fn current(&self) -> Option<SurfaceInfo<'_>> {
         let v = self.volume.get(self.current_level)?;
         debug_assert!(self.current_depth < v.depth());
         let desc = v.get_depth_slice(self.current_depth);
