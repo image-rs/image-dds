@@ -134,19 +134,19 @@ fn encode_parallel(
     mut progress: Option<&mut Progress>,
     options: &EncodeOptions,
 ) -> Result<(), EncodingError> {
-    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-    use crate::{ParallelProgress, PixelInfo, Report, SplitSurface};
+    use crate::{ParallelProgress, PixelInfo, Report, SplitView};
 
     let mut options = options.clone();
     // don't cause an infinite loop
     options.parallel = false;
 
-    let split = SplitSurface::new(image, format, &options);
+    let split = SplitView::new(image, format, &options);
 
     // optimization for single fragment
     if let Some(single) = split.single() {
-        return encode(writer, *single, format, progress, &options);
+        return encode(writer, single, format, progress, &options);
     }
 
     // Prepare the parallel progress reporter. The +1 ensures that 100% is
@@ -156,10 +156,11 @@ fn encode_parallel(
     let parallel_progress = ParallelProgress::new(&mut progress, image.height() as u64 + 1);
 
     let pixel_info = PixelInfo::from(format);
-    let result: Result<Vec<Vec<u8>>, EncodingError> = split
-        .fragments()
-        .par_iter()
-        .map(|fragment| -> Result<Vec<u8>, EncodingError> {
+    let result: Result<Vec<Vec<u8>>, EncodingError> = (0..split.len())
+        .into_par_iter()
+        .map(|fragment_index| -> Result<Vec<u8>, EncodingError> {
+            let fragment = split.get(fragment_index).expect("invalid fragment index");
+
             // allocate exactly the right amount of memory
             let bytes: usize = pixel_info
                 .surface_bytes(fragment.size)
@@ -170,7 +171,7 @@ fn encode_parallel(
 
             // encode the fragment without any progress reporting.
             // progress will be reported per fragment
-            encode(&mut buffer, *fragment, format, None, &options)?;
+            encode(&mut buffer, fragment, format, None, &options)?;
 
             parallel_progress.submit(fragment.height() as u64);
 
@@ -450,7 +451,7 @@ impl EncodingSupport {
     /// height that is a multiple of 4. So e.g. an image with a height of 10
     /// pixels can split into chunks with heights of 4-4-2, 8-2, 4-6, or 10.
     ///
-    /// [`SplitSurface`](crate::SplitSurface) will automatically split the image into chunks
+    /// [`SplitView`](crate::SplitView) will automatically split the image into chunks
     /// of the correct height, so this value is only relevant if you are
     /// implementing your own encoder/splitter.
     ///
