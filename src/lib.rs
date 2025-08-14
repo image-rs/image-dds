@@ -163,6 +163,12 @@
 //! multiple fragments for parallel encoding.
 
 #![forbid(unsafe_code)]
+// TODO: warn once my cast improvements are merged
+#![allow(
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation
+)]
 
 mod cast;
 mod color;

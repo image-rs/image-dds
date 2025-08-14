@@ -187,9 +187,7 @@ impl<R> Decoder<R> {
         R: Seek,
     {
         if let Ok(skip) = self.iter.skip_mipmaps() {
-            if skip > 0 {
-                self.reader.seek(std::io::SeekFrom::Current(skip as i64))?;
-            }
+            util::io_skip_exact(&mut self.reader, skip)?;
             Ok(())
         } else {
             Err(DecodingError::CannotSkipMipmapsInVolume)
@@ -296,7 +294,10 @@ impl<R> Decoder<R> {
         let current_bytes = self.iter.elapsed_bytes();
         self.iter.rewind();
         let previous_bytes = self.iter.elapsed_bytes();
-        let seek = previous_bytes as i64 - current_bytes as i64;
+        debug_assert!(previous_bytes <= current_bytes);
+
+        let seek = -i64::try_from(current_bytes - previous_bytes)
+            .expect("Cannot seek back more than i64::MAX bytes");
         self.reader.seek(std::io::SeekFrom::Current(seek))?;
 
         Ok(())
@@ -311,8 +312,8 @@ impl<R> Decoder<R> {
     where
         R: Seek,
     {
-        let elapsed_bytes = self.iter.elapsed_bytes();
-        let seek = -(elapsed_bytes as i64);
+        let seek = -i64::try_from(self.iter.elapsed_bytes())
+            .expect("Cannot seek back more than i64::MAX bytes");
         self.reader.seek(std::io::SeekFrom::Current(seek))?;
 
         self.iter = SurfaceIterator::new(self.layout);

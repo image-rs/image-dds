@@ -7,7 +7,7 @@ use crate::{Channels, ColorFormat, NormConvert, WithPrecision};
 // helpers
 
 fn decode_astc_block<const PIXELS: usize, T: Default + Copy>(
-    block_size: (usize, usize),
+    block_size: (u8, u8),
 ) -> impl Fn([u8; 16]) -> [[T; 4]; PIXELS]
 where
     u8: NormConvert<T>,
@@ -35,7 +35,7 @@ where
         });
     }
 
-    debug_assert_eq!(PIXELS, block_size.0 * block_size.1);
+    debug_assert_eq!(PIXELS, block_size.0 as usize * block_size.1 as usize);
     let footprint = astc_decode::Footprint::new(block_size.0 as u32, block_size.1 as u32);
 
     move |bytes| {
@@ -47,9 +47,9 @@ where
 
 macro_rules! astc_decoder {
     ($out:ty, $block_w:literal, $block_h:literal) => {{
-        const BLOCK_WIDTH: usize = $block_w;
-        const BLOCK_HEIGHT: usize = $block_h;
-        const BLOCK_PIXELS: usize = BLOCK_WIDTH * BLOCK_HEIGHT;
+        const BLOCK_WIDTH: u8 = $block_w;
+        const BLOCK_HEIGHT: u8 = $block_h;
+        const BLOCK_PIXELS: usize = BLOCK_WIDTH as usize * BLOCK_HEIGHT as usize;
         const BYTES_PER_BLOCK: usize = 16;
         const CHANNELS: usize = 4;
         type OutPixel = [$out; CHANNELS];
