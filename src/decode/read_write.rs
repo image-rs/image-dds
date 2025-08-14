@@ -203,7 +203,27 @@ pub(crate) struct PixelRange {
     /// This is at most `BLOCK_SIZE_X - 1`.
     pub width_offset: u8,
     /// A non-empty range of the rows to decode. `rows.end` is at most `BLOCK_SIZE_Y`.
-    pub rows: core::ops::Range<u8>,
+    pub rows: RowRange,
+}
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RowRange {
+    /// The start of the row range.
+    pub start: u8,
+    /// The end of the row range (exclusive).
+    pub end: u8,
+}
+impl RowRange {
+    pub fn new(start: u8, end: u8) -> Self {
+        debug_assert!(start < end);
+        Self { start, end }
+    }
+    /// Returns the number of rows in this range.
+    pub fn len(self) -> u8 {
+        self.end - self.start
+    }
+    pub fn iter(self) -> core::ops::Range<u8> {
+        self.start..self.end
+    }
 }
 
 /// A helper function for implementing [`ProcessBlocksFn`]s.
@@ -300,7 +320,8 @@ pub(crate) fn process_4x4_blocks_helper<
     );
     debug_assert!(
         decoded.len()
-            >= stride * (range.rows.len() - 1) + range.width as usize * size_of::<OutPixel>(),
+            >= stride * (range.rows.len() as usize - 1)
+                + range.width as usize * size_of::<OutPixel>(),
         "decoded.len() = {}, stride = {}, range = {:?}",
         decoded.len(),
         stride,
@@ -376,8 +397,8 @@ pub(crate) fn process_4x4_blocks_helper<
 ///
 /// After this method returns, `range.width_offset` is guaranteed to be 0.
 fn handle_width_offset<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BLOCK_PIXELS: usize,
     const BYTES_PER_BLOCK: usize,
     OutPixel: cast::IntoNeBytes + Copy,
@@ -389,9 +410,9 @@ fn handle_width_offset<
     range: &mut PixelRange,
     process_block: F,
 ) -> usize {
-    let offset = range.width_offset as u32;
-    debug_assert!(offset < BLOCK_SIZE_X as u32);
-    let pixel_w = u32::min(BLOCK_SIZE_X as u32 - offset, range.width);
+    let offset = range.width_offset;
+    debug_assert!(offset < BLOCK_SIZE_X);
+    let pixel_w = u32::min((BLOCK_SIZE_X - offset) as u32, range.width);
     if pixel_w == 0 {
         return 0;
     }
@@ -403,7 +424,7 @@ fn handle_width_offset<
         PixelRange {
             width: pixel_w,
             width_offset: range.width_offset,
-            rows: range.rows.clone(),
+            rows: range.rows,
         },
         process_block,
     );
@@ -422,8 +443,8 @@ fn handle_width_offset<
 /// it's a lot slower than the specialized versions. Don't use this directly.
 /// Instead, use it as the starting point for a specialized implementation.
 pub(crate) fn general_process_blocks<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BLOCK_PIXELS: usize,
     const BYTES_PER_BLOCK: usize,
     OutPixel: cast::IntoNeBytes + Copy,
@@ -434,8 +455,8 @@ pub(crate) fn general_process_blocks<
     range: PixelRange,
     process_block: impl Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; BLOCK_PIXELS],
 ) {
-    debug_assert_eq!(BLOCK_SIZE_X * BLOCK_SIZE_Y, BLOCK_PIXELS);
-    debug_assert!((range.width_offset as usize) < BLOCK_SIZE_X);
+    debug_assert_eq!(BLOCK_SIZE_X as usize * BLOCK_SIZE_Y as usize, BLOCK_PIXELS);
+    debug_assert!(range.width_offset < BLOCK_SIZE_X);
 
     // group bytes into chunks
     let encoded_blocks: &[[u8; BYTES_PER_BLOCK]] =
@@ -448,15 +469,18 @@ pub(crate) fn general_process_blocks<
         } else {
             0
         };
-        let block_w = (BLOCK_SIZE_X - pixel_offset_x)
+        let block_w = (BLOCK_SIZE_X as usize - pixel_offset_x)
             .min(range.width as usize)
-            .min(range.width as usize + range.width_offset as usize - block_index * BLOCK_SIZE_X);
+            .min(
+                range.width as usize + range.width_offset as usize
+                    - block_index * BLOCK_SIZE_X as usize,
+            );
 
         // This whole method is structured to call this function exactly once.
         // This is done to reduce code size.
         let block = process_block(*block);
 
-        for y in range.rows.clone() {
+        for y in range.rows.iter() {
             let row_start =
                 (y - range.rows.start) as usize * stride + pixel_x * size_of::<OutPixel>();
             let row = &mut decoded[row_start..(row_start + block_w * size_of::<OutPixel>())];
@@ -466,7 +490,7 @@ pub(crate) fn general_process_blocks<
 
             for x in 0..block_w {
                 row[x] = cast::IntoNeBytes::into_ne_bytes(
-                    block[y as usize * BLOCK_SIZE_X + x + pixel_offset_x],
+                    block[y as usize * BLOCK_SIZE_X as usize + x + pixel_offset_x],
                 );
             }
         }
@@ -476,8 +500,8 @@ pub(crate) fn general_process_blocks<
 }
 
 pub(crate) fn for_each_block_untyped<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BYTES_PER_BLOCK: usize,
     OutPixel,
 >(
@@ -491,7 +515,7 @@ pub(crate) fn for_each_block_untyped<
         r: &mut dyn Read,
         image: &mut ImageViewMut,
         mut context: DecodeContext,
-        block_size: (u32, u32),
+        block_size: (u8, u8),
         bytes_per_block: usize,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
@@ -508,7 +532,8 @@ pub(crate) fn for_each_block_untyped<
 
         assert!(!size.is_empty());
 
-        let (block_size_x, block_size_y) = block_size;
+        let block_size_x = block_size.0 as u32;
+        let block_size_y = block_size.1 as u32;
         let width_blocks = div_ceil(size.width, block_size_x);
         let height_blocks = div_ceil(size.height, block_size_y);
 
@@ -533,7 +558,7 @@ pub(crate) fn for_each_block_untyped<
             let range = PixelRange {
                 width: size.width,
                 width_offset: 0,
-                rows: 0..pixel_rows as u8,
+                rows: RowRange::new(0, pixel_rows as u8),
             };
 
             conversion_buffer.process_blocks(
@@ -552,13 +577,16 @@ pub(crate) fn for_each_block_untyped<
     }
 
     debug_assert_eq!(image.color().precision, native_color.precision);
-    debug_assert_eq!(native_color.bytes_per_pixel(), size_of::<OutPixel>() as u8);
+    debug_assert_eq!(
+        native_color.bytes_per_pixel() as usize,
+        size_of::<OutPixel>()
+    );
 
     inner(
         r,
         image,
         context,
-        (BLOCK_SIZE_X as u32, BLOCK_SIZE_Y as u32),
+        (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
         native_color,
         process_pixels,
@@ -567,8 +595,8 @@ pub(crate) fn for_each_block_untyped<
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn for_each_block_rect_untyped<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BYTES_PER_BLOCK: usize,
 >(
     r: &mut dyn ReadSeek,
@@ -584,7 +612,7 @@ pub(crate) fn for_each_block_rect_untyped<
         image: &mut ImageViewMut,
         offset: Offset,
         mut context: DecodeContext,
-        block_size: (u32, u32),
+        block_size: (u8, u8),
         bytes_per_block: usize,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
@@ -596,7 +624,8 @@ pub(crate) fn for_each_block_rect_untyped<
         // To make this algorithm easier to implement, we'll always read full
         // lines of blocks.
 
-        let (block_size_x, block_size_y) = block_size;
+        let block_size_x = block_size.0 as u32;
+        let block_size_y = block_size.1 as u32;
         let blocks_per_line = div_ceil(surface_size.width, block_size_x);
 
         // blocks before the block lines we want to read.
@@ -645,12 +674,12 @@ pub(crate) fn for_each_block_rect_untyped<
 
             let row_start = rel_row_start as u8;
             let row_end = rel_row_end.min(block_size_y) as u8;
-            let rows = row_start..row_end;
+            let rows = RowRange::new(row_start, row_end);
 
             let range = PixelRange {
                 width: image_width,
                 width_offset,
-                rows: rows.clone(),
+                rows,
             };
 
             let row_pitch = image.row_pitch();
@@ -667,7 +696,7 @@ pub(crate) fn for_each_block_rect_untyped<
             );
 
             block_line_y += 1;
-            pixel_row += rows.len();
+            pixel_row += rows.len() as usize;
         }
 
         // jump to the end of the surface to put the reader into a known position
@@ -686,7 +715,7 @@ pub(crate) fn for_each_block_rect_untyped<
         image,
         offset,
         context,
-        (BLOCK_SIZE_X as u32, BLOCK_SIZE_Y as u32),
+        (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
         native_color,
         process_pixels,
@@ -760,7 +789,7 @@ impl ChannelConversionBuffer {
             return;
         }
 
-        let height = range.rows.len();
+        let height = range.rows.len() as usize;
         debug_assert!(height > 0);
         let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
         let buffer_size = Size::new(
@@ -789,7 +818,7 @@ impl ChannelConversionBuffer {
                 PixelRange {
                     width: offset_width,
                     width_offset: range.width_offset,
-                    rows: range.rows.clone(),
+                    rows: range.rows,
                 },
             );
 
@@ -832,7 +861,7 @@ impl ChannelConversionBuffer {
                 PixelRange {
                     width: chunk_size,
                     width_offset: 0,
-                    rows: range.rows.clone(),
+                    rows: range.rows,
                 },
             );
 
