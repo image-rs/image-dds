@@ -205,6 +205,7 @@ pub(crate) struct PixelRange {
     /// A non-empty range of the rows to decode. `rows.end` is at most `BLOCK_SIZE_Y`.
     pub rows: RowRange,
 }
+/// A non-empty range of rows of pixels.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RowRange {
     /// The start of the row range.
@@ -218,6 +219,8 @@ impl RowRange {
         Self { start, end }
     }
     /// Returns the number of rows in this range.
+    ///
+    /// This guaranteed to be at least 1.
     pub fn len(self) -> u8 {
         self.end - self.start
     }
