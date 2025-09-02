@@ -8,7 +8,7 @@ use super::bcn_util::{self, Block4x4, ColorSpace};
 
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
-pub struct Bc1Options {
+pub(crate) struct Bc1Options {
     pub dither: bool,
     /// Setting this to `true` will disable the use of the mode with the default color. This is useful for BC2 and BC3 encoding.
     pub no_default: bool,
