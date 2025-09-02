@@ -455,49 +455,9 @@ impl Quantization {
 
         let mut best_error = error_metric(best.0, best.1);
 
-        fn simple_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
-            (
-                R5G6B5Color::from_color_floor(c),
-                R5G6B5Color::from_color_ceil(c),
-            )
-        }
-        fn optimized_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
-            let mut floor = R5G6B5Color::from_color_floor(c);
-            let mut ceil = R5G6B5Color::from_color_ceil(c);
-
-            let i = c.min(Vec3A::ONE) * Vec3A::new(31.0, 63.0, 31.0);
-            let floor_dist = i - Vec3A::new(floor.r as f32, floor.g as f32, floor.b as f32);
-
-            const FLOOR_THRESHOLD: f32 = 0.25;
-            const CEIL_THRESHOLD: f32 = 1.0 - FLOOR_THRESHOLD;
-
-            if floor_dist.x < FLOOR_THRESHOLD {
-                ceil.r = floor.r;
-            }
-            if floor_dist.x > CEIL_THRESHOLD {
-                floor.r = ceil.r;
-            }
-
-            if floor_dist.y < FLOOR_THRESHOLD {
-                ceil.g = floor.g;
-            }
-            if floor_dist.y > CEIL_THRESHOLD {
-                floor.g = ceil.g;
-            }
-
-            if floor_dist.z < FLOOR_THRESHOLD {
-                ceil.b = floor.b;
-            }
-            if floor_dist.z > CEIL_THRESHOLD {
-                floor.b = ceil.b;
-            }
-
-            (floor, ceil)
-        }
-
         let get_range = match self {
-            Quantization::ChannelWiseOptimized => optimized_range,
-            _ => simple_range,
+            Quantization::ChannelWiseOptimized => Self::optimized_range,
+            _ => Self::full_range,
         };
 
         let (c0_min, c0_max) = get_range(c0);
@@ -554,6 +514,56 @@ impl Quantization {
         }
 
         best
+    }
+
+    /// Returns the floor and ceil of the given color.
+    fn full_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+        (
+            R5G6B5Color::from_color_floor(c),
+            R5G6B5Color::from_color_ceil(c),
+        )
+    }
+
+    const CULL_THRESHOLD: f32 = 0.25;
+    /// Returns the floor and ceil of the given color. But if the color value
+    /// is very close to the floor or ceil, then it will only return one of the
+    /// two (returning the same value floor and ceil).
+    ///
+    /// The threshold for "very close" is defined by `CULL_THRESHOLD`. A
+    /// threshold of 0 will behave the same as `full_range`, while a threshold
+    /// of 0.5 will behave the same as `Quantization::Round`.
+    fn optimized_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+        let mut floor = R5G6B5Color::from_color_floor(c);
+        let mut ceil = R5G6B5Color::from_color_ceil(c);
+
+        let i = c.min(Vec3A::ONE) * Vec3A::new(31.0, 63.0, 31.0);
+        let floor_dist = i - Vec3A::new(floor.r as f32, floor.g as f32, floor.b as f32);
+
+        const FLOOR_THRESHOLD: f32 = Quantization::CULL_THRESHOLD;
+        const CEIL_THRESHOLD: f32 = 1.0 - Quantization::CULL_THRESHOLD;
+
+        if floor_dist.x < FLOOR_THRESHOLD {
+            ceil.r = floor.r;
+        }
+        if floor_dist.x > CEIL_THRESHOLD {
+            floor.r = ceil.r;
+        }
+
+        if floor_dist.y < FLOOR_THRESHOLD {
+            ceil.g = floor.g;
+        }
+        if floor_dist.y > CEIL_THRESHOLD {
+            floor.g = ceil.g;
+        }
+
+        if floor_dist.z < FLOOR_THRESHOLD {
+            ceil.b = floor.b;
+        }
+        if floor_dist.z > CEIL_THRESHOLD {
+            floor.b = ceil.b;
+        }
+
+        (floor, ceil)
     }
 }
 
