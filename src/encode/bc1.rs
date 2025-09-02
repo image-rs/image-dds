@@ -449,7 +449,7 @@ impl Quantization {
         );
 
         if self == Quantization::Round {
-            // For simple rounding, we donn't need to optimize at all
+            // For simple rounding, we don't need to optimize at all
             return best;
         }
 
