@@ -129,23 +129,26 @@ pub(crate) fn io_skip_exact<R: std::io::Seek + ?Sized>(
     reader: &mut R,
     count: u64,
 ) -> std::io::Result<()> {
-    if count > i64::MAX as u64 {
-        // we will conservatively assume that such large files do not exist
-        // and error out with an EOF
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::UnexpectedEof,
-            "seeking past end of file",
-        ));
-    }
-
     // don't invoke the reader at all if we don't need to skip
     if count == 0 {
         return Ok(());
     }
 
+    let count_i = match i64::try_from(count) {
+        Ok(i) => i,
+        Err(_) => {
+            // we will conservatively assume that such large files do not exist
+            // and error out with an EOF
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "seeking past end of file",
+            ));
+        }
+    };
+
     let current = reader.stream_position()?;
     // TODO: Use `seek_relative` once the MSRV allows it.
-    let actual = reader.seek(std::io::SeekFrom::Current(count as i64))?;
+    let actual = reader.seek(std::io::SeekFrom::Current(count_i))?;
 
     if actual != current.saturating_add(count) {
         return Err(std::io::Error::new(
