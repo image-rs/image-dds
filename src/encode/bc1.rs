@@ -465,53 +465,29 @@ impl Quantization {
 
         // Channel-wise optimization
 
-        // R
-        for r0 in c0_min.r..=c0_max.r {
-            for r1 in c1_min.r..=c1_max.r {
-                if r0 == best.0.r && r1 == best.1.r {
-                    continue;
+        macro_rules! optimize_channel {
+            ($c:ident) => {
+                for channel0 in c0_min.$c..=c0_max.$c {
+                    for channel1 in c1_min.$c..=c1_max.$c {
+                        if channel0 == best.0.$c && channel1 == best.1.$c {
+                            continue;
+                        }
+                        let (mut c0, mut c1) = best;
+                        c0.$c = channel0;
+                        c1.$c = channel1;
+                        let error = error_metric(c0, c1);
+                        if error < best_error {
+                            best = (c0, c1);
+                            best_error = error;
+                        }
+                    }
                 }
-                let c0 = R5G6B5Color::new(r0, best.0.g, best.0.b);
-                let c1 = R5G6B5Color::new(r1, best.1.g, best.1.b);
-                let error = error_metric(c0, c1);
-                if error < best_error {
-                    best = (c0, c1);
-                    best_error = error;
-                }
-            }
+            };
         }
 
-        // G
-        for g0 in c0_min.g..=c0_max.g {
-            for g1 in c1_min.g..=c1_max.g {
-                if g0 == best.0.g && g1 == best.1.g {
-                    continue;
-                }
-                let c0 = R5G6B5Color::new(best.0.r, g0, best.0.b);
-                let c1 = R5G6B5Color::new(best.1.r, g1, best.1.b);
-                let error = error_metric(c0, c1);
-                if error < best_error {
-                    best = (c0, c1);
-                    best_error = error;
-                }
-            }
-        }
-
-        // B
-        for b0 in c0_min.b..=c0_max.b {
-            for b1 in c1_min.b..=c1_max.b {
-                if b0 == best.0.b && b1 == best.1.b {
-                    continue;
-                }
-                let c0 = R5G6B5Color::new(best.0.r, best.0.g, b0);
-                let c1 = R5G6B5Color::new(best.1.r, best.1.g, b1);
-                let error = error_metric(c0, c1);
-                if error < best_error {
-                    best = (c0, c1);
-                    best_error = error;
-                }
-            }
-        }
+        optimize_channel!(r);
+        optimize_channel!(g);
+        optimize_channel!(b);
 
         best
     }
