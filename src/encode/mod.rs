@@ -353,7 +353,10 @@ pub(crate) enum PreferredGroupSize {
 impl PreferredGroupSize {
     pub const fn group(fast: u64, high: u64, unreasonable: u64) -> Self {
         const fn log2(x: u64) -> u8 {
-            64 - x.leading_zeros() as u8
+            debug_assert!(x != 0);
+            debug_assert!(x.is_power_of_two());
+
+            64 - x.leading_zeros() as u8 - 1
         }
 
         Self::Group {
