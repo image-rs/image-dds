@@ -339,19 +339,21 @@ impl Default for CompressionQuality {
     }
 }
 
-/// The preferred group size when splitting an image into chunks for parallel
-/// encoding.
+/// The preferred fragment size (=number of pixel in a fragment) when splitting
+/// an image into chunks for parallel encoding.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum PreferredGroupSize {
+pub(crate) enum PreferredFragmentSize {
+    /// Splitting the image is not preferred. The whole image should be
+    /// encoded as a single fragment.
     EntireImage,
-    Group {
+    Fragment {
         fast: u8,
         high: u8,
         unreasonable: u8,
     },
 }
-impl PreferredGroupSize {
-    pub const fn group(fast: u64, high: u64, unreasonable: u64) -> Self {
+impl PreferredFragmentSize {
+    pub const fn new(fast: u64, high: u64, unreasonable: u64) -> Self {
         const fn log2(x: u64) -> u8 {
             debug_assert!(x != 0);
             debug_assert!(x.is_power_of_two());
@@ -359,7 +361,7 @@ impl PreferredGroupSize {
             64 - x.leading_zeros() as u8 - 1
         }
 
-        Self::Group {
+        Self::Fragment {
             fast: log2(fast),
             high: log2(high),
             unreasonable: log2(unreasonable),
@@ -376,20 +378,20 @@ impl PreferredGroupSize {
         }
 
         match (*self, other) {
-            (PreferredGroupSize::EntireImage, _) => other,
-            (_, PreferredGroupSize::EntireImage) => *self,
+            (PreferredFragmentSize::EntireImage, _) => other,
+            (_, PreferredFragmentSize::EntireImage) => *self,
             (
-                PreferredGroupSize::Group {
+                PreferredFragmentSize::Fragment {
                     fast: a,
                     high: b,
                     unreasonable: c,
                 },
-                PreferredGroupSize::Group {
+                PreferredFragmentSize::Fragment {
                     fast: x,
                     high: y,
                     unreasonable: z,
                 },
-            ) => PreferredGroupSize::Group {
+            ) => PreferredFragmentSize::Fragment {
                 fast: u8_min(a, x),
                 high: u8_min(b, y),
                 unreasonable: u8_min(c, z),
@@ -397,10 +399,12 @@ impl PreferredGroupSize {
         }
     }
 
-    pub fn get_group_pixels(&self, quality: CompressionQuality) -> u64 {
+    /// Returns the preferred number of pixels in a fragment for the given
+    /// compression quality.
+    pub fn get_preferred(&self, quality: CompressionQuality) -> u64 {
         match *self {
-            PreferredGroupSize::EntireImage => u64::MAX,
-            PreferredGroupSize::Group {
+            PreferredFragmentSize::EntireImage => u64::MAX,
+            PreferredFragmentSize::Fragment {
                 fast,
                 high,
                 unreasonable,
@@ -434,7 +438,7 @@ pub struct EncodingSupport {
     split_height: Option<NonZeroU8>,
     local_dithering: bool,
     size_multiple: Option<SizeMultiple>,
-    group_size: PreferredGroupSize,
+    pub(crate) fragment_size: PreferredFragmentSize,
 }
 
 impl EncodingSupport {
@@ -536,9 +540,5 @@ impl EncodingSupport {
         } else {
             true
         }
-    }
-
-    pub(crate) fn group_size(&self) -> PreferredGroupSize {
-        self.group_size
     }
 }
