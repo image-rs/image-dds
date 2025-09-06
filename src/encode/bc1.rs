@@ -846,13 +846,26 @@ impl<E: ErrorMetric> Palette<E> {
     fn closest_error_sq(&self, color: ColorSpace) -> f32 {
         let error_metric = self.error_metric;
 
-        let mut min_error = error_metric.error_sq(color, self.colors[0]);
-        for i in 1..4 {
-            let error = error_metric.error_sq(color, self.colors[i]);
-            min_error = min_error.min(error);
-        }
+        let e0 = error_metric.error_sq(color, self.colors[0]);
+        let e1 = error_metric.error_sq(color, self.colors[1]);
+        let e2 = error_metric.error_sq(color, self.colors[2]);
+        let e3 = error_metric.error_sq(color, self.colors[3]);
 
-        min_error
+        e0.min(e1).min(e2).min(e3)
+    }
+    /// Same as `closest_error_sq` but optimized for P3 palettes.
+    ///
+    /// Calling for this on P4 palettes is not allowed.
+    fn closest_error_sq_p3(&self, color: ColorSpace) -> f32 {
+        debug_assert!(self.mode == PaletteMode::P3);
+
+        let error_metric = self.error_metric;
+
+        let e0 = error_metric.error_sq(color, self.colors[0]);
+        let e1 = error_metric.error_sq(color, self.colors[1]);
+        let e2 = error_metric.error_sq(color, self.colors[2]);
+
+        e0.min(e1).min(e2)
     }
 
     /// Returns the index list of the colors in the palette that together
@@ -885,19 +898,30 @@ impl<E: ErrorMetric> Palette<E> {
 
         (index_list, total_error)
     }
-    /// Same as `block_closest(block).1` but faster.
-    fn block_closest_error(&self, block: impl Block4x4<ColorSpace>, alpha_map: AlphaMap) -> f32 {
+    /// Same as `block_closest(block).1` but faster and only for P4.
+    fn block_closest_error_p4(&self, block: impl Block4x4<ColorSpace>) -> f32 {
+        debug_assert!(self.mode == PaletteMode::P4);
+        let mut total_error = 0.0;
+        for pixel_index in 0..16 {
+            let pixel = block.get_pixel_at(pixel_index);
+            total_error += self.closest_error_sq(pixel);
+        }
+        total_error
+    }
+    /// Same as `block_closest(block).1` but faster and only for P3.
+    fn block_closest_error_p3(&self, block: impl Block4x4<ColorSpace>, alpha_map: AlphaMap) -> f32 {
+        debug_assert!(self.mode == PaletteMode::P3);
         let mut total_error = 0.0;
         if alpha_map == AlphaMap::ALL_OPAQUE {
             for pixel_index in 0..16 {
                 let pixel = block.get_pixel_at(pixel_index);
-                total_error += self.closest_error_sq(pixel);
+                total_error += self.closest_error_sq_p3(pixel);
             }
         } else {
             for pixel_index in 0..16 {
                 if alpha_map.is_opaque(pixel_index) {
                     let pixel = block.get_pixel_at(pixel_index);
-                    total_error += self.closest_error_sq(pixel);
+                    total_error += self.closest_error_sq_p3(pixel);
                 }
             }
         }
@@ -981,11 +1005,11 @@ impl<E: ErrorMetric> PaletteInfo<E> {
         block: impl Block4x4<ColorSpace> + Copy,
         alpha_map: AlphaMap,
     ) -> f32 {
-        let p = self.create_palette(endpoints);
         if self.dither {
-            p.block_dither_error(block, alpha_map)
+            self.create_palette(endpoints)
+                .block_dither_error(block, alpha_map)
         } else {
-            p.block_closest_error(block, alpha_map)
+            self.block_error_no_dither(endpoints, block, alpha_map)
         }
     }
 
@@ -995,8 +1019,13 @@ impl<E: ErrorMetric> PaletteInfo<E> {
         block: impl Block4x4<ColorSpace> + Copy,
         alpha_map: AlphaMap,
     ) -> f32 {
-        self.create_palette(endpoints)
-            .block_closest_error(block, alpha_map)
+        if self.mode == PaletteMode::P4 {
+            debug_assert!(alpha_map == AlphaMap::ALL_OPAQUE);
+            self.create_palette(endpoints).block_closest_error_p4(block)
+        } else {
+            self.create_palette(endpoints)
+                .block_closest_error_p3(block, alpha_map)
+        }
     }
 }
 
