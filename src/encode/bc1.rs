@@ -146,20 +146,26 @@ fn compress_with_palette(
         get_initial_endpoints(colors)
     };
 
-    (min, max) = bcn_util::refine_endpoints(
-        min,
-        max,
-        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0), options.refine_max_iter as u32),
-        |(min, max)| {
-            let min = palette.error_metric.color_space_to_srgb(min);
-            let max = palette.error_metric.color_space_to_srgb(max);
-            let endpoints = palette.create_endpoints(
-                R5G6B5Color::from_color_round(min),
-                R5G6B5Color::from_color_round(max),
-            );
-            palette.block_error_no_dither(&endpoints, &block, alpha_map)
-        },
-    );
+    if options.refine_max_iter > 0 {
+        (min, max) = bcn_util::refine_endpoints(
+            min,
+            max,
+            bcn_util::RefinementOptions::new_bc1(
+                min.0.distance(max.0),
+                options.refine_max_iter as u32,
+            ),
+            |(min, max)| {
+                let min = palette.error_metric.color_space_to_srgb(min);
+                let max = palette.error_metric.color_space_to_srgb(max);
+                let endpoints = palette.create_endpoints(
+                    R5G6B5Color::from_color_round(min),
+                    R5G6B5Color::from_color_round(max),
+                );
+                palette.block_error_no_dither(&endpoints, &block, alpha_map)
+            },
+        );
+    }
+
     let endpoints =
         pick_best_quantization(min, max, &block, alpha_map, options.quantization, palette);
 
@@ -759,22 +765,27 @@ impl IndexList {
     }
 }
 
-struct Palette<E, const N: usize> {
-    colors: [ColorSpace; N],
+struct Palette<E> {
+    colors: [ColorSpace; 4],
+    mode: PaletteMode,
     error_metric: E,
 }
-impl<E: ErrorMetric> Palette<E, 3> {
+impl<E: ErrorMetric> Palette<E> {
     fn new_p3(endpoints: &EndPoints, error_metric: E) -> Self {
         let c0 = endpoints.c0_f;
         let c1 = endpoints.c1_f;
 
         Self {
-            colors: [c0, c1, (c0 + c1) * 0.5].map(|c| error_metric.srgb_to_color_space(c)),
+            // Fill the last color with c0. This gets us to 4 colors, but since
+            // it's the same as c0, it won't affect the closest color search,
+            // since its error will be the same as c0 and therefore *not* less
+            // than the current smallest error. See `closest()` and `closest_error_sq`.
+            colors: [c0, c1, (c0 + c1) * 0.5, c0].map(|c| error_metric.srgb_to_color_space(c)),
+            mode: PaletteMode::P3,
             error_metric,
         }
     }
-}
-impl<E: ErrorMetric> Palette<E, 4> {
+
     fn new_p4(endpoints: &EndPoints, error_metric: E) -> Self {
         let c0 = endpoints.c0_f;
         let c1 = endpoints.c1_f;
@@ -787,17 +798,19 @@ impl<E: ErrorMetric> Palette<E, 4> {
                 c0 * (1. / 3.) + c1 * (2. / 3.),
             ]
             .map(|c| error_metric.srgb_to_color_space(c)),
+            mode: PaletteMode::P4,
             error_metric,
         }
     }
 }
-impl<E: ErrorMetric, const N: usize> Palette<E, N> {
-    fn transparent_index() -> u8 {
-        match N {
-            3 => 3,
-            4 => unreachable!("P4 does not support transparency"),
-            _ => unreachable!("Unsupported palette size"),
-        }
+impl<E: ErrorMetric> Palette<E> {
+    fn transparent_index(&self) -> u8 {
+        debug_assert!(
+            self.mode == PaletteMode::P3,
+            "P4 does not support transparency"
+        );
+
+        3
     }
 
     /// Returns:
@@ -809,7 +822,13 @@ impl<E: ErrorMetric, const N: usize> Palette<E, N> {
 
         let mut best_index = 0;
         let mut min_error = error_metric.error_sq(color, self.colors[0]);
-        for i in 1..N {
+        for i in 1..4 {
+            if i == 3 && self.mode == PaletteMode::P3 {
+                // In P3 mode, the last color doesn't affect the result.
+                // This branch is unnecessary for correctness, but it does slightly
+                // improve performance.
+                break;
+            }
             let error = error_metric.error_sq(color, self.colors[i]);
             if error < min_error {
                 best_index = i as u8;
@@ -828,7 +847,7 @@ impl<E: ErrorMetric, const N: usize> Palette<E, N> {
         let error_metric = self.error_metric;
 
         let mut min_error = error_metric.error_sq(color, self.colors[0]);
-        for i in 1..N {
+        for i in 1..4 {
             let error = error_metric.error_sq(color, self.colors[i]);
             min_error = min_error.min(error);
         }
@@ -860,7 +879,7 @@ impl<E: ErrorMetric, const N: usize> Palette<E, N> {
                 index_list.set(pixel_index, index_value);
                 total_error += error_sq;
             } else {
-                index_list.set(pixel_index, Self::transparent_index());
+                index_list.set(pixel_index, self.transparent_index());
             }
         }
 
@@ -869,10 +888,17 @@ impl<E: ErrorMetric, const N: usize> Palette<E, N> {
     /// Same as `block_closest(block).1` but faster.
     fn block_closest_error(&self, block: impl Block4x4<ColorSpace>, alpha_map: AlphaMap) -> f32 {
         let mut total_error = 0.0;
-        for pixel_index in 0..16 {
-            if alpha_map.is_opaque(pixel_index) {
+        if alpha_map == AlphaMap::ALL_OPAQUE {
+            for pixel_index in 0..16 {
                 let pixel = block.get_pixel_at(pixel_index);
                 total_error += self.closest_error_sq(pixel);
+            }
+        } else {
+            for pixel_index in 0..16 {
+                if alpha_map.is_opaque(pixel_index) {
+                    let pixel = block.get_pixel_at(pixel_index);
+                    total_error += self.closest_error_sq(pixel);
+                }
             }
         }
         total_error
@@ -894,7 +920,7 @@ impl<E: ErrorMetric, const N: usize> Palette<E, N> {
                 total_error += error_sq;
                 closest
             } else {
-                index_list.set(pixel_index, Self::transparent_index());
+                index_list.set(pixel_index, self.transparent_index());
                 block.get_pixel_at(pixel_index)
             }
         });
@@ -929,29 +955,24 @@ impl<E: ErrorMetric> PaletteInfo<E> {
         }
     }
 
+    fn create_palette(&self, endpoints: &EndPoints) -> Palette<E> {
+        match self.mode {
+            PaletteMode::P4 => Palette::new_p4(endpoints, self.error_metric),
+            PaletteMode::P3 => Palette::new_p3(endpoints, self.error_metric),
+        }
+    }
+
     fn block(
         &self,
         endpoints: &EndPoints,
         block: impl Block4x4<ColorSpace> + Copy,
         alpha_map: AlphaMap,
     ) -> (IndexList, f32) {
-        match self.mode {
-            PaletteMode::P4 => {
-                let p = Palette::new_p4(endpoints, self.error_metric);
-                if self.dither {
-                    p.block_dither(block, alpha_map)
-                } else {
-                    p.block_closest(block, alpha_map)
-                }
-            }
-            PaletteMode::P3 => {
-                let p = Palette::new_p3(endpoints, self.error_metric);
-                if self.dither {
-                    p.block_dither(block, alpha_map)
-                } else {
-                    p.block_closest(block, alpha_map)
-                }
-            }
+        let p = self.create_palette(endpoints);
+        if self.dither {
+            p.block_dither(block, alpha_map)
+        } else {
+            p.block_closest(block, alpha_map)
         }
     }
     fn block_error(
@@ -960,23 +981,11 @@ impl<E: ErrorMetric> PaletteInfo<E> {
         block: impl Block4x4<ColorSpace> + Copy,
         alpha_map: AlphaMap,
     ) -> f32 {
-        match self.mode {
-            PaletteMode::P4 => {
-                let p = Palette::new_p4(endpoints, self.error_metric);
-                if self.dither {
-                    p.block_dither_error(block, alpha_map)
-                } else {
-                    p.block_closest_error(block, alpha_map)
-                }
-            }
-            PaletteMode::P3 => {
-                let p = Palette::new_p3(endpoints, self.error_metric);
-                if self.dither {
-                    p.block_dither_error(block, alpha_map)
-                } else {
-                    p.block_closest_error(block, alpha_map)
-                }
-            }
+        let p = self.create_palette(endpoints);
+        if self.dither {
+            p.block_dither_error(block, alpha_map)
+        } else {
+            p.block_closest_error(block, alpha_map)
         }
     }
 
@@ -986,16 +995,8 @@ impl<E: ErrorMetric> PaletteInfo<E> {
         block: impl Block4x4<ColorSpace> + Copy,
         alpha_map: AlphaMap,
     ) -> f32 {
-        match self.mode {
-            PaletteMode::P4 => {
-                let p = Palette::new_p4(endpoints, self.error_metric);
-                p.block_closest_error(block, alpha_map)
-            }
-            PaletteMode::P3 => {
-                let p = Palette::new_p3(endpoints, self.error_metric);
-                p.block_closest_error(block, alpha_map)
-            }
-        }
+        self.create_palette(endpoints)
+            .block_closest_error(block, alpha_map)
     }
 }
 
