@@ -8,7 +8,7 @@ use super::bcn_util::{self, Block4x4, ColorSpace};
 
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
-pub struct Bc1Options {
+pub(crate) struct Bc1Options {
     pub dither: bool,
     /// Setting this to `true` will disable the use of the mode with the default color. This is useful for BC2 and BC3 encoding.
     pub no_default: bool,
@@ -16,6 +16,7 @@ pub struct Bc1Options {
     pub perceptual: bool,
     pub opaque_always_p4: bool,
     pub refine_max_iter: u8,
+    pub quantization: Quantization,
 }
 impl Default for Bc1Options {
     fn default() -> Self {
@@ -26,6 +27,7 @@ impl Default for Bc1Options {
             perceptual: false,
             opaque_always_p4: false,
             refine_max_iter: 10,
+            quantization: Quantization::ChannelWise,
         }
     }
 }
@@ -119,7 +121,7 @@ fn compress_p4(
         },
     );
 
-    let endpoints = pick_best_quantization_p4(min, max, &block, error_metric);
+    let endpoints = pick_best_quantization_p4(min, max, &block, options.quantization, error_metric);
     let palette = P4Palette::from(&endpoints, error_metric);
 
     let (indexes, error) = if options.dither {
@@ -168,7 +170,14 @@ fn compress_p3_default(
             palette.block_closest_error(&block, alpha_map)
         },
     );
-    let endpoints = pick_best_quantization_p3(min, max, &block, alpha_map, error_metric);
+    let endpoints = pick_best_quantization_p3(
+        min,
+        max,
+        &block,
+        alpha_map,
+        options.quantization,
+        error_metric,
+    );
     let palette = P3Palette::from(&endpoints, error_metric);
 
     let (indexes, error) = if options.dither {
@@ -348,9 +357,10 @@ fn pick_best_quantization_p4(
     c0: ColorSpace,
     c1: ColorSpace,
     block: impl Block4x4<ColorSpace> + Copy,
+    quantization: Quantization,
     error_metric: impl ErrorMetric,
 ) -> EndPoints {
-    let (c0, c1) = pick_best_quantization(
+    let (c0, c1) = quantization.pick_best(
         error_metric.color_space_to_srgb(c0),
         error_metric.color_space_to_srgb(c1),
         move |c0, c1| {
@@ -366,9 +376,10 @@ fn pick_best_quantization_p3(
     c1: ColorSpace,
     block: impl Block4x4<ColorSpace> + Copy,
     alpha_map: AlphaMap,
+    quantization: Quantization,
     error_metric: impl ErrorMetric,
 ) -> EndPoints {
-    let (c0, c1) = pick_best_quantization(
+    let (c0, c1) = quantization.pick_best(
         error_metric.color_space_to_srgb(c0),
         error_metric.color_space_to_srgb(c1),
         move |c0, c1| {
@@ -379,56 +390,157 @@ fn pick_best_quantization_p3(
     );
     EndPoints::new_p3_default(c0, c1)
 }
-fn pick_best_quantization(
-    c0: Vec3A,
-    c1: Vec3A,
-    mut f: impl FnMut(R5G6B5Color, R5G6B5Color) -> f32,
-) -> (R5G6B5Color, R5G6B5Color) {
-    let c0_min = R5G6B5Color::from_color_floor(c0);
-    let c0_max = R5G6B5Color::from_color_ceil(c0);
-    let c1_min = R5G6B5Color::from_color_floor(c1);
-    let c1_max = R5G6B5Color::from_color_ceil(c1);
 
-    let mut best: (R5G6B5Color, R5G6B5Color) = (
-        R5G6B5Color::from_color_round(c0),
-        R5G6B5Color::from_color_round(c1),
-    );
-    let mut best_error = f(best.0, best.1);
+/// BC1 encoding is a discrete optimization problem. However, we treat it as a
+/// continuous problem and then quantize the results to get the final R5G6B5
+/// endpoints.
+///
+/// This enum determines how the quantization is performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Quantization {
+    /// Continuous endpoints are rounded to the nearest R5G6B5 color.
+    ///
+    /// This is the fastest possible quantization, but also the one with the
+    /// worst quality.
+    Round,
+    /// Each channel is optimized independently. Optimization is performed
+    /// using all 4 possible combinations of floor/ceil for each endpoint (per
+    /// channel).
+    ///
+    /// This option is rather slow, but provides good quality.
+    ChannelWise,
+    /// This is a mix between `Round` and `ChannelWise`.
+    ///
+    /// This is based on 3 ideas:
+    ///
+    /// 1. The main performance cost comes from calling the error metric, so
+    ///    we want to minimize the number of calls to it.
+    /// 2. If the min and max (floor and ceil) of one endpoint is the same,
+    ///    then the number of calls to the error metric shrinks from 3 to 1.
+    /// 3. If the non-quantized endpoint is very close to the quantized min or
+    ///    max, then it is likely that the optimal quantized value is the min or
+    ///    max. So we can skip the other value.
+    ///    E.g. if the non-quantized value of a channel is 0.99, then the
+    ///    optimal quantized value for that channel is likely 1 and not 0.
+    ///
+    /// Using these ideas, a threshold can be defined for when a non-quantized
+    /// value is considered "close enough" to the min or max to skip checking
+    /// the other. This threshold can also be thought of a radius around the min
+    /// and max. As such, a threshold of 0 will have the same behavior as
+    /// `ChannelWise`, while a threshold of 0.5 will have the same behavior as
+    /// `Round`.
+    ///
+    /// Using this threshold, we can smoothly trade-off between quality and
+    /// performance.
+    ///
+    /// Right now, the threshold is hardcoded to 0.25.
+    ChannelWiseOptimized,
+}
+impl Quantization {
+    fn pick_best(
+        self,
+        c0: Vec3A,
+        c1: Vec3A,
+        mut error_metric: impl FnMut(R5G6B5Color, R5G6B5Color) -> f32,
+    ) -> (R5G6B5Color, R5G6B5Color) {
+        let mut best: (R5G6B5Color, R5G6B5Color) = (
+            R5G6B5Color::from_color_round(c0),
+            R5G6B5Color::from_color_round(c1),
+        );
 
-    let already_checked = best.0;
-    for r0 in c0_min.r..=c0_max.r {
-        for g0 in c0_min.g..=c0_max.g {
-            for b0 in c0_min.b..=c0_max.b {
-                let c0 = R5G6B5Color::new(r0, g0, b0);
-                if c0 == already_checked {
-                    continue;
-                }
-                let error = f(c0, best.1);
-                if error < best_error {
-                    best.0 = c0;
-                    best_error = error;
-                }
-            }
+        if self == Quantization::Round {
+            // For simple rounding, we don't need to optimize at all
+            return best;
         }
-    }
-    let already_checked = best.1;
-    for r1 in c1_min.r..=c1_max.r {
-        for g1 in c1_min.g..=c1_max.g {
-            for b1 in c1_min.b..=c1_max.b {
-                let c1 = R5G6B5Color::new(r1, g1, b1);
-                if c1 == already_checked {
-                    continue;
+
+        let mut best_error = error_metric(best.0, best.1);
+
+        let get_range = match self {
+            Quantization::ChannelWiseOptimized => Self::optimized_range,
+            _ => Self::full_range,
+        };
+
+        let (c0_min, c0_max) = get_range(c0);
+        let (c1_min, c1_max) = get_range(c1);
+
+        // Channel-wise optimization
+
+        macro_rules! optimize_channel {
+            ($c:ident) => {
+                for channel0 in c0_min.$c..=c0_max.$c {
+                    for channel1 in c1_min.$c..=c1_max.$c {
+                        if channel0 == best.0.$c && channel1 == best.1.$c {
+                            continue;
+                        }
+                        let (mut c0, mut c1) = best;
+                        c0.$c = channel0;
+                        c1.$c = channel1;
+                        let error = error_metric(c0, c1);
+                        if error < best_error {
+                            best = (c0, c1);
+                            best_error = error;
+                        }
+                    }
                 }
-                let error = f(best.0, c1);
-                if error < best_error {
-                    best.1 = c1;
-                    best_error = error;
-                }
-            }
+            };
         }
+
+        optimize_channel!(r);
+        optimize_channel!(g);
+        optimize_channel!(b);
+
+        best
     }
 
-    best
+    /// Returns the floor and ceil of the given color.
+    fn full_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+        (
+            R5G6B5Color::from_color_floor(c),
+            R5G6B5Color::from_color_ceil(c),
+        )
+    }
+
+    const CULL_THRESHOLD: f32 = 0.25;
+    /// Returns the floor and ceil of the given color. But if the color value
+    /// is very close to the floor or ceil, then it will only return one of the
+    /// two (returning the same value floor and ceil).
+    ///
+    /// The threshold for "very close" is defined by `CULL_THRESHOLD`. A
+    /// threshold of 0 will behave the same as `full_range`, while a threshold
+    /// of 0.5 will behave the same as `Quantization::Round`.
+    fn optimized_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+        let mut floor = R5G6B5Color::from_color_floor(c);
+        let mut ceil = R5G6B5Color::from_color_ceil(c);
+
+        let i = c.min(Vec3A::ONE) * Vec3A::new(31.0, 63.0, 31.0);
+        let floor_dist = i - Vec3A::new(floor.r as f32, floor.g as f32, floor.b as f32);
+
+        const FLOOR_THRESHOLD: f32 = Quantization::CULL_THRESHOLD;
+        const CEIL_THRESHOLD: f32 = 1.0 - Quantization::CULL_THRESHOLD;
+
+        if floor_dist.x < FLOOR_THRESHOLD {
+            ceil.r = floor.r;
+        }
+        if floor_dist.x > CEIL_THRESHOLD {
+            floor.r = ceil.r;
+        }
+
+        if floor_dist.y < FLOOR_THRESHOLD {
+            ceil.g = floor.g;
+        }
+        if floor_dist.y > CEIL_THRESHOLD {
+            floor.g = ceil.g;
+        }
+
+        if floor_dist.z < FLOOR_THRESHOLD {
+            ceil.b = floor.b;
+        }
+        if floor_dist.z > CEIL_THRESHOLD {
+            floor.b = ceil.b;
+        }
+
+        (floor, ceil)
+    }
 }
 
 fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
