@@ -242,7 +242,7 @@ pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
 
 fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options) {
     let mut bc1_options = get_bc1_options(options);
-    bc1_options.no_default = true;
+    bc1_options.no_p3_default = true;
 
     let mut bc4_options = get_bc4_options(options);
     bc4_options.snorm = false;
