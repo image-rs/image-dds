@@ -590,7 +590,7 @@ fn covariance_matrix(colors: &[ColorSpace], centroid: Vec3A) -> [Vec3A; 3] {
 fn largest_eigenvector(matrix: [Vec3A; 3]) -> Vec3A {
     // A simple power iteration method to approximate the dominant eigenvector
     let mut v = Vec3A::ONE;
-    for _ in 0..10 {
+    for _ in 0..2 {
         let r = matrix[0].dot(v);
         let g = matrix[1].dot(v);
         let b = matrix[2].dot(v);
