@@ -18,7 +18,7 @@ use crate::{util, Dithering, EncodeOptions, Format, ImageView, Offset, Size};
 pub struct SplitView<'a> {
     image: ImageView<'a>,
     len: u32,
-    group_height: Option<NonZeroU32>,
+    fragment_height: Option<NonZeroU32>,
 }
 
 impl<'a> SplitView<'a> {
@@ -27,19 +27,19 @@ impl<'a> SplitView<'a> {
         Self {
             image,
             len: 1,
-            group_height: None,
+            fragment_height: None,
         }
     }
 
     /// Creates a new `SplitView` from the given image, format, and options.
     pub fn new(image: ImageView<'a>, format: Format, options: &EncodeOptions) -> Self {
-        if let Some(group_height) = get_group_height(image.size(), format, options) {
-            let len = util::div_ceil(image.height(), group_height.get());
+        if let Some(fragment_height) = get_fragment_height(image.size(), format, options) {
+            let len = util::div_ceil(image.height(), fragment_height.get());
 
             Self {
                 image,
                 len,
-                group_height: Some(group_height),
+                fragment_height: Some(fragment_height),
             }
         } else {
             Self::new_single(image)
@@ -59,13 +59,15 @@ impl<'a> SplitView<'a> {
             return None;
         }
 
-        if let Some(group_height) = self.group_height {
-            let start_y = index * group_height.get();
+        if let Some(full_fragment_height) = self.fragment_height {
+            let start_y = index * full_fragment_height.get();
             let end_y = start_y
-                .saturating_add(group_height.get())
+                .saturating_add(full_fragment_height.get())
                 .min(self.image.height());
             debug_assert!(start_y < self.image.height());
 
+            // calculate the actual height of this fragment
+            // this can be smaller than fragment_height for the last fragment
             let fragment_height = end_y - start_y;
 
             Some(self.image.cropped(
@@ -88,7 +90,7 @@ impl<'a> SplitView<'a> {
     }
 }
 
-fn get_group_height(size: Size, format: Format, options: &EncodeOptions) -> Option<NonZeroU32> {
+fn get_fragment_height(size: Size, format: Format, options: &EncodeOptions) -> Option<NonZeroU32> {
     if size.is_empty() {
         return None;
     }
@@ -104,22 +106,19 @@ fn get_group_height(size: Size, format: Format, options: &EncodeOptions) -> Opti
         return None;
     }
 
-    let group_pixels = support
-        .group_size()
-        .get_group_pixels(options.quality)
-        .max(1);
-    if group_pixels >= size.pixels() {
+    let fragment_pixels = support.fragment_size.get_preferred(options.quality).max(1);
+    if fragment_pixels >= size.pixels() {
         // the image is small enough that it's not worth splitting
         return None;
     }
 
-    // it's important that the group height is divisible by the split height,
+    // it's important that the fragment height is divisible by the split height,
     let split_height_64 = split_height.get() as u64;
-    let group_height_maybe_zero =
-        u32::try_from((group_pixels / size.width as u64) / split_height_64 * split_height_64)
+    let fragment_height_or_zero =
+        u32::try_from((fragment_pixels / size.width as u64) / split_height_64 * split_height_64)
             .ok()?;
 
-    let group_height = NonZeroU32::new(group_height_maybe_zero).unwrap_or(split_height.into());
+    let fragment_height = NonZeroU32::new(fragment_height_or_zero).unwrap_or(split_height.into());
 
-    Some(group_height)
+    Some(fragment_height)
 }

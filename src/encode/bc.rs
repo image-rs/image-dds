@@ -11,7 +11,7 @@ use crate::{
 use super::{
     bc1, bc4, bcn_util,
     encoder::{Args, Encoder, EncoderSet, Flags},
-    CompressionQuality, EncodeOptions, ErrorMetric, PreferredGroupSize,
+    CompressionQuality, EncodeOptions, ErrorMetric, PreferredFragmentSize,
 };
 
 fn block_universal<
@@ -140,9 +140,11 @@ fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
     out
 }
 
-const BC1_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(256 * 256, 64 * 64, 64 * 64);
-const BC3_GROUP_SIZE: PreferredGroupSize = BC1_GROUP_SIZE.combine(BC4_GROUP_SIZE);
-const BC4_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(512 * 256, 128 * 128, 8 * 8);
+const BC1_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(64 * 64, 16 * 16, 16 * 16);
+const BC3_FRAGMENT_SIZE: PreferredFragmentSize = BC1_FRAGMENT_SIZE.combine(BC4_FRAGMENT_SIZE);
+const BC4_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(64 * 64, 32 * 32, 8 * 8);
 
 // encoders
 
@@ -181,7 +183,7 @@ pub(crate) const BC1_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_ALL)
-.with_group_size(BC1_GROUP_SIZE)]);
+.with_fragment_size(BC1_FRAGMENT_SIZE)]);
 
 fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
     let mut indexes: u64 = 0;
@@ -219,7 +221,7 @@ pub(crate) const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_ALL)
-.with_group_size(BC1_GROUP_SIZE)]);
+.with_fragment_size(BC1_FRAGMENT_SIZE)]);
 
 pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -236,7 +238,7 @@ pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_ALL)
-    .with_group_size(BC1_GROUP_SIZE)]);
+    .with_fragment_size(BC1_FRAGMENT_SIZE)]);
 
 fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options) {
     let mut bc1_options = get_bc1_options(options);
@@ -260,7 +262,7 @@ pub(crate) const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_ALL)
-.with_group_size(BC3_GROUP_SIZE)]);
+.with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -277,7 +279,7 @@ pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_ALL)
-    .with_group_size(BC3_GROUP_SIZE)]);
+    .with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 pub(crate) const BC3_UNORM_RXGB: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -304,7 +306,7 @@ pub(crate) const BC3_UNORM_RXGB: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_COLOR)
-    .with_group_size(BC3_GROUP_SIZE)]);
+    .with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 pub(crate) const BC3_UNORM_NORMAL: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -326,7 +328,7 @@ pub(crate) const BC3_UNORM_NORMAL: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_COLOR)
-    .with_group_size(BC3_GROUP_SIZE)]);
+    .with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 8] {
     let block = get_4x4_grayscale(data, row_pitch);
@@ -352,7 +354,7 @@ pub(crate) const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
     block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
@@ -362,7 +364,7 @@ pub(crate) const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 16] {
     let red_block = get_4x4_select_channel::<0>(data, row_pitch);
@@ -382,7 +384,7 @@ pub(crate) const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
     block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
@@ -392,4 +394,4 @@ pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);

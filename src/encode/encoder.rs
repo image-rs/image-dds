@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize, SizeMultiple, SIZE_MUL_2X2,
+    Dithering, EncodeOptions, EncodingSupport, PreferredFragmentSize, SizeMultiple, SIZE_MUL_2X2,
 };
 
 pub(crate) struct Args<'a, 'b, 'c, 'd> {
@@ -80,7 +80,7 @@ impl Flags {
 pub(crate) struct Encoder {
     pub color_formats: ColorFormatSet,
     pub flags: Flags,
-    group_size: PreferredGroupSize,
+    fragment_size: PreferredFragmentSize,
 
     pub encode: fn(Args) -> Result<(), EncodingError>,
 }
@@ -93,7 +93,7 @@ impl Encoder {
         Self {
             color_formats,
             flags,
-            group_size: PreferredGroupSize::EntireImage,
+            fragment_size: PreferredFragmentSize::EntireImage,
             encode,
         }
     }
@@ -104,7 +104,7 @@ impl Encoder {
         Self {
             color_formats: ColorFormatSet::from_single(color),
             flags: Flags::exact_for(color.precision),
-            group_size: PreferredGroupSize::EntireImage,
+            fragment_size: PreferredFragmentSize::EntireImage,
             encode: copy_directly,
         }
     }
@@ -113,8 +113,8 @@ impl Encoder {
         self.flags = self.flags.union(flags);
         self
     }
-    pub const fn with_group_size(mut self, group_size: PreferredGroupSize) -> Self {
-        self.group_size = group_size;
+    pub const fn with_fragment_size(mut self, fragment_size: PreferredFragmentSize) -> Self {
+        self.fragment_size = fragment_size;
         self
     }
 
@@ -207,7 +207,7 @@ impl EncoderSet {
             split_height: self.split_height,
             local_dithering: self.local_dithering(),
             size_multiple: self.size_multiple,
-            group_size: self.encoders[0].group_size,
+            fragment_size: self.encoders[0].fragment_size,
         }
     }
 
