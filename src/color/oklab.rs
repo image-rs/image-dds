@@ -4,6 +4,24 @@ trait Operations {
     fn srgb_to_linear(c: f32) -> f32;
     fn linear_to_srgb(c: f32) -> f32;
     fn cbrt(x: f32) -> f32;
+
+    fn srgb_to_linear_vec(x: Vec3A) -> Vec3A {
+        Vec3A::new(
+            Self::srgb_to_linear(x.x),
+            Self::srgb_to_linear(x.y),
+            Self::srgb_to_linear(x.z),
+        )
+    }
+    fn linear_to_srgb_vec(x: Vec3A) -> Vec3A {
+        Vec3A::new(
+            Self::linear_to_srgb(x.x),
+            Self::linear_to_srgb(x.y),
+            Self::linear_to_srgb(x.z),
+        )
+    }
+    fn cbrt_vec(x: Vec3A) -> Vec3A {
+        Vec3A::new(Self::cbrt(x.x), Self::cbrt(x.y), Self::cbrt(x.z))
+    }
 }
 
 struct Reference;
@@ -73,50 +91,96 @@ impl Operations for Fast {
         t *= G + F / (s + E + D / s);
         t
     }
+
+    fn srgb_to_linear_vec(c: Vec3A) -> Vec3A {
+        Vec3A::select(
+            c.cmpge(Vec3A::splat(0.04045)),
+            {
+                // This uses a Padé approximant for ((c + 0.055) / 1.055) ^ 2.4:
+                // (0.000857709 +0.0359438 x+0.524293 x^2+1.31193 x^3)/(1+0.992498 x-0.119725 x^2)
+                let c2 = c * c;
+                let c3 = c2 * c;
+                Vec3A::min(
+                    Vec3A::ONE,
+                    (0.000857709 + 0.0359438 * c + 0.524293 * c2 + 1.31193 * c3)
+                        / (Vec3A::ONE + 0.992498 * c - 0.119725 * c2),
+                )
+            },
+            c * (1.0 / 12.92),
+        )
+    }
+    fn linear_to_srgb_vec(c: Vec3A) -> Vec3A {
+        Vec3A::select(
+            c.cmpgt(Vec3A::splat(0.0031308)),
+            {
+                // This uses a Padé approximant for 1.055 c^(1/2.4) - 0.055:
+                // (-0.0117264+21.0897 x+949.46 x^2+2225.62 x^3)/(1+176.398 x+1983.15 x^2+1035.65 x^3)
+                let c2 = c * c;
+                let c3 = c2 * c;
+                (-0.0117264 + 21.0897 * c + 949.46 * c2 + 2225.62 * c3)
+                    / (1.0 + 176.398 * c + 1983.15 * c2 + 1035.65 * c3)
+            },
+            c * 12.92,
+        )
+    }
+    #[allow(clippy::excessive_precision)]
+    fn cbrt_vec(x: Vec3A) -> Vec3A {
+        // This is the fast cbrt approximation from the oklab crate.
+        // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
+        // Author: Kornel (https://gitlab.com/kornelski/)
+        const B: u32 = 709957561;
+        const C: f32 = 5.4285717010e-1;
+        const D: f32 = -7.0530611277e-1;
+        const E: f32 = 1.4142856598e+0;
+        const F: f32 = 1.6071428061e+0;
+        const G: f32 = 3.5714286566e-1;
+
+        let mut t = Vec3A::from_array(
+            x.to_array()
+                .map(|x| f32::from_bits((x.to_bits() / 3).wrapping_add(B))),
+        );
+        let s = C + (t * t) * (t / x);
+        t *= G + F / (s + E + D / s);
+        t
+    }
 }
 
 #[allow(clippy::excessive_precision)]
-fn srgb_to_oklab_impl<O: Operations>(rgb: Vec3A) -> Vec3A {
-    let [r, g, b] = rgb.to_array().map(O::srgb_to_linear);
+fn srgb_to_oklab_impl<O: Operations>(srgb: Vec3A) -> Vec3A {
+    let rgb = O::srgb_to_linear_vec(srgb);
 
-    let mut l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
-    let mut m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
-    let mut s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+    let lms = Vec3A::new(
+        rgb.dot(Vec3A::new(0.4122214708, 0.5363325363, 0.0514459929)),
+        rgb.dot(Vec3A::new(0.2119034982, 0.6806995451, 0.1073969566)),
+        rgb.dot(Vec3A::new(0.0883024619, 0.2817188376, 0.6299787005)),
+    );
+    let lms = O::cbrt_vec(lms);
 
-    l = O::cbrt(l);
-    m = O::cbrt(m);
-    s = O::cbrt(s);
-
-    let l_final = l * 0.2104542553 + m * 0.7936177850 + s * -0.0040720468;
-    let a = l * 1.9779984951 + m * -2.4285922050 + s * 0.4505937099;
-    let b = l * 0.0259040371 + m * 0.7827717662 + s * -0.8086757660;
+    let lab = Vec3A::new(
+        lms.dot(Vec3A::new(0.2104542553, 0.7936177850, -0.0040720468)),
+        lms.dot(Vec3A::new(1.9779984951, -2.4285922050, 0.4505937099)),
+        lms.dot(Vec3A::new(0.0259040371, 0.7827717662, -0.8086757660)),
+    );
 
     // normalize everything to the 0..1 range
-    Vec3A::new(l_final, a + 0.5, b + 0.5)
+    lab + Vec3A::new(0.0, 0.5, 0.5)
 }
 #[allow(clippy::excessive_precision)]
 fn oklab_to_srgb_impl<O: Operations>(lab: Vec3A) -> Vec3A {
-    let l_org = lab.x;
-    let a = lab.y - 0.5;
-    let b = lab.z - 0.5;
+    let lab_norm = lab - Vec3A::new(0.0, 0.5, 0.5);
+    let lms = Vec3A::new(
+        lab_norm.dot(Vec3A::new(1.0, 0.3963377774, 0.2158037573)),
+        lab_norm.dot(Vec3A::new(1.0, -0.1055613458, -0.0638541728)),
+        lab_norm.dot(Vec3A::new(1.0, -0.0894841775, -1.2914855480)),
+    );
+    let lms = lms * lms * lms; // lms^3
+    let rgb = Vec3A::new(
+        lms.dot(Vec3A::new(4.0767416621, -3.3077115913, 0.2309699292)),
+        lms.dot(Vec3A::new(-1.2684380046, 2.6097574011, -0.3413193965)),
+        lms.dot(Vec3A::new(-0.0041960863, -0.7034186147, 1.7076147010)),
+    );
 
-    let mut l = l_org + a * 0.3963377774 + b * 0.2158037573;
-    let mut m = l_org + a * -0.1055613458 + b * -0.0638541728;
-    let mut s = l_org + a * -0.0894841775 + b * -1.2914855480;
-
-    l = l * l * l;
-    m = m * m * m;
-    s = s * s * s;
-
-    let r = l * 4.0767416621 + m * -3.3077115913 + s * 0.2309699292;
-    let g = l * -1.2684380046 + m * 2.6097574011 + s * -0.3413193965;
-    let b = l * -0.0041960863 + m * -0.7034186147 + s * 1.7076147010;
-
-    Vec3A::new(
-        O::linear_to_srgb(r),
-        O::linear_to_srgb(g),
-        O::linear_to_srgb(b),
-    )
+    O::linear_to_srgb_vec(rgb)
 }
 
 #[allow(unused)]
