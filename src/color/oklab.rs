@@ -1,98 +1,51 @@
 use glam::Vec3A;
 
 trait Operations {
-    fn srgb_to_linear(c: f32) -> f32;
-    fn linear_to_srgb(c: f32) -> f32;
-    fn cbrt(x: f32) -> f32;
-
-    fn srgb_to_linear_vec(x: Vec3A) -> Vec3A {
-        Vec3A::new(
-            Self::srgb_to_linear(x.x),
-            Self::srgb_to_linear(x.y),
-            Self::srgb_to_linear(x.z),
-        )
-    }
-    fn linear_to_srgb_vec(x: Vec3A) -> Vec3A {
-        Vec3A::new(
-            Self::linear_to_srgb(x.x),
-            Self::linear_to_srgb(x.y),
-            Self::linear_to_srgb(x.z),
-        )
-    }
-    fn cbrt_vec(x: Vec3A) -> Vec3A {
-        Vec3A::new(Self::cbrt(x.x), Self::cbrt(x.y), Self::cbrt(x.z))
-    }
+    fn srgb_to_linear(c: Vec3A) -> Vec3A;
+    fn linear_to_srgb(c: Vec3A) -> Vec3A;
+    fn cbrt(x: Vec3A) -> Vec3A;
 }
 
 struct Reference;
 impl Operations for Reference {
-    fn srgb_to_linear(c: f32) -> f32 {
-        if c >= 0.04045 {
-            ((c + 0.055) / 1.055).powf(2.4)
-        } else {
-            c / 12.92
+    fn srgb_to_linear(c: Vec3A) -> Vec3A {
+        fn srgb_to_linear(c: f32) -> f32 {
+            if c >= 0.04045 {
+                ((c + 0.055) / 1.055).powf(2.4)
+            } else {
+                c / 12.92
+            }
         }
+
+        Vec3A::new(
+            srgb_to_linear(c.x),
+            srgb_to_linear(c.y),
+            srgb_to_linear(c.z),
+        )
     }
-    fn linear_to_srgb(c: f32) -> f32 {
-        if c > 0.0031308 {
-            1.055 * c.powf(1.0 / 2.4) - 0.055
-        } else {
-            12.92 * c
+    fn linear_to_srgb(c: Vec3A) -> Vec3A {
+        fn linear_to_srgb(c: f32) -> f32 {
+            if c > 0.0031308 {
+                1.055 * c.powf(1.0 / 2.4) - 0.055
+            } else {
+                12.92 * c
+            }
         }
+
+        Vec3A::new(
+            linear_to_srgb(c.x),
+            linear_to_srgb(c.y),
+            linear_to_srgb(c.z),
+        )
     }
-    fn cbrt(x: f32) -> f32 {
-        f32::cbrt(x)
+    fn cbrt(x: Vec3A) -> Vec3A {
+        Vec3A::new(x.x.cbrt(), x.y.cbrt(), x.z.cbrt())
     }
 }
 
 struct Fast;
 impl Operations for Fast {
-    fn srgb_to_linear(c: f32) -> f32 {
-        if c >= 0.04045 {
-            // This uses a Padé approximant for ((c + 0.055) / 1.055) ^ 2.4:
-            // (0.000857709 +0.0359438 x+0.524293 x^2+1.31193 x^3)/(1+0.992498 x-0.119725 x^2)
-            let c2 = c * c;
-            let c3 = c2 * c;
-            f32::min(
-                1.0,
-                (0.000857709 + 0.0359438 * c + 0.524293 * c2 + 1.31193 * c3)
-                    / (1.0 + 0.992498 * c - 0.119725 * c2),
-            )
-        } else {
-            c * (1.0 / 12.92)
-        }
-    }
-    fn linear_to_srgb(c: f32) -> f32 {
-        if c > 0.0031308 {
-            // This uses a Padé approximant for 1.055 c^(1/2.4) - 0.055:
-            // (-0.0117264+21.0897 x+949.46 x^2+2225.62 x^3)/(1+176.398 x+1983.15 x^2+1035.65 x^3)
-            let c2 = c * c;
-            let c3 = c2 * c;
-            (-0.0117264 + 21.0897 * c + 949.46 * c2 + 2225.62 * c3)
-                / (1.0 + 176.398 * c + 1983.15 * c2 + 1035.65 * c3)
-        } else {
-            12.92 * c
-        }
-    }
-    #[allow(clippy::excessive_precision)]
-    fn cbrt(x: f32) -> f32 {
-        // This is the fast cbrt approximation from the oklab crate.
-        // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
-        // Author: Kornel (https://gitlab.com/kornelski/)
-        const B: u32 = 709957561;
-        const C: f32 = 5.4285717010e-1;
-        const D: f32 = -7.0530611277e-1;
-        const E: f32 = 1.4142856598e+0;
-        const F: f32 = 1.6071428061e+0;
-        const G: f32 = 3.5714286566e-1;
-
-        let mut t = f32::from_bits((x.to_bits() / 3).wrapping_add(B));
-        let s = C + (t * t) * (t / x);
-        t *= G + F / (s + E + D / s);
-        t
-    }
-
-    fn srgb_to_linear_vec(c: Vec3A) -> Vec3A {
+    fn srgb_to_linear(c: Vec3A) -> Vec3A {
         Vec3A::select(
             c.cmpge(Vec3A::splat(0.04045)),
             {
@@ -109,7 +62,7 @@ impl Operations for Fast {
             c * (1.0 / 12.92),
         )
     }
-    fn linear_to_srgb_vec(c: Vec3A) -> Vec3A {
+    fn linear_to_srgb(c: Vec3A) -> Vec3A {
         Vec3A::select(
             c.cmpgt(Vec3A::splat(0.0031308)),
             {
@@ -124,7 +77,7 @@ impl Operations for Fast {
         )
     }
     #[allow(clippy::excessive_precision)]
-    fn cbrt_vec(x: Vec3A) -> Vec3A {
+    fn cbrt(x: Vec3A) -> Vec3A {
         // This is the fast cbrt approximation from the oklab crate.
         // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
         // Author: Kornel (https://gitlab.com/kornelski/)
@@ -147,14 +100,14 @@ impl Operations for Fast {
 
 #[allow(clippy::excessive_precision)]
 fn srgb_to_oklab_impl<O: Operations>(srgb: Vec3A) -> Vec3A {
-    let rgb = O::srgb_to_linear_vec(srgb);
+    let rgb = O::srgb_to_linear(srgb);
 
     let lms = Vec3A::new(
         rgb.dot(Vec3A::new(0.4122214708, 0.5363325363, 0.0514459929)),
         rgb.dot(Vec3A::new(0.2119034982, 0.6806995451, 0.1073969566)),
         rgb.dot(Vec3A::new(0.0883024619, 0.2817188376, 0.6299787005)),
     );
-    let lms = O::cbrt_vec(lms);
+    let lms = O::cbrt(lms);
 
     let lab = Vec3A::new(
         lms.dot(Vec3A::new(0.2104542553, 0.7936177850, -0.0040720468)),
@@ -180,7 +133,7 @@ fn oklab_to_srgb_impl<O: Operations>(lab: Vec3A) -> Vec3A {
         lms.dot(Vec3A::new(-0.0041960863, -0.7034186147, 1.7076147010)),
     );
 
-    O::linear_to_srgb_vec(rgb)
+    O::linear_to_srgb(rgb)
 }
 
 #[allow(unused)]
@@ -264,43 +217,58 @@ mod tests {
         }
     }
 
+    pub struct Scalar<O>(O);
+    impl<O: Operations> Scalar<O> {
+        fn srgb_to_linear(c: f32) -> f32 {
+            O::srgb_to_linear(Vec3A::splat(c)).x
+        }
+        fn linear_to_srgb(c: f32) -> f32 {
+            O::linear_to_srgb(Vec3A::splat(c)).x
+        }
+        fn cbrt(x: f32) -> f32 {
+            O::cbrt(Vec3A::splat(x)).x
+        }
+    }
+    type RefScalar = Scalar<Reference>;
+    type FastScalar = Scalar<Fast>;
+
     #[test]
     fn test_linear_srgb() {
         for c in 0..=255 {
             let c = c as f32 / 255.0;
-            let l = Reference::srgb_to_linear(c);
-            let c2 = Reference::linear_to_srgb(l);
+            let l = RefScalar::srgb_to_linear(c);
+            let c2 = RefScalar::linear_to_srgb(l);
 
             assert!((c - c2).abs() < 1e-6, "{c} -> {c2}");
         }
 
         for c in 0..=255 {
             let c = c as f32 / 255.0;
-            let l = Fast::srgb_to_linear(c);
-            let c2 = Fast::linear_to_srgb(l);
+            let l = FastScalar::srgb_to_linear(c);
+            let c2 = FastScalar::linear_to_srgb(l);
 
             assert!((c - c2).abs() < 2.5e-3, "{c} -> {c2}");
             assert!((0.0..=1.0).contains(&l), "{c} -> {l}");
             assert!((0.0..=1.0).contains(&c2), "{c} -> {l}");
         }
 
-        assert_eq!(Reference::srgb_to_linear(0.0), 0.0);
-        assert!((Reference::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
-        assert_eq!(Fast::linear_to_srgb(0.0), 0.0);
-        assert!((Fast::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
+        assert_eq!(RefScalar::srgb_to_linear(0.0), 0.0);
+        assert!((RefScalar::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
+        assert_eq!(FastScalar::linear_to_srgb(0.0), 0.0);
+        assert!((FastScalar::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
     }
 
     #[test]
     fn test_error_fast_srgb_to_linear() {
         assert_eq!(
-            get_error_stats(Reference::srgb_to_linear, Fast::srgb_to_linear),
+            get_error_stats(RefScalar::srgb_to_linear, FastScalar::srgb_to_linear),
             "Error: avg=0.00002514 max=0.00013047 for 0.999"
         );
     }
     #[test]
     fn test_error_fast_linear_to_srgb() {
         assert_eq!(
-            get_error_stats(Reference::linear_to_srgb, Fast::linear_to_srgb),
+            get_error_stats(RefScalar::linear_to_srgb, FastScalar::linear_to_srgb),
             "Error: avg=0.00105457 max=0.00236702 for 0.732"
         );
     }
