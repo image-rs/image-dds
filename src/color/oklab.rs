@@ -44,20 +44,19 @@ impl Operations for Reference {
 }
 
 struct Fast;
+#[allow(clippy::excessive_precision)]
 impl Operations for Fast {
     fn srgb_to_linear(c: Vec3A) -> Vec3A {
         Vec3A::select(
             c.cmpge(Vec3A::splat(0.04045)),
             {
-                // This uses a Padé approximant for ((c + 0.055) / 1.055) ^ 2.4:
-                // (0.000857709 +0.0359438 x+0.524293 x^2+1.31193 x^3)/(1+0.992498 x-0.119725 x^2)
+                // Polynomial approximation for ((c + 0.055) / 1.055) ^ 2.4
+                // This has a max error of 0.0001228 and is exact at c=0.04045 and c=1
                 let c2 = c * c;
                 let c3 = c2 * c;
-                Vec3A::min(
-                    Vec3A::ONE,
-                    (0.000857709 + 0.0359438 * c + 0.524293 * c2 + 1.31193 * c3)
-                        / (Vec3A::ONE + 0.992498 * c - 0.119725 * c2),
-                )
+                let c4 = c2 * c2;
+
+                0.00117465 + 0.02381997 * c + 0.58750746 * c2 + 0.47736490 * c3 + -0.08986699 * c4
             },
             c * (1.0 / 12.92),
         )
@@ -76,25 +75,28 @@ impl Operations for Fast {
             c * 12.92,
         )
     }
-    #[allow(clippy::excessive_precision)]
     fn cbrt(x: Vec3A) -> Vec3A {
-        // This is the fast cbrt approximation from the oklab crate.
-        // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
-        // Author: Kornel (https://gitlab.com/kornelski/)
+        // This is the fast cbrt approximation inspired by the non-std cbrt
+        // implementation (https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61)
+        // in the oklab crate by Kornel (https://gitlab.com/kornelski/), which
+        // in turn seems to be based on the libm implementation.
+        // In this version, I replaced the part after the initial guess with
+        // one Halley iteration. This reduces accuracy, but saves 2 divisions
+        // which helps performance a lot.
         const B: u32 = 709957561;
-        const C: f32 = 5.4285717010e-1;
-        const D: f32 = -7.0530611277e-1;
-        const E: f32 = 1.4142856598e+0;
-        const F: f32 = 1.6071428061e+0;
-        const G: f32 = 3.5714286566e-1;
+        fn initial_guess(x: f32) -> f32 {
+            let bits = x.to_bits();
+            // divide by 3 using multiplication and bitshift
+            // this is only correct if bits <= 2^31, which is true for all
+            // positive f32 values
+            let div = ((bits as u64 * 1431655766) >> 32) as u32;
+            f32::from_bits(div + B)
+        }
+        let t = Vec3A::from_array(x.to_array().map(initial_guess));
 
-        let mut t = Vec3A::from_array(
-            x.to_array()
-                .map(|x| f32::from_bits((x.to_bits() / 3).wrapping_add(B))),
-        );
-        let s = C + (t * t) * (t / x);
-        t *= G + F / (s + E + D / s);
-        t
+        // one halley iteration
+        let s = t * t * t;
+        t * (s + 2.0 * x) / (2.0 * s + x)
     }
 }
 
@@ -262,7 +264,7 @@ mod tests {
     fn test_error_fast_srgb_to_linear() {
         assert_eq!(
             get_error_stats(RefScalar::srgb_to_linear, FastScalar::srgb_to_linear),
-            "Error: avg=0.00002514 max=0.00013047 for 0.999"
+            "Error: avg=0.00007546 max=0.00012285 for 0.637"
         );
     }
     #[test]
@@ -270,6 +272,13 @@ mod tests {
         assert_eq!(
             get_error_stats(RefScalar::linear_to_srgb, FastScalar::linear_to_srgb),
             "Error: avg=0.00105457 max=0.00236702 for 0.732"
+        );
+    }
+    #[test]
+    fn test_error_fast_cbrt() {
+        assert_eq!(
+            get_error_stats(RefScalar::cbrt, FastScalar::cbrt),
+            "Error: avg=0.00000283 max=0.00001299 for 0.250"
         );
     }
 
