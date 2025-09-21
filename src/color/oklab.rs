@@ -84,10 +84,15 @@ impl Operations for Fast {
         // one Halley iteration. This reduces accuracy, but saves 2 divisions
         // which helps performance a lot.
         const B: u32 = 709957561;
-        let t = Vec3A::from_array(
-            x.to_array()
-                .map(|x| f32::from_bits((x.to_bits() / 3).wrapping_add(B))),
-        );
+        fn initial_guess(x: f32) -> f32 {
+            let bits = x.to_bits();
+            // divide by 3 using multiplication and bitshift
+            // this is only correct if bits <= 2^31, which is true for all
+            // positive f32 values
+            let div = ((bits as u64 * 1431655766) >> 32) as u32;
+            f32::from_bits(div + B)
+        }
+        let t = Vec3A::from_array(x.to_array().map(initial_guess));
 
         // one halley iteration
         let s = t * t * t;
