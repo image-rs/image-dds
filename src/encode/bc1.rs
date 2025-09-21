@@ -2,17 +2,18 @@
 
 use glam::Vec3A;
 
-use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6, util::clamp_0_1};
+use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
 
 use super::bcn_util::{self, Block4x4, ColorSpace};
+
+const ALPHA_THRESHOLD: f32 = 0.5;
 
 #[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub(crate) struct Bc1Options {
     pub dither: bool,
     /// Setting this to `true` will disable the use of the mode with the default color. This is useful for BC2 and BC3 encoding.
-    pub no_default: bool,
-    pub alpha_threshold: f32,
+    pub no_p3_default: bool,
     pub perceptual: bool,
     pub opaque_always_p4: bool,
     pub refine_max_iter: u8,
@@ -22,13 +23,20 @@ impl Default for Bc1Options {
     fn default() -> Self {
         Self {
             dither: false,
-            no_default: false,
-            alpha_threshold: 0.5,
+            no_p3_default: false,
             perceptual: false,
             opaque_always_p4: false,
             refine_max_iter: 10,
             quantization: Quantization::ChannelWise,
         }
+    }
+}
+impl Bc1Options {
+    /// If `true`, then the encoder will assume that all alpha values are 1.0
+    fn assume_opaque(&self) -> bool {
+        // If no_p3_default is set (BC2, BC3), then we must ignore the alpha channel.
+        // This is done most easily by just assuming that all alpha values are 1.0.
+        self.no_p3_default
     }
 }
 
@@ -43,47 +51,54 @@ impl Default for Bc1Options {
 /// compress for gzip and co.
 const TRANSPARENT_BLOCK: [u8; 8] = [0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
 
-pub(crate) fn compress_bc1_block(mut block: [[f32; 4]; 16], options: Bc1Options) -> [u8; 8] {
-    // clamp 0 to 1
-    for pixel in block.iter_mut() {
-        for value in pixel.iter_mut() {
-            *value = clamp_0_1(*value);
-        }
-    }
-
-    if options.perceptual {
-        compress(block, Perceptual, options)
+pub(crate) fn compress_bc1_block(block: [[f32; 4]; 16], options: Bc1Options) -> [u8; 8] {
+    // determine the binary alpha of each pixel
+    let alpha_map = if options.assume_opaque() {
+        AlphaMap::ALL_OPAQUE
     } else {
-        compress(block, Uniform, options)
-    }
-}
-fn compress(block: [[f32; 4]; 16], error_metric: impl ErrorMetric, options: Bc1Options) -> [u8; 8] {
-    // separate color and alpha
-    let colors: [Vec3A; 16] = block.map(|[r, g, b, _]| Vec3A::new(r, g, b));
-    let alpha_map = get_alpha_map(&block, options.alpha_threshold);
+        get_alpha_map(&block)
+    };
 
-    // Don't use the default color mode in BC2 and BC3
-    if options.no_default {
-        return compress_p4(colors, error_metric, options).0;
-    }
-
+    // If the alpha if all pixels is transparent, then there is no point in
+    // looking at their colors. Just return the prepared transparent block.
     if alpha_map == AlphaMap::ALL_TRANSPARENT {
+        debug_assert!(!options.no_p3_default);
         return TRANSPARENT_BLOCK;
     }
 
-    // transparent pixels always require P3
+    // map the block to the right format and clamp to [0, 1]
+    let colors: [Vec3A; 16] =
+        block.map(|[r, g, b, _]| Vec3A::new(r, g, b).clamp(Vec3A::ZERO, Vec3A::ONE));
+
+    // compress based on error metric
+    if options.perceptual {
+        compress(&colors, alpha_map, Perceptual, options)
+    } else {
+        compress(&colors, alpha_map, Uniform, options)
+    }
+}
+fn compress(
+    block: &[Vec3A; 16],
+    alpha_map: AlphaMap,
+    error_metric: impl ErrorMetric,
+    options: Bc1Options,
+) -> [u8; 8] {
+    debug_assert!(alpha_map != AlphaMap::ALL_TRANSPARENT);
+
+    // If there are transparent pixels, then we have no choice but to use P3.
     if alpha_map != AlphaMap::ALL_OPAQUE {
-        return compress_p3_default(colors, alpha_map, error_metric, options).0;
+        debug_assert!(!options.no_p3_default);
+        return compress_p3_default(block, alpha_map, error_metric, options).0;
     }
 
-    // We have a choice to make. P3 or P4?
-    if options.opaque_always_p4 {
-        return compress_p4(colors, error_metric, options).0;
+    // If the options demand P4, then use P4.
+    if options.no_p3_default || options.opaque_always_p4 {
+        return compress_p4(block, error_metric, options).0;
     }
 
-    // Just try both and pick whichever is better
-    let (p4, p4_error) = compress_p4(colors, error_metric, options);
-    let (p3, p3_error) = compress_p3_default(colors, alpha_map, error_metric, options);
+    // Otherwise, use both and pick whichever is better.
+    let (p4, p4_error) = compress_p4(block, error_metric, options);
+    let (p3, p3_error) = compress_p3_default(block, alpha_map, error_metric, options);
     if p4_error < p3_error {
         p4
     } else {
@@ -91,102 +106,88 @@ fn compress(block: [[f32; 4]; 16], error_metric: impl ErrorMetric, options: Bc1O
     }
 }
 fn compress_p4(
-    block: [Vec3A; 16],
+    block: &[Vec3A; 16],
     error_metric: impl ErrorMetric,
     options: Bc1Options,
 ) -> ([u8; 8], f32) {
-    // single-color optimization
-    if let Some(color) = get_single_color(&block, AlphaMap::ALL_OPAQUE) {
-        return compress_single_color_p4(color, error_metric, options);
-    }
-
-    // From now on, we work in the color space of the error metric
-    let block = block.map(|p| error_metric.srgb_to_color_space(p));
-
-    let (mut min, mut max) = get_initial_endpoints(&block);
-
-    (min, max) = bcn_util::refine_endpoints(
-        min,
-        max,
-        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0), options.refine_max_iter as u32),
-        |(min, max)| {
-            let min = error_metric.color_space_to_srgb(min);
-            let max = error_metric.color_space_to_srgb(max);
-            let endpoints = EndPoints::new_p4(
-                R5G6B5Color::from_color_round(min),
-                R5G6B5Color::from_color_round(max),
-            );
-            let palette = P4Palette::from(&endpoints, error_metric);
-            palette.block_closest_error(&block)
-        },
-    );
-
-    let endpoints = pick_best_quantization_p4(min, max, &block, options.quantization, error_metric);
-    let palette = P4Palette::from(&endpoints, error_metric);
-
-    let (indexes, error) = if options.dither {
-        palette.block_dither(&block)
-    } else {
-        palette.block_closest(&block)
-    };
-
-    (endpoints.with_indexes(indexes), error)
+    let palette_info = PaletteInfo::new_p4(error_metric, options);
+    compress_with_palette(block, AlphaMap::ALL_OPAQUE, options, palette_info)
 }
 fn compress_p3_default(
-    block: [Vec3A; 16],
+    block: &[Vec3A; 16],
     alpha_map: AlphaMap,
     error_metric: impl ErrorMetric,
     options: Bc1Options,
 ) -> ([u8; 8], f32) {
+    let palette_info = PaletteInfo::new_p3(error_metric, options);
+    compress_with_palette(block, alpha_map, options, palette_info)
+}
+fn compress_with_palette(
+    block: &[Vec3A; 16],
+    alpha_map: AlphaMap,
+    options: Bc1Options,
+    palette_info: PaletteInfo<impl ErrorMetric>,
+) -> ([u8; 8], f32) {
     // single-color optimization
-    if let Some(color) = get_single_color(&block, alpha_map) {
-        return compress_single_color_p3(color, alpha_map, error_metric, options);
+    if let Some(color) = get_single_color(block, alpha_map) {
+        return compress_single_color(color, alpha_map, palette_info);
     }
 
     // From now on, we work in the color space of the error metric
-    let block = block.map(|p| error_metric.srgb_to_color_space(p));
+    let block = block.map(|p| palette_info.error_metric.srgb_to_color_space(p));
 
-    let mut color_buffer = [ColorSpace::default(); 16];
-    let colors = get_opaque_colors(&block, alpha_map, &mut color_buffer);
-    if colors.is_empty() {
-        return (TRANSPARENT_BLOCK, 0.0);
-    }
+    // The general approach is as follows:
+    // 1. Find decent initial endpoints. This is currently done by fitting a line
+    //    through the colors and then projecting the colors onto that line to find
+    //    the reasonable min and max.
+    // 2. Refine the endpoints. The basic idea is to try small variations of the
+    //    endpoints and see if that improves the error. This is repeated with
+    //    smaller and smaller variations until a maximum number of iterations is
+    //    reached or the variations are too small.
+    // 3. Quantize the endpoints to R5G6B5.
+    // 4. Given the quantized endpoints, find the best matching indices to
+    //    finalize the BC1 encoded block.
 
-    // general case
-    let (mut min, mut max) = get_initial_endpoints(colors);
+    let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
+    (min, max) = refine(min, max, &block, alpha_map, options, palette_info);
+    let quantization = options.quantization;
+    let endpoints = pick_best_quantization(min, max, &block, alpha_map, quantization, palette_info);
 
-    (min, max) = bcn_util::refine_endpoints(
-        min,
-        max,
-        bcn_util::RefinementOptions::new_bc1(min.0.distance(max.0), options.refine_max_iter as u32),
-        |(min, max)| {
-            let min = error_metric.color_space_to_srgb(min);
-            let max = error_metric.color_space_to_srgb(max);
-            let endpoints = EndPoints::new_p3_default(
-                R5G6B5Color::from_color_round(min),
-                R5G6B5Color::from_color_round(max),
-            );
-            let palette = P3Palette::from(&endpoints, error_metric);
-            palette.block_closest_error(&block, alpha_map)
-        },
-    );
-    let endpoints = pick_best_quantization_p3(
-        min,
-        max,
-        &block,
-        alpha_map,
-        options.quantization,
-        error_metric,
-    );
-    let palette = P3Palette::from(&endpoints, error_metric);
-
-    let (indexes, error) = if options.dither {
-        palette.block_dither(&block, alpha_map)
-    } else {
-        palette.block_closest(&block, alpha_map)
-    };
+    let (indexes, error) = palette_info.block(&endpoints, &block, alpha_map);
 
     (endpoints.with_indexes(indexes), error)
+}
+
+fn refine(
+    min: ColorSpace,
+    max: ColorSpace,
+    block: impl Block4x4<ColorSpace> + Copy,
+    alpha_map: AlphaMap,
+    options: Bc1Options,
+    palette_info: PaletteInfo<impl ErrorMetric>,
+) -> (ColorSpace, ColorSpace) {
+    let min_max_dist = min.0.distance(max.0);
+    let max_iter = options.refine_max_iter as u32;
+    let refine_options = bcn_util::RefinementOptions::new_bc1(min_max_dist, max_iter);
+
+    bcn_util::refine_endpoints(min, max, refine_options, move |(min, max)| {
+        let error_metric = palette_info.error_metric;
+
+        let min = error_metric.color_space_to_srgb(min);
+        let max = error_metric.color_space_to_srgb(max);
+        let c0 = R5G6B5Color::from_color_round(min);
+        let c1 = R5G6B5Color::from_color_round(max);
+
+        if palette_info.mode == PaletteMode::P4 {
+            let endpoints = EndPoints::new_p4(c0, c1);
+            let palette = Palette::new_p4(&endpoints, error_metric);
+            palette.block_closest_error_p4(block)
+        } else {
+            let endpoints = EndPoints::new_p3_default(c0, c1);
+            let palette = Palette::new_p3(&endpoints, error_metric);
+            palette.block_closest_error_p3(block, alpha_map)
+        }
+    })
 }
 
 fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
@@ -194,8 +195,8 @@ fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
         return None;
     }
 
-    let mut min = block[0];
-    let mut max = block[0];
+    let mut min = Vec3A::splat(f32::INFINITY);
+    let mut max = Vec3A::splat(f32::NEG_INFINITY);
     for i in 0..16 {
         let c = block[i];
         if alpha_map.is_opaque(i) {
@@ -212,67 +213,39 @@ fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
         None
     }
 }
-fn compress_single_color_p4(
-    color: Vec3A,
-    error_metric: impl ErrorMetric,
-    options: Bc1Options,
-) -> ([u8; 8], f32) {
-    let min = R5G6B5Color::from_color_floor(color);
-    let max = R5G6B5Color::from_color_ceil(color);
-
-    let in_color_space = error_metric.srgb_to_color_space(color);
-
-    if min == max {
-        // Lucky. The color can be presented exactly by a RGB565 color.
-        let endpoints = EndPoints::new_p4(R5G6B5Color::BLACK, max);
-        let palette = P4Palette::from(&endpoints, error_metric);
-        let (indexes, error) = palette.block_closest(in_color_space);
-        return (endpoints.with_indexes(indexes), error);
-    }
-
-    let mut candidates = CandidateList::new(error_metric, options.dither);
-
-    // add baseline
-    candidates.add_p4(in_color_space, min, max);
-
-    // Without dithering, we might be able to find a single interpolation that
-    // approximates the target color more closely.
-    let (min, max) = find_optimal_single_color_endpoints(color, 1. / 3.);
-    candidates.add_p4(in_color_space, min, max);
-
-    let (min, max) = find_optimal_single_color_endpoints(color, 2. / 3.);
-    candidates.add_p4(in_color_space, min, max);
-
-    candidates.get_best()
-}
-fn compress_single_color_p3(
+fn compress_single_color(
     color: Vec3A,
     alpha_map: AlphaMap,
-    error_metric: impl ErrorMetric,
-    options: Bc1Options,
+    palette_info: PaletteInfo<impl ErrorMetric>,
 ) -> ([u8; 8], f32) {
     let min = R5G6B5Color::from_color_floor(color);
     let max = R5G6B5Color::from_color_ceil(color);
 
-    let in_color_space = error_metric.srgb_to_color_space(color);
+    let in_color_space = palette_info.error_metric.srgb_to_color_space(color);
 
     if min == max {
         // Lucky. The color can be presented exactly by a RGB565 color.
-        let endpoints = EndPoints::new_p3_default(R5G6B5Color::BLACK, max);
-        let palette = P3Palette::from(&endpoints, error_metric);
-        let (indexes, error) = palette.block_closest(in_color_space, alpha_map);
+        let endpoints = palette_info.create_endpoints(R5G6B5Color::BLACK, max);
+        let (indexes, error) = palette_info.block(&endpoints, in_color_space, alpha_map);
         return (endpoints.with_indexes(indexes), error);
     }
 
-    let mut candidates = CandidateList::new(error_metric, options.dither);
+    let mut candidates = CandidateList::new();
 
     // add baseline
-    candidates.add_p3(in_color_space, alpha_map, min, max);
+    candidates.add(in_color_space, alpha_map, min, max, palette_info);
 
     // Without dithering, we might be able to find a single interpolation that
     // approximates the target color more closely.
-    let (min, max) = find_optimal_single_color_endpoints(color, 0.5);
-    candidates.add_p3(in_color_space, alpha_map, min, max);
+    if palette_info.mode == PaletteMode::P4 {
+        let (min, max) = find_optimal_single_color_endpoints(color, 1. / 3.);
+        candidates.add(in_color_space, alpha_map, min, max, palette_info);
+        let (min, max) = find_optimal_single_color_endpoints(color, 2. / 3.);
+        candidates.add(in_color_space, alpha_map, min, max, palette_info);
+    } else {
+        let (min, max) = find_optimal_single_color_endpoints(color, 0.5);
+        candidates.add(in_color_space, alpha_map, min, max, palette_info);
+    }
 
     candidates.get_best()
 }
@@ -353,42 +326,38 @@ fn get_opaque_colors<'a>(
     &buffer[..count]
 }
 
-fn pick_best_quantization_p4(
-    c0: ColorSpace,
-    c1: ColorSpace,
-    block: impl Block4x4<ColorSpace> + Copy,
-    quantization: Quantization,
-    error_metric: impl ErrorMetric,
-) -> EndPoints {
-    let (c0, c1) = quantization.pick_best(
-        error_metric.color_space_to_srgb(c0),
-        error_metric.color_space_to_srgb(c1),
-        move |c0, c1| {
-            let endpoints = EndPoints::new_p4(c0, c1);
-            let palette = P4Palette::from(&endpoints, error_metric);
-            palette.block_closest_error(block)
-        },
-    );
-    EndPoints::new_p4(c0, c1)
-}
-fn pick_best_quantization_p3(
+fn pick_best_quantization(
     c0: ColorSpace,
     c1: ColorSpace,
     block: impl Block4x4<ColorSpace> + Copy,
     alpha_map: AlphaMap,
     quantization: Quantization,
-    error_metric: impl ErrorMetric,
+    palette_info: PaletteInfo<impl ErrorMetric>,
 ) -> EndPoints {
-    let (c0, c1) = quantization.pick_best(
-        error_metric.color_space_to_srgb(c0),
-        error_metric.color_space_to_srgb(c1),
-        move |c0, c1| {
+    let error_metric = palette_info.error_metric;
+
+    let c0_f = error_metric.color_space_to_srgb(c0);
+    let c1_f = error_metric.color_space_to_srgb(c1);
+
+    let (c0, c1) = quantization.pick_best(c0_f, c1_f, move |c0, c1| {
+        if palette_info.dither {
+            let endpoints = palette_info.create_endpoints(c0, c1);
+            let palette = palette_info.create_palette(&endpoints);
+            return palette.block_dither(block, alpha_map).1;
+        }
+
+        if palette_info.mode == PaletteMode::P4 {
+            let endpoints = EndPoints::new_p4(c0, c1);
+            let palette = Palette::new_p4(&endpoints, error_metric);
+            palette.block_closest_error_p4(block)
+        } else {
             let endpoints = EndPoints::new_p3_default(c0, c1);
-            let palette = P3Palette::from(&endpoints, error_metric);
-            palette.block_closest(block, alpha_map).1
-        },
-    );
-    EndPoints::new_p3_default(c0, c1)
+            let palette = Palette::new_p3(&endpoints, error_metric);
+            palette.block_closest_error_p3(block, alpha_map)
+        }
+    });
+
+    palette_info.create_endpoints(c0, c1)
 }
 
 /// BC1 encoding is a discrete optimization problem. However, we treat it as a
@@ -543,6 +512,20 @@ impl Quantization {
     }
 }
 
+fn get_initial_endpoints_from(
+    block: &[ColorSpace; 16],
+    alpha_map: AlphaMap,
+) -> (ColorSpace, ColorSpace) {
+    if alpha_map == AlphaMap::ALL_OPAQUE {
+        get_initial_endpoints(block)
+    } else {
+        debug_assert!(alpha_map != AlphaMap::ALL_TRANSPARENT);
+        let mut color_buffer = [ColorSpace::default(); 16];
+        let colors = get_opaque_colors(block, alpha_map, &mut color_buffer);
+        debug_assert!(!colors.is_empty());
+        get_initial_endpoints(colors)
+    }
+}
 fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
     debug_assert!(colors.len() <= 16);
 
@@ -570,12 +553,10 @@ fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
     (line.at(min_t), line.at(max_t))
 }
 
-fn get_alpha_map(block: &[[f32; 4]], alpha_threshold: f32) -> AlphaMap {
+fn get_alpha_map(block: &[[f32; 4]; 16]) -> AlphaMap {
     let mut alpha_map = AlphaMap::ALL_TRANSPARENT;
     for (i, pixel) in block.iter().enumerate() {
-        if pixel[3] >= alpha_threshold {
-            alpha_map.set_opaque(i);
-        }
+        alpha_map.set_opaque_if(i, pixel[3] >= ALPHA_THRESHOLD);
     }
     alpha_map
 }
@@ -608,7 +589,7 @@ fn covariance_matrix(colors: &[ColorSpace], centroid: Vec3A) -> [Vec3A; 3] {
 fn largest_eigenvector(matrix: [Vec3A; 3]) -> Vec3A {
     // A simple power iteration method to approximate the dominant eigenvector
     let mut v = Vec3A::ONE;
-    for _ in 0..10 {
+    for _ in 0..2 {
         let r = matrix[0].dot(v);
         let g = matrix[1].dot(v);
         let b = matrix[2].dot(v);
@@ -649,19 +630,15 @@ impl ColorLine {
     }
 }
 
-struct CandidateList<E> {
+struct CandidateList {
     data: [u8; 8],
     error: f32,
-    error_metric: E,
-    dithering: bool,
 }
-impl<E> CandidateList<E> {
-    fn new(error_metric: E, dithering: bool) -> Self {
+impl CandidateList {
+    fn new() -> Self {
         Self {
             data: [0; 8],
             error: f32::INFINITY,
-            error_metric,
-            dithering,
         }
     }
     fn get_best(self) -> ([u8; 8], f32) {
@@ -669,41 +646,16 @@ impl<E> CandidateList<E> {
         (self.data, self.error)
     }
 
-    fn add_p4(&mut self, block: impl Block4x4<ColorSpace> + Copy, e0: R5G6B5Color, e1: R5G6B5Color)
-    where
-        E: ErrorMetric,
-    {
-        let endpoints = EndPoints::new_p4(e0, e1);
-        let palette = P4Palette::from(&endpoints, self.error_metric);
-
-        let (indexes, error) = if self.dithering {
-            palette.block_dither(block)
-        } else {
-            palette.block_closest(block)
-        };
-
-        if error < self.error {
-            self.data = endpoints.with_indexes(indexes);
-            self.error = error;
-        }
-    }
-    fn add_p3(
+    fn add(
         &mut self,
         block: impl Block4x4<ColorSpace> + Copy,
         alpha_map: AlphaMap,
         e0: R5G6B5Color,
         e1: R5G6B5Color,
-    ) where
-        E: ErrorMetric,
-    {
-        let endpoints = EndPoints::new_p3_default(e0, e1);
-        let palette = P3Palette::from(&endpoints, self.error_metric);
-
-        let (indexes, error) = if self.dithering {
-            palette.block_dither(block, alpha_map)
-        } else {
-            palette.block_closest(block, alpha_map)
-        };
+        palette_info: PaletteInfo<impl ErrorMetric>,
+    ) {
+        let endpoints = palette_info.create_endpoints(e0, e1);
+        let (indexes, error) = palette_info.block(&endpoints, block, alpha_map);
 
         if error < self.error {
             self.data = endpoints.with_indexes(indexes);
@@ -712,7 +664,6 @@ impl<E> CandidateList<E> {
     }
 }
 
-#[derive(Debug, Clone)]
 struct EndPoints {
     c0: R5G6B5Color,
     c1: R5G6B5Color,
@@ -764,7 +715,7 @@ impl EndPoints {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct R5G6B5Color {
     r: u8,
     g: u8,
@@ -781,23 +732,23 @@ impl R5G6B5Color {
         Self { r, g, b }
     }
 
+    const COMPONENT_MAX: Vec3A = Vec3A::new(31.0, 63.0, 31.0);
     fn from_color_round(color: Vec3A) -> Self {
-        let r = n5::from_f32(color.x);
-        let g = n6::from_f32(color.y);
-        let b = n5::from_f32(color.z);
-        Self::new(r, g, b)
+        let c = (color * Self::COMPONENT_MAX + 0.5).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn from_color_floor(color: Vec3A) -> Self {
-        let r = (color.x.min(1.0) * 31.0) as u8;
-        let g = (color.y.min(1.0) * 63.0) as u8;
-        let b = (color.z.min(1.0) * 31.0) as u8;
-        Self::new(r, g, b)
+        let c = (color * Self::COMPONENT_MAX).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn from_color_ceil(color: Vec3A) -> Self {
-        let r = 31 - ((1.0 - color.x).min(1.0) * 31.0) as u8;
-        let g = 63 - ((1.0 - color.y).min(1.0) * 63.0) as u8;
-        let b = 31 - ((1.0 - color.z).min(1.0) * 31.0) as u8;
-        Self::new(r, g, b)
+        // This approximates ceil. `as u8` will truncate, so by adding a number
+        // slightly less than 1 beforehand, we get something very close to ceil.
+        // This number is chosen because it is the largest number such that any
+        // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
+        const A: f32 = 0.999995;
+        let c = (color * Self::COMPONENT_MAX + A).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn to_color(self) -> Vec3A {
         self.debug_check();
@@ -816,7 +767,7 @@ impl R5G6B5Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct AlphaMap {
     data: u16,
 }
@@ -824,8 +775,8 @@ impl AlphaMap {
     const ALL_TRANSPARENT: Self = Self { data: 0 };
     const ALL_OPAQUE: Self = Self { data: u16::MAX };
 
-    fn set_opaque(&mut self, index: usize) {
-        self.data |= 1 << index;
+    fn set_opaque_if(&mut self, index: usize, cond: bool) {
+        self.data |= (cond as u16) << index;
     }
 
     fn is_transparent(&self, index: usize) -> bool {
@@ -856,12 +807,41 @@ impl IndexList {
     }
 }
 
-struct P4Palette<E> {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PaletteMode {
+    P4,
+    P3,
+}
+struct Palette<E> {
     colors: [ColorSpace; 4],
+    mode: PaletteMode,
     error_metric: E,
 }
-impl<E: ErrorMetric> P4Palette<E> {
-    fn new(c0: Vec3A, c1: Vec3A, error_metric: E) -> Self {
+impl<E: ErrorMetric> Palette<E> {
+    fn new_p3(endpoints: &EndPoints, error_metric: E) -> Self {
+        let c0 = endpoints.c0_f;
+        let c1 = endpoints.c1_f;
+        let c2 = (c0 + c1) * 0.5;
+
+        let c0 = error_metric.srgb_to_color_space(c0);
+        let c1 = error_metric.srgb_to_color_space(c1);
+        let c2 = error_metric.srgb_to_color_space(c2);
+
+        Self {
+            // Fill the last color with c0. This gets us to 4 colors, but since
+            // it's the same as c0, it won't affect the closest color search,
+            // since its error will be the same as c0 and therefore *not* less
+            // than the current smallest error. See `closest()` and `closest_error_sq`.
+            colors: [c0, c1, c2, c0],
+            mode: PaletteMode::P3,
+            error_metric,
+        }
+    }
+
+    fn new_p4(endpoints: &EndPoints, error_metric: E) -> Self {
+        let c0 = endpoints.c0_f;
+        let c1 = endpoints.c1_f;
+
         Self {
             colors: [
                 c0,
@@ -870,86 +850,73 @@ impl<E: ErrorMetric> P4Palette<E> {
                 c0 * (1. / 3.) + c1 * (2. / 3.),
             ]
             .map(|c| error_metric.srgb_to_color_space(c)),
+            mode: PaletteMode::P4,
             error_metric,
         }
     }
-    fn from(endpoints: &EndPoints, error_metric: E) -> Self {
-        Self::new(endpoints.c0_f, endpoints.c1_f, error_metric)
+
+    fn transparent_index(&self) -> u8 {
+        debug_assert!(
+            self.mode == PaletteMode::P3,
+            "P4 does not support transparency"
+        );
+
+        3
     }
 
-    /// Returns the index list of the colors in the palette that together
-    /// minimize the MSE.
-    ///
     /// Returns:
-    /// 0: The index list
-    /// 1: The total MSE of the block
+    /// 0: The index value of the closest color in the palette
+    /// 1: The closest color in the palette
+    /// 2: `(pixel - closest) ** 2`, aka the squared error
+    fn closest(&self, color: ColorSpace) -> (u8, ColorSpace, f32) {
+        let error_metric = self.error_metric;
+
+        let mut best_index = 0;
+        let mut min_error = error_metric.error_sq(color, self.colors[0]);
+        for i in 1..4 {
+            if i == 3 && self.mode == PaletteMode::P3 {
+                // In P3 mode, the last color doesn't affect the result.
+                // This branch is unnecessary for correctness, but it does slightly
+                // improve performance.
+                break;
+            }
+            let error = error_metric.error_sq(color, self.colors[i]);
+            if error < min_error {
+                best_index = i as u8;
+                min_error = error;
+            }
+        }
+
+        (best_index, self.colors[best_index as usize], min_error)
+    }
+
+    /// Returns the square of the error between the pixel and the closest color
+    /// in the palette.
     ///
-    /// Note that the MSE is **NOT** normalized. In other words, the result is
-    /// 16x the actual MSE.
-    fn block_closest(&self, block: impl Block4x4<ColorSpace>) -> (IndexList, f32) {
-        let mut total_error = 0.0;
-        let mut index_list = IndexList::new_empty();
-        for pixel_index in 0..16 {
-            let pixel = block.get_pixel_at(pixel_index);
-            let (index_value, _, error) = self.closest(pixel);
-            index_list.set(pixel_index, index_value);
-            total_error += error * error;
-        }
+    /// Same as `self.closest(pixel).2`.
+    fn closest_error_sq(&self, color: ColorSpace) -> f32 {
+        let error_metric = self.error_metric;
 
-        (index_list, total_error)
+        let e0 = error_metric.error_sq(color, self.colors[0]);
+        let e1 = error_metric.error_sq(color, self.colors[1]);
+        let e2 = error_metric.error_sq(color, self.colors[2]);
+        let e3 = error_metric.error_sq(color, self.colors[3]);
+
+        e0.min(e1).min(e2).min(e3)
     }
+    /// Same as `closest_error_sq` but optimized for P3 palettes.
+    ///
+    /// Calling for this on P4 palettes is not allowed.
+    fn closest_error_sq_p3(&self, color: ColorSpace) -> f32 {
+        debug_assert!(self.mode == PaletteMode::P3);
 
-    fn block_dither(&self, block: impl Block4x4<ColorSpace> + Copy) -> (IndexList, f32) {
-        let mut index_list = IndexList::new_empty();
-        let mut total_error = 0.0;
+        let error_metric = self.error_metric;
 
-        // This implements a modified version of the Floyd-Steinberg dithering
-        bcn_util::block_dither(block, |pixel_index, pixel| {
-            let (index_value, closest, error) = self.closest(pixel);
-            index_list.set(pixel_index, index_value);
-            total_error += error * error;
-            closest
-        });
+        let e0 = error_metric.error_sq(color, self.colors[0]);
+        let e1 = error_metric.error_sq(color, self.colors[1]);
+        let e2 = error_metric.error_sq(color, self.colors[2]);
 
-        (index_list, total_error)
-    }
-
-    /// Same as `block_closest(block).1` but faster.
-    fn block_closest_error(&self, block: impl Block4x4<ColorSpace>) -> f32 {
-        let mut total_error = 0.0;
-        for pixel_index in 0..16 {
-            let pixel = block.get_pixel_at(pixel_index);
-            total_error += self.closest_error_sq(pixel);
-        }
-        total_error
-    }
-}
-impl<E: ErrorMetric> Palette<4> for P4Palette<E> {
-    type E = E;
-
-    fn get_colors(&self) -> &[ColorSpace; 4] {
-        &self.colors
-    }
-    fn get_error_metric(&self) -> Self::E {
-        self.error_metric
-    }
-}
-
-struct P3Palette<E> {
-    colors: [ColorSpace; 3],
-    error_metric: E,
-}
-impl<E: ErrorMetric> P3Palette<E> {
-    const DEFAULT: u8 = 3;
-
-    fn new(c0: Vec3A, c1: Vec3A, error_metric: E) -> Self {
-        Self {
-            colors: [c0, c1, (c0 + c1) * 0.5].map(|c| error_metric.srgb_to_color_space(c)),
-            error_metric,
-        }
-    }
-    fn from(endpoints: &EndPoints, error_metric: E) -> Self {
-        Self::new(endpoints.c0_f, endpoints.c1_f, error_metric)
+        e0.min(e1).min(e2)
     }
 
     /// Returns the index list of the colors in the palette that together
@@ -968,25 +935,45 @@ impl<E: ErrorMetric> P3Palette<E> {
     ) -> (IndexList, f32) {
         let mut total_error = 0.0;
         let mut index_list = IndexList::new_empty();
+
         for pixel_index in 0..16 {
-            let pixel = block.get_pixel_at(pixel_index);
             if alpha_map.is_opaque(pixel_index) {
-                let (index_value, _, error) = self.closest(pixel);
+                let pixel = block.get_pixel_at(pixel_index);
+                let (index_value, _, error_sq) = self.closest(pixel);
                 index_list.set(pixel_index, index_value);
-                total_error += error * error;
+                total_error += error_sq;
             } else {
-                index_list.set(pixel_index, Self::DEFAULT);
+                index_list.set(pixel_index, self.transparent_index());
             }
         }
 
         (index_list, total_error)
     }
-    fn block_closest_error(&self, block: impl Block4x4<ColorSpace>, alpha_map: AlphaMap) -> f32 {
+    /// Same as `block_closest(block).1` but faster and only for P4.
+    fn block_closest_error_p4(&self, block: impl Block4x4<ColorSpace>) -> f32 {
+        debug_assert!(self.mode == PaletteMode::P4);
         let mut total_error = 0.0;
         for pixel_index in 0..16 {
             let pixel = block.get_pixel_at(pixel_index);
-            if alpha_map.is_opaque(pixel_index) {
-                total_error += self.closest_error_sq(pixel);
+            total_error += self.closest_error_sq(pixel);
+        }
+        total_error
+    }
+    /// Same as `block_closest(block).1` but faster and only for P3.
+    fn block_closest_error_p3(&self, block: impl Block4x4<ColorSpace>, alpha_map: AlphaMap) -> f32 {
+        debug_assert!(self.mode == PaletteMode::P3);
+        let mut total_error = 0.0;
+        if alpha_map == AlphaMap::ALL_OPAQUE {
+            for pixel_index in 0..16 {
+                let pixel = block.get_pixel_at(pixel_index);
+                total_error += self.closest_error_sq_p3(pixel);
+            }
+        } else {
+            for pixel_index in 0..16 {
+                if alpha_map.is_opaque(pixel_index) {
+                    let pixel = block.get_pixel_at(pixel_index);
+                    total_error += self.closest_error_sq_p3(pixel);
+                }
             }
         }
         total_error
@@ -1003,12 +990,12 @@ impl<E: ErrorMetric> P3Palette<E> {
         // This implements a modified version of the Floyd-Steinberg dithering
         bcn_util::block_dither(block, |pixel_index, pixel| {
             if alpha_map.is_opaque(pixel_index) {
-                let (index_value, closest, error) = self.closest(pixel);
+                let (index_value, closest, error_sq) = self.closest(pixel);
                 index_list.set(pixel_index, index_value);
-                total_error += error * error;
+                total_error += error_sq;
                 closest
             } else {
-                index_list.set(pixel_index, Self::DEFAULT);
+                index_list.set(pixel_index, self.transparent_index());
                 block.get_pixel_at(pixel_index)
             }
         });
@@ -1016,59 +1003,55 @@ impl<E: ErrorMetric> P3Palette<E> {
         (index_list, total_error)
     }
 }
-impl<E: ErrorMetric> Palette<3> for P3Palette<E> {
-    type E = E;
 
-    fn get_colors(&self) -> &[ColorSpace; 3] {
-        &self.colors
-    }
-    fn get_error_metric(&self) -> Self::E {
-        self.error_metric
-    }
+#[derive(Clone, Copy)]
+struct PaletteInfo<E> {
+    mode: PaletteMode,
+    dither: bool,
+    error_metric: E,
 }
-
-trait Palette<const N: usize> {
-    type E: ErrorMetric;
-
-    fn get_colors(&self) -> &[ColorSpace; N];
-    fn get_error_metric(&self) -> Self::E;
-
-    /// Returns:
-    /// 0: The index value of the closest color in the palette
-    /// 1: The closest color in the palette
-    /// 2: `(pixel - closest) ** 2`, aka the squared error
-    fn closest(&self, color: ColorSpace) -> (u8, ColorSpace, f32) {
-        let colors = self.get_colors();
-        let error_metric = self.get_error_metric();
-
-        let mut best_index = 0;
-        let mut min_error = error_metric.error_sq(color, colors[0]);
-        for i in 1..N {
-            let error = error_metric.error_sq(color, colors[i]);
-            if error < min_error {
-                best_index = i as u8;
-                min_error = error;
-            }
+impl<E: ErrorMetric> PaletteInfo<E> {
+    fn new_p3(error_metric: E, options: Bc1Options) -> Self {
+        Self {
+            mode: PaletteMode::P3,
+            dither: options.dither,
+            error_metric,
         }
-
-        (best_index, colors[best_index as usize], min_error)
+    }
+    fn new_p4(error_metric: E, options: Bc1Options) -> Self {
+        Self {
+            mode: PaletteMode::P4,
+            dither: options.dither,
+            error_metric,
+        }
     }
 
-    /// Returns the square of the error between the pixel and the closest color
-    /// in the palette.
-    ///
-    /// Same as `self.closest(pixel).2`.
-    fn closest_error_sq(&self, color: ColorSpace) -> f32 {
-        let colors = self.get_colors();
-        let error_metric = self.get_error_metric();
-
-        let mut min_error = error_metric.error_sq(color, colors[0]);
-        for i in 1..N {
-            let error = error_metric.error_sq(color, colors[i]);
-            min_error = min_error.min(error);
+    fn create_endpoints(&self, e0: R5G6B5Color, e1: R5G6B5Color) -> EndPoints {
+        match self.mode {
+            PaletteMode::P4 => EndPoints::new_p4(e0, e1),
+            PaletteMode::P3 => EndPoints::new_p3_default(e0, e1),
         }
+    }
 
-        min_error
+    fn create_palette(&self, endpoints: &EndPoints) -> Palette<E> {
+        match self.mode {
+            PaletteMode::P4 => Palette::new_p4(endpoints, self.error_metric),
+            PaletteMode::P3 => Palette::new_p3(endpoints, self.error_metric),
+        }
+    }
+
+    fn block(
+        &self,
+        endpoints: &EndPoints,
+        block: impl Block4x4<ColorSpace> + Copy,
+        alpha_map: AlphaMap,
+    ) -> (IndexList, f32) {
+        let p = self.create_palette(endpoints);
+        if self.dither {
+            p.block_dither(block, alpha_map)
+        } else {
+            p.block_closest(block, alpha_map)
+        }
     }
 }
 
@@ -1081,7 +1064,7 @@ trait ErrorMetric: Copy {
         a.0.distance_squared(b.0)
     }
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct Uniform;
 impl ErrorMetric for Uniform {
     #[inline]
@@ -1093,7 +1076,7 @@ impl ErrorMetric for Uniform {
         color.0
     }
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct Perceptual;
 impl ErrorMetric for Perceptual {
     #[inline]
