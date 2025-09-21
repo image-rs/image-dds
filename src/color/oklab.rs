@@ -76,23 +76,22 @@ impl Operations for Fast {
         )
     }
     fn cbrt(x: Vec3A) -> Vec3A {
-        // This is the fast cbrt approximation from the oklab crate.
-        // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
-        // Author: Kornel (https://gitlab.com/kornelski/)
+        // This is the fast cbrt approximation inspired by the non-std cbrt
+        // implementation (https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61)
+        // in the oklab crate by Kornel (https://gitlab.com/kornelski/), which
+        // in turn seems to be based on the libm implementation.
+        // In this version, I replaced the part after the initial guess with
+        // one Halley iteration. This reduces accuracy, but saves 2 divisions
+        // which helps performance a lot.
         const B: u32 = 709957561;
-        const C: f32 = 5.4285717010e-1;
-        const D: f32 = -7.0530611277e-1;
-        const E: f32 = 1.4142856598e+0;
-        const F: f32 = 1.6071428061e+0;
-        const G: f32 = 3.5714286566e-1;
-
-        let mut t = Vec3A::from_array(
+        let t = Vec3A::from_array(
             x.to_array()
                 .map(|x| f32::from_bits((x.to_bits() / 3).wrapping_add(B))),
         );
-        let s = C + (t * t) * (t / x);
-        t *= G + F / (s + E + D / s);
-        t
+
+        // one halley iteration
+        let s = t * t * t;
+        t * (s + 2.0 * x) / (2.0 * s + x)
     }
 }
 
@@ -268,6 +267,13 @@ mod tests {
         assert_eq!(
             get_error_stats(RefScalar::linear_to_srgb, FastScalar::linear_to_srgb),
             "Error: avg=0.00105457 max=0.00236702 for 0.732"
+        );
+    }
+    #[test]
+    fn test_error_fast_cbrt() {
+        assert_eq!(
+            get_error_stats(RefScalar::cbrt, FastScalar::cbrt),
+            "Error: avg=0.00000283 max=0.00001299 for 0.250"
         );
     }
 
