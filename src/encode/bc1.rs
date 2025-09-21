@@ -742,7 +742,12 @@ impl R5G6B5Color {
         Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn from_color_ceil(color: Vec3A) -> Self {
-        let c = (color * Self::COMPONENT_MAX + 0.9999999).min(Self::COMPONENT_MAX);
+        // This approximates ceil. `as u8` will truncate, so by adding a number
+        // slightly less than 1 beforehand, we get something very close to ceil.
+        // This number is chosen because it is the largest number such that any
+        // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
+        const A: f32 = 0.999995;
+        let c = (color * Self::COMPONENT_MAX + A).min(Self::COMPONENT_MAX);
         Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn to_color(self) -> Vec3A {

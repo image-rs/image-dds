@@ -92,10 +92,10 @@ BC1_UNORM fast clovers-r.dds: >
     797e217227149e775d8ee5d55778e7c38111bab9c38ef2a594392982ced3ee72
 
 BC1_UNORM normal clovers-r.dds: >
-    7934f0e2b65869bb7b1c870726585720dbfd404ad3d78bf1a996ee31fcd6ff00
+    db7bffd274a66a53fd62217c8f6e6cebddae3bcaeb6139a9e6813b3d52030970
 
 BC1_UNORM high clovers-r.dds: >
-    a7030fdb5d2ecc2068ac8b2335bdfd9630406bf68d71cf51d2dbeeca0af76b99
+    359ab91595255264a437da2b13f0df28f9c16e535a150d6612291e04221c4483
 
 BC1_UNORM dither clovers-r.dds: >
     ac6240507843f1dd4af4ba2ae101d5bf9eab6ea55027f0837cebab52443ca12a
@@ -125,16 +125,16 @@ BC1_UNORM perc d stone-d.dds: >
     0814097edfb4321d9ffe3a416fe247dbf610b3eb57ab01d15d3689e86b94ffe6
 
 BC1_UNORM fast grass.dds: >
-    2941ce89a98562a5df51b3bbbd5a13eb23c6849405a7395e8fe91bc064b21c7e
+    c24d7b91247e7cc3dd1fd913827a20e16dedbff46bcc5dbb506ffd9e7dc38c61
 
 BC1_UNORM normal grass.dds: >
-    e9a29eaa86053f5ab5313ff7f2400bab6f4b67837d05864bc04242e073942683
+    dce84bf78aa73b79fd2f141f946f72d20f5a49a2441ea85f4eea95a0a328e8c9
 
 BC1_UNORM high grass.dds: >
-    7653927fd53a177a618669ddeaeb6cb15285a76f2b0308e8368d5bfdb4760503
+    a673b98e5c3dd2f6beba644ecd73d4532cf42fd69abdd1904ac6b78e3336c054
 
 BC1_UNORM dither grass.dds: >
-    12da79aa967b59ad01bcef2da8b8f43b507c8f0e3c63c407656d838b833018f3
+    5a70910ead1f6266fbf4ae4a96f7557d813994b5512f22dfc28bd1124dab5377
 
 BC1_UNORM perc grass.dds: >
     cc6eac9e12a0852e9879424723121f100b6801c8fb2e40b14be5bde6df1a20fc
