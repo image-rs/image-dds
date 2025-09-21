@@ -195,8 +195,8 @@ fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
         return None;
     }
 
-    let mut min = block[0];
-    let mut max = block[0];
+    let mut min = Vec3A::splat(f32::INFINITY);
+    let mut max = Vec3A::splat(f32::NEG_INFINITY);
     for i in 0..16 {
         let c = block[i];
         if alpha_map.is_opaque(i) {
