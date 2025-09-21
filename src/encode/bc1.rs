@@ -2,7 +2,7 @@
 
 use glam::Vec3A;
 
-use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6, util::unlikely_branch};
+use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
 
 use super::bcn_util::{self, Block4x4, ColorSpace};
 
@@ -33,7 +33,7 @@ impl Default for Bc1Options {
 }
 impl Bc1Options {
     /// If `true`, then the encoder will assume that all alpha values are 1.0
-    fn assume_opaque_alpha(&self) -> bool {
+    fn assume_opaque(&self) -> bool {
         // If no_p3_default is set (BC2, BC3), then we must ignore the alpha channel.
         // This is done most easily by just assuming that all alpha values are 1.0.
         self.no_p3_default
@@ -53,7 +53,7 @@ const TRANSPARENT_BLOCK: [u8; 8] = [0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
 
 pub(crate) fn compress_bc1_block(block: [[f32; 4]; 16], options: Bc1Options) -> [u8; 8] {
     // determine the binary alpha of each pixel
-    let alpha_map = if options.assume_opaque_alpha() {
+    let alpha_map = if options.assume_opaque() {
         AlphaMap::ALL_OPAQUE
     } else {
         get_alpha_map(&block)
@@ -341,7 +341,6 @@ fn pick_best_quantization(
 
     let (c0, c1) = quantization.pick_best(c0_f, c1_f, move |c0, c1| {
         if palette_info.dither {
-            unlikely_branch();
             let endpoints = palette_info.create_endpoints(c0, c1);
             let palette = palette_info.create_palette(&endpoints);
             return palette.block_dither(block, alpha_map).1;
@@ -733,23 +732,18 @@ impl R5G6B5Color {
         Self { r, g, b }
     }
 
+    const COMPONENT_MAX: Vec3A = Vec3A::new(31.0, 63.0, 31.0);
     fn from_color_round(color: Vec3A) -> Self {
-        let r = n5::from_f32(color.x);
-        let g = n6::from_f32(color.y);
-        let b = n5::from_f32(color.z);
-        Self::new(r, g, b)
+        let c = (color * Self::COMPONENT_MAX + 0.5).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn from_color_floor(color: Vec3A) -> Self {
-        let r = (color.x.min(1.0) * 31.0) as u8;
-        let g = (color.y.min(1.0) * 63.0) as u8;
-        let b = (color.z.min(1.0) * 31.0) as u8;
-        Self::new(r, g, b)
+        let c = (color * Self::COMPONENT_MAX).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn from_color_ceil(color: Vec3A) -> Self {
-        let r = 31 - ((1.0 - color.x).min(1.0) * 31.0) as u8;
-        let g = 63 - ((1.0 - color.y).min(1.0) * 63.0) as u8;
-        let b = 31 - ((1.0 - color.z).min(1.0) * 31.0) as u8;
-        Self::new(r, g, b)
+        let c = (color * Self::COMPONENT_MAX + 0.9999999).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn to_color(self) -> Vec3A {
         self.debug_check();
@@ -822,13 +816,18 @@ impl<E: ErrorMetric> Palette<E> {
     fn new_p3(endpoints: &EndPoints, error_metric: E) -> Self {
         let c0 = endpoints.c0_f;
         let c1 = endpoints.c1_f;
+        let c2 = (c0 + c1) * 0.5;
+
+        let c0 = error_metric.srgb_to_color_space(c0);
+        let c1 = error_metric.srgb_to_color_space(c1);
+        let c2 = error_metric.srgb_to_color_space(c2);
 
         Self {
             // Fill the last color with c0. This gets us to 4 colors, but since
             // it's the same as c0, it won't affect the closest color search,
             // since its error will be the same as c0 and therefore *not* less
             // than the current smallest error. See `closest()` and `closest_error_sq`.
-            colors: [c0, c1, (c0 + c1) * 0.5, c0].map(|c| error_metric.srgb_to_color_space(c)),
+            colors: [c0, c1, c2, c0],
             mode: PaletteMode::P3,
             error_metric,
         }
