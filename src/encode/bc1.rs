@@ -153,7 +153,7 @@ fn compress_with_palette(
     let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
     if options.refine {
         let refine_error = get_refine_error(&block, alpha_map, palette_info);
-        (min, max) = refine_along_line(min, max, options, refine_error);
+        (min, max) = refine_along_line(min, max, refine_error);
         (min, max) = refine(min, max, options, refine_error);
     }
     let quantization = options.quantization;
@@ -167,7 +167,6 @@ fn compress_with_palette(
 fn refine_along_line(
     min: ColorSpace,
     max: ColorSpace,
-    options: Bc1Options,
     compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
 ) -> (ColorSpace, ColorSpace) {
     let mid = (min.0 + max.0) * 0.5;
