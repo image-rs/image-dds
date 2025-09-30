@@ -18,22 +18,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update --no-self-update stable && rustup default stable
-      - run: rustup component add rustfmt
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
       - run: cargo fmt --all -- --check
 
   clippy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update --no-self-update stable && rustup default stable
-      - run: cargo clippy -- -D warnings
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --all-features -- -D warnings
 
   docs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update --no-self-update stable && rustup default stable
+      - uses: dtolnay/rust-toolchain@stable
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 
   test:
@@ -45,7 +48,9 @@ jobs:
           - nightly
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
       - run: cargo test --no-fail-fast -- --nocapture
 
   msrv_minimal_versions:
@@ -72,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: rustup update --no-self-update stable && rustup default stable
+      - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@cargo-hack
       - run: cargo hack test --each-feature
 
