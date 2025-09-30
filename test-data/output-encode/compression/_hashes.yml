@@ -5,16 +5,16 @@ BC1_UNORM normal base.dds: >
     7559c0f6a7a2b671b8af6b8d82d6d8bdd6d7d6969f62023cb325830789bb625a
 
 BC1_UNORM high base.dds: >
-    205ba6a8bf2f9bc461d9106e39276c8f14e621a740b890b823b093fbcedeab8f
+    35df91d901df116fd966350fa1fa23c069a63daa59e83a070e402afb8e5777d2
 
 BC1_UNORM dither base.dds: >
     7b3cd7384efc7e16ebb2d5b557aae746157da35cd05ba8620eb03cce3afe97d5
 
 BC1_UNORM perc base.dds: >
-    9140b4418416083de8058a909cb429034c8bc7a7870d4c78564f7fcce7996743
+    92e1290449ff0244fdd57f65d60a8e01b64acf9bd3c7c473e7bbd24961aa6e2a
 
 BC1_UNORM perc d base.dds: >
-    86e67e4e185e2ee00a7d8610ba84ef1118a61d5084fcd81bfd6068ee39fe29a6
+    6bbe5b7eb21517c45d8121b8d129691d69cbff39315267a571ec66db6bbe1d93
 
 BC1_UNORM fast color-twirl.dds: >
     28639ab8850610eab834f48810db3470603cdf0e7adb18eff06b926aa6f845fb
@@ -41,16 +41,16 @@ BC1_UNORM normal bricks-d.dds: >
     bfcba1c427ddf2385a88aae2f970aa767716ce2aa8b7bb7f608218dcd09c5224
 
 BC1_UNORM high bricks-d.dds: >
-    cca2704661f90f1d2ce422053243cb95f2f2708d2b3cd9a17472e9496968a32e
+    e7cbc0914df179bf826c0f9de2324af10767d6645977dbe175b95ee630489985
 
 BC1_UNORM dither bricks-d.dds: >
     f4f54d5504003e401c4c413340e398f95c0233764c40149f04c4930508a7574d
 
 BC1_UNORM perc bricks-d.dds: >
-    ab41634f3d03bf1a146b7e003ea7e9bcd0c1e44d899d24414b121ec0bbe879a4
+    d24c14eac59eee11ed82406c6c923a40704ed3225b7b1c30fb9c0460dbe554f7
 
 BC1_UNORM perc d bricks-d.dds: >
-    f7aeb846a0abeb88e478b62c1fa74cc662d833c4c61e99c0c71eade2e0c2719f
+    ada00070c8782eb8704a79b2dd32923838d1a0b323393c42455beb722abdc962
 
 BC1_UNORM fast bricks-n.dds: >
     cde741a07df62ad91f9930567ad2644cbf498d7b2c94462dae87cf02c4b139e2
@@ -59,7 +59,7 @@ BC1_UNORM normal bricks-n.dds: >
     63319e63491746180355ee21e2b7b90078d7689e63214c616098852fa718d435
 
 BC1_UNORM high bricks-n.dds: >
-    69187894e5e3480bba46025e79b6df5a1feecc98119717d9b2647598ce39cc13
+    e6f6ce7d97007c2029ef6ac8306024ced40d175928eb5e1d78cdab17234dca29
 
 BC1_UNORM dither bricks-n.dds: >
     da9e77f3ef53c9ff72be5eb5fb962f5bd3304e5a9a9ca6690d9acca37b6cbf13
@@ -77,16 +77,16 @@ BC1_UNORM normal clovers-d.dds: >
     156b6d22a9bbc6ccda9c3af97e495ceaaf4ae6bf48c0ec0dfdfee11a62c4723b
 
 BC1_UNORM high clovers-d.dds: >
-    ed4c7b1b95a0e0b158f7b64f927b14e2ecb27ff574cd2a64254699e1609bb01f
+    139d0e4613be1d7ade36c86d65fb74cf5d37306e10594eec9fcf03465c872105
 
 BC1_UNORM dither clovers-d.dds: >
     a052b5dd72fa67ddfd9ee454f74a04c7f26c71db5235be0432876c8fac84a381
 
 BC1_UNORM perc clovers-d.dds: >
-    a8301aec525ff4f025faaa15d19db876aec9c4c0d1fb08ac4fac8e31e5adde8b
+    1a62434ede8891a1e3a5aaf03ca65b068673455c9ff99e88abf07719522c96c9
 
 BC1_UNORM perc d clovers-d.dds: >
-    d6d12e194efc5deafbf40744774482aa15c2dce7d1145c277ede5a5e49a698cb
+    a4affd266b31ab6955287fc8848def088d68719566ec3aa28b99af9534339a8f
 
 BC1_UNORM fast clovers-r.dds: >
     797e217227149e775d8ee5d55778e7c38111bab9c38ef2a594392982ced3ee72
@@ -95,16 +95,16 @@ BC1_UNORM normal clovers-r.dds: >
     4837129c68d2aff1f22086a22a5e47d0ace6d05b3c71081550dc2300d586f24c
 
 BC1_UNORM high clovers-r.dds: >
-    adbf9869bd8ae2dac258f4b484a1ad7655acafcfda62bb6fba9f54bf61eb8e8c
+    742c6037038bf22b49ddf55deb86d8ba70ab1dd97af4fd1ac0beb87229e23579
 
 BC1_UNORM dither clovers-r.dds: >
     f6c186626c1cd90fd26ad2d1eeb75ff50da4dbf8dac11419e4eeb239adff4711
 
 BC1_UNORM perc clovers-r.dds: >
-    63fbc8c6592df58e4095b61c6df508f31809590e8ffe3f7deed6d9e4b0947df3
+    602b03e240262ddf81bd572ac8e6574734c7182ad086213d9cca7487a32bb485
 
 BC1_UNORM perc d clovers-r.dds: >
-    b2cdb0902b167cc4f0b655721619b6220582906ec583f8f1dc338e78aea40e84
+    9d1237ea8e51d35122b64e29ff2d9586277cf52b52990c4a3e988757c1ccc649
 
 BC1_UNORM fast stone-d.dds: >
     3b0fa35baf5608d317dc97e5aedf4bf5152afa951068d66fb14727f5e85778ae
@@ -113,16 +113,16 @@ BC1_UNORM normal stone-d.dds: >
     4eb69395585d4710ffead2082d883fdb5d3b9986bdbcab0f4aa3c220030aca31
 
 BC1_UNORM high stone-d.dds: >
-    0108e186abe6b7077a7d30e45947110ecfe65f0751fde221fcae3df9fa02e0e6
+    d765cbdbc347c71a73ff588ac0c3a6ac5385cd4a71c03946a8f61878b1dc5e35
 
 BC1_UNORM dither stone-d.dds: >
     1a1813c2b30a38a3d4959f15e26e2b2d3f270401f7b9d74774fe1e2471a11cc1
 
 BC1_UNORM perc stone-d.dds: >
-    8ef55d19e68074ea3962716b560977604a90c2245bb7ebc07e67089ce2cb0bb0
+    c039588ba19fa62a195e8f75902e2df483f587732bb630a231a55603a102473d
 
 BC1_UNORM perc d stone-d.dds: >
-    db0e2e6209d1c11ddde15b13a48a7b2f6e4fb34644a11101770d56e20cf43c7b
+    504545ae91afb0d4a7175601741ccef9b1715853da6e6a849c86cc133f432596
 
 BC1_UNORM fast grass.dds: >
     c24d7b91247e7cc3dd1fd913827a20e16dedbff46bcc5dbb506ffd9e7dc38c61
@@ -131,16 +131,16 @@ BC1_UNORM normal grass.dds: >
     c59b63b190c674b2ffe49dd8bcc125d2be11b17612946ca42baa62a73b515874
 
 BC1_UNORM high grass.dds: >
-    67d1db72b817818820a21ac8eff80a09f4e6bfeed257f003fcfe4acd1c12c22c
+    5a5c4b54e3aa9727131c5dac1d2b16cb2663f8c1489f5a66e7a39fdc0e852b96
 
 BC1_UNORM dither grass.dds: >
     8cde4aa5a2bdb6c8b758e68854c1bf2c030731aeefb85070c62001ddca103b03
 
 BC1_UNORM perc grass.dds: >
-    f76dce7f00e2862a66cbc13b1d2d7575e1528509892e95615191e1712efa8243
+    67f273149e63f4394c0f7285dcc4614b5850cda0095832ab1a8cac8d3f1da16f
 
 BC1_UNORM perc d grass.dds: >
-    7ec52656daf99efbb7fd2b6976e6de9a25ef027669b077b78c97eb2735883fb5
+    c44a64a4a739bc8acd607f6c76aa0a59dfc8225da95b885d6c255bfcf65b8c4e
 
 BC1_UNORM fast leaves.dds: >
     cbe0da225eb6fdf655997b616cce5e642eb44b7da4461c4e441b095a6a298c98
@@ -149,16 +149,16 @@ BC1_UNORM normal leaves.dds: >
     10ade23db4b0afb5d21d12636877dfbc41080b91ea41562c63a2737f588f2ef0
 
 BC1_UNORM high leaves.dds: >
-    0616d855ff188ea23430560c3ed39c19c2aca3ad5b81708846adcfa88d9cf15e
+    106ebf0064c6519cef29bad71f6acdc1aa7fabfb1ab35a3cc18ff5eb392db7b3
 
 BC1_UNORM dither leaves.dds: >
     ea0e12e7eaa5f1a897c64688a7ed745724f4c23a143fae323917f25a4fe68bf7
 
 BC1_UNORM perc leaves.dds: >
-    a6d88f90211369c2591381ffea6ea746008687fda61d81527f3837c0bffb7a1f
+    bf0250b60357968e8b200f8a9616589e1c86fa9b3147a178a668ac840766d2d7
 
 BC1_UNORM perc d leaves.dds: >
-    6d53ca01747bf8ac1d4251cbd0de29321a5c392cc2120c5d851df82fb38759da
+    82c66281992a4fc84278ea32d05dc094d11a776bdf41674c4fcd463080d60c4e
 
 BC1_UNORM fast random color.dds: >
     d722829f4dbe4fe240cc67d0ed780c18e5475b64fc4f45ba17229cdadbb93d7c

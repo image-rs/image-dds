@@ -157,7 +157,7 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
         refine_max_iter: match options.quality {
             CompressionQuality::Fast => 0,
             CompressionQuality::Normal => 1,
-            CompressionQuality::High => 5,
+            CompressionQuality::High => 4,
             CompressionQuality::Unreasonable => 10,
         },
         quantization: match options.quality {
