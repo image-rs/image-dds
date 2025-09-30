@@ -138,7 +138,7 @@ impl Operations for Fast {
 
         // one halley iteration
         let s = t * t * t;
-        t * (s + 2.0 * x) / (2.0 * s + x)
+        t * fma(Vec3A::splat(2.0), x, s) / fma(Vec3A::splat(2.0), s, x)
     }
 }
 
