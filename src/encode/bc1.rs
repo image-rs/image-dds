@@ -16,6 +16,7 @@ pub(crate) struct Bc1Options {
     pub no_p3_default: bool,
     pub perceptual: bool,
     pub opaque_always_p4: bool,
+    pub refine: bool,
     pub refine_max_iter: u8,
     pub quantization: Quantization,
 }
@@ -26,6 +27,7 @@ impl Default for Bc1Options {
             no_p3_default: false,
             perceptual: false,
             opaque_always_p4: false,
+            refine: false,
             refine_max_iter: 10,
             quantization: Quantization::ChannelWise,
         }
@@ -149,7 +151,11 @@ fn compress_with_palette(
     //    finalize the BC1 encoded block.
 
     let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
-    (min, max) = refine(min, max, &block, alpha_map, options, palette_info);
+    if options.refine {
+        let refine_error = get_refine_error(&block, alpha_map, palette_info);
+        (min, max) = refine_along_line(min, max, options, refine_error);
+        (min, max) = refine(min, max, options, refine_error);
+    }
     let quantization = options.quantization;
     let endpoints = pick_best_quantization(min, max, &block, alpha_map, quantization, palette_info);
 
@@ -158,19 +164,54 @@ fn compress_with_palette(
     (endpoints.with_indexes(indexes), error)
 }
 
+fn refine_along_line(
+    min: ColorSpace,
+    max: ColorSpace,
+    options: Bc1Options,
+    compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
+) -> (ColorSpace, ColorSpace) {
+    let mid = (min.0 + max.0) * 0.5;
+    let min_dir = (min.0 - mid) * 2.0;
+    let max_dir = (max.0 - mid) * 2.0;
+    let get_min_max = |min_t: f32, max_t: f32| {
+        let min = ColorSpace(mid + min_dir * min_t);
+        let max = ColorSpace(mid + max_dir * max_t);
+        (min, max)
+    };
+
+    let options = bcn_util::RefinementOptions {
+        step_initial: 0.2,
+        step_decay: 0.5,
+        step_min: 0.01 / min.0.distance(max.0),
+        max_iter: 3,
+    };
+
+    let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
+        compute_error(get_min_max(min_t, max_t))
+    });
+
+    get_min_max(min_t, max_t)
+}
+
 fn refine(
     min: ColorSpace,
     max: ColorSpace,
-    block: impl Block4x4<ColorSpace> + Copy,
-    alpha_map: AlphaMap,
     options: Bc1Options,
-    palette_info: PaletteInfo<impl ErrorMetric>,
+    compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
 ) -> (ColorSpace, ColorSpace) {
     let min_max_dist = min.0.distance(max.0);
     let max_iter = options.refine_max_iter as u32;
     let refine_options = bcn_util::RefinementOptions::new_bc1(min_max_dist, max_iter);
 
-    bcn_util::refine_endpoints(min, max, refine_options, move |(min, max)| {
+    bcn_util::refine_endpoints(min, max, refine_options, compute_error)
+}
+
+fn get_refine_error(
+    block: impl Block4x4<ColorSpace> + Copy,
+    alpha_map: AlphaMap,
+    palette_info: PaletteInfo<impl ErrorMetric>,
+) -> impl Fn((ColorSpace, ColorSpace)) -> f32 + Copy {
+    move |(min, max)| {
         let error_metric = palette_info.error_metric;
 
         let min = error_metric.color_space_to_srgb(min);
@@ -187,7 +228,7 @@ fn refine(
             let palette = Palette::new_p3(&endpoints, error_metric);
             palette.block_closest_error_p3(block, alpha_map)
         }
-    })
+    }
 }
 
 fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
