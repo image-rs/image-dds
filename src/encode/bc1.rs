@@ -149,6 +149,52 @@ fn compress_with_palette(
     //    finalize the BC1 encoded block.
 
     let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
+    if palette_info.mode == PaletteMode::P4 {
+        fn wide_quantization(e0: Vec3A, e1: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+            let mut e0_rounding = Vec3A::splat(R5G6B5Color::ROUND_FLOOR);
+            let mut e1_rounding = Vec3A::splat(R5G6B5Color::ROUND_CEIL);
+            if e0.x > e1.x {
+                e0_rounding.x = R5G6B5Color::ROUND_CEIL;
+                e1_rounding.x = R5G6B5Color::ROUND_FLOOR;
+            }
+            if e0.y > e1.y {
+                e0_rounding.y = R5G6B5Color::ROUND_CEIL;
+                e1_rounding.y = R5G6B5Color::ROUND_FLOOR;
+            }
+            if e0.z > e1.z {
+                e0_rounding.z = R5G6B5Color::ROUND_CEIL;
+                e1_rounding.z = R5G6B5Color::ROUND_FLOOR;
+            }
+            (
+                R5G6B5Color::from_color_with_rounding(e0, e0_rounding),
+                R5G6B5Color::from_color_with_rounding(e1, e1_rounding),
+            )
+        }
+        let (c0, c1) = wide_quantization(
+            palette_info.error_metric.color_space_to_srgb(min),
+            palette_info.error_metric.color_space_to_srgb(max),
+        );
+        let endpoints = EndPoints::new_p4(c0, c1);
+        let (index_list, prev_error) =
+            Palette::new_p4(&endpoints, palette_info.error_metric).block_closest(&block, alpha_map);
+        let mut weights = [0.0; 16];
+        for i in 0..16 {
+            let index = index_list.get(i);
+            const WEIGHTS: [f32; 4] = [0.0, 1.0, 1.0 / 3.0, 2.0 / 3.0];
+            weights[i] = WEIGHTS[index as usize];
+        }
+        let new = optimal_endpoints_by_weights(&block, &weights);
+        let endpoints = EndPoints::new_p4(
+            R5G6B5Color::from_color_round(palette_info.error_metric.color_space_to_srgb(new.0)),
+            R5G6B5Color::from_color_round(palette_info.error_metric.color_space_to_srgb(new.1)),
+        );
+        let new_error =
+            Palette::new_p4(&endpoints, palette_info.error_metric).block_closest_error_p4(&block);
+        if new_error < prev_error {
+            min = ColorSpace(new.0 .0.clamp(Vec3A::ZERO, Vec3A::ONE));
+            max = ColorSpace(new.1 .0.clamp(Vec3A::ZERO, Vec3A::ONE));
+        }
+    }
     (min, max) = refine(min, max, &block, alpha_map, options, palette_info);
     let quantization = options.quantization;
     let endpoints = pick_best_quantization(min, max, &block, alpha_map, quantization, palette_info);
@@ -188,6 +234,67 @@ fn refine(
             palette.block_closest_error_p3(block, alpha_map)
         }
     })
+}
+
+/// https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
+fn optimal_endpoints_by_weights(
+    colors: &[ColorSpace],
+    weights: &[f32],
+) -> (ColorSpace, ColorSpace) {
+    assert_eq!(weights.len(), colors.len());
+
+    // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
+    // First, compute D = A^T*A = (a b)
+    //                            (b c)
+    let (mut a, mut b, mut c) = (0.0f32, 0.0f32, 0.0f32);
+    for &w in weights {
+        let w_inv = 1.0 - w;
+        a += w * w;
+        b += w * w_inv;
+        c += w_inv * w_inv;
+    }
+
+    // Second, find D^-1
+    let d_det = a * c - b * b;
+    debug_assert!(
+        d_det.abs() >= f32::EPSILON,
+        "All weights are the same, which is not allowed"
+    );
+    // E = D^-1 = ( c/det  -b/det)
+    //            (-b/det   a/det)
+    let d_det_rep = 1.0 / d_det;
+    let (e00, e01, e11) = (c * d_det_rep, -b * d_det_rep, a * d_det_rep);
+
+    // Let B be an n-by-3 matrix where each row is the color vector.
+    // Let X be the 2-by-3 matrix of the two endpoints we want to find.
+    // Third, compute X = (E * A^T) * B
+    let (mut x0, mut x1) = (Vec3A::ZERO, Vec3A::ZERO);
+    for (&color, &w) in colors.iter().zip(weights) {
+        // Let G = E * A^T be a 2-by-n matrix where each column is:
+        //   ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) )
+        //   ( g_1i ) = ( e01 * w_i + e11 * (1 - w_i) )
+        // TODO: This can be a single Vec3A FMA operation
+        let g0 = e00 * w + e01 * (1.0 - w); // = e01 + (e00 - e01) * w
+        let g1 = e01 * w + e11 * (1.0 - w); // = e11 + (e01 - e11) * w
+
+        x0 += color.0 * g0;
+        x1 += color.0 * g1;
+    }
+
+    (ColorSpace(x0), ColorSpace(x1))
+}
+
+#[cfg(test)]
+mod tests {
+    use glam::Vec3A;
+
+    #[test]
+    fn foo() {
+        let colors = [Vec3A::new(1.0, 0.0, 0.0), Vec3A::new(0.1, 0.1, 0.5)];
+        let weights = [1.0, 0.5];
+        // let (c0, c1) = super::optimal_endpoints_by_weights(&colors, &weights);
+        // println!("c0: {c0:?}, c1: {c1:?}");
+    }
 }
 
 fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
@@ -733,21 +840,24 @@ impl R5G6B5Color {
     }
 
     const COMPONENT_MAX: Vec3A = Vec3A::new(31.0, 63.0, 31.0);
+    const ROUND_FLOOR: f32 = 0.0;
+    // This approximates ceil. `as u8` will truncate, so by adding a number
+    // slightly less than 1 beforehand, we get something very close to ceil.
+    // This number is chosen because it is the largest number such that any
+    // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
+    const ROUND_CEIL: f32 = 0.999995;
+    const ROUND_NEAREST: f32 = 0.5;
     fn from_color_round(color: Vec3A) -> Self {
-        let c = (color * Self::COMPONENT_MAX + 0.5).min(Self::COMPONENT_MAX);
-        Self::new(c.x as u8, c.y as u8, c.z as u8)
+        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_NEAREST))
     }
     fn from_color_floor(color: Vec3A) -> Self {
-        let c = (color * Self::COMPONENT_MAX).min(Self::COMPONENT_MAX);
-        Self::new(c.x as u8, c.y as u8, c.z as u8)
+        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_FLOOR))
     }
     fn from_color_ceil(color: Vec3A) -> Self {
-        // This approximates ceil. `as u8` will truncate, so by adding a number
-        // slightly less than 1 beforehand, we get something very close to ceil.
-        // This number is chosen because it is the largest number such that any
-        // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
-        const A: f32 = 0.999995;
-        let c = (color * Self::COMPONENT_MAX + A).min(Self::COMPONENT_MAX);
+        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_CEIL))
+    }
+    fn from_color_with_rounding(color: Vec3A, rounding: Vec3A) -> Self {
+        let c = (color * Self::COMPONENT_MAX + rounding).min(Self::COMPONENT_MAX);
         Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn to_color(self) -> Vec3A {
