@@ -542,16 +542,6 @@ struct Inter6Palette {
 }
 impl Inter6Palette {
     const INDEX_MAP: [u8; 8] = [1, 7, 6, 5, 4, 3, 2, 0];
-
-    const INDEX_MAP_U32: u32 = {
-        let mut map: u32 = 0;
-        let mut i = 0;
-        while i < 8 {
-            map |= (Self::INDEX_MAP[i] as u32) << (i * 4);
-            i += 1;
-        }
-        map
-    };
 }
 impl Palette for Inter6Palette {
     fn new(c0: f32, c1: f32) -> Self {
