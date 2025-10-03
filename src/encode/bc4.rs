@@ -470,6 +470,11 @@ trait Palette {
     /// Returns:
     /// 0: The index values of the closest colors in the palette
     /// 1: `abs(pixel - closest)`, aka the absolute error
+    ///
+    /// NOTE: This default implementation doesn't need to be replaced, because
+    /// the compiler is good enough at auto-vectorizing. In fact, a custom
+    /// implementation is likely slower, since it prevents the compiler for
+    /// using AVX instructions.
     fn closest_4(&self, pixels: Vec4) -> (UVec4, Vec4) {
         let (i0, _, e0) = self.closest(pixels.x);
         let (i1, _, e1) = self.closest(pixels.y);
@@ -576,16 +581,6 @@ impl Palette for Inter6Palette {
         (index_value, closest, error.abs())
     }
 
-    fn closest_4(&self, pixels: Vec4) -> (UVec4, Vec4) {
-        let blend = pixels * Vec4::splat(self.factor1) + Vec4::splat(self.add1);
-        let blend7 = blend.min(Vec4::splat(7.0)).as_uvec4();
-        let index_value = UVec4::splat(Self::INDEX_MAP_U32) >> (blend7 * 4) & UVec4::splat(0b1111);
-        let closest = blend7.as_vec4() * self.factor2 + self.c1;
-        let error = (pixels - closest).abs();
-
-        (index_value, error)
-    }
-
     fn block_closest_error_sq(&self, block: &Block) -> f32 {
         // compute all min errors in parallel
         let [b0, b1, b2, b3] = block.b;
@@ -656,39 +651,6 @@ impl Palette for Inter4Palette {
         }
 
         (index_value, self.colors[index_value as usize], min_error)
-    }
-
-    fn closest_4(&self, pixels: Vec4) -> (UVec4, Vec4) {
-        fn to_bvec4(v: glam::BVec4A) -> glam::BVec4 {
-            let bitmask = v.bitmask();
-            glam::BVec4::new(
-                (bitmask & 1) != 0,
-                (bitmask & 2) != 0,
-                (bitmask & 4) != 0,
-                (bitmask & 8) != 0,
-            )
-        }
-        // this handles the case where pixel is 0 or 1
-        let mut min_error = pixels.min(1.0 - pixels);
-        let mut index_value = UVec4::select(
-            to_bvec4(pixels.cmpge(Vec4::splat(0.5))),
-            UVec4::splat(7),
-            UVec4::splat(6),
-        );
-
-        // for the rest, check the palette
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..6 {
-            let error = (pixels - self.colors[i]).abs();
-            index_value = UVec4::select(
-                to_bvec4(error.cmplt(min_error)),
-                UVec4::splat(i as u32),
-                index_value,
-            );
-            min_error = min_error.min(error);
-        }
-
-        (index_value, min_error)
     }
 
     fn block_closest_error_sq(&self, block: &Block) -> f32 {
