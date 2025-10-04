@@ -34,14 +34,26 @@ impl Block {
             ],
         }
     }
+    /// Returns the minimum and maximum value in the block.
     fn min_max(&self) -> (f32, f32) {
         let [b0, b1, b2, b3] = self.b;
         let min = b0.min(b1).min(b2).min(b3);
         let max = b0.max(b1).max(b2).max(b3);
         (min.min_element(), max.max_element())
     }
-    fn iter<'a>(&'a self) -> impl Iterator<Item = f32> + 'a {
-        (0..16).map(move |i| self.get_pixel_at(i))
+    /// Of the values in the block that are in the range [threshold, 1-threshold],
+    /// returns the minimum and maximum.
+    fn min_max_with_threshold(&self, threshold: f32) -> (f32, f32) {
+        let low = Vec4::splat(threshold);
+        let high = Vec4::splat(1.0 - threshold);
+
+        let mut min = Vec4::ONE;
+        let mut max = Vec4::ZERO;
+        for b in self.b {
+            min = min.min(Vec4::select(b.cmpge(low), b, Vec4::ONE));
+            max = max.max(Vec4::select(b.cmple(high), b, Vec4::ZERO));
+        }
+        (min.min_element(), max.max_element())
     }
 }
 impl Block4x4<f32> for &Block {
@@ -253,16 +265,7 @@ fn compress_inter6(
 }
 
 fn compress_inter4(block: &Block, options: Bc4Options) -> ([u8; 8], f32) {
-    let mut min: f32 = 1.0;
-    let mut max: f32 = 0.0;
-    for value in block.iter() {
-        if value > BC4_MIN_VALUE {
-            min = min.min(value);
-        }
-        if value < 1.0 - BC4_MIN_VALUE {
-            max = max.max(value);
-        }
-    }
+    let (mut min, mut max) = block.min_max_with_threshold(BC4_MIN_VALUE);
 
     (min, max) = refine_endpoints(
         min,
