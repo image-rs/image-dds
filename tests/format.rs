@@ -1,5 +1,7 @@
 use dds::{header::*, *};
 
+use util::Snapshot;
+
 mod util;
 
 fn short_name(channels: Channels) -> &'static str {
@@ -170,11 +172,10 @@ fn supported_formats_metadata() {
     ]);
     table.print_markdown(&mut output);
 
-    util::compare_snapshot_text(
+    util::TextSnapshot.assert(
         &util::test_data_dir().join("../supported-formats.md"),
         &output,
-    )
-    .unwrap();
+    );
 }
 
 #[test]

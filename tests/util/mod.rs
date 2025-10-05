@@ -17,12 +17,14 @@ mod data;
 mod encode_quality;
 mod image;
 mod pretty_print;
+mod snapshot;
 mod table;
 
 pub use data::*;
 pub use encode_quality::*;
 pub use image::*;
 pub use pretty_print::*;
+pub use snapshot::*;
 pub use table::*;
 
 pub fn create_rng() -> impl rand::Rng {
@@ -336,123 +338,6 @@ pub fn read_png_u8(png_path: &Path) -> Result<Image<u8>, Box<dyn std::error::Err
     ))
 }
 
-pub fn compare_snapshot_png_u8(
-    png_path: &Path,
-    image: &Image<u8>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    match update_snapshot_png_u8(png_path, image)? {
-        UpdateResult::Unchanged => Ok(()),
-        UpdateResult::Created => Err("Output PNG didn't exist".into()),
-        UpdateResult::Updated => Err("Output PNG didn't match".into()),
-    }
-}
-pub enum UpdateResult {
-    Unchanged,
-    Created,
-    Updated,
-}
-pub fn update_snapshot_png_u8(
-    png_path: &Path,
-    image: &Image<u8>,
-) -> Result<UpdateResult, Box<dyn std::error::Error>> {
-    let (channels, color) = to_png_compatible_channels(image.channels);
-    assert!(channels == image.channels);
-
-    // compare to PNG
-    let png_exists = png_path.exists();
-    if png_exists {
-        let mut png = read_png_u8(png_path)?;
-
-        if image.channels == Channels::Rgba && png.channels == Channels::Rgb {
-            // convert to RGBA
-            png.data = convert_channels(&png.data, Channels::Rgb, Channels::Rgba);
-            png.channels = Channels::Rgba;
-        }
-
-        if png.data == image.data {
-            // all good
-            return Ok(UpdateResult::Unchanged);
-        }
-
-        if image.channels != png.channels {
-            eprintln!("Color mismatch: {:?} != {:?}", png.channels, image.channels);
-        }
-    }
-
-    // write output PNG
-    if !is_ci() {
-        println!("Writing PNG: {png_path:?}");
-        let mut output = Vec::new();
-        let mut encoder = png::Encoder::new(&mut output, image.size.width, image.size.height);
-        encoder.set_color(color);
-        encoder.set_depth(png::BitDepth::Eight);
-        let mut writer = encoder.write_header()?;
-        writer.write_image_data(&image.data)?;
-        writer.finish()?;
-
-        std::fs::create_dir_all(png_path.parent().unwrap())?;
-        std::fs::write(png_path, output)?;
-    }
-
-    if !png_exists {
-        return Ok(UpdateResult::Created);
-    }
-    Ok(UpdateResult::Updated)
-}
-
-pub fn compare_snapshot_dds_f32(
-    dds_path: &Path,
-    image: &Image<f32>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // compare to DDS
-    let dds_exists = dds_path.exists();
-    if dds_exists {
-        let mut file = File::open(dds_path)?;
-        let mut decoder = Decoder::new(file)?;
-        let size = decoder.main_size();
-
-        let mut dds_image: Image<f32> = Image::new_empty(image.channels, size);
-        decoder.read_surface(dds_image.view_mut())?;
-
-        assert!(dds_image.data.len() == image.data.len());
-        if dds_image.data == image.data {
-            // all good
-            return Ok(());
-        }
-    }
-
-    // write output DDS
-    if !is_ci() {
-        println!("Writing DDS: {dds_path:?}");
-
-        let format = match image.channels {
-            Channels::Grayscale => Format::R32_FLOAT,
-            Channels::Alpha => Format::R32_FLOAT,
-            Channels::Rgb => Format::R32G32B32_FLOAT,
-            Channels::Rgba => Format::R32G32B32A32_FLOAT,
-        };
-        let mut output = Vec::new();
-        write_simple_dds_header(&mut output, image.size, format.try_into().unwrap())?;
-
-        // convert to LE
-        encode(
-            &mut output,
-            image.view(),
-            format,
-            None,
-            &EncodeOptions::default(),
-        )?;
-
-        std::fs::create_dir_all(dds_path.parent().unwrap())?;
-        std::fs::write(dds_path, output)?;
-    }
-
-    if !dds_exists {
-        return Err("Output DDS didn't exist".into());
-    }
-    Err("Output DDS didn't match".into())
-}
-
 pub fn write_simple_dds_header(
     w: &mut impl std::io::Write,
     size: Size,
@@ -464,44 +349,6 @@ pub fn write_simple_dds_header(
     Header::from(header).write(w)?;
 
     Ok(())
-}
-
-pub fn compare_snapshot_text(
-    snapshot_file: &Path,
-    text: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let text = text.replace("\r\n", "\n");
-
-    // compare to snapshot
-    let file_exists = snapshot_file.exists();
-    let mut native_line_ends = "\n";
-
-    if file_exists {
-        let mut snapshot = std::fs::read_to_string(snapshot_file).unwrap();
-        if snapshot.contains("\r\n") {
-            native_line_ends = "\r\n";
-            snapshot = snapshot.replace("\r\n", "\n");
-        }
-
-        if text.trim() == snapshot.trim() {
-            // all ok
-            return Ok(());
-        }
-    }
-
-    // write snapshot
-    if !is_ci() {
-        println!("Writing snapshot: {snapshot_file:?}");
-
-        std::fs::create_dir_all(snapshot_file.parent().unwrap()).unwrap();
-        std::fs::write(snapshot_file, text.replace("\n", native_line_ends)).unwrap();
-    }
-
-    if !file_exists {
-        Err(format!("Snapshot file not found: {snapshot_file:?}").into())
-    } else {
-        Err("Snapshot differs from expected.".into())
-    }
 }
 
 pub struct OutputSummaries {
@@ -557,7 +404,7 @@ impl OutputSummaries {
         let mut result = Ok(());
         for (folder, text) in &self.by_folder {
             let path = folder.join(format!("{}.yml", self.name));
-            let r = compare_snapshot_text(&path, text);
+            let r = TextSnapshot.result(&path, text);
             if r.is_err() {
                 result = r;
             }

@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
-
 use dds::{header::*, *};
 use rand::{Rng, RngCore};
-use util::{test_data_dir, Image, WithPrecision};
+use std::path::{Path, PathBuf};
+
+use util::{test_data_dir, Image, Snapshot, WithPrecision};
 
 mod util;
 
@@ -549,7 +549,7 @@ fn encode_measure_quality() {
     }
 
     _ = output_summaries.snapshot();
-    util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.md"), &output).unwrap();
+    util::TextSnapshot.assert(&util::test_data_dir().join("encode_quality.md"), &output);
 }
 
 #[test]
@@ -605,11 +605,10 @@ fn block_dither() {
     image.size.height *= 2;
     image.data.extend_from_slice(&image_smooth.data);
 
-    util::compare_snapshot_png_u8(
+    util::PngSnapshot.assert(
         &util::test_data_dir().join("output-encode/dither.png"),
         &image,
-    )
-    .unwrap();
+    );
 }
 
 /// Ensures that all color formats can be encoded (1) without error and (2)
@@ -699,7 +698,7 @@ fn encode_mipmap() {
             offset_y += mip_size.height;
         }
 
-        _ = util::update_snapshot_png_u8(snap_path, &decoded)?;
+        _ = util::PngSnapshot.write(snap_path, &decoded)?;
 
         let hex = util::hash_hex(&decoded.data);
         Ok(hex)

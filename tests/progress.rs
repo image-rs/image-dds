@@ -1,6 +1,8 @@
 use dds::{header::*, *};
 use rand::Rng;
 
+use util::Snapshot;
+
 mod util;
 
 /// Whether the test will include a timestamp for each progress report.
@@ -149,7 +151,7 @@ fn track_progress() {
     }
 
     let snapshot_file = util::test_data_dir().join("progress_snapshot.yml");
-    util::compare_snapshot_text(&snapshot_file, output).unwrap();
+    util::TextSnapshot.assert(&snapshot_file, output);
 }
 
 // Don't run this on big endian targets, it's just too slow
