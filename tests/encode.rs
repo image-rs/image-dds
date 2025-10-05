@@ -264,57 +264,29 @@ fn encode_measure_quality() {
         images: &'a [&'a TestImage],
     }
 
+    use CompressionQuality::*;
+    use ErrorMetric::*;
+
+    let bc1_metrics = MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C;
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
             options: vec![
-                (
-                    "uni fast",
-                    new_options!(CompressionQuality::Fast, ErrorMetric::Uniform),
-                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
-                ),
-                (
-                    "uni norm",
-                    new_options!(CompressionQuality::Normal, ErrorMetric::Uniform),
-                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
-                ),
-                (
-                    "uni high",
-                    new_options!(CompressionQuality::High, ErrorMetric::Uniform),
-                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
-                ),
-                (
-                    "per fast",
-                    new_options!(CompressionQuality::Fast, ErrorMetric::Perceptual),
-                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
-                ),
-                (
-                    "per norm",
-                    new_options!(CompressionQuality::Normal, ErrorMetric::Perceptual),
-                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
-                ),
-                (
-                    "per high",
-                    new_options!(CompressionQuality::High, ErrorMetric::Perceptual),
-                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
-                ),
+                ("uni fast", new_options!(Fast, Uniform), bc1_metrics),
+                ("uni norm", new_options!(Normal, Uniform), bc1_metrics),
+                ("uni high", new_options!(High, Uniform), bc1_metrics),
+                ("per fast", new_options!(Fast, Perceptual), bc1_metrics),
+                ("per norm", new_options!(Normal, Perceptual), bc1_metrics),
+                ("per high", new_options!(High, Perceptual), bc1_metrics),
                 (
                     "dith uni",
-                    new_options!(
-                        CompressionQuality::High,
-                        ErrorMetric::Uniform,
-                        Dithering::ColorAndAlpha
-                    ),
-                    MetricChannelSet::RGBA | MetricChannel::L | MetricChannel::C,
+                    new_options!(High, Uniform, Dithering::ColorAndAlpha),
+                    bc1_metrics | MetricChannel::A,
                 ),
                 (
                     "dith per",
-                    new_options!(
-                        CompressionQuality::High,
-                        ErrorMetric::Perceptual,
-                        Dithering::ColorAndAlpha
-                    ),
-                    MetricChannelSet::RGBA | MetricChannel::L | MetricChannel::C,
+                    new_options!(High, Perceptual, Dithering::ColorAndAlpha),
+                    bc1_metrics | MetricChannel::A,
                 ),
             ],
             images: &[
@@ -333,24 +305,12 @@ fn encode_measure_quality() {
         TestCase {
             format: Format::BC4_UNORM,
             options: vec![
-                (
-                    "fast",
-                    new_options!(CompressionQuality::Fast),
-                    MetricChannelSet::GRAY,
-                ),
-                (
-                    "normal",
-                    new_options!(CompressionQuality::Normal),
-                    MetricChannelSet::GRAY,
-                ),
-                (
-                    "high",
-                    new_options!(CompressionQuality::High),
-                    MetricChannelSet::GRAY,
-                ),
+                ("fast", new_options!(Fast), MetricChannelSet::GRAY),
+                ("normal", new_options!(Normal), MetricChannelSet::GRAY),
+                ("high", new_options!(High), MetricChannelSet::GRAY),
                 (
                     "dither",
-                    new_options!(CompressionQuality::High, Dithering::ColorAndAlpha),
+                    new_options!(High, Dithering::ColorAndAlpha),
                     MetricChannelSet::GRAY,
                 ),
             ],
