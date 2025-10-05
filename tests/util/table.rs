@@ -1,4 +1,3 @@
-
 pub struct PrettyTable {
     cells: Vec<String>,
     width: usize,
