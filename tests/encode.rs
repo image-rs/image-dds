@@ -6,6 +6,34 @@ use util::{test_data_dir, Image, WithPrecision};
 
 mod util;
 
+trait SetConfiguration<T> {
+    fn set(&mut self, value: T);
+}
+impl SetConfiguration<CompressionQuality> for EncodeOptions {
+    fn set(&mut self, value: CompressionQuality) {
+        self.quality = value;
+    }
+}
+impl SetConfiguration<ErrorMetric> for EncodeOptions {
+    fn set(&mut self, value: ErrorMetric) {
+        self.error_metric = value;
+    }
+}
+impl SetConfiguration<Dithering> for EncodeOptions {
+    fn set(&mut self, value: Dithering) {
+        self.dithering = value;
+    }
+}
+macro_rules! new_options {
+    ($($e:expr),*) => {{
+        let mut options = EncodeOptions::default();
+        $(
+            options.set($e);
+        )*
+        options
+    }};
+}
+
 fn get_sample(name: &str) -> PathBuf {
     util::test_data_dir().join("samples").join(name)
 }
@@ -195,6 +223,8 @@ fn encode_dither() {
 #[cfg(not(coverage))]
 #[test]
 fn encode_measure_quality() {
+    use crate::util::{MetricChannel, MetricChannelSet};
+
     let base = &TestImage::from_file("base.png");
     let color_twirl = &TestImage::from_file("color-twirl.png");
     let bricks_d = &TestImage::from_file("bricks-d.png");
@@ -230,14 +260,8 @@ fn encode_measure_quality() {
     }
     struct TestCase<'a> {
         format: Format,
-        options: Vec<(&'a str, EncodeOptions)>,
+        options: Vec<(&'a str, EncodeOptions, MetricChannelSet)>,
         images: &'a [&'a TestImage],
-    }
-
-    fn new_options(f: impl FnOnce(&mut EncodeOptions)) -> EncodeOptions {
-        let mut options = EncodeOptions::default();
-        f(&mut options);
-        options
     }
 
     let cases = [
@@ -245,37 +269,52 @@ fn encode_measure_quality() {
             format: Format::BC1_UNORM,
             options: vec![
                 (
-                    "fast",
-                    new_options(|options| options.quality = CompressionQuality::Fast),
+                    "uni fast",
+                    new_options!(CompressionQuality::Fast, ErrorMetric::Uniform),
+                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
                 ),
                 (
-                    "normal",
-                    new_options(|options| options.quality = CompressionQuality::Normal),
+                    "uni norm",
+                    new_options!(CompressionQuality::Normal, ErrorMetric::Uniform),
+                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
                 ),
                 (
-                    "high",
-                    new_options(|options| options.quality = CompressionQuality::High),
+                    "uni high",
+                    new_options!(CompressionQuality::High, ErrorMetric::Uniform),
+                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
                 ),
                 (
-                    "dither",
-                    new_options(|options| {
-                        options.dithering = Dithering::ColorAndAlpha;
-                    }),
+                    "per fast",
+                    new_options!(CompressionQuality::Fast, ErrorMetric::Perceptual),
+                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
                 ),
                 (
-                    "perc",
-                    new_options(|options| {
-                        options.quality = CompressionQuality::High;
-                        options.error_metric = ErrorMetric::Perceptual;
-                    }),
+                    "per norm",
+                    new_options!(CompressionQuality::Normal, ErrorMetric::Perceptual),
+                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
                 ),
                 (
-                    "perc d",
-                    new_options(|options| {
-                        options.quality = CompressionQuality::High;
-                        options.dithering = Dithering::Color;
-                        options.error_metric = ErrorMetric::Perceptual;
-                    }),
+                    "per high",
+                    new_options!(CompressionQuality::High, ErrorMetric::Perceptual),
+                    MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C,
+                ),
+                (
+                    "dith uni",
+                    new_options!(
+                        CompressionQuality::High,
+                        ErrorMetric::Uniform,
+                        Dithering::ColorAndAlpha
+                    ),
+                    MetricChannelSet::RGBA | MetricChannel::L | MetricChannel::C,
+                ),
+                (
+                    "dith per",
+                    new_options!(
+                        CompressionQuality::High,
+                        ErrorMetric::Perceptual,
+                        Dithering::ColorAndAlpha
+                    ),
+                    MetricChannelSet::RGBA | MetricChannel::L | MetricChannel::C,
                 ),
             ],
             images: &[
@@ -296,22 +335,23 @@ fn encode_measure_quality() {
             options: vec![
                 (
                     "fast",
-                    new_options(|options| options.quality = CompressionQuality::Fast),
+                    new_options!(CompressionQuality::Fast),
+                    MetricChannelSet::GRAY,
                 ),
                 (
                     "normal",
-                    new_options(|options| options.quality = CompressionQuality::Normal),
+                    new_options!(CompressionQuality::Normal),
+                    MetricChannelSet::GRAY,
                 ),
                 (
                     "high",
-                    new_options(|options| options.quality = CompressionQuality::High),
+                    new_options!(CompressionQuality::High),
+                    MetricChannelSet::GRAY,
                 ),
                 (
                     "dither",
-                    new_options(|options| {
-                        options.quality = CompressionQuality::High;
-                        options.dithering = Dithering::ColorAndAlpha;
-                    }),
+                    new_options!(CompressionQuality::High, Dithering::ColorAndAlpha),
+                    MetricChannelSet::GRAY,
                 ),
             ],
             images: &[base, color_twirl, clovers_r, stone_h, random],
@@ -320,9 +360,8 @@ fn encode_measure_quality() {
             format: Format::BC4_UNORM,
             options: vec![(
                 "ref",
-                new_options(|options| {
-                    options.quality = CompressionQuality::Unreasonable;
-                }),
+                new_options!(CompressionQuality::Unreasonable),
+                MetricChannelSet::GRAY,
             )],
             images: &[base],
         },
@@ -351,10 +390,12 @@ fn encode_measure_quality() {
                     || org_image.channels == Channels::Alpha,
             };
 
-            let image = org_image.to_channels(case.format.channels());
+            let image = org_image
+                .to_channels(case.format.channels())
+                .to_channels(Channels::Rgba);
             let mut metric_list: Vec<ConfigMetrics> = Vec::new();
 
-            for (opt_name, options) in &options {
+            for (opt_name, options, metric_channels) in &options {
                 let output_file = test_data_dir()
                     .join("output-encode/compression")
                     .join(format!(
@@ -372,7 +413,8 @@ fn encode_measure_quality() {
                 output_summaries.add_output_file(&output_file, &hash);
 
                 // get metrics
-                let metrics = util::measure_compression_quality(&image, &encoded_image);
+                let metrics =
+                    util::measure_compression_quality(&image, &encoded_image, *metric_channels);
 
                 metric_list.push(ConfigMetrics(opt_name.to_string(), metrics));
             }
@@ -383,7 +425,7 @@ fn encode_measure_quality() {
         // summary
         if data.len() > 1 {
             let mut summary: Vec<ConfigMetrics> = Vec::new();
-            for (index, (opt_name, _)) in options.iter().enumerate() {
+            for (index, (opt_name, _, _)) in options.iter().enumerate() {
                 let mut averages: Vec<util::Metrics> = Vec::new();
                 let scale = 1.0 / data.len() as f64;
                 for (_, _, metrics_for_config) in &data {
@@ -427,7 +469,7 @@ fn encode_measure_quality() {
         let mut output = String::new();
 
         let options = case.options.clone();
-        for (name, option) in &options {
+        for (name, option, _) in &options {
             output.push_str(&format!("- {name}: {option:?}\n"));
         }
         output.push('\n');
@@ -480,6 +522,12 @@ fn encode_measure_quality() {
     let mut output = r"# Encode quality
 
 <!-- This file is generated by `tests/encode.rs` -->
+
+**Channels:**
+- **R/G/B/A:** Red, green, blue, and alpha channels.
+- **C:** Average error of R+G+B.
+- **L:** Oklab luminance channel.
+- **Gray:** Grayscale. This is the same as (R+G+B)/3.
 
 **Metrics:**
 - **↑PSNR:** Peak Signal to Noise Ratio.

@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+use bitflags::bitflags;
 use dds::{header::*, *};
 use rand::SeedableRng;
 use sha2::{Digest, Sha256};
@@ -288,13 +289,13 @@ impl<T> Image<T> {
         ColorFormat::new(self.channels, T::PRECISION)
     }
 
-    pub fn view(&self) -> ImageView
+    pub fn view(&'_ self) -> ImageView<'_>
     where
         T: Castable + WithPrecision,
     {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
-    pub fn view_mut(&mut self) -> ImageViewMut
+    pub fn view_mut(&'_ mut self) -> ImageViewMut<'_>
     where
         T: Castable + WithPrecision,
     {
@@ -1061,12 +1062,49 @@ pub fn pretty_print_data_layout(out: &mut String, layout: &DataLayout) {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetricChannel {
-    L,
-    R,
-    G,
-    B,
-    A,
+    R = 0,
+    G = 1,
+    B = 2,
+    A = 3,
+    Gray = 4,
+    L = 5,
+    C = 6,
 }
+
+bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct MetricChannelSet: u8 {
+        const R = 1 << MetricChannel::R as u8;
+        const G = 1 << MetricChannel::G as u8;
+        const B = 1 << MetricChannel::B as u8;
+        const A = 1 << MetricChannel::A as u8;
+        const GRAY = 1 << MetricChannel::Gray as u8;
+        const LUM = 1 << MetricChannel::L as u8;
+        const COLOR = 1 << MetricChannel::C as u8;
+        const RGB = Self::R.bits() | Self::G.bits() | Self::B.bits();
+        const RGBA = Self::RGB.bits() | Self::A.bits();
+    }
+}
+
+impl From<MetricChannel> for MetricChannelSet {
+    fn from(channel: MetricChannel) -> Self {
+        MetricChannelSet::from_bits(1 << channel as u8).unwrap()
+    }
+}
+impl std::ops::BitOr<MetricChannel> for MetricChannelSet {
+    type Output = MetricChannelSet;
+    fn bitor(self, rhs: MetricChannel) -> Self::Output {
+        self | MetricChannelSet::from(rhs)
+    }
+}
+impl std::ops::BitOr<MetricChannel> for MetricChannel {
+    type Output = MetricChannelSet;
+    fn bitor(self, rhs: MetricChannel) -> Self::Output {
+        MetricChannelSet::from(self) | MetricChannelSet::from(rhs)
+    }
+}
+
+#[derive(Clone)]
 pub struct Metrics {
     pub channel: MetricChannel,
     pub mse: f64,
@@ -1082,7 +1120,14 @@ impl Metrics {
         -10.0 * self.mse_blur.log(10.0)
     }
 }
-pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) -> Vec<Metrics> {
+pub fn measure_compression_quality(
+    org: &Image<f32>,
+    compressed: &Image<f32>,
+    channels: MetricChannelSet,
+) -> Vec<Metrics> {
+    let org = org.to_channels(Channels::Rgba);
+    let compressed = compressed.to_channels(Channels::Rgba);
+
     assert!(org.size == compressed.size);
     assert!(org.channels == compressed.channels);
     assert!(org.data.len() == compressed.data.len());
@@ -1250,72 +1295,73 @@ pub fn measure_compression_quality(org: &Image<f32>, compressed: &Image<f32>) ->
         l * 0.2104542553 + m * 0.7936177850 + s * -0.0040720468
     }
 
-    match org.channels {
-        Channels::Grayscale => {
-            let l = calculate_metrics(
-                &org.data,
-                &compressed.data,
-                width,
-                height,
-                MetricChannel::L,
-                |x| x as f64,
-            );
+    // compute metrics
+    let mut metrics: Vec<Metrics> = Vec::new();
 
-            vec![l]
+    let org: &[[f32; 4]] = cast_slice(&org.data);
+    let compressed: &[[f32; 4]] = cast_slice(&compressed.data);
+    let calc = |ch: MetricChannel| -> Metrics {
+        macro_rules! calc {
+            ($f:expr) => {
+                calculate_metrics(org, compressed, width, height, ch, $f)
+            };
         }
-        Channels::Alpha => todo!(),
-        Channels::Rgb => {
-            let org: &[[f32; 3]] = cast_slice(&org.data);
-            let compressed: &[[f32; 3]] = cast_slice(&compressed.data);
 
-            let l = calculate_metrics(
-                org,
-                compressed,
-                width,
-                height,
-                MetricChannel::L,
-                |[r, g, b]| rgb_to_l(r, g, b) as f64,
-            );
-            let r = calculate_metrics(org, compressed, width, height, MetricChannel::R, |x| {
-                x[0] as f64
-            });
-            let g = calculate_metrics(org, compressed, width, height, MetricChannel::G, |x| {
-                x[1] as f64
-            });
-            let b = calculate_metrics(org, compressed, width, height, MetricChannel::B, |x| {
-                x[2] as f64
-            });
-
-            vec![l, r, g, b]
+        match ch {
+            MetricChannel::R => calc!(|x| x[0] as f64),
+            MetricChannel::G => calc!(|x| x[1] as f64),
+            MetricChannel::B => calc!(|x| x[2] as f64),
+            MetricChannel::A => calc!(|x| x[3] as f64),
+            MetricChannel::Gray => {
+                calc!(|[r, g, b, _]| (r as f64 + g as f64 + b as f64) * (1.0 / 3.0))
+            }
+            MetricChannel::L => calc!(|[r, g, b, a]| (rgb_to_l(r, g, b) * a) as f64),
+            MetricChannel::C => unreachable!(),
         }
-        Channels::Rgba => {
-            let org: &[[f32; 4]] = cast_slice(&org.data);
-            let compressed: &[[f32; 4]] = cast_slice(&compressed.data);
+    };
 
-            let l = calculate_metrics(
-                org,
-                compressed,
-                width,
-                height,
-                MetricChannel::L,
-                |[r, g, b, a]| (rgb_to_l(r, g, b) * a) as f64,
-            );
-            let r = calculate_metrics(org, compressed, width, height, MetricChannel::R, |x| {
-                x[0] as f64
-            });
-            let g = calculate_metrics(org, compressed, width, height, MetricChannel::G, |x| {
-                x[1] as f64
-            });
-            let b = calculate_metrics(org, compressed, width, height, MetricChannel::B, |x| {
-                x[2] as f64
-            });
-            let a = calculate_metrics(org, compressed, width, height, MetricChannel::A, |x| {
-                x[3] as f64
-            });
+    for ch in [
+        MetricChannel::L,
+        MetricChannel::C,
+        MetricChannel::R,
+        MetricChannel::G,
+        MetricChannel::B,
+        MetricChannel::A,
+        MetricChannel::Gray,
+    ] {
+        // skip channels already covered
+        if metrics.iter().any(|m| m.channel == ch) {
+            continue;
+        }
 
-            vec![l, r, g, b, a]
+        if channels.contains(ch.into()) {
+            if ch == MetricChannel::C {
+                // special case: color = RGB
+                let r = calc(MetricChannel::R);
+                let g = calc(MetricChannel::G);
+                let b = calc(MetricChannel::B);
+                metrics.push(Metrics {
+                    channel: MetricChannel::C,
+                    mse: (r.mse + g.mse + b.mse) / 3.0,
+                    mse_blur: (r.mse_blur + g.mse_blur + b.mse_blur) / 3.0,
+                    region_error: (r.region_error + g.region_error + b.region_error) / 3.0,
+                });
+                if channels.contains(MetricChannel::R.into()) {
+                    metrics.push(r);
+                }
+                if channels.contains(MetricChannel::G.into()) {
+                    metrics.push(g);
+                }
+                if channels.contains(MetricChannel::B.into()) {
+                    metrics.push(b);
+                }
+            } else {
+                metrics.push(calc(ch));
+            }
         }
     }
+
+    metrics
 }
 
 pub struct OutputSummaries {
