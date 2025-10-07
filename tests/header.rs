@@ -1,6 +1,7 @@
+use dds::{header::*, *};
 use std::{collections::HashSet, fs::File};
 
-use dds::{header::*, *};
+use util::Snapshot;
 
 mod util;
 
@@ -156,11 +157,10 @@ fn raw_header_snapshot() {
         output.push_str("\n\n\n");
     }
 
-    util::compare_snapshot_text(
+    util::TextSnapshot.assert(
         &util::test_data_dir().join("raw_header_snapshot.txt"),
         &output,
-    )
-    .unwrap();
+    );
 }
 
 #[test]
@@ -235,11 +235,10 @@ fn convert_header_snapshot() {
         output.push_str("\n\n\n");
     }
 
-    util::compare_snapshot_text(
+    util::TextSnapshot.assert(
         &util::test_data_dir().join("convert_header_snapshot.txt"),
         &output,
-    )
-    .unwrap();
+    );
 }
 
 #[test]
@@ -453,7 +452,7 @@ fn weird_and_invalid_headers() {
         output.push_str("\n\n\n");
     }
 
-    util::compare_snapshot_text(&util::test_data_dir().join("header_parsing.txt"), output).unwrap()
+    util::TextSnapshot.assert(&util::test_data_dir().join("header_parsing.txt"), output);
 }
 
 /// If we create a header with a certain format, then we should detect exactly
