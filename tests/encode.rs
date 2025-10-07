@@ -261,6 +261,7 @@ fn encode_measure_quality() {
     struct TestCase<'a> {
         format: Format,
         options: Vec<(&'a str, EncodeOptions, MetricChannelSet)>,
+        get_overview_channel: Option<fn(&EncodeOptions, MetricChannelSet) -> MetricChannel>,
         images: &'a [&'a TestImage],
     }
 
@@ -271,6 +272,13 @@ fn encode_measure_quality() {
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
+            get_overview_channel: Some(|options, _| {
+                if options.error_metric == Perceptual {
+                    MetricChannel::L
+                } else {
+                    MetricChannel::C
+                }
+            }),
             options: vec![
                 ("uni fast", new_options!(Fast, Uniform), bc1_metrics),
                 ("uni norm", new_options!(Normal, Uniform), bc1_metrics),
@@ -304,6 +312,7 @@ fn encode_measure_quality() {
         },
         TestCase {
             format: Format::BC4_UNORM,
+            get_overview_channel: None,
             options: vec![
                 ("fast", new_options!(Fast), MetricChannelSet::GRAY),
                 ("normal", new_options!(Normal), MetricChannelSet::GRAY),
@@ -318,6 +327,7 @@ fn encode_measure_quality() {
         },
         TestCase {
             format: Format::BC4_UNORM,
+            get_overview_channel: None,
             options: vec![(
                 "ref",
                 new_options!(CompressionQuality::Unreasonable),
@@ -329,17 +339,20 @@ fn encode_measure_quality() {
 
     let mut output_summaries = util::OutputSummaries::new("_hashes");
     struct ConfigMetrics(String, Vec<util::Metrics>);
+    struct ImageMeasurements {
+        image_name: String,
+        info: ImageInfo,
+        metrics_for_config: Vec<ConfigMetrics>,
+    }
+    #[derive(Clone)]
     struct ImageInfo {
         has_alpha: bool,
     }
     #[allow(clippy::type_complexity)]
-    let mut collect_metrics = |case: &TestCase| -> Result<
-        Vec<(String, ImageInfo, Vec<ConfigMetrics>)>,
-        Box<dyn std::error::Error>,
-    > {
+    let mut collect_metrics = |case: &TestCase| -> Result<_, Box<dyn std::error::Error>> {
         let options = case.options.clone();
 
-        let mut data: Vec<(String, ImageInfo, Vec<ConfigMetrics>)> = Vec::new();
+        let mut data: Vec<ImageMeasurements> = Vec::new();
 
         for image in case.images {
             let name = &image.name;
@@ -379,73 +392,113 @@ fn encode_measure_quality() {
                 metric_list.push(ConfigMetrics(opt_name.to_string(), metrics));
             }
 
-            data.push((name.to_string(), info, metric_list));
+            data.push(ImageMeasurements {
+                image_name: name.to_string(),
+                info,
+                metrics_for_config: metric_list,
+            });
         }
 
         // summary
         if data.len() > 1 {
-            let mut summary: Vec<ConfigMetrics> = Vec::new();
-            for (index, (opt_name, _, _)) in options.iter().enumerate() {
-                let mut averages: Vec<util::Metrics> = Vec::new();
-                let scale = 1.0 / data.len() as f64;
-                for (_, _, metrics_for_config) in &data {
-                    let metrics = &metrics_for_config[index].1;
-                    for m in metrics {
-                        let avg: &mut util::Metrics = if let Some(avg) =
-                            averages.iter_mut().find(|avg| avg.channel == m.channel)
-                        {
-                            avg
-                        } else {
-                            averages.push(util::Metrics {
-                                channel: m.channel,
-                                mse: 0.0,
-                                mse_blur: 0.0,
-                                region_error: 0.0,
-                            });
-                            averages.last_mut().unwrap()
-                        };
-
-                        avg.mse += m.mse * scale;
-                        avg.mse_blur += m.mse_blur * scale;
-                        avg.region_error += m.region_error * scale;
-                    }
-                }
-
-                summary.push(ConfigMetrics(opt_name.to_string(), averages));
-            }
-            data.insert(
-                0,
-                (
-                    "Summary".to_string(),
-                    ImageInfo { has_alpha: true },
-                    summary,
-                ),
-            );
+            let summary = create_measurement_summary(&data);
+            data.insert(0, summary);
         }
 
         Ok(data)
     };
-    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
-        let mut output = String::new();
-
-        let options = case.options.clone();
-        for (name, option, _) in &options {
-            output.push_str(&format!("- {name}: {option:?}\n"));
+    fn create_measurement_summary(data: &[ImageMeasurements]) -> ImageMeasurements {
+        let mut option_names: Vec<String> = Vec::new();
+        for m in &data[0].metrics_for_config {
+            option_names.push(m.0.clone());
         }
-        output.push('\n');
 
+        let mut summary: Vec<ConfigMetrics> = Vec::new();
+        for (index, opt_name) in option_names.into_iter().enumerate() {
+            let mut averages: Vec<util::Metrics> = Vec::new();
+            let scale = 1.0 / data.len() as f64;
+            for measurement in data {
+                let metrics = &measurement.metrics_for_config[index].1;
+                for m in metrics {
+                    let avg: &mut util::Metrics = if let Some(avg) =
+                        averages.iter_mut().find(|avg| avg.channel == m.channel)
+                    {
+                        avg
+                    } else {
+                        averages.push(util::Metrics {
+                            channel: m.channel,
+                            mse: 0.0,
+                            mse_blur: 0.0,
+                            region_error: 0.0,
+                        });
+                        averages.last_mut().unwrap()
+                    };
+
+                    avg.mse += m.mse * scale;
+                    avg.mse_blur += m.mse_blur * scale;
+                    avg.region_error += m.region_error * scale;
+                }
+            }
+
+            summary.push(ConfigMetrics(opt_name.to_string(), averages));
+        }
+
+        ImageMeasurements {
+            image_name: "Summary".to_string(),
+            info: ImageInfo { has_alpha: true },
+            metrics_for_config: summary,
+        }
+    }
+    fn create_overview(
+        data: &[ImageMeasurements],
+        channel_for_config: &[MetricChannel],
+    ) -> Vec<ImageMeasurements> {
+        let mut overview: Vec<ImageMeasurements> = Vec::new();
+
+        for measurement in data {
+            assert_eq!(
+                measurement.metrics_for_config.len(),
+                channel_for_config.len()
+            );
+
+            let mut metrics_for_config: Vec<ConfigMetrics> = Vec::new();
+
+            for (metrics, &overview_channel) in measurement
+                .metrics_for_config
+                .iter()
+                .zip(channel_for_config.iter())
+            {
+                let m = metrics
+                    .1
+                    .iter()
+                    .find(|m| m.channel == overview_channel)
+                    .unwrap_or(&metrics.1[0]);
+
+                metrics_for_config.push(ConfigMetrics(metrics.0.clone(), vec![m.clone()]));
+            }
+
+            overview.push(ImageMeasurements {
+                image_name: measurement.image_name.clone(),
+                info: measurement.info.clone(),
+                metrics_for_config,
+            });
+        }
+
+        overview
+    }
+    fn create_table(data: &[ImageMeasurements]) -> util::PrettyTable {
         let mut table =
             util::PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR B", "↓Region err"]);
 
-        for (name, info, metrics_for_config) in collect_metrics(case)? {
+        for measurement in data {
             table.add_empty_row();
 
             let mut name_mentioned = false;
-            for ConfigMetrics(opt_name, metrics) in metrics_for_config {
+            for ConfigMetrics(opt_name, metrics) in &measurement.metrics_for_config {
                 let mut opt_mentioned = false;
                 let mut printed_metrics = 0;
                 for m in metrics {
-                    if m.channel == util::MetricChannel::A && !info.has_alpha {
+                    if m.channel == util::MetricChannel::A && !measurement.info.has_alpha {
                         continue;
                     }
 
@@ -453,7 +506,7 @@ fn encode_measure_quality() {
                         if name_mentioned {
                             String::new()
                         } else {
-                            name.to_string()
+                            measurement.image_name.clone()
                         },
                         if opt_mentioned {
                             String::new()
@@ -475,7 +528,34 @@ fn encode_measure_quality() {
             }
         }
 
-        table.print_markdown(&mut output);
+        table
+    }
+    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
+        let mut output = String::new();
+
+        let options = case.options.clone();
+        for (name, option, _) in &options {
+            output.push_str(&format!("- {name}: {option:?}\n"));
+        }
+        output.push('\n');
+
+        let measurements = collect_metrics(case)?;
+
+        if let Some(get_overview_channel) = case.get_overview_channel {
+            let mut overview_channels = Vec::new();
+            for option in &case.options {
+                overview_channels.push(get_overview_channel(&option.1, option.2));
+            }
+            let overview = create_overview(&measurements, &overview_channels);
+            create_table(&overview).print_markdown(&mut output);
+
+            output.push_str("\n<details>\n<summary>Full details</summary>\n\n");
+            create_table(&measurements).print_markdown(&mut output);
+            output.push_str("\n</details>\n");
+        } else {
+            create_table(&measurements).print_markdown(&mut output);
+        }
+
         Ok(output)
     };
 
