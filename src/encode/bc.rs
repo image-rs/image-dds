@@ -153,6 +153,7 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
         dither: options.dithering.color(),
         perceptual: options.error_metric == ErrorMetric::Perceptual,
         opaque_always_p4: options.quality <= CompressionQuality::Normal,
+        fit_optimal: options.quality >= CompressionQuality::Normal,
         refine: options.quality >= CompressionQuality::Normal,
         refine_max_iter: match options.quality {
             CompressionQuality::Fast => 0,
@@ -160,7 +161,6 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
             CompressionQuality::High => 4,
             CompressionQuality::Unreasonable => 10,
         },
-        hq_line_refine: options.quality == CompressionQuality::Normal,
         quantization: match options.quality {
             CompressionQuality::Fast => bc1::Quantization::ChannelWiseOptimized,
             _ => bc1::Quantization::ChannelWise,
