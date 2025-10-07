@@ -4,7 +4,7 @@ use bitflags::bitflags;
 
 use crate::{
     cast, encode::write_util::for_each_chunk, ColorFormat, ColorFormatSet, EncodingError,
-    ImageView, Precision, Progress, Report,
+    ImageView, Precision, Progress,
 };
 
 use super::{
@@ -14,14 +14,14 @@ use super::{
 pub(crate) struct Args<'a, 'b, 'c, 'd> {
     pub image: ImageView<'a>,
     pub writer: &'b mut dyn Write,
-    pub progress: Option<&'c mut Progress<'d>>,
+    pub progress: &'c mut Progress<'d>,
     pub options: EncodeOptions,
 }
 impl<'a, 'b, 'c, 'd> Args<'a, 'b, 'c, 'd> {
     fn from(
         image: ImageView<'a>,
         writer: &'b mut dyn Write,
-        progress: Option<&'c mut Progress<'d>>,
+        progress: &'c mut Progress<'d>,
         options: EncodeOptions,
     ) -> Result<Self, EncodingError> {
         Ok(Self {
@@ -245,7 +245,7 @@ impl EncoderSet {
         &self,
         writer: &mut dyn Write,
         image: ImageView,
-        progress: Option<&mut Progress>,
+        progress: &mut Progress,
         options: &EncodeOptions,
     ) -> Result<(), EncodingError> {
         let encoder = self.pick_encoder(image.color(), options);
@@ -258,12 +258,12 @@ fn copy_directly(args: Args) -> Result<(), EncodingError> {
     let Args {
         image,
         writer,
-        mut progress,
+        progress,
         ..
     } = args;
     let color = image.color();
 
-    progress.report(0.0);
+    progress.checked_report(0.0)?;
 
     // sometimes we can always just write everything directly without any processing
     if image.is_contiguous() && (cfg!(target_endian = "little") || color.precision == Precision::U8)

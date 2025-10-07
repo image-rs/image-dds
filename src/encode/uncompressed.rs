@@ -4,7 +4,7 @@ use crate::{
     as_rgba_f32, cast, ch, convert_channels, convert_channels_for,
     encode::write_util::for_each_chunk, fp10, fp11, fp16, n1, n10, n16, n2, n4, n5, n6, n8,
     rgb9995f, s16, s8, util, xr10, yuv10, yuv16, yuv8, Channels, ColorFormat, ColorFormatSet,
-    EncodingError, Precision, Report,
+    EncodingError, Precision,
 };
 
 use super::{
@@ -26,7 +26,7 @@ where
     let Args {
         image,
         writer,
-        mut progress,
+        progress,
         ..
     } = args;
     let color = image.color();
@@ -45,15 +45,17 @@ where
             let intermediate = &mut intermediate_buffer[..encoded.len()];
             process(as_rgba_f32(color, partial, intermediate), encoded);
         },
-        |encoded| {
+        |encoded| -> Result<(), EncodingError> {
             // occasionally report progress
-            if chunk_index % REPORT_FREQUENCY == 0 {
-                progress.report(chunk_index as f32 / chunk_count as f32);
-            }
+            progress.checked_report_if(
+                chunk_index % REPORT_FREQUENCY == 0,
+                chunk_index as f32 / chunk_count as f32,
+            )?;
             chunk_index += 1;
 
             cast::ToLe::to_le(encoded);
-            writer.write_all(cast::as_bytes(encoded))
+            writer.write_all(cast::as_bytes(encoded))?;
+            Ok(())
         },
     )?;
 
@@ -69,7 +71,7 @@ where
         image,
         writer,
         options,
-        mut progress,
+        progress,
         ..
     } = args;
     let color = image.color();
@@ -107,9 +109,10 @@ where
 
         for line in row.chunks(chunk_size) {
             // occasionally report progress
-            if chunk_index % REPORT_FREQUENCY == 0 {
-                progress.report(chunk_index as f32 / chunk_count as f32);
-            }
+            progress.checked_report_if(
+                chunk_index % REPORT_FREQUENCY == 0,
+                chunk_index as f32 / chunk_count as f32,
+            )?;
             chunk_index += 1;
 
             debug_assert!(line.len() % bytes_per_pixel == 0);
@@ -150,7 +153,7 @@ fn uncompressed_untyped(
     let Args {
         image,
         writer,
-        mut progress,
+        progress,
         ..
     } = args;
     let color = image.color();
@@ -169,14 +172,16 @@ fn uncompressed_untyped(
         encoded_buffer,
         bytes_per_encoded_pixel,
         |partial, encoded| f(partial, color, encoded),
-        |encoded| {
+        |encoded| -> Result<(), EncodingError> {
             // occasionally report progress
-            if chunk_index % REPORT_FREQUENCY == 0 {
-                progress.report(chunk_index as f32 / chunk_count as f32);
-            }
+            progress.checked_report_if(
+                chunk_index % REPORT_FREQUENCY == 0,
+                chunk_index as f32 / chunk_count as f32,
+            )?;
             chunk_index += 1;
 
-            writer.write_all(encoded)
+            writer.write_all(encoded)?;
+            Ok(())
         },
     )?;
 

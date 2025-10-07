@@ -9,7 +9,7 @@ use super::{
 use crate::{
     cast::{self, ToLe},
     encode::write_util::for_each_f32_rgba_rows,
-    util, yuv10, yuv16, yuv8, EncodingError, Report,
+    util, yuv10, yuv16, yuv8, EncodingError,
 };
 
 #[allow(clippy::type_complexity)]
@@ -24,7 +24,7 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         image,
         writer,
         options,
-        mut progress,
+        progress,
         ..
     } = args;
     let width = image.width() as usize;
@@ -43,11 +43,12 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     let line_group_count = util::div_ceil(height, BLOCK_HEIGHT);
     let report_frequency = util::div_ceil(1024 * 1024, width * BLOCK_HEIGHT);
     let mut group_index = 0;
-    for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| {
-        if group_index % report_frequency == 0 {
-            // occasionally report progress
-            progress.report(group_index as f32 / line_group_count as f32);
-        }
+    for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| -> Result<(), EncodingError> {
+        // occasionally report progress
+        progress.checked_report_if(
+            group_index % report_frequency == 0,
+            group_index as f32 / line_group_count as f32,
+        )?;
         group_index += 1;
 
         // handle full blocks
@@ -70,9 +71,12 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         }
 
         P1::to_le(&mut plane1_buffer);
-        writer.write_all(cast::as_bytes(&plane1_buffer))
+        writer.write_all(cast::as_bytes(&plane1_buffer))?;
+
+        Ok(())
     })?;
 
+    progress.check_cancelled()?;
     P2::to_le(&mut plane2);
     writer.write_all(cast::as_bytes(&plane2))?;
 

@@ -1,4 +1,4 @@
-use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodingError, Report};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodingError};
 
 use super::encoder::{Args, Encoder, EncoderSet, Flags};
 
@@ -38,7 +38,7 @@ where
     let Args {
         image,
         writer,
-        mut progress,
+        progress,
         ..
     } = args;
     let color = image.color();
@@ -62,10 +62,11 @@ where
         debug_assert!(y_line.len() == width * bytes_per_pixel);
 
         for chunk in y_line.chunks(chunk_size) {
-            if chunk_index % 4096 == 0 {
-                // occasionally report progress
-                progress.report(chunk_index as f32 / chunk_count as f32);
-            }
+            // occasionally report progress
+            progress.checked_report_if(
+                chunk_index % 4096 == 0,
+                chunk_index as f32 / chunk_count as f32,
+            )?;
             chunk_index += 1;
 
             let pixels = chunk.len() / bytes_per_pixel;
