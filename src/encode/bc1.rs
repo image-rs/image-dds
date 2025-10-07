@@ -1,5 +1,7 @@
 #![allow(clippy::needless_range_loop)]
 
+use core::f32;
+
 use glam::Vec3A;
 
 use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
@@ -18,6 +20,7 @@ pub(crate) struct Bc1Options {
     pub opaque_always_p4: bool,
     pub refine: bool,
     pub refine_max_iter: u8,
+    pub hq_line_refine: bool,
     pub quantization: Quantization,
 }
 impl Default for Bc1Options {
@@ -29,6 +32,7 @@ impl Default for Bc1Options {
             opaque_always_p4: false,
             refine: false,
             refine_max_iter: 10,
+            hq_line_refine: false,
             quantization: Quantization::ChannelWise,
         }
     }
@@ -153,7 +157,7 @@ fn compress_with_palette(
     let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
     if options.refine {
         let refine_error = get_refine_error(&block, alpha_map, palette_info);
-        (min, max) = refine_along_line(min, max, refine_error);
+        (min, max) = refine_along_line(min, max, options, refine_error);
         (min, max) = refine(min, max, options, refine_error);
     }
     let quantization = options.quantization;
@@ -167,6 +171,7 @@ fn compress_with_palette(
 fn refine_along_line(
     min: ColorSpace,
     max: ColorSpace,
+    options: Bc1Options,
     compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
 ) -> (ColorSpace, ColorSpace) {
     let mid = (min.0 + max.0) * 0.5;
@@ -181,8 +186,8 @@ fn refine_along_line(
     let options = bcn_util::RefinementOptions {
         step_initial: 0.2,
         step_decay: 0.5,
-        step_min: 0.01 / min.0.distance(max.0),
-        max_iter: 3,
+        step_min: 0.005 / min.0.distance(max.0),
+        max_iter: if options.hq_line_refine { 4 } else { 3 },
     };
 
     let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
