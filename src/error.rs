@@ -285,6 +285,10 @@ pub enum EncodingError {
     /// written all surfaces declared in the header.
     MissingSurfaces,
 
+    /// Returned when an operation given a [`CancellationToken`](crate::CancellationToken)
+    /// or [`Progress`](crate::Progress) was cancelled before or during the operation.
+    Cancelled,
+
     Layout(LayoutError),
     Io(std::io::Error),
 }
@@ -306,6 +310,8 @@ impl std::fmt::Display for EncodingError {
                 write!(f, "Too many surfaces are attempted to written")
             }
             EncodingError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
+
+            EncodingError::Cancelled => write!(f, "The operation was cancelled"),
 
             EncodingError::Layout(err) => write!(f, "Layout error: {err}"),
             EncodingError::Io(err) => write!(f, "IO error: {err}"),

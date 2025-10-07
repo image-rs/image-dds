@@ -5,8 +5,8 @@ use crate::{
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
     resize::{Aligner, ResizeState},
-    sub_progress, ColorFormat, DataLayout, EncodeOptions, EncodingError, Format, ImageView,
-    Progress, ProgressRange, Report, Size,
+    ColorFormat, DataLayout, EncodeOptions, EncodingError, Format, ImageView, Progress,
+    ProgressRange, Size,
 };
 
 /// An encoder for DDS files.
@@ -108,7 +108,8 @@ impl<W> Encoder<W> {
     where
         W: Write,
     {
-        self.write_surface_impl(image, None)
+        let mut progress = Progress::none();
+        self.write_surface_impl(image, &mut progress)
     }
 
     /// Writes the next surface with progress.
@@ -123,13 +124,13 @@ impl<W> Encoder<W> {
     where
         W: Write,
     {
-        self.write_surface_impl(image, Some(progress))
+        self.write_surface_impl(image, progress)
     }
 
     fn write_surface_impl(
         &mut self,
         image: ImageView,
-        mut progress: Option<&mut Progress>,
+        progress: &mut Progress,
     ) -> Result<(), EncodingError>
     where
         W: Write,
@@ -171,12 +172,14 @@ impl<W> Encoder<W> {
             &mut self.writer,
             image,
             self.format,
-            sub_progress(&mut progress, get_level_progress_range(0)).as_mut(),
+            Some(&mut progress.sub_range(get_level_progress_range(0))),
             &self.encoding,
         )?;
         self.iter.advance();
 
         if generated_mipmaps > 0 {
+            progress.check_cancelled()?;
+
             let (align, resize) = Self::get_or_init(&mut self.resize);
             let src = align.align(image);
 
@@ -188,6 +191,7 @@ impl<W> Encoder<W> {
                 }
 
                 count += 1;
+                progress.check_cancelled()?;
 
                 let mipmap_size = current.size();
                 let mip_data = resize.resize(
@@ -203,7 +207,7 @@ impl<W> Encoder<W> {
                     &mut self.writer,
                     mip,
                     self.format,
-                    sub_progress(&mut progress, get_level_progress_range(count)).as_mut(),
+                    Some(&mut progress.sub_range(get_level_progress_range(count))),
                     &self.encoding,
                 )?;
                 self.iter.advance();
@@ -211,7 +215,7 @@ impl<W> Encoder<W> {
         }
 
         // report 100% progress
-        progress.report(1.0);
+        progress.checked_report(1.0)?;
 
         Ok(())
     }
