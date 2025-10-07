@@ -1,6 +1,7 @@
 use dds::{header::*, *};
-
 use std::{fs::File, io::Seek, num::NonZero, path::PathBuf};
+
+use util::Snapshot;
 
 mod util;
 
@@ -213,8 +214,7 @@ fn full_layout_snapshot() {
         output.push('\n');
     }
 
-    util::compare_snapshot_text(&util::test_data_dir().join("layout_snapshot.txt"), &output)
-        .unwrap();
+    util::TextSnapshot.assert(&util::test_data_dir().join("layout_snapshot.txt"), &output);
 }
 
 #[test]
@@ -411,9 +411,8 @@ fn weird_and_invalid_headers() {
         output.push_str("\n\n\n");
     }
 
-    util::compare_snapshot_text(
+    util::TextSnapshot.assert(
         &util::test_data_dir().join("invalid_header_layout.txt"),
         output,
-    )
-    .unwrap();
+    );
 }

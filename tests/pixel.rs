@@ -1,5 +1,4 @@
 use dds::{header::*, *};
-
 use std::fs::File;
 
 mod util;

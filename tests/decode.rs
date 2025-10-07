@@ -1,14 +1,14 @@
+use dds::{header::*, *};
+use rand::RngCore;
 use std::{
     fs::File,
     io::{Cursor, Read},
     path::{Path, PathBuf},
 };
 
-use dds::{header::*, *};
-use rand::RngCore;
+use util::{Rect, Snapshot};
 
 mod util;
-use util::Rect;
 
 #[test]
 fn decode_all_dds_files() {
@@ -30,7 +30,7 @@ fn decode_all_dds_files() {
         let (image, _) = util::read_dds_png_compatible(dds_path)?;
 
         // compare to PNG
-        _ = util::update_snapshot_png_u8(png_path, &image)?;
+        _ = util::PngSnapshot.write(png_path, &image)?;
 
         let hex = util::hash_hex(&image.data);
         Ok(hex)
@@ -79,7 +79,7 @@ fn decode_bc6_fuzz_hdr() {
         let (image, _) = util::read_dds_with_channels(dds_path, Channels::Rgb)?;
 
         // compare to PNG and ignore any errors
-        _ = util::compare_snapshot_dds_f32(output_dds_path, &image);
+        _ = util::DdsF32Snapshot.result(output_dds_path, &image);
 
         let hex = util::hash_hex_f32(&image.data);
 
@@ -135,9 +135,7 @@ fn decode_rect() {
         let (image, _) = util::read_dds_rect_as_u8(dds_path, rect)?;
 
         // compare to PNG
-        util::compare_snapshot_png_u8(&get_png_path(dds_path, &stringify_rect(rect)), &image)?;
-
-        Ok(())
+        util::PngSnapshot.result(&get_png_path(dds_path, &stringify_rect(rect)), &image)
     }
     /// This reads the image into a 200x100 RGBA output buffer.
     /// The trick is that it read the image as multiple patches.
@@ -190,9 +188,7 @@ fn decode_rect() {
         }
 
         // compare to PNG
-        util::compare_snapshot_png_u8(&get_png_path(dds_path, "patchwork"), &image)?;
-
-        Ok(())
+        util::PngSnapshot.result(&get_png_path(dds_path, "patchwork"), &image)
     }
 
     let mut failed_count = 0;
