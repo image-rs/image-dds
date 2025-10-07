@@ -1,7 +1,5 @@
 #![allow(clippy::needless_range_loop)]
 
-use core::f32;
-
 use glam::Vec3A;
 
 use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
