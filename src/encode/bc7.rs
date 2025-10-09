@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use glam::Vec4;
 
 pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
@@ -9,46 +11,112 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     }
 
     // TODO: just for testing
-    compress_single_color(block[5])
-}
+    let mut r = block[5];
 
-/// https://fgiesen.wordpress.com/2024/11/03/bc7-optimal-solid-color-blocks/
-fn compress_single_color(color: Rgba<8>) -> [u8; 16] {
-    // TODO: implement this properly
+    let alpha_list = closest_alpha::<2>(
+        stats.min.alpha(),
+        stats.max.alpha(),
+        block.map(|p| p.alpha()),
+    );
 
     mode5(
         Rotation::None,
-        [Rgb::new(color.r >> 1, color.g >> 1, color.b >> 1); 2],
+        [Rgb::new(r.r >> 1, r.g >> 1, r.b >> 1); 2],
         IndexList::constant(0),
-        [Alpha::new(color.a); 2],
-        IndexList::constant(0),
+        [stats.min.alpha(), stats.max.alpha()],
+        alpha_list,
     )
+}
+
+/// Solid-color blocks can be encoded exactly.
+///
+/// https://fgiesen.wordpress.com/2024/11/03/bc7-optimal-solid-color-blocks/
+fn compress_single_color(color: Rgba<8>) -> [u8; 16] {
+    fn optimize(c: u8) -> (u8, u8) {
+        (c >> 1, if c < 128 { c + 1 } else { c - 1 } >> 1)
+    }
+
+    let (c0_r, c1_r) = optimize(color.r);
+    let (c0_g, c1_g) = optimize(color.g);
+    let (c0_b, c1_b) = optimize(color.b);
+
+    let c0 = Rgb::new(c0_r, c0_g, c0_b);
+    let c1 = Rgb::new(c1_r, c1_g, c1_b);
+
+    mode5(
+        Rotation::None,
+        [c0, c1],
+        IndexList::<2>::constant(1),
+        [Alpha::new(color.a); 2],
+        // the index for alpha doesn't matter since both endpoints are the same
+        IndexList::<2>::constant(1),
+    )
+}
+
+fn closest_alpha<const B: u8>(
+    min: Alpha<8>,
+    max: Alpha<8>,
+    pixels: [Alpha<8>; 16],
+) -> IndexList<B> {
+    debug_assert!(min.a <= max.a);
+    if min.a >= max.a {
+        // alpha endpoints are constant
+        return IndexList::constant(0);
+    }
+    debug_assert!(min.a < max.a);
+
+    let mut indexes = IndexList::new();
+    let a_diff = (max.a - min.a) as u16;
+    debug_assert!(a_diff != 0);
+    let round = a_diff / 2;
+    let max = IndexList::<B>::MAX_INDEX as u16;
+    for i in 0..16 {
+        let value = (pixels[i].a.saturating_sub(min.a) as u16 * max + round) / a_diff;
+        indexes.set(i, value.min(max) as u8);
+    }
+    indexes
 }
 
 fn mode5(
     rotation: Rotation,
     mut color: [Rgb<7>; 2],
-    mut color_indexes: IndexList<2>,
+    color_indexes: IndexList<2>,
     mut alpha: [Alpha<8>; 2],
-    mut alpha_indexes: IndexList<2>,
+    alpha_indexes: IndexList<2>,
 ) -> [u8; 16] {
+    let (color_indexes, color_swap) = color_indexes.compress_p1();
+    let (alpha_indexes, alpha_swap) = alpha_indexes.compress_p1();
+
+    if color_swap {
+        color.swap(0, 1);
+    }
+    if alpha_swap {
+        alpha.swap(0, 1);
+    }
+
     let mut stream = BitStream::new();
     stream.write_mode(5);
     stream.write_rotation(rotation);
     stream.write_endpoints_rgb(color);
     stream.write_endpoints_alpha(alpha);
-
-    // TODO: indexes
-    stream.write_u64(0, 31);
-    stream.write_u64(0, 31);
-
+    stream.write_indexes(color_indexes);
+    stream.write_indexes(alpha_indexes);
     stream.finish()
 }
+fn mode6(mut rgba: [Rgba<7>; 2], mut p: [bool; 2], indexes: IndexList<4>) -> [u8; 16] {
+    let (indexes, swap) = indexes.compress_p1();
 
-fn swap<T: Copy>(array: &mut [T; 2]) {
-    let tmp = array[0];
-    array[0] = array[1];
-    array[1] = tmp;
+    if swap {
+        rgba.swap(0, 1);
+        p.swap(0, 1);
+    }
+
+    let mut stream = BitStream::new();
+    stream.write_mode(6);
+    stream.write_endpoints_rgba(rgba);
+    stream.write_endpoints_p(p);
+    stream.write_indexes(indexes);
+    stream.finish()
 }
 
 enum Rotation {
@@ -66,6 +134,11 @@ struct IndexList<const B: u8> {
 }
 impl<const B: u8> IndexList<B> {
     const MAX_INDEX: u8 = (1 << B) - 1;
+    const INDEXES_MASK: u64 = if B == 4 {
+        u64::MAX
+    } else {
+        (1 << (B * 16)) - 1
+    };
 
     const fn new() -> Self {
         debug_assert!(B == 2 || B == 3 || B == 4);
@@ -99,6 +172,45 @@ impl<const B: u8> IndexList<B> {
         debug_assert!(self.get(index) == 0, "Cannot set an index twice.");
         self.indexes |= (value as u64) << (index * B as usize);
     }
+
+    /// Compresses the index list and returns whether the endpoints need to be swapped.
+    fn compress_p1(self) -> (CompressedIndexList, bool) {
+        let (compressed, swap) = Self::compress_single_index(self.indexes, 0);
+        (
+            CompressedIndexList {
+                compressed_indexes: compressed,
+                bits: 16 * B - 1,
+            },
+            swap,
+        )
+    }
+
+    fn compress_single_index(mut indexes: u64, index: u8) -> (u64, bool) {
+        debug_assert!(B == 2 || B == 3 || B == 4);
+        debug_assert!(index < 16);
+
+        // the MSB of the index-th value has to be 0
+        let msb_mask = 1 << (B - 1 + index * B);
+        let swap = (indexes & msb_mask) != 0;
+
+        // if the MSB is 1, flip all bits
+        if swap {
+            indexes ^= Self::INDEXES_MASK;
+        }
+
+        // now the MSB of the given index value is 0, so we can drop it
+        debug_assert!((indexes & msb_mask) == 0);
+        let before_mask = msb_mask - 1;
+        let after_mask = !before_mask << 1;
+
+        let compressed = (indexes & before_mask) | ((indexes & after_mask) >> 1);
+        (compressed, swap)
+    }
+}
+
+struct CompressedIndexList {
+    compressed_indexes: u64,
+    bits: u8,
 }
 
 #[repr(C, align(4))]
@@ -138,6 +250,25 @@ impl<const B: u8> Rgba<B> {
         let [r, g, b, a] = x.to_le_bytes();
         Self::new(r, g, b, a)
     }
+
+    pub fn color(self) -> Rgb<B> {
+        Rgb::new(self.r, self.g, self.b)
+    }
+    pub fn alpha(self) -> Alpha<B> {
+        Alpha::new(self.a)
+    }
+
+    pub fn promote(self) -> Rgba<8> {
+        if B == 8 {
+            return Rgba::new(self.r, self.g, self.b, self.a);
+        }
+        Rgba::new(
+            promote(self.r, B),
+            promote(self.g, B),
+            promote(self.b, B),
+            promote(self.a, B),
+        )
+    }
 }
 impl<const B: u8> PartialEq for Rgba<B> {
     fn eq(&self, other: &Self) -> bool {
@@ -152,7 +283,6 @@ pub(crate) struct Rgb<const B: u8> {
     pub r: u8,
     pub g: u8,
     pub b: u8,
-    pad: u8,
 }
 const _: () = {
     assert!(std::mem::size_of::<Rgb<8>>() == std::mem::size_of::<u32>());
@@ -166,15 +296,22 @@ impl<const B: u8> Rgb<B> {
         debug_assert!(r <= Self::MAX);
         debug_assert!(g <= Self::MAX);
         debug_assert!(b <= Self::MAX);
-        Self { r, g, b, pad: 0 }
+        Self { r, g, b }
     }
 
     pub fn to_u32(self) -> u32 {
-        u32::from_le_bytes([self.r, self.g, self.b, self.pad])
+        u32::from_le_bytes([self.r, self.g, self.b, 0])
     }
     pub fn from_u32(x: u32) -> Self {
         let [r, g, b, _] = x.to_le_bytes();
         Self::new(r, g, b)
+    }
+
+    pub fn promote(self) -> Rgb<8> {
+        if B == 8 {
+            return Rgb::new(self.r, self.g, self.b);
+        }
+        Rgb::new(promote(self.r, B), promote(self.g, B), promote(self.b, B))
     }
 }
 impl<const B: u8> PartialEq for Rgb<B> {
@@ -196,45 +333,105 @@ impl<const B: u8> Alpha<B> {
         debug_assert!(a <= Self::MAX);
         Self { a }
     }
+
+    pub fn promote(self) -> Alpha<8> {
+        if B == 8 {
+            return Alpha::new(self.a);
+        }
+        Alpha::new(promote(self.a, B))
+    }
+}
+
+#[inline]
+fn promote(mut number: u8, number_bits: u8) -> u8 {
+    debug_assert!((4..8).contains(&number_bits));
+    number <<= 8 - number_bits;
+    number |= number >> number_bits;
+    number
+}
+
+trait AddPBit {
+    type Output;
+    fn add_p(self, p: bool) -> Self::Output;
+}
+impl AddPBit for Rgba<5> {
+    type Output = Rgba<6>;
+    fn add_p(self, p: bool) -> Self::Output {
+        let p = p as u8;
+        let Self { r, g, b, a } = self;
+        Rgba::new((r << 1) | p, (g << 1) | p, (b << 1) | p, (a << 1) | p)
+    }
+}
+impl AddPBit for Rgba<7> {
+    type Output = Rgba<8>;
+    fn add_p(self, p: bool) -> Self::Output {
+        let p = p as u8;
+        let Self { r, g, b, a } = self;
+        Rgba::new((r << 1) | p, (g << 1) | p, (b << 1) | p, (a << 1) | p)
+    }
+}
+impl AddPBit for Rgb<4> {
+    type Output = Rgb<5>;
+    fn add_p(self, p: bool) -> Self::Output {
+        let p = p as u8;
+        Rgb::new((self.r << 1) | p, (self.g << 1) | p, (self.b << 1) | p)
+    }
+}
+impl AddPBit for Rgb<6> {
+    type Output = Rgb<7>;
+    fn add_p(self, p: bool) -> Self::Output {
+        let p = p as u8;
+        Rgb::new((self.r << 1) | p, (self.g << 1) | p, (self.b << 1) | p)
+    }
+}
+impl AddPBit for Rgb<7> {
+    type Output = Rgb<8>;
+    fn add_p(self, p: bool) -> Self::Output {
+        let p = p as u8;
+        Rgb::new((self.r << 1) | p, (self.g << 1) | p, (self.b << 1) | p)
+    }
 }
 
 struct BlockStats {
-    and: Rgba<8>,
-    or: Rgba<8>,
+    min: Rgba<8>,
+    max: Rgba<8>,
 }
 impl BlockStats {
     fn new(block: &[Rgba<8>; 16]) -> Self {
-        let mut and: u32 = u32::MAX;
-        let mut or: u32 = 0;
+        let mut min = Rgba::new(255, 255, 255, 255);
+        let mut max = Rgba::new(0, 0, 0, 0);
         for &pixel in block {
-            let u = pixel.to_u32();
-            and &= u;
-            or |= u;
+            min.r = min.r.min(pixel.r);
+            min.g = min.g.min(pixel.g);
+            min.b = min.b.min(pixel.b);
+            min.a = min.a.min(pixel.a);
+
+            max.r = max.r.max(pixel.r);
+            max.g = max.g.max(pixel.g);
+            max.b = max.b.max(pixel.b);
+            max.a = max.a.max(pixel.a);
         }
-        Self {
-            and: Rgba::from_u32(and),
-            or: Rgba::from_u32(or),
-        }
+        Self { min, max }
     }
 
     fn single_color(&self) -> Option<Rgba<8>> {
-        if self.and == self.or {
-            Some(self.and)
+        if self.min == self.max {
+            Some(self.min)
         } else {
             None
         }
     }
 
     fn constant_alpha(&self) -> Option<u8> {
-        if self.and.a == self.or.a {
-            Some(self.and.a)
+        if self.min.a == self.max.a {
+            Some(self.max.a)
         } else {
             None
         }
     }
     /// Returns whether Alpha is 255 everywhere.
     fn opaque(&self) -> bool {
-        self.and.a == 255
+        self.min.a == 255
     }
 }
 
@@ -263,6 +460,19 @@ impl BitStream {
     fn write_rotation(&mut self, rotation: Rotation) {
         self.write_u64(rotation as u64, 2);
     }
+    fn write_indexes(&mut self, indexes: CompressedIndexList) {
+        self.write_u64(indexes.compressed_indexes, indexes.bits);
+    }
+    fn write_endpoints_rgba<const B: u8>(&mut self, endpoints: [Rgba<B>; 2]) {
+        self.write_u64(endpoints[0].r as u64, B);
+        self.write_u64(endpoints[1].r as u64, B);
+        self.write_u64(endpoints[0].g as u64, B);
+        self.write_u64(endpoints[1].g as u64, B);
+        self.write_u64(endpoints[0].b as u64, B);
+        self.write_u64(endpoints[1].b as u64, B);
+        self.write_u64(endpoints[0].a as u64, B);
+        self.write_u64(endpoints[1].a as u64, B);
+    }
     fn write_endpoints_rgb<const B: u8>(&mut self, endpoints: [Rgb<B>; 2]) {
         self.write_u64(endpoints[0].r as u64, B);
         self.write_u64(endpoints[1].r as u64, B);
@@ -274,6 +484,12 @@ impl BitStream {
     fn write_endpoints_alpha<const B: u8>(&mut self, endpoints: [Alpha<B>; 2]) {
         self.write_u64(endpoints[0].a as u64, B);
         self.write_u64(endpoints[1].a as u64, B);
+    }
+    fn write_endpoints_p<const N: usize>(&mut self, p: [bool; N]) {
+        debug_assert!(N % 2 == 0);
+        for p in p {
+            self.write_u64(p as u64, 1);
+        }
     }
 
     fn finish(self) -> [u8; 16] {
