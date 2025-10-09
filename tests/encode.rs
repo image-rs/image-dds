@@ -335,6 +335,27 @@ fn encode_measure_quality() {
             )],
             images: &[base],
         },
+        TestCase {
+            format: Format::BC7_UNORM,
+            get_overview_channel: Some(|_, _| MetricChannel::C),
+            options: vec![(
+                "bc7",
+                new_options!(),
+                MetricChannelSet::RGBA | MetricChannel::L | MetricChannel::C,
+            )],
+            images: &[
+                base,
+                color_twirl,
+                bricks_d,
+                bricks_n,
+                clovers_d,
+                clovers_r,
+                stone_d,
+                grass,
+                leaves,
+                random,
+            ],
+        },
     ];
 
     let mut output_summaries = util::OutputSummaries::new("_hashes");

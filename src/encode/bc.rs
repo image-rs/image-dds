@@ -1,5 +1,7 @@
 // helpers
 
+use glam::Vec4;
+
 use crate::{
     cast, ch,
     encode::write_util::for_each_f32_rgba_rows,
@@ -9,7 +11,7 @@ use crate::{
 };
 
 use super::{
-    bc1, bc4, bcn_util,
+    bc1, bc4, bc7, bcn_util,
     encoder::{Args, Encoder, EncoderSet, Flags},
     CompressionQuality, EncodeOptions, ErrorMetric, PreferredFragmentSize,
 };
@@ -101,6 +103,15 @@ fn get_4x4_rgba(data: &[[f32; 4]], row_pitch: usize) -> [[f32; 4]; 16] {
     }
     block
 }
+fn get_4x4_rgba_vec4(data: &[[f32; 4]], row_pitch: usize) -> [Vec4; 16] {
+    let mut block: [Vec4; 16] = [Vec4::ZERO; 16];
+    for i in 0..4 {
+        for j in 0..4 {
+            block[i * 4 + j] = Vec4::from_array(data[i * row_pitch + j]);
+        }
+    }
+    block
+}
 fn get_4x4_grayscale(data: &[[f32; 4]], row_pitch: usize) -> [f32; 16] {
     let mut block = [0.0; 16];
     for i in 0..4 {
@@ -145,6 +156,9 @@ const BC1_FRAGMENT_SIZE: PreferredFragmentSize =
 const BC3_FRAGMENT_SIZE: PreferredFragmentSize = BC1_FRAGMENT_SIZE.combine(BC4_FRAGMENT_SIZE);
 const BC4_FRAGMENT_SIZE: PreferredFragmentSize =
     PreferredFragmentSize::new(64 * 64, 32 * 32, 8 * 8);
+// TODO: adjust this later
+const BC7_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(16 * 16, 16 * 16, 16 * 16);
 
 // encoders
 
@@ -395,3 +409,12 @@ pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 })
 .add_flags(Flags::DITHER_COLOR)
 .with_fragment_size(BC4_FRAGMENT_SIZE)]);
+
+pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
+    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+        let block = get_4x4_rgba_vec4(data, row_pitch).map(bc7::Rgba::round);
+
+        *out = bc7::compress_bc7_block(block);
+    })
+})
+.with_fragment_size(BC7_FRAGMENT_SIZE)]);
