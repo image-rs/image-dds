@@ -2,6 +2,8 @@
 
 use glam::Vec4;
 
+use crate::{encode::bcn_util, n8};
+
 pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     let stats = BlockStats::new(&block);
 
@@ -10,22 +12,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
         return compress_single_color(color);
     }
 
-    // TODO: just for testing
-    let mut r = block[5];
-
-    let alpha_list = closest_alpha::<2>(
-        stats.min.alpha(),
-        stats.max.alpha(),
-        block.map(|p| p.alpha()),
-    );
-
-    mode5(
-        Rotation::None,
-        [Rgb::new(r.r >> 1, r.g >> 1, r.b >> 1); 2],
-        IndexList::constant(0),
-        [stats.min.alpha(), stats.max.alpha()],
-        alpha_list,
-    )
+    compress_mode5(block, stats)
 }
 
 /// Solid-color blocks can be encoded exactly.
@@ -53,10 +40,48 @@ fn compress_single_color(color: Rgba<8>) -> [u8; 16] {
     )
 }
 
+fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> [u8; 16] {
+    let mut r = block[5];
+
+    let alpha_pixels = block.map(|p| p.alpha());
+    fn quantize(min: f32, max: f32) -> (Alpha<8>, Alpha<8>) {
+        // floor for min and ceil for max
+        (
+            Alpha::new((min * 255.0) as u8),
+            Alpha::new((max * 255.0 + 0.999) as u8),
+        )
+    }
+    let initial = (n8::f32(stats.min.a), n8::f32(stats.max.a));
+    let (a_min, a_max) = bcn_util::refine_endpoints(
+        initial.0,
+        initial.1,
+        bcn_util::RefinementOptions {
+            step_initial: (initial.1 - initial.0) * 0.2,
+            step_decay: 0.5,
+            step_min: 1.0 / 255.0,
+            max_iter: 4,
+        },
+        |(min, max)| {
+            let (min, max) = quantize(min, max);
+            closest_error_alpha::<2>(min, max, &alpha_pixels)
+        },
+    );
+    let (a_min, a_max) = quantize(a_min, a_max);
+    let alpha_list = closest_alpha::<2>(a_min, a_max, &alpha_pixels);
+
+    mode5(
+        Rotation::None,
+        [Rgb::new(r.r >> 1, r.g >> 1, r.b >> 1); 2],
+        IndexList::constant(0),
+        [a_min, a_max],
+        alpha_list,
+    )
+}
+
 fn closest_alpha<const B: u8>(
     min: Alpha<8>,
     max: Alpha<8>,
-    pixels: [Alpha<8>; 16],
+    pixels: &[Alpha<8>; 16],
 ) -> IndexList<B> {
     debug_assert!(min.a <= max.a);
     if min.a >= max.a {
@@ -75,6 +100,66 @@ fn closest_alpha<const B: u8>(
         indexes.set(i, value.min(max) as u8);
     }
     indexes
+}
+/// The square error of the closest alpha values.
+fn closest_error_alpha<const B: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alpha<8>; 16]) -> u32 {
+    debug_assert!(B == 2 || B == 3);
+
+    debug_assert!(min.a <= max.a);
+    if min.a >= max.a {
+        debug_assert!(min.a == max.a);
+        let a = min.a;
+        pixels
+            .iter()
+            .map(|p| {
+                let d = p.a.abs_diff(a) as u32;
+                d * d
+            })
+            .sum()
+    } else {
+        debug_assert!(min.a < max.a);
+
+        fn error<const N: usize>(pixels: &[Alpha<8>; 16], interpolated: [u8; N]) -> u32 {
+            pixels
+                .iter()
+                .map(|p| {
+                    let mut best = 255_u8;
+                    for &a in &interpolated {
+                        let d = p.a.abs_diff(a);
+                        best = best.min(d);
+                    }
+                    let d = best as u32;
+                    d * d
+                })
+                .sum()
+        }
+
+        match B {
+            2 => {
+                let interpolated = [
+                    min.a,
+                    interpolate::<2>(min.a, max.a, 1),
+                    interpolate::<2>(min.a, max.a, 2),
+                    max.a,
+                ];
+                error(pixels, interpolated)
+            }
+            3 => {
+                let interpolated = [
+                    min.a,
+                    interpolate::<3>(min.a, max.a, 1),
+                    interpolate::<3>(min.a, max.a, 2),
+                    interpolate::<3>(min.a, max.a, 3),
+                    interpolate::<3>(min.a, max.a, 4),
+                    interpolate::<3>(min.a, max.a, 5),
+                    interpolate::<3>(min.a, max.a, 6),
+                    max.a,
+                ];
+                error(pixels, interpolated)
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 fn mode5(
@@ -392,6 +477,32 @@ impl AddPBit for Rgb<7> {
     }
 }
 
+// Weights are all multiplied by 4 compared to the original ones. This changes
+// the interpolation formula from
+//   ((64-w)*e0 + w*e1 + 32) >> 6
+// to
+//   ((256-w)*e0 + w*e1 + 128) >> 8
+// The nice thing about this is that intermediate results still fit into u16,
+// but the compiler can optimize away the `>> 8`.
+const WEIGHTS_2: [u16; 4] = [0, 84, 172, 256];
+const WEIGHTS_3: [u16; 8] = [0, 36, 72, 108, 148, 184, 220, 256];
+const WEIGHTS_4: [u16; 16] = [
+    0, 16, 36, 52, 68, 84, 104, 120, 136, 152, 172, 188, 204, 220, 240, 256,
+];
+
+fn interpolate<const B: usize>(e0: u8, e1: u8, index: u8) -> u8 {
+    let weight = match B {
+        2 => WEIGHTS_2[index as usize],
+        3 => WEIGHTS_3[index as usize],
+        4 => WEIGHTS_4[index as usize],
+        _ => unreachable!(),
+    };
+    let w0 = 256 - weight;
+    let w1 = weight;
+    ((w0 * e0 as u16 + w1 * e1 as u16 + 128) >> 8) as u8
+}
+
+#[derive(Clone, Copy)]
 struct BlockStats {
     min: Rgba<8>,
     max: Rgba<8>,

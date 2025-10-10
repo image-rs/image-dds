@@ -153,11 +153,11 @@ impl RefinementOptions {
         }
     }
 }
-pub(crate) fn refine_endpoints<T: RefinementSteps>(
+pub(crate) fn refine_endpoints<T: RefinementSteps, E: PartialOrd>(
     min: T,
     max: T,
     options: RefinementOptions,
-    mut compute_error: impl FnMut((T, T)) -> f32,
+    mut compute_error: impl FnMut((T, T)) -> E,
 ) -> (T, T) {
     let mut step = options.step_initial;
     let mut best = (min, max);
