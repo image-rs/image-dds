@@ -13,6 +13,7 @@ pub struct Bc4Options {
     pub use_inter4_heuristic: bool,
     pub high_quality_quantize: bool,
     pub fast_iter: bool,
+    pub refine: bool,
 }
 
 struct Block {
@@ -190,16 +191,18 @@ fn refine_endpoints(
     options: Bc4Options,
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
-    (min, max) = bcn_util::refine_endpoints(
-        min,
-        max,
-        if options.fast_iter {
-            bcn_util::RefinementOptions::new_bc4_fast(min, max)
-        } else {
-            bcn_util::RefinementOptions::new_bc4(min, max)
-        },
-        compute_error,
-    );
+    if options.refine {
+        (min, max) = bcn_util::refine_endpoints(
+            min,
+            max,
+            if options.fast_iter {
+                bcn_util::RefinementOptions::new_bc4_fast(min, max)
+            } else {
+                bcn_util::RefinementOptions::new_bc4(min, max)
+            },
+            compute_error,
+        );
+    }
 
     // Step 2: Quantize the endpoints and select the best
     if !options.high_quality_quantize {
@@ -241,6 +244,15 @@ fn compress_inter6(
     mut max: f32,
     options: Bc4Options,
 ) -> ([u8; 8], f32) {
+    for _ in 0..2 {
+        let weights = Inter6Palette::new(min, max).block_closest_weights(block);
+        if weights[0] == weights[1] && weights[1] == weights[2] && weights[2] == weights[3] {
+            // all weights are the same, so we cannot improve the endpoints
+            break;
+        }
+        (min, max) = optimal_endpoints_by_weights(&block.b, &weights);
+    }
+
     (min, max) = refine_endpoints(
         min,
         max,
@@ -288,6 +300,54 @@ fn compress_inter4(block: &Block, options: Bc4Options) -> ([u8; 8], f32) {
     };
 
     (endpoints.with_indexes(indexes), error)
+}
+
+/// https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
+fn optimal_endpoints_by_weights(colors: &[Vec4; 4], weights: &[Vec4; 4]) -> (f32, f32) {
+    // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
+    // First, compute D = A^T*A = (a b)
+    //                            (b c)
+    let [w0, w1, w2, w3] = *weights;
+    let [w0_, w1_, w2_, w3_] = [1.0 - w0, 1.0 - w1, 1.0 - w2, 1.0 - w3];
+    let a = w0 * w0 + w1 * w1 + w2 * w2 + w3 * w3;
+    let b = w0 * w0_ + w1 * w1_ + w2 * w2_ + w3 * w3_;
+    let c = w0_ * w0_ + w1_ * w1_ + w2_ * w2_ + w3_ * w3_;
+    let a = (a.x + a.y) + (a.z + a.w);
+    let b = (b.x + b.y) + (b.z + b.w);
+    let c = (c.x + c.y) + (c.z + c.w);
+
+    // Second, find D^-1
+    let d_det = a * c - b * b;
+    debug_assert!(
+        d_det.abs() >= f32::EPSILON,
+        "All weights are the same, which is not allowed"
+    );
+    // E = D^-1 = ( c/det  -b/det)
+    //            (-b/det   a/det)
+    let d_det_rep = 1.0 / d_det;
+    let (e00, e01, e11) = (c * d_det_rep, -b * d_det_rep, a * d_det_rep);
+
+    // Let B be an n-by-1 matrix where each row is the color vector.
+    // Let X be the 2-by-1 matrix of the two endpoints we want to find.
+    // Third, compute X = (E * A^T) * B
+    // Let G = E * A^T be a 2-by-n matrix where each column is:
+    //   ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) ) = ( e01 + (e00 - e01) * w )
+    //   ( g_1i ) = ( e01 * w_i + e11 * (1 - w_i) ) = ( e11 + (e01 - e11) * w )
+    let e00_01 = e00 - e01;
+    let e01_11 = e01 - e11;
+    let [c0, c1, c2, c3] = *colors;
+    let x0 = (c0 * (e01 + e00_01 * w0))
+        + (c1 * (e01 + e00_01 * w1))
+        + (c2 * (e01 + e00_01 * w2))
+        + (c3 * (e01 + e00_01 * w3));
+    let x1 = (c0 * (e11 + e01_11 * w0))
+        + (c1 * (e11 + e01_11 * w1))
+        + (c2 * (e11 + e01_11 * w2))
+        + (c3 * (e11 + e01_11 * w3));
+    let x0 = (x0.x + x0.y) + (x0.z + x0.w);
+    let x1 = (x1.x + x1.y) + (x1.z + x1.w);
+
+    (x0.clamp(0.0, 1.0), x1.clamp(0.0, 1.0))
 }
 
 struct EndPoints {
@@ -545,6 +605,14 @@ struct Inter6Palette {
 }
 impl Inter6Palette {
     const INDEX_MAP: [u8; 8] = [1, 7, 6, 5, 4, 3, 2, 0];
+
+    fn closest_weights4(&self, pixels: Vec4) -> Vec4 {
+        let blend = (pixels * self.factor1 + self.add1).min(Vec4::splat(7.0));
+        1.0 - blend.trunc() * (1.0 / 7.0)
+    }
+    fn block_closest_weights(&self, block: &Block) -> [Vec4; 4] {
+        block.b.map(|pixels| self.closest_weights4(pixels))
+    }
 }
 impl Palette for Inter6Palette {
     fn new(c0: f32, c1: f32) -> Self {

@@ -343,6 +343,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
         use_inter4_heuristic: true,
         high_quality_quantize: options.quality >= CompressionQuality::High,
         fast_iter: options.quality <= CompressionQuality::Normal,
+        refine: options.quality >= CompressionQuality::Normal,
     }
 }
 

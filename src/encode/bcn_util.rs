@@ -141,7 +141,7 @@ impl RefinementOptions {
             step_initial: 0.1 * (max - min),
             step_decay: 0.5,
             step_min: 1. / 255.,
-            max_iter: 3,
+            max_iter: 2,
         }
     }
     pub fn new_bc1(dist: f32, max_iter: u32) -> Self {

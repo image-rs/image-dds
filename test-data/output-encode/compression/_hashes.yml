@@ -239,52 +239,52 @@ BC1_UNORM dith per random color.dds: >
     6361880a24373816db573388f9ae3a47d5af5dd3ffebb3f6ec84571f5cc8bb45
 
 BC4_UNORM fast base.dds: >
-    5a1e1cb4b8219ce9bbd98458103c976a43649c039562ea541dd0989a8c561b19
+    4b591b5846efca2c03cb0207509fbf4fd50d3ff15d0b0ca1d4ec6215df6e5512
 
 BC4_UNORM normal base.dds: >
-    f404bc85e8e762c9386521f2269cc0b6a2a2c5029810793a747a920bc64ccc75
+    a5ebd6f64fee7c2ad7cd3c79b68a25ac2566e07b859c0f6accd3cef0b029b9ec
 
 BC4_UNORM high base.dds: >
-    046fcf9b9a665a88e7de8117fb7807ff663d63a7bd0895102a1b9d7b278f8d1a
+    07504f8d2695b821e13f2a7e56a13446dcc8ac295191d9a9ec34cff3a263aa79
 
 BC4_UNORM dither base.dds: >
-    d68e4c45fa65c749dae2ec5ad273c82ee869406f36593703007fc317ff44ac41
+    99d2a110a9fbad3ffbdc27a62f23199af095c88b4004778c7df59a2006e1e34a
 
 BC4_UNORM fast color-twirl.dds: >
-    7f02ee4d1ccdb048f8281f25d68457be40b12db77e19745f9573c55a602ed6d5
+    32b838e186520999a8d0e4bbb98a95404792033e9e9183c31cf62e04ab53a859
 
 BC4_UNORM normal color-twirl.dds: >
-    7f02ee4d1ccdb048f8281f25d68457be40b12db77e19745f9573c55a602ed6d5
+    80d0f57a0f7f0b3a525e9609ae40d393c83412eaecb5a479d51bdcbbb4030f6b
 
 BC4_UNORM high color-twirl.dds: >
-    069e13fee4672552464a2e78f2d41b9f927ff104b193928143986ea26567ed9b
+    1f86ece618671e0da16c760cf1efa08cc2810aafdc12f830fdd3101c0779becc
 
 BC4_UNORM dither color-twirl.dds: >
-    16eed89b8b90dc24c56a2825638844ded93c6053d3a943aee6186fef2aa9a0d6
+    c29cb97b30fe04eb638b3ad997191c17bcfbe2a8237dcfa2ef5188736d8fd922
 
 BC4_UNORM fast clovers-r.dds: >
-    babe13af9aa5e165eb20d20a58e715bd0fbe82e378245318609f430d14d3828a
+    cb78c3b134e7a214ecbd2d122c25edf5e04285e9123e565105960b6520d2da0d
 
 BC4_UNORM normal clovers-r.dds: >
-    1799f532b3c6c39595b2dc9bf484edbdf0dcd0b9e5080ce48bd98c8fc04018bb
+    7b8fe2c555e9f5324bdb21757a5676eeaec9c5026494db44e299ff37bcc5a9f3
 
 BC4_UNORM high clovers-r.dds: >
-    70084b22aa26a8dc3eca8296986ad68830b28ccaf76ede42b61af74f18abfa83
+    4656498e9321127267930be9933dbfd45bb0b2cca5a8a722015d72521dcbe906
 
 BC4_UNORM dither clovers-r.dds: >
-    fa9e92ce4509ca3ae27ceee2ad968ac5596b667e7275df954db430ac4eb96a36
+    a2fce73516964255e90df320b17bb3089b007aaeb70b044b91efa0fdf5e0bdc5
 
 BC4_UNORM fast stone-h.dds: >
-    a5b8239704927a32c53d6ea5b7d1a62b3bcb0e2c44579efb4c98f821e1e77e52
+    ba0cf1b3473fde64989ddcd6c169670002ff646277c5826046caa398e29eae87
 
 BC4_UNORM normal stone-h.dds: >
-    a5b8239704927a32c53d6ea5b7d1a62b3bcb0e2c44579efb4c98f821e1e77e52
+    aeb9662ea45c9cba928dd46d8b8a11f8c5318e9fbb448ea8d62d02fdde6764d6
 
 BC4_UNORM high stone-h.dds: >
-    a13fad2ddd34c73a9ef6cee1a8435dac5f477b568a3ed7ff38a055e78b19bf7d
+    88c5960ad6dcdc7b4f530f2bfb975b44b79f58d2db1acf09f51dfa702178345b
 
 BC4_UNORM dither stone-h.dds: >
-    eba3c0a9206fb94f609f54f99374d85684780b09d01518fd807f1cf0ab05d1df
+    2e798f5e70fe9c5301fc4ace886c0143ecd6ae7deee244bcae994c43d788685a
 
 BC4_UNORM fast random color.dds: >
     081e3bde8eb862ded5353a9f46cb8f126b6de2847af2f05e54096da5c45c5925
