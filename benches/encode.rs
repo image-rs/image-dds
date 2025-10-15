@@ -173,7 +173,7 @@ pub fn encode_compressed(c: &mut Criterion) {
 
     // options
     let mut base = EncodeOptions::default();
-    base.parallel = true; // disable/enable parallel for benchmarking
+    base.parallel = false; // disable/enable parallel for benchmarking
 
     let mut fast = base.clone();
     fast.quality = CompressionQuality::Fast;
@@ -298,7 +298,7 @@ criterion_group!(
     benches,
     // encode_uncompressed,
     encode_compressed,
-    encode_parallel,
+    // encode_parallel,
     // generate_mipmaps
 );
 criterion_main!(benches);
