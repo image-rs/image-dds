@@ -213,6 +213,106 @@ impl RefinementSteps for ColorSpace {
     }
 }
 
+/// Fits a line through the given colors and returns two endpoints along the
+/// line.
+pub(crate) fn line3_fit_endpoints<C: Copy + Into<Vec3A>>(
+    colors: &[C],
+    nudge_factor: f32,
+) -> (Vec3A, Vec3A) {
+    debug_assert!(!colors.is_empty());
+
+    // find the best line through the colors
+    let line = ColorLine::new(colors);
+
+    // sort all colors along the line and find the min/max projection
+    let mut min_t = f32::INFINITY;
+    let mut max_t = f32::NEG_INFINITY;
+    for &color in colors.iter() {
+        let color: Vec3A = color.into();
+        let t = line.project(color);
+        min_t = min_t.min(t);
+        max_t = max_t.max(t);
+    }
+
+    // Instead of using min_t and max_t directly, it's better to slightly nudge
+    // them towards the midpoint. This prevent extreme endpoints and makes the
+    // refinement converge faster.
+    let mid_t = (min_t + max_t) * 0.5;
+    min_t = mid_t + (min_t - mid_t) * nudge_factor;
+    max_t = mid_t + (max_t - mid_t) * nudge_factor;
+
+    // select initial points along the line
+    (line.at(min_t), line.at(max_t))
+}
+struct ColorLine {
+    /// The centroid of the colors
+    centroid: Vec3A,
+    /// The normalized direction of the line
+    d: Vec3A,
+}
+impl ColorLine {
+    fn new<C: Copy + Into<Vec3A>>(colors: &[C]) -> Self {
+        fn mean<C: Copy + Into<Vec3A>>(colors: &[C]) -> Vec3A {
+            let mut mean = Vec3A::ZERO;
+            for &color in colors {
+                let color: Vec3A = color.into();
+                mean += color;
+            }
+            mean * (1. / colors.len() as f32)
+        }
+        fn covariance_matrix<C: Copy + Into<Vec3A>>(colors: &[C], centroid: Vec3A) -> [Vec3A; 3] {
+            let mut cov = [Vec3A::ZERO; 3];
+
+            for &p in colors {
+                let p: Vec3A = p.into();
+                let d = p - centroid;
+                cov[0] += d * d.x;
+                cov[1] += d * d.y;
+                cov[2] += d * d.z;
+            }
+
+            let n_r = 1.0 / colors.len() as f32;
+            cov[0] *= n_r;
+            cov[1] *= n_r;
+            cov[2] *= n_r;
+
+            cov
+        }
+        fn largest_eigenvector(matrix: [Vec3A; 3]) -> Vec3A {
+            // A simple power iteration method to approximate the dominant eigenvector
+            let mut v = Vec3A::ONE;
+            for _ in 0..2 {
+                let r = matrix[0].dot(v);
+                let g = matrix[1].dot(v);
+                let b = matrix[2].dot(v);
+                v = Vec3A::new(r, g, b).normalize_or_zero();
+            }
+            v
+        }
+
+        debug_assert!(!colors.is_empty());
+
+        let centroid = mean(colors);
+        let covariance = covariance_matrix(colors, centroid);
+        let eigenvector = largest_eigenvector(covariance);
+
+        Self {
+            centroid,
+            d: eigenvector,
+        }
+    }
+
+    /// Returns the point along the line at parameter `t`.
+    fn at(&self, t: f32) -> Vec3A {
+        self.centroid + self.d * t
+    }
+    /// Projects the points onto the line and returns the parameter `t`.
+    fn project(&self, color: Vec3A) -> f32 {
+        let diff = color - self.centroid;
+        diff.dot(self.d)
+    }
+}
+
 /// This stores the result of `E = inv(A^T * A)`, where `A` is the n-by-2
 /// weight matrix. Each row in `A` has the form `[w_i, 1 - w_i]`.
 ///

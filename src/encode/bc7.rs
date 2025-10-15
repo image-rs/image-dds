@@ -1,6 +1,6 @@
 #![allow(clippy::needless_range_loop)]
 
-use glam::Vec4;
+use glam::{Vec3A, Vec4};
 
 use crate::{encode::bcn_util, n8};
 
@@ -41,8 +41,15 @@ fn compress_single_color(color: Rgba<8>) -> [u8; 16] {
 }
 
 fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> [u8; 16] {
-    let mut r = block[5];
+    // RGB
+    let rgb = block.map(|p| p.color());
+    let rgb_vec = rgb.map(|p| p.vec3());
+    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
+    let e0 = Rgb::<7>::round(c0);
+    let e1 = Rgb::<7>::round(c1);
+    let (rgb_indexes, _) = closest_rgb(e0.promote(), e1.promote(), &rgb);
 
+    // Alpha
     let alpha_pixels = block.map(|p| p.alpha());
     fn quantize(min: f32, max: f32) -> (Alpha<8>, Alpha<8>) {
         // floor for min and ceil for max
@@ -71,11 +78,67 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> [u8; 16] {
 
     mode5(
         Rotation::None,
-        [Rgb::new(r.r >> 1, r.g >> 1, r.b >> 1); 2],
-        IndexList::constant(0),
+        [e0, e1],
+        rgb_indexes,
         [a_min, a_max],
         alpha_list,
     )
+}
+
+fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (IndexList<B>, u32) {
+    debug_assert!(B == 2 || B == 3);
+
+    fn foo<const N: usize, const B: u8>(
+        palette: [Rgb<8>; N],
+        pixels: &[Rgb<8>; 16],
+    ) -> (IndexList<B>, u32) {
+        let mut indexes = IndexList::<B>::new();
+        let mut error = 0_u32;
+        for i in 0..16 {
+            let p = pixels[i];
+            let mut best_index = 0;
+            let mut best_dist = u32::MAX;
+            for (j, &c) in palette.iter().enumerate() {
+                let dr = p.r as i32 - c.r as i32;
+                let dg = p.g as i32 - c.g as i32;
+                let db = p.b as i32 - c.b as i32;
+                let dist = (dr * dr + dg * dg + db * db) as u32;
+                if dist < best_dist {
+                    best_dist = dist;
+                    best_index = j;
+                }
+            }
+            indexes.set(i, best_index as u8);
+            error += best_dist;
+        }
+        (indexes, error)
+    }
+
+    match B {
+        2 => {
+            let palette: [Rgb<8>; 4] = [
+                e0,
+                interpolate_rgb::<2>(e0, e1, 1),
+                interpolate_rgb::<2>(e0, e1, 2),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        3 => {
+            let palette: [Rgb<8>; 8] = [
+                e0,
+                interpolate_rgb::<3>(e0, e1, 1),
+                interpolate_rgb::<3>(e0, e1, 2),
+                interpolate_rgb::<3>(e0, e1, 3),
+                interpolate_rgb::<3>(e0, e1, 4),
+                interpolate_rgb::<3>(e0, e1, 5),
+                interpolate_rgb::<3>(e0, e1, 6),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        _ => unreachable!(),
+    }
 }
 
 fn closest_alpha<const B: u8>(
@@ -327,6 +390,11 @@ impl<const B: u8> Rgba<B> {
         let x = v.min(Vec4::ONE) * (Self::MAX as f32) + 0.5;
         Self::new(x.x as u8, x.y as u8, x.z as u8, x.w as u8)
     }
+    pub fn vec4(self) -> Vec4 {
+        let f = 1.0 / (Self::MAX as f32);
+        let f = Vec4::splat(f);
+        Vec4::new(self.r as f32, self.g as f32, self.b as f32, self.a as f32) * f
+    }
 
     pub fn to_u32(self) -> u32 {
         u32::from_le_bytes([self.r, self.g, self.b, self.a])
@@ -345,14 +413,15 @@ impl<const B: u8> Rgba<B> {
 
     pub fn promote(self) -> Rgba<8> {
         if B == 8 {
-            return Rgba::new(self.r, self.g, self.b, self.a);
+            Rgba::new(self.r, self.g, self.b, self.a)
+        } else {
+            Rgba::new(
+                promote(self.r, B),
+                promote(self.g, B),
+                promote(self.b, B),
+                promote(self.a, B),
+            )
         }
-        Rgba::new(
-            promote(self.r, B),
-            promote(self.g, B),
-            promote(self.b, B),
-            promote(self.a, B),
-        )
     }
 }
 impl<const B: u8> PartialEq for Rgba<B> {
@@ -384,6 +453,17 @@ impl<const B: u8> Rgb<B> {
         Self { r, g, b }
     }
 
+    pub fn round(v: Vec3A) -> Self {
+        debug_assert!(0 < B && B <= 8);
+        let x = v.min(Vec3A::ONE) * (Self::MAX as f32) + 0.5;
+        Self::new(x.x as u8, x.y as u8, x.z as u8)
+    }
+    pub fn vec3(self) -> Vec3A {
+        let f = 1.0 / (Self::MAX as f32);
+        let f = Vec3A::splat(f);
+        Vec3A::new(self.r as f32, self.g as f32, self.b as f32) * f
+    }
+
     pub fn to_u32(self) -> u32 {
         u32::from_le_bytes([self.r, self.g, self.b, 0])
     }
@@ -394,9 +474,10 @@ impl<const B: u8> Rgb<B> {
 
     pub fn promote(self) -> Rgb<8> {
         if B == 8 {
-            return Rgb::new(self.r, self.g, self.b);
+            Rgb::new(self.r, self.g, self.b)
+        } else {
+            Rgb::new(promote(self.r, B), promote(self.g, B), promote(self.b, B))
         }
-        Rgb::new(promote(self.r, B), promote(self.g, B), promote(self.b, B))
     }
 }
 impl<const B: u8> PartialEq for Rgb<B> {
@@ -500,6 +581,22 @@ fn interpolate<const B: usize>(e0: u8, e1: u8, index: u8) -> u8 {
     let w0 = 256 - weight;
     let w1 = weight;
     ((w0 * e0 as u16 + w1 * e1 as u16 + 128) >> 8) as u8
+}
+fn interpolate_rgb<const B: usize>(e0: Rgb<8>, e1: Rgb<8>, index: u8) -> Rgb<8> {
+    let weight = match B {
+        2 => WEIGHTS_2[index as usize],
+        3 => WEIGHTS_3[index as usize],
+        4 => WEIGHTS_4[index as usize],
+        _ => unreachable!(),
+    };
+    let w0 = 256 - weight;
+    let w1 = weight;
+
+    Rgb::new(
+        ((w0 * e0.r as u16 + w1 * e1.r as u16 + 128) >> 8) as u8,
+        ((w0 * e0.g as u16 + w1 * e1.g as u16 + 128) >> 8) as u8,
+        ((w0 * e0.b as u16 + w1 * e1.b as u16 + 128) >> 8) as u8,
+    )
 }
 
 #[derive(Clone, Copy)]

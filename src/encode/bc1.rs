@@ -154,7 +154,7 @@ fn compress_with_palette(
     // 4. Given the quantized endpoints, find the best matching indices to
     //    finalize the BC1 encoded block.
 
-    let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
+    let (mut min, mut max) = get_initial_endpoints(&block, alpha_map);
 
     if options.refine {
         if options.fit_optimal {
@@ -655,45 +655,23 @@ impl Quantization {
     }
 }
 
-fn get_initial_endpoints_from(
+fn get_initial_endpoints(
     block: &[ColorSpace; 16],
     alpha_map: AlphaMap,
 ) -> (ColorSpace, ColorSpace) {
-    if alpha_map == AlphaMap::ALL_OPAQUE {
-        get_initial_endpoints(block)
+    // a nudge factor of 0.9 seems to work best for BC1
+    let nudge_factor = 0.9;
+    let (e0, e1) = if alpha_map == AlphaMap::ALL_OPAQUE {
+        bcn_util::line3_fit_endpoints(block, nudge_factor)
     } else {
         debug_assert!(alpha_map != AlphaMap::ALL_TRANSPARENT);
         let mut color_buffer = [ColorSpace::default(); 16];
         let colors = get_opaque_colors(block, alpha_map, &mut color_buffer);
         debug_assert!(!colors.is_empty());
-        get_initial_endpoints(colors)
-    }
-}
-fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
-    debug_assert!(colors.len() <= 16);
+        bcn_util::line3_fit_endpoints(colors, nudge_factor)
+    };
 
-    // find the best line through the colors
-    let line = ColorLine::new(colors);
-
-    // sort all colors along the line and find the min/max projection
-    let mut min_t = f32::INFINITY;
-    let mut max_t = f32::NEG_INFINITY;
-    for &color in colors.iter() {
-        let t = line.project(color);
-        min_t = min_t.min(t);
-        max_t = max_t.max(t);
-    }
-
-    // Instead of using min_t and max_t directly, it's better to slightly nudge
-    // them towards the midpoint. This prevent extreme endpoints and makes the
-    // refinement converge faster.
-    let nudge_factor = 0.90;
-    let mid_t = (min_t + max_t) * 0.5;
-    min_t = mid_t + (min_t - mid_t) * nudge_factor;
-    max_t = mid_t + (max_t - mid_t) * nudge_factor;
-
-    // select initial points along the line
-    (line.at(min_t), line.at(max_t))
+    (ColorSpace(e0), ColorSpace(e1))
 }
 
 fn get_alpha_map(block: &[[f32; 4]; 16]) -> AlphaMap {
@@ -702,75 +680,6 @@ fn get_alpha_map(block: &[[f32; 4]; 16]) -> AlphaMap {
         alpha_map.set_opaque_if(i, pixel[3] >= ALPHA_THRESHOLD);
     }
     alpha_map
-}
-
-fn mean(colors: &[ColorSpace]) -> ColorSpace {
-    let mut mean = Vec3A::ZERO;
-    for color in colors {
-        mean += color.0;
-    }
-    ColorSpace(mean * (1. / colors.len() as f32))
-}
-fn covariance_matrix(colors: &[ColorSpace], centroid: Vec3A) -> [Vec3A; 3] {
-    let mut cov = [Vec3A::ZERO; 3];
-
-    for p in colors {
-        let d = p.0 - centroid;
-        cov[0] += d * d.x;
-        cov[1] += d * d.y;
-        cov[2] += d * d.z;
-    }
-
-    let n = colors.len() as f32;
-    let n_r = 1.0 / n;
-    for i in 0..3 {
-        cov[i] *= n_r;
-    }
-
-    cov
-}
-fn largest_eigenvector(matrix: [Vec3A; 3]) -> Vec3A {
-    // A simple power iteration method to approximate the dominant eigenvector
-    let mut v = Vec3A::ONE;
-    for _ in 0..2 {
-        let r = matrix[0].dot(v);
-        let g = matrix[1].dot(v);
-        let b = matrix[2].dot(v);
-        v = Vec3A::new(r, g, b).normalize_or_zero();
-    }
-    v
-}
-
-struct ColorLine {
-    /// The centroid of the colors
-    centroid: ColorSpace,
-    /// The normalized direction of the line
-    d: Vec3A,
-}
-impl ColorLine {
-    fn new(colors: &[ColorSpace]) -> Self {
-        debug_assert!(!colors.is_empty());
-
-        let centroid = mean(colors);
-        let covariance = covariance_matrix(colors, centroid.0);
-        let eigenvector = largest_eigenvector(covariance);
-
-        Self {
-            centroid,
-            d: eigenvector,
-        }
-    }
-
-    fn at(&self, t: f32) -> ColorSpace {
-        ColorSpace(self.centroid.0 + self.d * t)
-    }
-
-    /// Projects the color onto the line and returns the distance from the
-    /// centroid.
-    fn project(&self, color: ColorSpace) -> f32 {
-        let diff = color.0 - self.centroid.0;
-        diff.dot(self.d)
-    }
 }
 
 struct CandidateList {
