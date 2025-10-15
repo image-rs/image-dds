@@ -16,7 +16,10 @@ pub(crate) struct Bc1Options {
     pub no_p3_default: bool,
     pub perceptual: bool,
     pub opaque_always_p4: bool,
+    pub fit_optimal: bool,
+    pub refine: bool,
     pub refine_max_iter: u8,
+    pub refine_line_max_iter: u8,
     pub quantization: Quantization,
 }
 impl Default for Bc1Options {
@@ -26,7 +29,10 @@ impl Default for Bc1Options {
             no_p3_default: false,
             perceptual: false,
             opaque_always_p4: false,
+            fit_optimal: false,
+            refine: false,
             refine_max_iter: 10,
+            refine_line_max_iter: 3,
             quantization: Quantization::ChannelWise,
         }
     }
@@ -149,7 +155,16 @@ fn compress_with_palette(
     //    finalize the BC1 encoded block.
 
     let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
-    (min, max) = refine(min, max, &block, alpha_map, options, palette_info);
+
+    if options.refine {
+        if options.fit_optimal {
+            (min, max) = fit_optimal_endpoints(min, max, &block, alpha_map, palette_info);
+        }
+
+        let refine_error = get_refine_error(&block, alpha_map, palette_info);
+        (min, max) = refine_along_line(min, max, options, refine_error);
+        (min, max) = refine(min, max, options, refine_error);
+    }
     let quantization = options.quantization;
     let endpoints = pick_best_quantization(min, max, &block, alpha_map, quantization, palette_info);
 
@@ -158,19 +173,54 @@ fn compress_with_palette(
     (endpoints.with_indexes(indexes), error)
 }
 
+fn refine_along_line(
+    min: ColorSpace,
+    max: ColorSpace,
+    options: Bc1Options,
+    compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
+) -> (ColorSpace, ColorSpace) {
+    let mid = (min.0 + max.0) * 0.5;
+    let min_dir = (min.0 - mid) * 2.0;
+    let max_dir = (max.0 - mid) * 2.0;
+    let get_min_max = |min_t: f32, max_t: f32| {
+        let min = ColorSpace(mid + min_dir * min_t);
+        let max = ColorSpace(mid + max_dir * max_t);
+        (min, max)
+    };
+
+    let options = bcn_util::RefinementOptions {
+        step_initial: 0.2,
+        step_decay: 0.5,
+        step_min: 0.005 / min.0.distance(max.0),
+        max_iter: options.refine_line_max_iter as u32,
+    };
+
+    let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
+        compute_error(get_min_max(min_t, max_t))
+    });
+
+    get_min_max(min_t, max_t)
+}
+
 fn refine(
     min: ColorSpace,
     max: ColorSpace,
-    block: impl Block4x4<ColorSpace> + Copy,
-    alpha_map: AlphaMap,
     options: Bc1Options,
-    palette_info: PaletteInfo<impl ErrorMetric>,
+    compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
 ) -> (ColorSpace, ColorSpace) {
     let min_max_dist = min.0.distance(max.0);
     let max_iter = options.refine_max_iter as u32;
     let refine_options = bcn_util::RefinementOptions::new_bc1(min_max_dist, max_iter);
 
-    bcn_util::refine_endpoints(min, max, refine_options, move |(min, max)| {
+    bcn_util::refine_endpoints(min, max, refine_options, compute_error)
+}
+
+fn get_refine_error(
+    block: impl Block4x4<ColorSpace> + Copy,
+    alpha_map: AlphaMap,
+    palette_info: PaletteInfo<impl ErrorMetric>,
+) -> impl Fn((ColorSpace, ColorSpace)) -> f32 + Copy {
+    move |(min, max)| {
         let error_metric = palette_info.error_metric;
 
         let min = error_metric.color_space_to_srgb(min);
@@ -187,7 +237,139 @@ fn refine(
             let palette = Palette::new_p3(&endpoints, error_metric);
             palette.block_closest_error_p3(block, alpha_map)
         }
-    })
+    }
+}
+
+fn fit_optimal_endpoints(
+    min: ColorSpace,
+    max: ColorSpace,
+    block: &[ColorSpace; 16],
+    alpha_map: AlphaMap,
+    palette_info: PaletteInfo<impl ErrorMetric>,
+) -> (ColorSpace, ColorSpace) {
+    let metric = palette_info.error_metric;
+
+    let min_srgb = metric.color_space_to_srgb(min);
+    let max_srgb = metric.color_space_to_srgb(max);
+
+    // If the endpoints are very close, then quantization artifacts have a
+    // significant effect on which indexes are chosen per pixel. This is a
+    // problem here, because we don't know the final quantized endpoints yet
+    // and have to guess them. The closer the endpoints are, the more the
+    // error in our guess matters. Since this method optimizes based on indexes,
+    // if the indexes aren't good, it will return garbage.
+    // This minimum distance is somewhat arbitrary. It seems to work, so I
+    // haven't looked into other value.
+    const MIN_DIST: f32 = 4.0 / 64.0;
+    if min_srgb.distance_squared(max_srgb) < MIN_DIST * MIN_DIST {
+        return (min, max);
+    }
+
+    let (c0, c1) = Quantization::wide(min_srgb, max_srgb);
+    let endpoints = palette_info.create_endpoints(c0, c1);
+    let (index_list, _) = palette_info
+        .create_palette(&endpoints)
+        .block_closest(block, alpha_map);
+
+    let optimal = if palette_info.mode == PaletteMode::P4 {
+        debug_assert!(alpha_map == AlphaMap::ALL_OPAQUE);
+
+        if index_list.is_constant() {
+            // it's not possible to fit endpoints if all indices are the same
+            return (min, max);
+        }
+
+        let mut weights = [0.0; 16];
+        for i in 0..16 {
+            let index = index_list.get(i);
+            const WEIGHTS: [f32; 4] = [0.0, 1.0, 1.0 / 3.0, 2.0 / 3.0];
+            weights[i] = WEIGHTS[index as usize];
+        }
+
+        optimal_endpoints_by_weights(block, &weights, |c| c.0)
+    } else {
+        if index_list.is_constant_ignoring_transparent() {
+            // it's not possible to fit endpoints if all indices are the same
+            return (min, max);
+        }
+
+        let mut colors = [Vec3A::ZERO; 16];
+        let mut weights = [0.0; 16];
+        let mut len = 0;
+        for i in 0..16 {
+            let index = index_list.get(i);
+            debug_assert!((index == 3) == alpha_map.is_transparent(i));
+            if index == 3 {
+                // index 3 is always transparent in P3 default mode, so skip it
+                continue;
+            }
+            // TODO: figure out whether LLVM realizes that the 4th weight is never used
+            const WEIGHTS: [f32; 4] = [0.0, 1.0, 0.5, 0.0]; // index 3 is not used
+            weights[len] = WEIGHTS[index as usize];
+            colors[len] = block[i].0;
+            len += 1;
+        }
+        debug_assert!(len >= 2);
+        debug_assert!(
+            weights[..len].iter().any(|&w| w != weights[0]),
+            "weights cannot be all the same"
+        );
+
+        optimal_endpoints_by_weights(&colors[..len], &weights[..len], |c| *c)
+    };
+
+    (
+        ColorSpace(optimal.0.clamp(Vec3A::ZERO, Vec3A::ONE)),
+        ColorSpace(optimal.1.clamp(Vec3A::ZERO, Vec3A::ONE)),
+    )
+}
+/// https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
+fn optimal_endpoints_by_weights<T>(
+    colors: &[T],
+    weights: &[f32],
+    unwrap: impl Fn(&T) -> Vec3A,
+) -> (Vec3A, Vec3A) {
+    assert_eq!(weights.len(), colors.len());
+
+    // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
+    // First, compute D = A^T*A = (a b)
+    //                            (b c)
+    let (mut a, mut b, mut c) = (0.0f32, 0.0f32, 0.0f32);
+    for &w in weights {
+        let w_inv = 1.0 - w;
+        a += w * w;
+        b += w * w_inv;
+        c += w_inv * w_inv;
+    }
+
+    // Second, find D^-1
+    let d_det = a * c - b * b;
+    debug_assert!(
+        d_det.abs() >= f32::EPSILON,
+        "All weights are the same, which is not allowed"
+    );
+    // E = D^-1 = ( c/det  -b/det)
+    //            (-b/det   a/det)
+    let d_det_rep = 1.0 / d_det;
+    let (e00, e01, e11) = (c * d_det_rep, -b * d_det_rep, a * d_det_rep);
+
+    // Let B be an n-by-3 matrix where each row is the color vector.
+    // Let X be the 2-by-3 matrix of the two endpoints we want to find.
+    // Third, compute X = (E * A^T) * B
+    let (mut x0, mut x1) = (Vec3A::ZERO, Vec3A::ZERO);
+    for (color, &w) in colors.iter().map(unwrap).zip(weights) {
+        // Let G = E * A^T be a 2-by-n matrix where each column is:
+        //   ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) )
+        //   ( g_1i ) = ( e01 * w_i + e11 * (1 - w_i) )
+        // TODO: This can be a single Vec3A FMA operation
+        let g0 = e00 * w + e01 * (1.0 - w); // = e01 + (e00 - e01) * w
+        let g1 = e01 * w + e11 * (1.0 - w); // = e11 + (e01 - e11) * w
+
+        x0 += color * g0;
+        x1 += color * g1;
+    }
+
+    (x0, x1)
 }
 
 fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
@@ -406,16 +588,36 @@ pub(crate) enum Quantization {
     ChannelWiseOptimized,
 }
 impl Quantization {
+    /// Rounds to the nearest R5G6B5 colors.
+    fn round(c0: Vec3A, c1: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+        (
+            R5G6B5Color::from_color_round(c0),
+            R5G6B5Color::from_color_round(c1),
+        )
+    }
+    /// Uses floor/ceil for each channel depending to maximize the range. The
+    /// returned colors will me maximally apart within the constraints of rounding.
+    fn wide(c0: Vec3A, c1: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
+        let c0_rounding = Vec3A::select(
+            c0.cmple(c1),
+            Vec3A::splat(R5G6B5Color::ROUND_FLOOR),
+            Vec3A::splat(R5G6B5Color::ROUND_CEIL),
+        );
+        // c1 rounding is just the opposite of c0 rounding
+        let c1_rounding = R5G6B5Color::ROUND_CEIL - c0_rounding;
+        (
+            R5G6B5Color::from_color_with_rounding(c0, c0_rounding),
+            R5G6B5Color::from_color_with_rounding(c1, c1_rounding),
+        )
+    }
+
     fn pick_best(
         self,
         c0: Vec3A,
         c1: Vec3A,
         mut error_metric: impl FnMut(R5G6B5Color, R5G6B5Color) -> f32,
     ) -> (R5G6B5Color, R5G6B5Color) {
-        let mut best: (R5G6B5Color, R5G6B5Color) = (
-            R5G6B5Color::from_color_round(c0),
-            R5G6B5Color::from_color_round(c1),
-        );
+        let mut best = Self::round(c0, c1);
 
         if self == Quantization::Round {
             // For simple rounding, we don't need to optimize at all
@@ -733,21 +935,24 @@ impl R5G6B5Color {
     }
 
     const COMPONENT_MAX: Vec3A = Vec3A::new(31.0, 63.0, 31.0);
+    const ROUND_FLOOR: f32 = 0.0;
+    // This approximates ceil. `as u8` will truncate, so by adding a number
+    // slightly less than 1 beforehand, we get something very close to ceil.
+    // This number is chosen because it is the largest number such that any
+    // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
+    const ROUND_CEIL: f32 = 0.999995;
+    const ROUND_NEAREST: f32 = 0.5;
     fn from_color_round(color: Vec3A) -> Self {
-        let c = (color * Self::COMPONENT_MAX + 0.5).min(Self::COMPONENT_MAX);
-        Self::new(c.x as u8, c.y as u8, c.z as u8)
+        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_NEAREST))
     }
     fn from_color_floor(color: Vec3A) -> Self {
-        let c = (color * Self::COMPONENT_MAX).min(Self::COMPONENT_MAX);
-        Self::new(c.x as u8, c.y as u8, c.z as u8)
+        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_FLOOR))
     }
     fn from_color_ceil(color: Vec3A) -> Self {
-        // This approximates ceil. `as u8` will truncate, so by adding a number
-        // slightly less than 1 beforehand, we get something very close to ceil.
-        // This number is chosen because it is the largest number such that any
-        // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
-        const A: f32 = 0.999995;
-        let c = (color * Self::COMPONENT_MAX + A).min(Self::COMPONENT_MAX);
+        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_CEIL))
+    }
+    fn from_color_with_rounding(color: Vec3A, rounding: Vec3A) -> Self {
+        let c = (color * Self::COMPONENT_MAX + rounding).min(Self::COMPONENT_MAX);
         Self::new(c.x as u8, c.y as u8, c.z as u8)
     }
     fn to_color(self) -> Vec3A {
@@ -804,6 +1009,86 @@ impl IndexList {
         debug_assert!(value < 4);
         debug_assert!(self.get(index) == 0, "Cannot set an index twice.");
         self.data |= (value as u32) << (index * 2);
+    }
+
+    const fn constant(value: u8) -> Self {
+        debug_assert!(value < 4);
+        Self {
+            data: 0x5555_5555 * (value as u32),
+        }
+    }
+    /// Returns whether all indexes are the same.
+    fn is_constant(&self) -> bool {
+        const C0: u32 = IndexList::constant(0).data;
+        const C1: u32 = IndexList::constant(1).data;
+        const C2: u32 = IndexList::constant(2).data;
+        const C3: u32 = IndexList::constant(3).data;
+        let data = self.data;
+        data == C0 || data == C1 || data == C2 || data == C3
+    }
+    /// Returns whether all indexes are the same, ignoring indexes that are set
+    /// to transparent (3).
+    fn is_constant_ignoring_transparent(&self) -> bool {
+        const C0: u32 = IndexList::constant(0).data;
+        const C1: u32 = IndexList::constant(1).data;
+        const C2: u32 = IndexList::constant(2).data;
+        const TRANSPARENT: u32 = IndexList::constant(3).data;
+        const LOW_BIT: u32 = 0x5555_5555;
+        const HIGH_BIT: u32 = 0xAAAA_AAAA;
+        let data = self.data;
+        let opaque_bit_mask = data ^ TRANSPARENT;
+        // XOR is a bitwise !=
+        // so now we just have to make sure that at least one of the bits per
+        // index is != to TRANSPARENT
+        let opaque_low_bits = opaque_bit_mask & LOW_BIT;
+        let opaque_high_bits = (opaque_bit_mask & HIGH_BIT) >> 1;
+        let opaque_bits = opaque_low_bits | opaque_high_bits;
+        // For each index, opaque_bits has a 1 if the index is opaque, and a 0 if it is transparent.
+        // So now juts duplicate the bits to get a mask that is 11 for opaque indexes and 00 for transparent indexes
+        let opaque_bits = opaque_bits | (opaque_bits << 1);
+        data & opaque_bits == C0 & opaque_bits
+            || data & opaque_bits == C1 & opaque_bits
+            || data & opaque_bits == C2 & opaque_bits
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::IndexList;
+
+    #[test]
+    fn test_index_list_is_constant_ignoring_transparent() {
+        assert!(IndexList::constant(0).is_constant_ignoring_transparent());
+        assert!(IndexList::constant(1).is_constant_ignoring_transparent());
+        assert!(IndexList::constant(2).is_constant_ignoring_transparent());
+        assert!(IndexList::constant(3).is_constant_ignoring_transparent());
+
+        fn reference(indexes: &IndexList) -> bool {
+            if indexes.is_constant() {
+                return true;
+            }
+
+            // a bitset of all present index values
+            let mut present: u8 = 0;
+            for i in 0..16 {
+                present |= 1 << indexes.get(i);
+            }
+            present |= 1 << 3; // set transparent
+            present.count_ones() == 2
+        }
+
+        for constant in 0..4 {
+            let high = IndexList::constant(constant).data & !0xFFFF;
+            for low in 0..0x10000 {
+                let indexes = IndexList { data: high | low };
+                assert_eq!(
+                    indexes.is_constant_ignoring_transparent(),
+                    reference(&indexes),
+                    "Failed for indexes = {:#X}",
+                    indexes.data
+                );
+            }
+        }
     }
 }
 
