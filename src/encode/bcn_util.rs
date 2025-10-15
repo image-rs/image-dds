@@ -127,32 +127,6 @@ pub(crate) struct RefinementOptions {
     /// The maximum number of iterations.
     pub max_iter: u32,
 }
-impl RefinementOptions {
-    pub fn new_bc4(min: f32, max: f32) -> Self {
-        Self {
-            step_initial: 0.15 * (max - min),
-            step_decay: 0.5,
-            step_min: 1. / 255. / 2.,
-            max_iter: 10,
-        }
-    }
-    pub fn new_bc4_fast(min: f32, max: f32) -> Self {
-        Self {
-            step_initial: 0.1 * (max - min),
-            step_decay: 0.5,
-            step_min: 1. / 255.,
-            max_iter: 2,
-        }
-    }
-    pub fn new_bc1(dist: f32, max_iter: u32) -> Self {
-        Self {
-            step_initial: 0.5 * dist,
-            step_decay: 0.5,
-            step_min: 1. / 64.,
-            max_iter,
-        }
-    }
-}
 pub(crate) fn refine_endpoints<T: RefinementSteps>(
     min: T,
     max: T,

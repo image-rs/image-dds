@@ -208,9 +208,12 @@ fn refine(
     options: Bc1Options,
     compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
 ) -> (ColorSpace, ColorSpace) {
-    let min_max_dist = min.0.distance(max.0);
-    let max_iter = options.refine_max_iter as u32;
-    let refine_options = bcn_util::RefinementOptions::new_bc1(min_max_dist, max_iter);
+    let refine_options = bcn_util::RefinementOptions {
+        step_initial: 0.5 * min.0.distance(max.0),
+        step_decay: 0.5,
+        step_min: 1. / 64.,
+        max_iter: options.refine_max_iter as u32,
+    };
 
     bcn_util::refine_endpoints(min, max, refine_options, compute_error)
 }

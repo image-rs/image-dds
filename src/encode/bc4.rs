@@ -196,9 +196,19 @@ fn refine_endpoints(
             min,
             max,
             if options.fast_iter {
-                bcn_util::RefinementOptions::new_bc4_fast(min, max)
+                bcn_util::RefinementOptions {
+                    step_initial: 0.1 * (max - min),
+                    step_decay: 0.5,
+                    step_min: 1. / 255.,
+                    max_iter: 2,
+                }
             } else {
-                bcn_util::RefinementOptions::new_bc4(min, max)
+                bcn_util::RefinementOptions {
+                    step_initial: 0.15 * (max - min),
+                    step_decay: 0.5,
+                    step_min: 1. / 255. / 2.,
+                    max_iter: 10,
+                }
             },
             compute_error,
         );
