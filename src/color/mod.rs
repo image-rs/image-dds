@@ -187,6 +187,7 @@ impl ColorFormatSet {
     pub const fn is_all(self) -> bool {
         self.data == Self::ALL.data
     }
+    #[allow(dead_code)] // this is only used in debug_assertions
     pub const fn len(self) -> u8 {
         self.data.count_ones() as u8
     }

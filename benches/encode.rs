@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dds::{header::*, *};
 use rand::Rng;
@@ -44,7 +46,7 @@ impl<T: 'static> Image<T> {
 trait ImageAsBytes {
     fn color(&self) -> ColorFormat;
     fn as_bytes(&self) -> &[u8];
-    fn view(&self) -> ImageView;
+    fn view(&self) -> ImageView<'_>;
 }
 impl ImageAsBytes for Image<u8> {
     fn color(&self) -> ColorFormat {
@@ -53,7 +55,7 @@ impl ImageAsBytes for Image<u8> {
     fn as_bytes(&self) -> &[u8] {
         &self.data
     }
-    fn view(&self) -> ImageView {
+    fn view(&self) -> ImageView<'_> {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
@@ -64,7 +66,7 @@ impl ImageAsBytes for Image<u16> {
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
     }
-    fn view(&self) -> ImageView {
+    fn view(&self) -> ImageView<'_> {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
@@ -75,7 +77,7 @@ impl ImageAsBytes for Image<f32> {
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
     }
-    fn view(&self) -> ImageView {
+    fn view(&self) -> ImageView<'_> {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
@@ -171,7 +173,7 @@ pub fn encode_compressed(c: &mut Criterion) {
 
     // options
     let mut base = EncodeOptions::default();
-    base.parallel = true; // disable/enable parallel for benchmarking
+    base.parallel = false; // disable/enable parallel for benchmarking
 
     let mut fast = base.clone();
     fast.quality = CompressionQuality::Fast;
@@ -296,7 +298,7 @@ criterion_group!(
     benches,
     // encode_uncompressed,
     encode_compressed,
-    encode_parallel,
+    // encode_parallel,
     // generate_mipmaps
 );
 criterion_main!(benches);
