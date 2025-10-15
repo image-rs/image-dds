@@ -191,7 +191,7 @@ fn refine_along_line(
     let options = bcn_util::RefinementOptions {
         step_initial: 0.2,
         step_decay: 0.5,
-        step_min: 0.005 / min.0.distance(max.0),
+        step_min: 0.005 / min.0.distance(max.0).max(0.0001),
         max_iter: options.refine_line_max_iter as u32,
     };
 
@@ -208,9 +208,12 @@ fn refine(
     options: Bc1Options,
     compute_error: impl Fn((ColorSpace, ColorSpace)) -> f32,
 ) -> (ColorSpace, ColorSpace) {
-    let min_max_dist = min.0.distance(max.0);
-    let max_iter = options.refine_max_iter as u32;
-    let refine_options = bcn_util::RefinementOptions::new_bc1(min_max_dist, max_iter);
+    let refine_options = bcn_util::RefinementOptions {
+        step_initial: 0.5 * min.0.distance(max.0),
+        step_decay: 0.5,
+        step_min: 1. / 64.,
+        max_iter: options.refine_max_iter as u32,
+    };
 
     bcn_util::refine_endpoints(min, max, refine_options, compute_error)
 }
@@ -271,13 +274,8 @@ fn fit_optimal_endpoints(
         .create_palette(&endpoints)
         .block_closest(block, alpha_map);
 
-    let optimal = if palette_info.mode == PaletteMode::P4 {
+    let optimal: (Vec3A, Vec3A) = if palette_info.mode == PaletteMode::P4 {
         debug_assert!(alpha_map == AlphaMap::ALL_OPAQUE);
-
-        if index_list.is_constant() {
-            // it's not possible to fit endpoints if all indices are the same
-            return (min, max);
-        }
 
         let mut weights = [0.0; 16];
         for i in 0..16 {
@@ -286,13 +284,8 @@ fn fit_optimal_endpoints(
             weights[i] = WEIGHTS[index as usize];
         }
 
-        optimal_endpoints_by_weights(block, &weights, |c| c.0)
+        bcn_util::least_squares_weights(block, &weights)
     } else {
-        if index_list.is_constant_ignoring_transparent() {
-            // it's not possible to fit endpoints if all indices are the same
-            return (min, max);
-        }
-
         let mut colors = [Vec3A::ZERO; 16];
         let mut weights = [0.0; 16];
         let mut len = 0;
@@ -310,66 +303,14 @@ fn fit_optimal_endpoints(
             len += 1;
         }
         debug_assert!(len >= 2);
-        debug_assert!(
-            weights[..len].iter().any(|&w| w != weights[0]),
-            "weights cannot be all the same"
-        );
 
-        optimal_endpoints_by_weights(&colors[..len], &weights[..len], |c| *c)
+        bcn_util::least_squares_weights(&colors[..len], &weights[..len])
     };
 
     (
         ColorSpace(optimal.0.clamp(Vec3A::ZERO, Vec3A::ONE)),
         ColorSpace(optimal.1.clamp(Vec3A::ZERO, Vec3A::ONE)),
     )
-}
-/// https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
-fn optimal_endpoints_by_weights<T>(
-    colors: &[T],
-    weights: &[f32],
-    unwrap: impl Fn(&T) -> Vec3A,
-) -> (Vec3A, Vec3A) {
-    assert_eq!(weights.len(), colors.len());
-
-    // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
-    // First, compute D = A^T*A = (a b)
-    //                            (b c)
-    let (mut a, mut b, mut c) = (0.0f32, 0.0f32, 0.0f32);
-    for &w in weights {
-        let w_inv = 1.0 - w;
-        a += w * w;
-        b += w * w_inv;
-        c += w_inv * w_inv;
-    }
-
-    // Second, find D^-1
-    let d_det = a * c - b * b;
-    debug_assert!(
-        d_det.abs() >= f32::EPSILON,
-        "All weights are the same, which is not allowed"
-    );
-    // E = D^-1 = ( c/det  -b/det)
-    //            (-b/det   a/det)
-    let d_det_rep = 1.0 / d_det;
-    let (e00, e01, e11) = (c * d_det_rep, -b * d_det_rep, a * d_det_rep);
-
-    // Let B be an n-by-3 matrix where each row is the color vector.
-    // Let X be the 2-by-3 matrix of the two endpoints we want to find.
-    // Third, compute X = (E * A^T) * B
-    let (mut x0, mut x1) = (Vec3A::ZERO, Vec3A::ZERO);
-    for (color, &w) in colors.iter().map(unwrap).zip(weights) {
-        // Let G = E * A^T be a 2-by-n matrix where each column is:
-        //   ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) )
-        //   ( g_1i ) = ( e01 * w_i + e11 * (1 - w_i) )
-        // TODO: This can be a single Vec3A FMA operation
-        let g0 = e00 * w + e01 * (1.0 - w); // = e01 + (e00 - e01) * w
-        let g1 = e01 * w + e11 * (1.0 - w); // = e11 + (e01 - e11) * w
-
-        x0 += color * g0;
-        x1 += color * g1;
-    }
-
-    (x0, x1)
 }
 
 fn get_single_color(block: &[Vec3A; 16], alpha_map: AlphaMap) -> Option<Vec3A> {
@@ -1009,86 +950,6 @@ impl IndexList {
         debug_assert!(value < 4);
         debug_assert!(self.get(index) == 0, "Cannot set an index twice.");
         self.data |= (value as u32) << (index * 2);
-    }
-
-    const fn constant(value: u8) -> Self {
-        debug_assert!(value < 4);
-        Self {
-            data: 0x5555_5555 * (value as u32),
-        }
-    }
-    /// Returns whether all indexes are the same.
-    fn is_constant(&self) -> bool {
-        const C0: u32 = IndexList::constant(0).data;
-        const C1: u32 = IndexList::constant(1).data;
-        const C2: u32 = IndexList::constant(2).data;
-        const C3: u32 = IndexList::constant(3).data;
-        let data = self.data;
-        data == C0 || data == C1 || data == C2 || data == C3
-    }
-    /// Returns whether all indexes are the same, ignoring indexes that are set
-    /// to transparent (3).
-    fn is_constant_ignoring_transparent(&self) -> bool {
-        const C0: u32 = IndexList::constant(0).data;
-        const C1: u32 = IndexList::constant(1).data;
-        const C2: u32 = IndexList::constant(2).data;
-        const TRANSPARENT: u32 = IndexList::constant(3).data;
-        const LOW_BIT: u32 = 0x5555_5555;
-        const HIGH_BIT: u32 = 0xAAAA_AAAA;
-        let data = self.data;
-        let opaque_bit_mask = data ^ TRANSPARENT;
-        // XOR is a bitwise !=
-        // so now we just have to make sure that at least one of the bits per
-        // index is != to TRANSPARENT
-        let opaque_low_bits = opaque_bit_mask & LOW_BIT;
-        let opaque_high_bits = (opaque_bit_mask & HIGH_BIT) >> 1;
-        let opaque_bits = opaque_low_bits | opaque_high_bits;
-        // For each index, opaque_bits has a 1 if the index is opaque, and a 0 if it is transparent.
-        // So now juts duplicate the bits to get a mask that is 11 for opaque indexes and 00 for transparent indexes
-        let opaque_bits = opaque_bits | (opaque_bits << 1);
-        data & opaque_bits == C0 & opaque_bits
-            || data & opaque_bits == C1 & opaque_bits
-            || data & opaque_bits == C2 & opaque_bits
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::IndexList;
-
-    #[test]
-    fn test_index_list_is_constant_ignoring_transparent() {
-        assert!(IndexList::constant(0).is_constant_ignoring_transparent());
-        assert!(IndexList::constant(1).is_constant_ignoring_transparent());
-        assert!(IndexList::constant(2).is_constant_ignoring_transparent());
-        assert!(IndexList::constant(3).is_constant_ignoring_transparent());
-
-        fn reference(indexes: &IndexList) -> bool {
-            if indexes.is_constant() {
-                return true;
-            }
-
-            // a bitset of all present index values
-            let mut present: u8 = 0;
-            for i in 0..16 {
-                present |= 1 << indexes.get(i);
-            }
-            present |= 1 << 3; // set transparent
-            present.count_ones() == 2
-        }
-
-        for constant in 0..4 {
-            let high = IndexList::constant(constant).data & !0xFFFF;
-            for low in 0..0x10000 {
-                let indexes = IndexList { data: high | low };
-                assert_eq!(
-                    indexes.is_constant_ignoring_transparent(),
-                    reference(&indexes),
-                    "Failed for indexes = {:#X}",
-                    indexes.data
-                );
-            }
-        }
     }
 }
 
