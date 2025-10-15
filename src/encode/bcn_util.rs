@@ -228,7 +228,7 @@ impl RefinementSteps for ColorSpace {
 /// Only `e01`, `e11`, `e00 - e01`, and `e10 - e11` are stored.
 ///
 /// (Note that `E` is symmetric, so `e10 == e01`.)
-struct LeastSquareWeightMatrix {
+struct LeastSquaresWeightMatrix {
     pub e01: f32,
     pub e11: f32,
     /// e00 - e01
@@ -236,7 +236,7 @@ struct LeastSquareWeightMatrix {
     /// e10 - e11
     pub e10_11: f32,
 }
-impl LeastSquareWeightMatrix {
+impl LeastSquaresWeightMatrix {
     /// Returns a matrix that will set both endpoints to the mean of all input
     /// colors regardless of weights.
     fn mean(color_count: usize) -> Self {
@@ -274,12 +274,12 @@ impl LeastSquareWeightMatrix {
     }
 }
 
-/// Least square fits 2 endpoints to the given colors and weights.
+/// Least squares fits 2 endpoints to the given colors and weights.
 ///
 /// If all weights are the same, the endpoints will be set to the mean of all colors.
 ///
 /// https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
-pub(crate) fn least_square_weights<
+pub(crate) fn least_squares_weights<
     R: Copy + Default + std::ops::Mul<f32, Output = R> + std::ops::AddAssign,
     C: Copy + Into<R>,
 >(
@@ -300,13 +300,13 @@ pub(crate) fn least_square_weights<
     }
 
     // Second, find E = D^-1
-    let LeastSquareWeightMatrix {
+    let LeastSquaresWeightMatrix {
         e01,
         e11,
         e00_01,
         e10_11,
-    } = LeastSquareWeightMatrix::from_d(a, b, c)
-        .unwrap_or(LeastSquareWeightMatrix::mean(weights.len()));
+    } = LeastSquaresWeightMatrix::from_d(a, b, c)
+        .unwrap_or(LeastSquaresWeightMatrix::mean(weights.len()));
 
     // Let B be an n-by-3 matrix where each row is the color vector.
     // Let X be the 2-by-3 matrix of the two endpoints we want to find.
@@ -328,10 +328,13 @@ pub(crate) fn least_square_weights<
     (x0, x1)
 }
 
-/// Least square fits 2 endpoints to the given colors and weights.
+/// Least squares fits 2 endpoints to the given colors and weights.
 ///
 /// This version is optimized for vectorized 4x4 f32 blocks.
-pub(crate) fn least_square_weights_f32_vec4(colors: &[Vec4; 4], weights: &[Vec4; 4]) -> (f32, f32) {
+pub(crate) fn least_squares_weights_f32_vec4(
+    colors: &[Vec4; 4],
+    weights: &[Vec4; 4],
+) -> (f32, f32) {
     let [w0, w1, w2, w3] = *weights;
 
     // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
@@ -346,12 +349,12 @@ pub(crate) fn least_square_weights_f32_vec4(colors: &[Vec4; 4], weights: &[Vec4;
     let c = (c.x + c.y) + (c.z + c.w);
 
     // Second, find E = D^-1
-    let LeastSquareWeightMatrix {
+    let LeastSquaresWeightMatrix {
         e01,
         e11,
         e00_01,
         e10_11,
-    } = LeastSquareWeightMatrix::from_d(a, b, c).unwrap_or(LeastSquareWeightMatrix::mean(16));
+    } = LeastSquaresWeightMatrix::from_d(a, b, c).unwrap_or(LeastSquaresWeightMatrix::mean(16));
 
     // Let B be an n-by-1 matrix where each row is the color vector.
     // Let X be the 2-by-1 matrix of the two endpoints we want to find.
@@ -384,7 +387,7 @@ mod tests {
     fn test_least_square_weights_all_the_same() {
         let colors: &[f32] = &[1.0, 2.0, 3.0, 4.0];
         let weights: &[f32] = &[0.5, 0.5, 0.5, 0.5];
-        let (min, max): (f32, f32) = least_square_weights(colors, weights);
+        let (min, max): (f32, f32) = least_squares_weights(colors, weights);
         assert!((min - max).abs() < 1e-6);
         assert!((max - 2.5).abs() < 1e-6);
     }

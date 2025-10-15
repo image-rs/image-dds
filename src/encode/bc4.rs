@@ -256,7 +256,7 @@ fn compress_inter6(
 ) -> ([u8; 8], f32) {
     for _ in 0..2 {
         let weights = Inter6Palette::new(min, max).block_closest_weights(block);
-        (min, max) = bcn_util::least_square_weights_f32_vec4(&block.b, &weights);
+        (min, max) = bcn_util::least_squares_weights_f32_vec4(&block.b, &weights);
         min = min.clamp(0.0, 1.0);
         max = max.clamp(0.0, 1.0);
     }

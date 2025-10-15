@@ -284,7 +284,7 @@ fn fit_optimal_endpoints(
             weights[i] = WEIGHTS[index as usize];
         }
 
-        bcn_util::least_square_weights(block, &weights)
+        bcn_util::least_squares_weights(block, &weights)
     } else {
         let mut colors = [Vec3A::ZERO; 16];
         let mut weights = [0.0; 16];
@@ -304,7 +304,7 @@ fn fit_optimal_endpoints(
         }
         debug_assert!(len >= 2);
 
-        bcn_util::least_square_weights(&colors[..len], &weights[..len])
+        bcn_util::least_squares_weights(&colors[..len], &weights[..len])
     };
 
     (
