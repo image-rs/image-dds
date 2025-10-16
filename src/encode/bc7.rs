@@ -2,23 +2,36 @@
 
 use glam::{Vec3A, Vec4};
 
-use crate::{encode::bcn_util, n8};
+use crate::encode::bcn_util::{self, Quantization, Quantized, WithChannels};
 
 pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     let stats = BlockStats::new(&block);
 
     // a block of a single color can be compressed exactly
     if let Some(color) = stats.single_color() {
-        return compress_single_color(color);
+        return compress_single_color(color).block;
     }
 
-    compress_mode5(block, stats)
+    compress_mode5(block, stats).block
 }
 
 /// Solid-color blocks can be encoded exactly.
 ///
 /// https://fgiesen.wordpress.com/2024/11/03/bc7-optimal-solid-color-blocks/
-fn compress_single_color(color: Rgba<8>) -> [u8; 16] {
+fn compress_single_color(color: Rgba<8>) -> Compressed {
+    let ([c0, c1], color_indexes) = mode5_single_color_rgb(color.color());
+
+    Compressed::mode5(
+        0, // exact, so 0 error
+        Rotation::None,
+        [c0, c1],
+        color_indexes,
+        [Alpha::new(color.a); 2],
+        // the index for alpha doesn't matter since both endpoints are the same
+        IndexList::<2>::constant(1),
+    )
+}
+fn mode5_single_color_rgb(color: Rgb<8>) -> ([Rgb<7>; 2], IndexList<2>) {
     fn optimize(c: u8) -> (u8, u8) {
         (c >> 1, if c < 128 { c + 1 } else { c - 1 } >> 1)
     }
@@ -30,59 +43,93 @@ fn compress_single_color(color: Rgba<8>) -> [u8; 16] {
     let c0 = Rgb::new(c0_r, c0_g, c0_b);
     let c1 = Rgb::new(c1_r, c1_g, c1_b);
 
-    mode5(
-        Rotation::None,
-        [c0, c1],
-        IndexList::<2>::constant(1),
-        [Alpha::new(color.a); 2],
-        // the index for alpha doesn't matter since both endpoints are the same
-        IndexList::<2>::constant(1),
-    )
+    ([c0, c1], IndexList::<2>::constant(1))
 }
 
-fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> [u8; 16] {
+fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     // RGB
-    let rgb = block.map(|p| p.color());
-    let rgb_vec = rgb.map(|p| p.vec3());
-    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
-    let e0 = Rgb::<7>::round(c0);
-    let e1 = Rgb::<7>::round(c1);
-    let (rgb_indexes, _) = closest_rgb(e0.promote(), e1.promote(), &rgb);
+    let (color_endpoints, color_indexes, color_error) =
+        if let Some(color) = stats.single_rgb_color() {
+            let (endpoints, indexes) = mode5_single_color_rgb(color);
+            (endpoints, indexes, 0) // it's exact, so 0 error
+        } else {
+            let rgb = block.map(|p| p.color());
+            let rgb_vec = rgb.map(|p| p.vec3());
+            let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
+            let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+                closest_rgb::<2>(Rgb::round(min), Rgb::round(max), &rgb).1
+            });
+            let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<7>, e1: Rgb<7>| {
+                closest_rgb::<2>(e0.promote(), e1.promote(), &rgb).1
+            });
+            let (rgb_indexes, rgb_error) = closest_rgb::<2>(e0.promote(), e1.promote(), &rgb);
+            ([e0, e1], rgb_indexes, rgb_error)
+        };
 
     // Alpha
-    let alpha_pixels = block.map(|p| p.alpha());
-    fn quantize(min: f32, max: f32) -> (Alpha<8>, Alpha<8>) {
-        // floor for min and ceil for max
-        (
-            Alpha::new((min * 255.0) as u8),
-            Alpha::new((max * 255.0 + 0.999) as u8),
-        )
-    }
-    let initial = (n8::f32(stats.min.a), n8::f32(stats.max.a));
-    let (a_min, a_max) = bcn_util::refine_endpoints(
-        initial.0,
-        initial.1,
-        bcn_util::RefinementOptions {
-            step_initial: (initial.1 - initial.0) * 0.2,
-            step_decay: 0.5,
-            step_min: 1.0 / 255.0,
-            max_iter: 4,
-        },
-        |(min, max)| {
-            let (min, max) = quantize(min, max);
-            closest_error_alpha::<2>(min, max, &alpha_pixels)
-        },
-    );
-    let (a_min, a_max) = quantize(a_min, a_max);
-    let alpha_list = closest_alpha::<2>(a_min, a_max, &alpha_pixels);
+    let (alpha_endpoints, alpha_indexes, alpha_error) = if let Some(alpha) = stats.single_alpha() {
+        ([Alpha::new(alpha); 2], IndexList::<2>::constant(0), 0) // exact, so 0 error
+    } else {
+        let alpha_pixels = block.map(|p| p.alpha());
+        let initial = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
+        let (a_min, a_max) = bcn_util::refine_endpoints(
+            initial.0,
+            initial.1,
+            bcn_util::RefinementOptions {
+                step_initial: (initial.1 - initial.0) * 0.2,
+                step_decay: 0.5,
+                step_min: 1.0 / 255.0,
+                max_iter: 4,
+            },
+            |(min, max)| {
+                closest_error_alpha::<2>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
+            },
+        );
+        let a_min = Alpha::floor(a_min);
+        let a_max = Alpha::ceil(a_max);
+        let (alpha_indexes, alpha_error) = closest_alpha::<2>(a_min, a_max, &alpha_pixels);
+        ([a_min, a_max], alpha_indexes, alpha_error)
+    };
 
-    mode5(
+    Compressed::mode5(
+        color_error + alpha_error,
         Rotation::None,
-        [e0, e1],
-        rgb_indexes,
-        [a_min, a_max],
-        alpha_list,
+        color_endpoints,
+        color_indexes,
+        alpha_endpoints,
+        alpha_indexes,
     )
+}
+fn refine_along_line3(
+    min: Vec3A,
+    max: Vec3A,
+    compute_error: impl Fn((Vec3A, Vec3A)) -> u32,
+) -> (Vec3A, Vec3A) {
+    let dist = min.distance(max);
+    if dist < 0.0001 {
+        return (min, max);
+    }
+    let mid = (min + max) * 0.5;
+    let min_dir = (min - mid) * 2.0;
+    let max_dir = (max - mid) * 2.0;
+    let get_min_max = |min_t: f32, max_t: f32| {
+        let min = mid + min_dir * min_t;
+        let max = mid + max_dir * max_t;
+        (min, max)
+    };
+
+    let options = bcn_util::RefinementOptions {
+        step_initial: 0.2,
+        step_decay: 0.5,
+        step_min: 0.005 / dist,
+        max_iter: 3,
+    };
+
+    let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
+        compute_error(get_min_max(min_t, max_t))
+    });
+
+    get_min_max(min_t, max_t)
 }
 
 fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (IndexList<B>, u32) {
@@ -140,29 +187,62 @@ fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (I
         _ => unreachable!(),
     }
 }
-
 fn closest_alpha<const B: u8>(
-    min: Alpha<8>,
-    max: Alpha<8>,
+    e0: Alpha<8>,
+    e1: Alpha<8>,
     pixels: &[Alpha<8>; 16],
-) -> IndexList<B> {
-    debug_assert!(min.a <= max.a);
-    if min.a >= max.a {
-        // alpha endpoints are constant
-        return IndexList::constant(0);
-    }
-    debug_assert!(min.a < max.a);
+) -> (IndexList<B>, u32) {
+    debug_assert!(B == 2 || B == 3);
 
-    let mut indexes = IndexList::new();
-    let a_diff = (max.a - min.a) as u16;
-    debug_assert!(a_diff != 0);
-    let round = a_diff / 2;
-    let max = IndexList::<B>::MAX_INDEX as u16;
-    for i in 0..16 {
-        let value = (pixels[i].a.saturating_sub(min.a) as u16 * max + round) / a_diff;
-        indexes.set(i, value.min(max) as u8);
+    fn foo<const N: usize, const B: u8>(
+        palette: [Alpha<8>; N],
+        pixels: &[Alpha<8>; 16],
+    ) -> (IndexList<B>, u32) {
+        let mut indexes = IndexList::<B>::new();
+        let mut error = 0_u32;
+        for i in 0..16 {
+            let p = pixels[i];
+            let mut best_index = 0;
+            let mut best_dist = u32::MAX;
+            for (j, &c) in palette.iter().enumerate() {
+                let d = p.a as i32 - c.a as i32;
+                let dist = (d * d) as u32;
+                if dist < best_dist {
+                    best_dist = dist;
+                    best_index = j;
+                }
+            }
+            indexes.set(i, best_index as u8);
+            error += best_dist;
+        }
+        (indexes, error)
     }
-    indexes
+
+    match B {
+        2 => {
+            let palette: [Alpha<8>; 4] = [
+                e0,
+                interpolate_alpha::<2>(e0, e1, 1),
+                interpolate_alpha::<2>(e0, e1, 2),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        3 => {
+            let palette: [Alpha<8>; 8] = [
+                e0,
+                interpolate_alpha::<3>(e0, e1, 1),
+                interpolate_alpha::<3>(e0, e1, 2),
+                interpolate_alpha::<3>(e0, e1, 3),
+                interpolate_alpha::<3>(e0, e1, 4),
+                interpolate_alpha::<3>(e0, e1, 5),
+                interpolate_alpha::<3>(e0, e1, 6),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        _ => unreachable!(),
+    }
 }
 /// The square error of the closest alpha values.
 fn closest_error_alpha<const B: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alpha<8>; 16]) -> u32 {
@@ -225,46 +305,57 @@ fn closest_error_alpha<const B: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alph
     }
 }
 
-fn mode5(
-    rotation: Rotation,
-    mut color: [Rgb<7>; 2],
-    color_indexes: IndexList<2>,
-    mut alpha: [Alpha<8>; 2],
-    alpha_indexes: IndexList<2>,
-) -> [u8; 16] {
-    let (color_indexes, color_swap) = color_indexes.compress_p1();
-    let (alpha_indexes, alpha_swap) = alpha_indexes.compress_p1();
-
-    if color_swap {
-        color.swap(0, 1);
-    }
-    if alpha_swap {
-        alpha.swap(0, 1);
-    }
-
-    let mut stream = BitStream::new();
-    stream.write_mode(5);
-    stream.write_rotation(rotation);
-    stream.write_endpoints_rgb(color);
-    stream.write_endpoints_alpha(alpha);
-    stream.write_indexes(color_indexes);
-    stream.write_indexes(alpha_indexes);
-    stream.finish()
+struct Compressed {
+    block: [u8; 16],
+    error: u32,
 }
-fn mode6(mut rgba: [Rgba<7>; 2], mut p: [bool; 2], indexes: IndexList<4>) -> [u8; 16] {
-    let (indexes, swap) = indexes.compress_p1();
+impl Compressed {
+    fn mode5(
+        error: u32,
+        rotation: Rotation,
+        mut color: [Rgb<7>; 2],
+        color_indexes: IndexList<2>,
+        mut alpha: [Alpha<8>; 2],
+        alpha_indexes: IndexList<2>,
+    ) -> Self {
+        let (color_indexes, color_swap) = color_indexes.compress_p1();
+        let (alpha_indexes, alpha_swap) = alpha_indexes.compress_p1();
 
-    if swap {
-        rgba.swap(0, 1);
-        p.swap(0, 1);
+        if color_swap {
+            color.swap(0, 1);
+        }
+        if alpha_swap {
+            alpha.swap(0, 1);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(5);
+        stream.write_rotation(rotation);
+        stream.write_endpoints_rgb(color);
+        stream.write_endpoints_alpha(alpha);
+        stream.write_indexes(color_indexes);
+        stream.write_indexes(alpha_indexes);
+        let block = stream.finish();
+
+        Self { block, error }
     }
+    fn mode6(error: u32, mut rgba: [Rgba<7>; 2], mut p: [bool; 2], indexes: IndexList<4>) -> Self {
+        let (indexes, swap) = indexes.compress_p1();
 
-    let mut stream = BitStream::new();
-    stream.write_mode(6);
-    stream.write_endpoints_rgba(rgba);
-    stream.write_endpoints_p(p);
-    stream.write_indexes(indexes);
-    stream.finish()
+        if swap {
+            rgba.swap(0, 1);
+            p.swap(0, 1);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(6);
+        stream.write_endpoints_rgba(rgba);
+        stream.write_endpoints_p(p);
+        stream.write_indexes(indexes);
+        let block = stream.finish();
+
+        Self { block, error }
+    }
 }
 
 enum Rotation {
@@ -430,6 +521,63 @@ impl<const B: u8> PartialEq for Rgba<B> {
     }
 }
 impl<const B: u8> Eq for Rgba<B> {}
+impl<const B: u8> Quantized for Rgba<B> {
+    type V = Vec4;
+
+    fn round(v: Vec4) -> Self {
+        Rgba::new(
+            channel_round::<B>(v.x),
+            channel_round::<B>(v.y),
+            channel_round::<B>(v.z),
+            channel_round::<B>(v.w),
+        )
+    }
+    fn floor(v: Vec4) -> Self {
+        Rgba::new(
+            channel_floor::<B>(v.x),
+            channel_floor::<B>(v.y),
+            channel_floor::<B>(v.z),
+            channel_floor::<B>(v.w),
+        )
+    }
+    fn ceil(v: Vec4) -> Self {
+        Rgba::new(
+            channel_ceil::<B>(v.x),
+            channel_ceil::<B>(v.y),
+            channel_ceil::<B>(v.z),
+            channel_ceil::<B>(v.w),
+        )
+    }
+
+    #[inline(always)]
+    fn to_vec(self) -> Vec4 {
+        let p = self.promote();
+        Vec4::new(p.r as f32, p.g as f32, p.b as f32, p.a as f32) * (1.0 / 255.0)
+    }
+}
+impl<const B: u8> WithChannels for Rgba<B> {
+    type E = u8;
+    const CHANNELS: usize = 4;
+
+    fn get(&self, channel: usize) -> Self::E {
+        match channel {
+            0 => self.r,
+            1 => self.g,
+            2 => self.b,
+            3 => self.a,
+            _ => unreachable!(),
+        }
+    }
+    fn set(&mut self, channel: usize, value: Self::E) {
+        match channel {
+            0 => self.r = value,
+            1 => self.g = value,
+            2 => self.b = value,
+            3 => self.a = value,
+            _ => unreachable!(),
+        }
+    }
+}
 
 #[repr(C, align(4))]
 #[derive(Copy, Clone, Debug)]
@@ -486,6 +634,58 @@ impl<const B: u8> PartialEq for Rgb<B> {
     }
 }
 impl<const B: u8> Eq for Rgb<B> {}
+impl<const B: u8> Quantized for Rgb<B> {
+    type V = Vec3A;
+
+    fn round(v: Vec3A) -> Self {
+        Rgb::new(
+            channel_round::<B>(v.x),
+            channel_round::<B>(v.y),
+            channel_round::<B>(v.z),
+        )
+    }
+    fn floor(v: Vec3A) -> Self {
+        Rgb::new(
+            channel_floor::<B>(v.x),
+            channel_floor::<B>(v.y),
+            channel_floor::<B>(v.z),
+        )
+    }
+    fn ceil(v: Vec3A) -> Self {
+        Rgb::new(
+            channel_ceil::<B>(v.x),
+            channel_ceil::<B>(v.y),
+            channel_ceil::<B>(v.z),
+        )
+    }
+
+    #[inline(always)]
+    fn to_vec(self) -> Vec3A {
+        let p = self.promote();
+        Vec3A::new(p.r as f32, p.g as f32, p.b as f32) * (1.0 / 255.0)
+    }
+}
+impl<const B: u8> WithChannels for Rgb<B> {
+    type E = u8;
+    const CHANNELS: usize = 3;
+
+    fn get(&self, channel: usize) -> Self::E {
+        match channel {
+            0 => self.r,
+            1 => self.g,
+            2 => self.b,
+            _ => unreachable!(),
+        }
+    }
+    fn set(&mut self, channel: usize, value: Self::E) {
+        match channel {
+            0 => self.r = value,
+            1 => self.g = value,
+            2 => self.b = value,
+            _ => unreachable!(),
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Alpha<const B: u8> {
@@ -502,18 +702,225 @@ impl<const B: u8> Alpha<B> {
 
     pub fn promote(self) -> Alpha<8> {
         if B == 8 {
-            return Alpha::new(self.a);
+            Alpha::new(self.a)
+        } else {
+            Alpha::new(promote(self.a, B))
         }
-        Alpha::new(promote(self.a, B))
+    }
+}
+impl<const B: u8> Quantized for Alpha<B> {
+    type V = f32;
+
+    #[inline(always)]
+    fn round(v: f32) -> Self {
+        Alpha::new(channel_round::<B>(v))
+    }
+    #[inline(always)]
+    fn floor(v: f32) -> Self {
+        Alpha::new(channel_floor::<B>(v))
+    }
+    #[inline(always)]
+    fn ceil(v: f32) -> Self {
+        Alpha::new(channel_ceil::<B>(v))
+    }
+
+    #[inline(always)]
+    fn to_vec(self) -> f32 {
+        self.promote().a as f32 * (1.0 / 255.0)
+    }
+}
+impl<const B: u8> WithChannels for Alpha<B> {
+    type E = u8;
+    const CHANNELS: usize = 1;
+
+    #[inline(always)]
+    fn get(&self, channel: usize) -> Self::E {
+        debug_assert!(channel == 0);
+        self.a
+    }
+    #[inline(always)]
+    fn set(&mut self, channel: usize, value: Self::E) {
+        debug_assert!(channel == 0);
+        self.a = value;
     }
 }
 
+fn channel_round<const B: u8>(v: f32) -> u8 {
+    match B {
+        8 => (v * 255.0 + 0.5) as u8,
+        4 => (v * 15.0 + 0.5).min(15.0) as u8,
+        5..=7 => {
+            let max = ((1_u32 << B) - 1) as u8;
+            let v = v.clamp(0.0, 1.0);
+            let mut nearest = (v * max as f32 + 0.5) as u8;
+            let nearest_err = (channel_to_vec::<B>(nearest) - v).abs();
+            if nearest > 0 && (channel_to_vec::<B>(nearest - 1) - v).abs() < nearest_err {
+                nearest -= 1;
+            } else if nearest < max && (channel_to_vec::<B>(nearest + 1) - v).abs() < nearest_err {
+                nearest += 1;
+            }
+            nearest
+        }
+        _ => unreachable!(),
+    }
+}
+fn channel_floor<const B: u8>(v: f32) -> u8 {
+    match B {
+        8 => (v * 255.0) as u8,
+        4 => (v * 15.0).min(15.0) as u8,
+        5..=7 => {
+            let max = ((1_u32 << B) - 1) as u8;
+            let v = v.clamp(0.0, 1.0);
+            let mut floor = (v * max as f32) as u8;
+            if floor > 0 && channel_to_vec::<B>(floor) > v {
+                floor -= 1;
+            } else if floor < max && channel_to_vec::<B>(floor + 1) < v {
+                floor += 1;
+            }
+            floor
+        }
+        _ => unreachable!(),
+    }
+}
+fn channel_ceil<const B: u8>(v: f32) -> u8 {
+    const CEIL: f32 = 0.9999;
+    match B {
+        8 => (v * 255.0 + CEIL) as u8,
+        4 => (v * 15.0 + CEIL).min(15.0) as u8,
+        5..=7 => {
+            let max = ((1_u32 << B) - 1) as u8;
+            let v = v.clamp(0.0, 1.0);
+            let mut ceil = (v * max as f32 + CEIL).min(max as f32) as u8;
+            if ceil < max && channel_to_vec::<B>(ceil) < v {
+                ceil += 1;
+            } else if ceil > 0 && channel_to_vec::<B>(ceil - 1) > v {
+                ceil -= 1;
+            }
+            ceil
+        }
+        _ => unreachable!(),
+    }
+}
+#[inline(always)]
+fn channel_to_vec<const B: u8>(c: u8) -> f32 {
+    let u = if B == 8 { c } else { promote(c, B) };
+    u as f32 * (1.0 / 255.0)
+}
 #[inline]
 fn promote(mut number: u8, number_bits: u8) -> u8 {
     debug_assert!((4..8).contains(&number_bits));
     number <<= 8 - number_bits;
     number |= number >> number_bits;
     number
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EPS: f32 = 0.000001;
+
+    #[test]
+    fn round() {
+        for v in (0..=1000).map(|i| i as f32 / 1000.) {
+            macro_rules! test_b {
+                ($b:literal) => {
+                    let r = Alpha::<$b>::round(v);
+                    let p1 = Alpha::<$b>::new(r.a.saturating_add(1).min(Alpha::<$b>::MAX));
+                    let m1 = Alpha::<$b>::new(r.a.saturating_sub(1));
+
+                    let diff_r = (r.to_vec() - v).abs();
+                    let diff_p1 = (p1.to_vec() - v).abs();
+                    let diff_m1 = (m1.to_vec() - v).abs();
+                    assert!(
+                        diff_r <= diff_p1 + EPS && diff_r <= diff_m1 + EPS,
+                        "Failed for v={v} and B={}!\nr-1={} ({} Δ={})\nr  ={} ({} Δ={})\nr+1={} ({} Δ={})",
+                        $b,
+                        m1.a,
+                        m1.to_vec(),
+                        diff_m1,
+                        r.a,
+                        r.to_vec(),
+                        diff_r,
+                        p1.a,
+                        p1.to_vec(),
+                        diff_p1
+                    );
+                };
+            }
+
+            test_b!(8);
+            test_b!(7);
+            test_b!(6);
+            test_b!(5);
+            test_b!(4);
+        }
+    }
+    #[test]
+    fn floor() {
+        for v in (0..=1000).map(|i| i as f32 / 1000.) {
+            macro_rules! test_b {
+                ($b:literal) => {
+                    let f = Alpha::<$b>::floor(v);
+                    let p1 = Alpha::<$b>::new(f.a.saturating_add(1).min(Alpha::<$b>::MAX));
+                    let m1 = Alpha::<$b>::new(f.a.saturating_sub(1));
+
+                    let v_f = f.to_vec();
+                    let v_p1 = p1.to_vec();
+                    let v_m1 = m1.to_vec();
+                    assert!(
+                        v_f <= v + EPS && v_p1 >= v - EPS && v_m1 <= v + EPS,
+                        "Failed for v={v} and B={}!\nf-1={} ({})\nf  ={} ({})\nf+1={} ({})",
+                        $b,
+                        m1.a,
+                        m1.to_vec(),
+                        f.a,
+                        f.to_vec(),
+                        p1.a,
+                        p1.to_vec()
+                    );
+                };
+            }
+
+            test_b!(8);
+            test_b!(7);
+            test_b!(6);
+            test_b!(5);
+            test_b!(4);
+        }
+    }
+    #[test]
+    fn ceil() {
+        for v in (0..=1000).map(|i| i as f32 / 1000.) {
+            macro_rules! test_b {
+                ($b:literal) => {
+                    let c = Alpha::<$b>::ceil(v);
+                    let p1 = Alpha::<$b>::new(c.a.saturating_add(1).min(Alpha::<$b>::MAX));
+                    let m1 = Alpha::<$b>::new(c.a.saturating_sub(1));
+
+                    let v_c = c.to_vec();
+                    let v_p1 = p1.to_vec();
+                    let v_m1 = m1.to_vec();
+                    assert!(
+                        v_c >= v - EPS && v_p1 >= v - EPS && v_m1 <= v + EPS,
+                        "Failed for v={v} and B={}!\nc-1={} ({})\nc  ={} ({})\nc+1={} ({})",
+                        $b,
+                        m1.a,
+                        m1.to_vec(),
+                        c.a,
+                        c.to_vec(),
+                        p1.a,
+                        p1.to_vec()
+                    );
+                };
+            }
+
+            test_b!(8);
+            test_b!(7);
+            test_b!(6);
+            test_b!(5);
+            test_b!(4);
+        }
+    }
 }
 
 trait AddPBit {
@@ -571,8 +978,8 @@ const WEIGHTS_4: [u16; 16] = [
     0, 16, 36, 52, 68, 84, 104, 120, 136, 152, 172, 188, 204, 220, 240, 256,
 ];
 
-fn interpolate<const B: usize>(e0: u8, e1: u8, index: u8) -> u8 {
-    let weight = match B {
+fn interpolate<const W: usize>(e0: u8, e1: u8, index: u8) -> u8 {
+    let weight = match W {
         2 => WEIGHTS_2[index as usize],
         3 => WEIGHTS_3[index as usize],
         4 => WEIGHTS_4[index as usize],
@@ -582,8 +989,8 @@ fn interpolate<const B: usize>(e0: u8, e1: u8, index: u8) -> u8 {
     let w1 = weight;
     ((w0 * e0 as u16 + w1 * e1 as u16 + 128) >> 8) as u8
 }
-fn interpolate_rgb<const B: usize>(e0: Rgb<8>, e1: Rgb<8>, index: u8) -> Rgb<8> {
-    let weight = match B {
+fn interpolate_rgb<const W: usize>(e0: Rgb<8>, e1: Rgb<8>, index: u8) -> Rgb<8> {
+    let weight = match W {
         2 => WEIGHTS_2[index as usize],
         3 => WEIGHTS_3[index as usize],
         4 => WEIGHTS_4[index as usize],
@@ -597,6 +1004,9 @@ fn interpolate_rgb<const B: usize>(e0: Rgb<8>, e1: Rgb<8>, index: u8) -> Rgb<8> 
         ((w0 * e0.g as u16 + w1 * e1.g as u16 + 128) >> 8) as u8,
         ((w0 * e0.b as u16 + w1 * e1.b as u16 + 128) >> 8) as u8,
     )
+}
+fn interpolate_alpha<const W: usize>(e0: Alpha<8>, e1: Alpha<8>, index: u8) -> Alpha<8> {
+    Alpha::new(interpolate::<W>(e0.a, e1.a, index))
 }
 
 #[derive(Clone, Copy)]
@@ -629,14 +1039,21 @@ impl BlockStats {
             None
         }
     }
-
-    fn constant_alpha(&self) -> Option<u8> {
+    fn single_rgb_color(&self) -> Option<Rgb<8>> {
+        if self.min.r == self.max.r && self.min.g == self.max.g && self.min.b == self.max.b {
+            Some(self.min.color())
+        } else {
+            None
+        }
+    }
+    fn single_alpha(&self) -> Option<u8> {
         if self.min.a == self.max.a {
             Some(self.max.a)
         } else {
             None
         }
     }
+
     /// Returns whether Alpha is 255 everywhere.
     fn opaque(&self) -> bool {
         self.min.a == 255
