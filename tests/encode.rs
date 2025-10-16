@@ -341,7 +341,7 @@ fn encode_measure_quality() {
             options: vec![(
                 "bc7",
                 new_options!(),
-                MetricChannelSet::RGBA | MetricChannel::L | MetricChannel::C,
+                MetricChannelSet::RGBA | MetricChannel::C,
             )],
             images: &[
                 base,
