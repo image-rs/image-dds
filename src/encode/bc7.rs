@@ -47,6 +47,59 @@ fn mode5_single_color_rgb(color: Rgb<8>) -> ([Rgb<7>; 2], IndexList<2>) {
 }
 
 fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    let mut best = compress_mode5_with_rotation(block, stats, Rotation::None);
+
+    // Having a low error for alpha is important for visual quality, so we only
+    // want to swap alpha with other channels if there isn't much in the alpha
+    // channel.
+    const ALPHA_THRESHOLD: u8 = 16;
+    if stats.max.a.abs_diff(stats.min.a) > ALPHA_THRESHOLD {
+        return best;
+    }
+
+    // If the color is approximately grayscale, don't try swapping.
+    // It will only cause discolorations.
+    const COLOR_VARIANCE_THRESHOLD: u8 = 8;
+    if block.iter().all(|p| {
+        let gr = p.g.abs_diff(p.r);
+        let gb = p.g.abs_diff(p.b);
+        gr.max(gb) < COLOR_VARIANCE_THRESHOLD
+    }) {
+        return best;
+    }
+
+    fn swap_r(p: Rgba<8>) -> Rgba<8> {
+        Rgba::new(p.a, p.g, p.b, p.r)
+    }
+    fn swap_g(p: Rgba<8>) -> Rgba<8> {
+        Rgba::new(p.r, p.a, p.b, p.g)
+    }
+    fn swap_b(p: Rgba<8>) -> Rgba<8> {
+        Rgba::new(p.r, p.g, p.a, p.b)
+    }
+    fn swap<const N: usize>(p: [Rgba<8>; N], rotation: Rotation) -> [Rgba<8>; N] {
+        match rotation {
+            Rotation::None => p,
+            Rotation::AR => p.map(swap_r),
+            Rotation::AG => p.map(swap_g),
+            Rotation::AB => p.map(swap_b),
+        }
+    }
+    for r in [Rotation::AR, Rotation::AG, Rotation::AB] {
+        let rotated_block = swap(block, r);
+        let [min, max] = swap([stats.min, stats.max], r);
+        let stats = BlockStats { min, max };
+        let compressed = compress_mode5_with_rotation(rotated_block, stats, r);
+        best = best.best(compressed);
+    }
+
+    best
+}
+fn compress_mode5_with_rotation(
+    block: [Rgba<8>; 16],
+    stats: BlockStats,
+    rotation: Rotation,
+) -> Compressed {
     // RGB
     let (color_endpoints, color_indexes, color_error) =
         if let Some(color) = stats.single_rgb_color() {
@@ -93,7 +146,7 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
 
     Compressed::mode5(
         color_error + alpha_error,
-        Rotation::None,
+        rotation,
         color_endpoints,
         color_indexes,
         alpha_endpoints,
@@ -305,11 +358,20 @@ fn closest_error_alpha<const B: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alph
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 struct Compressed {
     block: [u8; 16],
     error: u32,
 }
 impl Compressed {
+    fn best(self, other: Self) -> Self {
+        if self.error <= other.error {
+            self
+        } else {
+            other
+        }
+    }
+
     fn mode5(
         error: u32,
         rotation: Rotation,
@@ -358,6 +420,7 @@ impl Compressed {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
 enum Rotation {
     None = 0,
     AR = 1,
