@@ -14,7 +14,8 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
 
     let mut best = Compressed::invalid();
 
-    best = best.best(compress_mode5(block, stats));
+    best = best.better(compress_mode4(block, stats));
+    best = best.better(compress_mode5(block, stats));
 
     // Mode 6 uses combined Color+Alpha. This is a problem for blocks that
     // contain both opaque and partially transparent pixels, because the opaque
@@ -23,7 +24,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     // is fully opaque or doesn't contain any opaque pixels. Constant alpha is
     // also fine.
     if stats.single_alpha().is_some() || stats.max.a != 255 {
-        best = best.best(compress_mode6(block, stats));
+        best = best.better(compress_mode6(block, stats));
     }
 
     best.block
@@ -33,19 +34,6 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
 ///
 /// https://fgiesen.wordpress.com/2024/11/03/bc7-optimal-solid-color-blocks/
 fn compress_single_color(color: Rgba<8>) -> Compressed {
-    let ([c0, c1], color_indexes) = mode5_single_color_rgb(color.color());
-
-    Compressed::mode5(
-        0, // exact, so 0 error
-        Rotation::None,
-        [c0, c1],
-        color_indexes,
-        [Alpha::new(color.a); 2],
-        // the index for alpha doesn't matter since both endpoints are the same
-        IndexList::<2>::constant(1),
-    )
-}
-fn mode5_single_color_rgb(color: Rgb<8>) -> ([Rgb<7>; 2], IndexList<2>) {
     fn optimize(c: u8) -> (u8, u8) {
         (c >> 1, if c < 128 { c + 1 } else { c - 1 } >> 1)
     }
@@ -57,11 +45,62 @@ fn mode5_single_color_rgb(color: Rgb<8>) -> ([Rgb<7>; 2], IndexList<2>) {
     let c0 = Rgb::new(c0_r, c0_g, c0_b);
     let c1 = Rgb::new(c1_r, c1_g, c1_b);
 
-    ([c0, c1], IndexList::<2>::constant(1))
+    Compressed::mode5(
+        0, // exact, so 0 error
+        Rotation::None,
+        [c0, c1],
+        IndexList::<2>::constant(1),
+        [Alpha::new(color.a); 2],
+        // the index for alpha doesn't matter since both endpoints are the same
+        IndexList::<2>::constant(1),
+    )
 }
 
+fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    decide_rotations(&block, stats, |r| {
+        let c2a3 = {
+            let (error, color, color_indexes, alpha, alpha_indexes) =
+                compress_color_separate_alpha_with_rotation(block, stats, r);
+            Compressed::mode4(
+                error,
+                r,
+                IndexMode::C2A3,
+                color,
+                color_indexes,
+                alpha,
+                alpha_indexes,
+            )
+        };
+        let c3a2 = {
+            let (error, color, color_indexes, alpha, alpha_indexes) =
+                compress_color_separate_alpha_with_rotation(block, stats, r);
+            Compressed::mode4(
+                error,
+                r,
+                IndexMode::C3A2,
+                color,
+                alpha_indexes,
+                alpha,
+                color_indexes,
+            )
+        };
+        c2a3.better(c3a2)
+    })
+}
 fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
-    let mut best = compress_mode5_with_rotation(block, stats, Rotation::None);
+    decide_rotations(&block, stats, |r| {
+        let (error, color, color_indexes, alpha, alpha_indexes) =
+            compress_color_separate_alpha_with_rotation(block, stats, r);
+        Compressed::mode5(error, r, color, color_indexes, alpha, alpha_indexes)
+    })
+}
+/// Strategy for which rotations to use for mode 4 and mode 5.
+fn decide_rotations(
+    block: &[Rgba<8>; 16],
+    stats: BlockStats,
+    mut compress: impl FnMut(Rotation) -> Compressed,
+) -> Compressed {
+    let mut best = compress(Rotation::None);
 
     // Having a low error for alpha is important for visual quality, so we only
     // want to swap alpha with other channels if there isn't much in the alpha
@@ -92,16 +131,29 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
             // no point in swapping with a constant channel
             continue;
         }
-        best = best.best(compress_mode5_with_rotation(block, stats, r));
+        best = best.better(compress(r));
     }
 
     best
 }
-fn compress_mode5_with_rotation(
+
+/// Compression function for mode 4 and mode 5.
+fn compress_color_separate_alpha_with_rotation<
+    const C: u8,
+    const A: u8,
+    const INDEXC: u8,
+    const INDEXA: u8,
+>(
     mut block: [Rgba<8>; 16],
     mut stats: BlockStats,
     rotation: Rotation,
-) -> Compressed {
+) -> (
+    u32,
+    [Rgb<C>; 2],
+    IndexList<INDEXC>,
+    [Alpha<A>; 2],
+    IndexList<INDEXA>,
+) {
     // Apply rotation
     if rotation != Rotation::None {
         block = rotation.apply(block);
@@ -109,27 +161,29 @@ fn compress_mode5_with_rotation(
     }
 
     // RGB
-    let (color_endpoints, color_indexes, color_error) =
-        if let Some(color) = stats.single_rgb_color() {
-            let (endpoints, indexes) = mode5_single_color_rgb(color);
-            (endpoints, indexes, 0) // it's exact, so 0 error
-        } else {
-            let rgb = block.map(|p| p.color());
-            let rgb_vec = rgb.map(|p| p.vec3());
-            let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
-            let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-                closest_rgb::<2>(Rgb::round(min), Rgb::round(max), &rgb).1
-            });
-            let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<7>, e1: Rgb<7>| {
-                closest_rgb::<2>(e0.promote(), e1.promote(), &rgb).1
-            });
-            let (rgb_indexes, rgb_error) = closest_rgb::<2>(e0.promote(), e1.promote(), &rgb);
-            ([e0, e1], rgb_indexes, rgb_error)
-        };
+    let rgb = block.map(|p| p.color());
+    let rgb_vec = rgb.map(|p| p.vec3());
+    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
+    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+        closest_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb).1
+    });
+    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<C>, e1: Rgb<C>| {
+        closest_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb).1
+    });
+    let (color_indexes, color_error) = closest_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb);
+    let color_endpoints = [e0, e1];
 
     // Alpha
-    let (alpha_endpoints, alpha_indexes, alpha_error) = if let Some(alpha) = stats.single_alpha() {
-        ([Alpha::new(alpha); 2], IndexList::<2>::constant(0), 0) // exact, so 0 error
+    let (alpha_endpoints, alpha_indexes, alpha_error) = if let Some(alpha) =
+        stats.single_alpha().and_then(|a| {
+            let q = Alpha::<A>::round(a as f32 / 255.0);
+            if q.promote().a == a {
+                Some(q)
+            } else {
+                None
+            }
+        }) {
+        ([alpha; 2], IndexList::<INDEXA>::constant(0), 0) // exact, so 0 error
     } else {
         let alpha_pixels = block.map(|p| p.alpha());
 
@@ -149,18 +203,18 @@ fn compress_mode5_with_rotation(
                 if force_opaque && max < 1.0 {
                     return u32::MAX;
                 }
-                closest_error_alpha::<2>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
+                closest_error_alpha::<INDEXA>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
             },
         );
-        let a_min = Alpha::floor(a_min);
-        let a_max = Alpha::ceil(a_max);
-        let (alpha_indexes, alpha_error) = closest_alpha::<2>(a_min, a_max, &alpha_pixels);
+        let a_min: Alpha<A> = Alpha::floor(a_min);
+        let a_max: Alpha<A> = Alpha::ceil(a_max);
+        let (alpha_indexes, alpha_error) =
+            closest_alpha::<INDEXA>(a_min.promote(), a_max.promote(), &alpha_pixels);
         ([a_min, a_max], alpha_indexes, alpha_error)
     };
 
-    Compressed::mode5(
+    (
         color_error + alpha_error,
-        rotation,
         color_endpoints,
         color_indexes,
         alpha_endpoints,
@@ -527,7 +581,7 @@ struct Compressed {
     error: u32,
 }
 impl Compressed {
-    fn best(self, other: Self) -> Self {
+    fn better(self, other: Self) -> Self {
         if self.error <= other.error {
             self
         } else {
@@ -542,6 +596,39 @@ impl Compressed {
         }
     }
 
+    fn mode4(
+        error: u32,
+        rotation: Rotation,
+        index_mode: IndexMode,
+        mut color: [Rgb<5>; 2],
+        color_indexes: IndexList<2>,
+        mut alpha: [Alpha<6>; 2],
+        alpha_indexes: IndexList<3>,
+    ) -> Self {
+        let (color_indexes, color_swap) = color_indexes.compress_p1();
+        let (alpha_indexes, alpha_swap) = alpha_indexes.compress_p1();
+
+        let swapped = index_mode == IndexMode::C3A2;
+
+        if color_swap && !swapped || alpha_swap && swapped {
+            color.swap(0, 1);
+        }
+        if alpha_swap && !swapped || color_swap && swapped {
+            alpha.swap(0, 1);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(4);
+        stream.write_rotation(rotation);
+        stream.write_u64(index_mode as u64, 1);
+        stream.write_endpoints_rgb(color);
+        stream.write_endpoints_alpha(alpha);
+        stream.write_indexes(color_indexes);
+        stream.write_indexes(alpha_indexes);
+        let block = stream.finish();
+
+        Self { block, error }
+    }
     fn mode5(
         error: u32,
         rotation: Rotation,
@@ -588,6 +675,14 @@ impl Compressed {
 
         Self { block, error }
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum IndexMode {
+    /// This is the default for mode 4. The color index is 2-bit and the alpha index is 3-bit.
+    C2A3 = 0,
+    /// Swapped index mode. The color index is 3-bit and the alpha index is 2-bit.
+    C3A2 = 1,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
