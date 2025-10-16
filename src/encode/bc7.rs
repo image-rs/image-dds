@@ -118,6 +118,9 @@ fn compress_mode5_with_rotation(
         ([Alpha::new(alpha); 2], IndexList::<2>::constant(0), 0) // exact, so 0 error
     } else {
         let alpha_pixels = block.map(|p| p.alpha());
+
+        // We want opaque pixels to stay opaque no matter what.
+        let force_opaque = rotation == Rotation::None && stats.max.a == 255;
         let initial = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
         let (a_min, a_max) = bcn_util::refine_endpoints(
             initial.0,
@@ -129,6 +132,9 @@ fn compress_mode5_with_rotation(
                 max_iter: 4,
             },
             |(min, max)| {
+                if force_opaque && max < 1.0 {
+                    return u32::MAX;
+                }
                 closest_error_alpha::<2>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
             },
         );
