@@ -162,7 +162,7 @@ fn compress_color_separate_alpha_with_rotation<
 
     // RGB
     let rgb = block.map(|p| p.color());
-    let rgb_vec = rgb.map(|p| p.vec3());
+    let rgb_vec = rgb.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
     let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
         closest_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb).1
@@ -224,30 +224,15 @@ fn compress_color_separate_alpha_with_rotation<
 
 fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     // RGBA
-    let p0 = stats.min.a & 1;
-    let p1 = stats.max.a & 1;
+    let p0 = stats.min.a & 1 != 0;
+    let p1 = stats.max.a & 1 != 0;
 
     let rgba_vec = block.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line4_fit_endpoints(&rgba_vec, 0.9);
     let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
         closest_rgba::<4>(Rgba::round(min), Rgba::round(max), &block).1
     });
-    let promote = |c0: Rgba<7>, c1: Rgba<7>| {
-        (
-            Rgba::<8>::new(
-                (c0.r << 1) | p0,
-                (c0.g << 1) | p0,
-                (c0.b << 1) | p0,
-                (c0.a << 1) | p0,
-            ),
-            Rgba::<8>::new(
-                (c1.r << 1) | p1,
-                (c1.g << 1) | p1,
-                (c1.b << 1) | p1,
-                (c1.a << 1) | p1,
-            ),
-        )
-    };
+    let promote = |c0: Rgba<7>, c1: Rgba<7>| (c0.add_p(p0), c1.add_p(p1));
     let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<7>, e1: Rgba<7>| {
         let e8 = promote(e0, e1);
         closest_rgba::<4>(e8.0, e8.1, &block).1
@@ -255,7 +240,7 @@ fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     let e8 = promote(e0, e1);
     let (indexes, error) = closest_rgba::<4>(e8.0, e8.1, &block);
 
-    Compressed::mode6(error, [e0, e1], [p0 != 0, p1 != 0], indexes)
+    Compressed::mode6(error, [e0, e1], [p0, p1], indexes)
 }
 
 fn refine_along_line3(
@@ -837,17 +822,6 @@ impl<const B: u8> Rgba<B> {
         Self { r, g, b, a }
     }
 
-    pub fn round(v: Vec4) -> Self {
-        debug_assert!(0 < B && B <= 8);
-        let x = v.min(Vec4::ONE) * (Self::MAX as f32) + 0.5;
-        Self::new(x.x as u8, x.y as u8, x.z as u8, x.w as u8)
-    }
-    pub fn vec4(self) -> Vec4 {
-        let f = 1.0 / (Self::MAX as f32);
-        let f = Vec4::splat(f);
-        Vec4::new(self.r as f32, self.g as f32, self.b as f32, self.a as f32) * f
-    }
-
     pub fn to_u32(self) -> u32 {
         u32::from_le_bytes([self.r, self.g, self.b, self.a])
     }
@@ -960,17 +934,6 @@ impl<const B: u8> Rgb<B> {
         debug_assert!(g <= Self::MAX);
         debug_assert!(b <= Self::MAX);
         Self { r, g, b }
-    }
-
-    pub fn round(v: Vec3A) -> Self {
-        debug_assert!(0 < B && B <= 8);
-        let x = v.min(Vec3A::ONE) * (Self::MAX as f32) + 0.5;
-        Self::new(x.x as u8, x.y as u8, x.z as u8)
-    }
-    pub fn vec3(self) -> Vec3A {
-        let f = 1.0 / (Self::MAX as f32);
-        let f = Vec3A::splat(f);
-        Vec3A::new(self.r as f32, self.g as f32, self.b as f32) * f
     }
 
     pub fn to_u32(self) -> u32 {

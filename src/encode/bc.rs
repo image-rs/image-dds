@@ -4,7 +4,7 @@ use glam::Vec4;
 
 use crate::{
     cast, ch,
-    encode::write_util::for_each_f32_rgba_rows,
+    encode::{bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
     n4,
     util::{self, clamp_0_1},
     EncodingError, Report,
