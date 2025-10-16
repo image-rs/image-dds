@@ -20,8 +20,9 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     // contain both opaque and partially transparent pixels, because the opaque
     // pixels will be become partially transparent as well. Since we want to
     // ensure that opaque pixels stay opaque, we only try mode 6 if the block
-    // is fully opaque or doesn't contain any opaque pixels.
-    if stats.opaque() || stats.max.a != 255 {
+    // is fully opaque or doesn't contain any opaque pixels. Constant alpha is
+    // also fine.
+    if stats.single_alpha().is_some() || stats.max.a != 255 {
         best = best.best(compress_mode6(block, stats));
     }
 
