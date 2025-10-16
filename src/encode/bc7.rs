@@ -12,7 +12,20 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
         return compress_single_color(color).block;
     }
 
-    compress_mode5(block, stats).block
+    let mut best = Compressed::invalid();
+
+    best = best.best(compress_mode5(block, stats));
+
+    // Mode 6 uses combined Color+Alpha. This is a problem for blocks that
+    // contain both opaque and partially transparent pixels, because the opaque
+    // pixels will be become partially transparent as well. Since we want to
+    // ensure that opaque pixels stay opaque, we only try mode 6 if the block
+    // is fully opaque or doesn't contain any opaque pixels.
+    if stats.opaque() || stats.max.a != 255 {
+        best = best.best(compress_mode6(block, stats));
+    }
+
+    best.block
 }
 
 /// Solid-color blocks can be encoded exactly.
@@ -153,11 +166,79 @@ fn compress_mode5_with_rotation(
         alpha_indexes,
     )
 }
+
+fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    // RGBA
+    let p0 = stats.min.a & 1;
+    let p1 = stats.max.a & 1;
+
+    let rgba_vec = block.map(|p| p.to_vec());
+    let (c0, c1) = bcn_util::line4_fit_endpoints(&rgba_vec, 0.9);
+    let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
+        closest_rgba::<4>(Rgba::round(min), Rgba::round(max), &block).1
+    });
+    let promote = |c0: Rgba<7>, c1: Rgba<7>| {
+        (
+            Rgba::<8>::new(
+                (c0.r << 1) | p0,
+                (c0.g << 1) | p0,
+                (c0.b << 1) | p0,
+                (c0.a << 1) | p0,
+            ),
+            Rgba::<8>::new(
+                (c1.r << 1) | p1,
+                (c1.g << 1) | p1,
+                (c1.b << 1) | p1,
+                (c1.a << 1) | p1,
+            ),
+        )
+    };
+    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<7>, e1: Rgba<7>| {
+        let e8 = promote(e0, e1);
+        closest_rgba::<4>(e8.0, e8.1, &block).1
+    });
+    let e8 = promote(e0, e1);
+    let (indexes, error) = closest_rgba::<4>(e8.0, e8.1, &block);
+
+    Compressed::mode6(error, [e0, e1], [p0 != 0, p1 != 0], indexes)
+}
+
 fn refine_along_line3(
     min: Vec3A,
     max: Vec3A,
     compute_error: impl Fn((Vec3A, Vec3A)) -> u32,
 ) -> (Vec3A, Vec3A) {
+    let dist = min.distance(max);
+    if dist < 0.0001 {
+        return (min, max);
+    }
+    let mid = (min + max) * 0.5;
+    let min_dir = (min - mid) * 2.0;
+    let max_dir = (max - mid) * 2.0;
+    let get_min_max = |min_t: f32, max_t: f32| {
+        let min = mid + min_dir * min_t;
+        let max = mid + max_dir * max_t;
+        (min, max)
+    };
+
+    let options = bcn_util::RefinementOptions {
+        step_initial: 0.2,
+        step_decay: 0.5,
+        step_min: 0.005 / dist,
+        max_iter: 3,
+    };
+
+    let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
+        compute_error(get_min_max(min_t, max_t))
+    });
+
+    get_min_max(min_t, max_t)
+}
+fn refine_along_line4(
+    min: Vec4,
+    max: Vec4,
+    compute_error: impl Fn((Vec4, Vec4)) -> u32,
+) -> (Vec4, Vec4) {
     let dist = min.distance(max);
     if dist < 0.0001 {
         return (min, max);
@@ -233,6 +314,87 @@ fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (I
                 interpolate_rgb::<3>(e0, e1, 4),
                 interpolate_rgb::<3>(e0, e1, 5),
                 interpolate_rgb::<3>(e0, e1, 6),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        _ => unreachable!(),
+    }
+}
+fn closest_rgba<const B: u8>(
+    e0: Rgba<8>,
+    e1: Rgba<8>,
+    pixels: &[Rgba<8>; 16],
+) -> (IndexList<B>, u32) {
+    debug_assert!(B == 2 || B == 3 || B == 4);
+
+    fn foo<const N: usize, const B: u8>(
+        palette: [Rgba<8>; N],
+        pixels: &[Rgba<8>; 16],
+    ) -> (IndexList<B>, u32) {
+        let mut indexes = IndexList::<B>::new();
+        let mut error = 0_u32;
+        for i in 0..16 {
+            let p = pixels[i];
+            let mut best_index = 0;
+            let mut best_dist = u32::MAX;
+            for (j, &c) in palette.iter().enumerate() {
+                let dr = p.r as i32 - c.r as i32;
+                let dg = p.g as i32 - c.g as i32;
+                let db = p.b as i32 - c.b as i32;
+                let da = p.a as i32 - c.a as i32;
+                let dist = (dr * dr + dg * dg + db * db + da * da) as u32;
+                if dist < best_dist {
+                    best_dist = dist;
+                    best_index = j;
+                }
+            }
+            indexes.set(i, best_index as u8);
+            error += best_dist;
+        }
+        (indexes, error)
+    }
+
+    match B {
+        2 => {
+            let palette: [Rgba<8>; 4] = [
+                e0,
+                interpolate_rgba::<2>(e0, e1, 1),
+                interpolate_rgba::<2>(e0, e1, 2),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        3 => {
+            let palette: [Rgba<8>; 8] = [
+                e0,
+                interpolate_rgba::<3>(e0, e1, 1),
+                interpolate_rgba::<3>(e0, e1, 2),
+                interpolate_rgba::<3>(e0, e1, 3),
+                interpolate_rgba::<3>(e0, e1, 4),
+                interpolate_rgba::<3>(e0, e1, 5),
+                interpolate_rgba::<3>(e0, e1, 6),
+                e1,
+            ];
+            foo(palette, pixels)
+        }
+        4 => {
+            let palette: [Rgba<8>; 16] = [
+                e0,
+                interpolate_rgba::<4>(e0, e1, 1),
+                interpolate_rgba::<4>(e0, e1, 2),
+                interpolate_rgba::<4>(e0, e1, 3),
+                interpolate_rgba::<4>(e0, e1, 4),
+                interpolate_rgba::<4>(e0, e1, 5),
+                interpolate_rgba::<4>(e0, e1, 6),
+                interpolate_rgba::<4>(e0, e1, 7),
+                interpolate_rgba::<4>(e0, e1, 8),
+                interpolate_rgba::<4>(e0, e1, 9),
+                interpolate_rgba::<4>(e0, e1, 10),
+                interpolate_rgba::<4>(e0, e1, 11),
+                interpolate_rgba::<4>(e0, e1, 12),
+                interpolate_rgba::<4>(e0, e1, 13),
+                interpolate_rgba::<4>(e0, e1, 14),
                 e1,
             ];
             foo(palette, pixels)
@@ -369,6 +531,13 @@ impl Compressed {
             self
         } else {
             other
+        }
+    }
+
+    const fn invalid() -> Self {
+        Self {
+            block: [0; 16],
+            error: u32::MAX,
         }
     }
 
@@ -1084,6 +1253,23 @@ fn interpolate<const W: usize>(e0: u8, e1: u8, index: u8) -> u8 {
     let w0 = 256 - weight;
     let w1 = weight;
     ((w0 * e0 as u16 + w1 * e1 as u16 + 128) >> 8) as u8
+}
+fn interpolate_rgba<const W: usize>(e0: Rgba<8>, e1: Rgba<8>, index: u8) -> Rgba<8> {
+    let weight = match W {
+        2 => WEIGHTS_2[index as usize],
+        3 => WEIGHTS_3[index as usize],
+        4 => WEIGHTS_4[index as usize],
+        _ => unreachable!(),
+    };
+    let w0 = 256 - weight;
+    let w1 = weight;
+
+    Rgba::new(
+        ((w0 * e0.r as u16 + w1 * e1.r as u16 + 128) >> 8) as u8,
+        ((w0 * e0.g as u16 + w1 * e1.g as u16 + 128) >> 8) as u8,
+        ((w0 * e0.b as u16 + w1 * e1.b as u16 + 128) >> 8) as u8,
+        ((w0 * e0.a as u16 + w1 * e1.a as u16 + 128) >> 8) as u8,
+    )
 }
 fn interpolate_rgb<const W: usize>(e0: Rgb<8>, e1: Rgb<8>, index: u8) -> Rgb<8> {
     let weight = match W {

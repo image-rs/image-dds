@@ -127,6 +127,7 @@ fn encode_base() {
             &Header::new_image(size.width, size.height, format),
         )?;
         encoder.encoding.quality = CompressionQuality::High;
+        encoder.encoding.parallel = false;
 
         // and now the image data
         if format.precision() == Precision::U16 {
