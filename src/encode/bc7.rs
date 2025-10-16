@@ -68,7 +68,16 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         return best;
     }
 
-    for r in [Rotation::AR, Rotation::AG, Rotation::AB] {
+    for (channel, r) in [Rotation::AR, Rotation::AG, Rotation::AB]
+        .into_iter()
+        .enumerate()
+    {
+        let min = stats.min.get(channel);
+        let max = stats.max.get(channel);
+        if min == max {
+            // no point in swapping with a constant channel
+            continue;
+        }
         best = best.best(compress_mode5_with_rotation(block, stats, r));
     }
 
@@ -434,6 +443,15 @@ impl Rotation {
     fn apply_stats(self, stats: BlockStats) -> BlockStats {
         let [min, max] = self.apply([stats.min, stats.max]);
         BlockStats { min, max }
+    }
+
+    fn channel(self) -> usize {
+        match self {
+            Rotation::None => 3, // alpha
+            Rotation::AR => 0,   // red
+            Rotation::AG => 1,   // green
+            Rotation::AB => 2,   // blue
+        }
     }
 }
 
