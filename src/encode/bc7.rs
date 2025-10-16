@@ -68,38 +68,23 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         return best;
     }
 
-    fn swap_r(p: Rgba<8>) -> Rgba<8> {
-        Rgba::new(p.a, p.g, p.b, p.r)
-    }
-    fn swap_g(p: Rgba<8>) -> Rgba<8> {
-        Rgba::new(p.r, p.a, p.b, p.g)
-    }
-    fn swap_b(p: Rgba<8>) -> Rgba<8> {
-        Rgba::new(p.r, p.g, p.a, p.b)
-    }
-    fn swap<const N: usize>(p: [Rgba<8>; N], rotation: Rotation) -> [Rgba<8>; N] {
-        match rotation {
-            Rotation::None => p,
-            Rotation::AR => p.map(swap_r),
-            Rotation::AG => p.map(swap_g),
-            Rotation::AB => p.map(swap_b),
-        }
-    }
     for r in [Rotation::AR, Rotation::AG, Rotation::AB] {
-        let rotated_block = swap(block, r);
-        let [min, max] = swap([stats.min, stats.max], r);
-        let stats = BlockStats { min, max };
-        let compressed = compress_mode5_with_rotation(rotated_block, stats, r);
-        best = best.best(compressed);
+        best = best.best(compress_mode5_with_rotation(block, stats, r));
     }
 
     best
 }
 fn compress_mode5_with_rotation(
-    block: [Rgba<8>; 16],
-    stats: BlockStats,
+    mut block: [Rgba<8>; 16],
+    mut stats: BlockStats,
     rotation: Rotation,
 ) -> Compressed {
+    // Apply rotation
+    if rotation != Rotation::None {
+        block = rotation.apply(block);
+        stats = rotation.apply_stats(stats);
+    }
+
     // RGB
     let (color_endpoints, color_indexes, color_error) =
         if let Some(color) = stats.single_rgb_color() {
@@ -420,12 +405,36 @@ impl Compressed {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum Rotation {
     None = 0,
     AR = 1,
     AG = 2,
     AB = 3,
+}
+impl Rotation {
+    fn swap_r(p: Rgba<8>) -> Rgba<8> {
+        Rgba::new(p.a, p.g, p.b, p.r)
+    }
+    fn swap_g(p: Rgba<8>) -> Rgba<8> {
+        Rgba::new(p.r, p.a, p.b, p.g)
+    }
+    fn swap_b(p: Rgba<8>) -> Rgba<8> {
+        Rgba::new(p.r, p.g, p.a, p.b)
+    }
+
+    fn apply<const N: usize>(self, colors: [Rgba<8>; N]) -> [Rgba<8>; N] {
+        match self {
+            Rotation::None => colors,
+            Rotation::AR => colors.map(Self::swap_r),
+            Rotation::AG => colors.map(Self::swap_g),
+            Rotation::AB => colors.map(Self::swap_b),
+        }
+    }
+    fn apply_stats(self, stats: BlockStats) -> BlockStats {
+        let [min, max] = self.apply([stats.min, stats.max]);
+        BlockStats { min, max }
+    }
 }
 
 /// A list of 16 indexes each using B bits.
