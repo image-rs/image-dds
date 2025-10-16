@@ -176,8 +176,8 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
             CompressionQuality::Unreasonable => 10,
         },
         quantization: match options.quality {
-            CompressionQuality::Fast => bc1::Quantization::ChannelWiseOptimized,
-            _ => bc1::Quantization::ChannelWise,
+            CompressionQuality::Fast => bcn_util::Quantization::ChannelWiseOptimized,
+            _ => bcn_util::Quantization::ChannelWise,
         },
         ..bc1::Bc1Options::default()
     }

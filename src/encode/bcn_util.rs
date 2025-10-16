@@ -492,3 +492,223 @@ mod tests {
         assert!((max - 2.5).abs() < 1e-6);
     }
 }
+
+pub(crate) trait Quantized: Copy + Sized + WithChannels<E = u8> {
+    /// The unquantized f32 vector type.
+    type V: VectorType + WithChannels<E = f32>;
+
+    fn round(v: Self::V) -> Self;
+    fn floor(v: Self::V) -> Self;
+    fn ceil(v: Self::V) -> Self;
+    fn to_vec(self) -> Self::V;
+}
+pub(crate) trait VectorType: Copy + Sized + std::ops::Sub<Output = Self> {}
+impl VectorType for f32 {}
+impl VectorType for glam::Vec3A {}
+impl VectorType for glam::Vec4 {}
+pub(crate) trait WithChannels {
+    type E;
+    const CHANNELS: usize;
+    fn get(&self, channel: usize) -> Self::E;
+    fn set(&mut self, channel: usize, value: Self::E);
+}
+impl WithChannels for f32 {
+    type E = f32;
+    const CHANNELS: usize = 1;
+
+    #[inline(always)]
+    fn get(&self, channel: usize) -> Self::E {
+        debug_assert!(channel == 0);
+        *self
+    }
+    #[inline(always)]
+    fn set(&mut self, channel: usize, value: Self::E) {
+        debug_assert!(channel == 0);
+        *self = value;
+    }
+}
+impl WithChannels for glam::Vec3A {
+    type E = f32;
+    const CHANNELS: usize = 3;
+
+    #[inline(always)]
+    fn get(&self, channel: usize) -> Self::E {
+        self[channel]
+    }
+    #[inline(always)]
+    fn set(&mut self, channel: usize, value: Self::E) {
+        self[channel] = value;
+    }
+}
+impl WithChannels for glam::Vec4 {
+    type E = f32;
+    const CHANNELS: usize = 4;
+
+    #[inline(always)]
+    fn get(&self, channel: usize) -> Self::E {
+        self[channel]
+    }
+    #[inline(always)]
+    fn set(&mut self, channel: usize, value: Self::E) {
+        self[channel] = value;
+    }
+}
+
+/// BCn encoding is a discrete optimization problem. However, we treat it as a
+/// continuous problem and then quantize the results to get the final discrete
+/// endpoints.
+///
+/// This enum determines how the quantization is performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Quantization {
+    /// Continuous endpoints are rounded to the nearest discrete color.
+    ///
+    /// This is the fastest possible quantization, but also the one with the
+    /// worst quality.
+    Round,
+    /// Each channel is optimized independently. Optimization is performed
+    /// using all 4 possible combinations of floor/ceil for each endpoint (per
+    /// channel).
+    ///
+    /// This option is rather slow, but provides good quality.
+    ChannelWise,
+    /// This is a mix between `Round` and `ChannelWise`.
+    ///
+    /// This is based on 3 ideas:
+    ///
+    /// 1. The main performance cost comes from calling the error metric, so
+    ///    we want to minimize the number of calls to it.
+    /// 2. If the min and max (floor and ceil) of one endpoint is the same,
+    ///    then the number of calls to the error metric shrinks from 3 to 1.
+    /// 3. If the non-quantized endpoint is very close to the quantized min or
+    ///    max, then it is likely that the optimal quantized value is the min or
+    ///    max. So we can skip the other value.
+    ///    E.g. if the non-quantized value of a channel is 0.99, then the
+    ///    optimal quantized value for that channel is likely 1 and not 0.
+    ///
+    /// Using these ideas, a threshold can be defined for when a non-quantized
+    /// value is considered "close enough" to the min or max to skip checking
+    /// the other. This threshold can also be thought of a radius around the min
+    /// and max. As such, a threshold of 0 will have the same behavior as
+    /// `ChannelWise`, while a threshold of 0.5 will have the same behavior as
+    /// `Round`.
+    ///
+    /// Using this threshold, we can smoothly trade-off between quality and
+    /// performance.
+    ///
+    /// Right now, the threshold is hardcoded to 0.25.
+    ChannelWiseOptimized,
+}
+impl Quantization {
+    /// Rounds to the nearest R5G6B5 colors.
+    pub fn round<Q: Quantized>(c0: Q::V, c1: Q::V) -> (Q, Q) {
+        (Q::round(c0), Q::round(c1))
+    }
+    /// Uses floor/ceil for each channel depending to maximize the range. The
+    /// returned colors will me maximally apart within the constraints of rounding.
+    pub fn wide<Q: Quantized>(c0: Q::V, c1: Q::V) -> (Q, Q) {
+        let c0_floor = Q::floor(c0);
+        let c0_ceil = Q::ceil(c0);
+        let c1_floor = Q::floor(c1);
+        let c1_ceil = Q::ceil(c1);
+
+        // start by assuming that c0 < c1
+        let mut q0 = c0_floor;
+        let mut q1 = c1_ceil;
+        for c in 0..Q::V::CHANNELS {
+            if c0.get(c) > c1.get(c) {
+                q0.set(c, c0_ceil.get(c));
+                q1.set(c, c1_floor.get(c));
+            }
+        }
+
+        (q0, q1)
+    }
+
+    pub fn pick_best<Q: Quantized, E: PartialOrd>(
+        self,
+        c0: Q::V,
+        c1: Q::V,
+        mut error_metric: impl FnMut(Q, Q) -> E,
+    ) -> (Q, Q) {
+        let mut best = Self::round(c0, c1);
+
+        if self == Quantization::Round {
+            // For simple rounding, we don't need to optimize at all
+            return best;
+        }
+
+        let mut best_error = error_metric(best.0, best.1);
+
+        let get_range = match self {
+            Quantization::ChannelWiseOptimized => Self::optimized_range::<Q>,
+            _ => Self::full_range::<Q>,
+        };
+
+        let (c0_min, c0_max) = get_range(c0);
+        let (c1_min, c1_max) = get_range(c1);
+
+        // Channel-wise optimization
+        for c in 0..Q::CHANNELS {
+            let skip0 = best.0.get(c);
+            let skip1 = best.1.get(c);
+            for channel0 in c0_min.get(c)..=c0_max.get(c) {
+                for channel1 in c1_min.get(c)..=c1_max.get(c) {
+                    if channel0 == skip0 && channel1 == skip1 {
+                        continue;
+                    }
+                    let (mut c0, mut c1) = best;
+
+                    c0.set(c, channel0);
+                    c1.set(c, channel1);
+                    let error = error_metric(c0, c1);
+                    if error < best_error {
+                        best = (c0, c1);
+                        best_error = error;
+                    }
+                }
+            }
+        }
+        best
+    }
+
+    /// Returns the floor and ceil of the given color.
+    fn full_range<Q: Quantized>(c: Q::V) -> (Q, Q) {
+        (Q::floor(c), Q::ceil(c))
+    }
+
+    const CULL_THRESHOLD: f32 = 0.25;
+    /// Returns the floor and ceil of the given color. But if the color value
+    /// is very close to the floor or ceil, then it will only return one of the
+    /// two (returning the same value floor and ceil).
+    ///
+    /// The threshold for "very close" is defined by `CULL_THRESHOLD`. A
+    /// threshold of 0 will behave the same as `full_range`, while a threshold
+    /// of 0.5 will behave the same as `Quantization::Round`.
+    fn optimized_range<Q: Quantized>(c: Q::V) -> (Q, Q) {
+        let mut floor = Q::floor(c);
+        let mut ceil = Q::ceil(c);
+
+        let v_floor = floor.to_vec();
+        let v_ceil = ceil.to_vec();
+        let floor_dist = c - v_floor;
+        let dist = v_ceil - v_floor;
+
+        const FLOOR_THRESHOLD: f32 = Quantization::CULL_THRESHOLD;
+        const CEIL_THRESHOLD: f32 = 1.0 - Quantization::CULL_THRESHOLD;
+
+        for c in 0..Q::V::CHANNELS {
+            let floor_dist: f32 = floor_dist.get(c);
+            let dist: f32 = dist.get(c);
+            if floor_dist < FLOOR_THRESHOLD * dist {
+                // close to floor, so we can skip ceil
+                ceil.set(c, floor.get(c));
+            } else if floor_dist > CEIL_THRESHOLD * dist {
+                // close to ceil, so we can skip floor
+                floor.set(c, ceil.get(c));
+            }
+        }
+
+        (floor, ceil)
+    }
+}
