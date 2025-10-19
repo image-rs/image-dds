@@ -72,13 +72,12 @@ fn compress_single_color(color: Rgba<8>) -> Compressed {
 
 #[allow(clippy::all)]
 fn compress_mode1(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
-    let block = block.map(|p| p.color());
+    let block_rgb = block.map(|p| p.color());
 
-    let mut best = Compressed::invalid();
-    for partition in 0..64 {
+    pick_best_partition_2(&block, |partition| {
         let subset = PARTITION_SET_2[partition as usize];
 
-        let mut reordered = block;
+        let mut reordered = block_rgb;
         subset.sort_block(&mut reordered);
         let split_index = subset.count_zeros() as usize;
 
@@ -88,15 +87,14 @@ fn compress_mode1(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         let (error_s1, [e0_s1, e1_s1], p_s1, indexes_s1) =
             compress_mode1_subset(&reordered[split_index..]);
 
-        best = best.better(Compressed::mode1(
+        Compressed::mode1(
             error_s0 + error_s1,
             partition,
             [e0_s0, e1_s0, e0_s1, e1_s1],
             [p_s0, p_s1],
             IndexList::merge2(subset, indexes_s0, indexes_s1),
-        ));
-    }
-    best
+        )
+    })
 }
 fn compress_mode1_subset(block: &[Rgb<8>]) -> (u32, [Rgb<6>; 2], bool, IndexList<3>) {
     debug_assert!(block.len() <= 16);
@@ -140,13 +138,12 @@ fn compress_mode1_subset(block: &[Rgb<8>]) -> (u32, [Rgb<6>; 2], bool, IndexList
 
 #[allow(clippy::all)]
 fn compress_mode3(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
-    let block = block.map(|p| p.color());
+    let block_rgb = block.map(|p| p.color());
 
-    let mut best = Compressed::invalid();
-    for partition in 0..64 {
+    pick_best_partition_2(&block, |partition| {
         let subset = PARTITION_SET_2[partition as usize];
 
-        let mut reordered = block;
+        let mut reordered = block_rgb;
         subset.sort_block(&mut reordered);
         let split_index = subset.count_zeros() as usize;
 
@@ -156,15 +153,14 @@ fn compress_mode3(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
             compress_mode3_subset(&reordered[split_index..]);
 
-        best = best.better(Compressed::mode3(
+        Compressed::mode3(
             error_s0 + error_s1,
             partition,
             [e0_s0, e1_s0, e0_s1, e1_s1],
             [p0_s0, p1_s0, p0_s1, p1_s1],
             IndexList::merge2(subset, indexes_s0, indexes_s1),
-        ));
-    }
-    best
+        )
+    })
 }
 fn compress_mode3_subset(block: &[Rgb<8>]) -> (u32, [Rgb<7>; 2], [bool; 2], IndexList<2>) {
     debug_assert!(block.len() <= 16);
@@ -395,8 +391,7 @@ fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
 
 #[allow(clippy::all)]
 fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
-    let mut best = Compressed::invalid();
-    for partition in 0..64 {
+    pick_best_partition_2(&block, |partition| {
         let subset = PARTITION_SET_2[partition as usize];
 
         let mut reordered = block;
@@ -409,15 +404,14 @@ fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
             compress_mode7_subset(&reordered[split_index..]);
 
-        best = best.better(Compressed::mode7(
+        Compressed::mode7(
             error_s0 + error_s1,
             partition,
             [e0_s0, e1_s0, e0_s1, e1_s1],
             [p0_s0, p1_s0, p0_s1, p1_s1],
             IndexList::merge2(subset, indexes_s0, indexes_s1),
-        ));
-    }
-    best
+        )
+    })
 }
 fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], IndexList<2>) {
     debug_assert!(block.len() <= 16);
@@ -1693,6 +1687,153 @@ impl BlockStats {
     fn opaque(&self) -> bool {
         self.min.a == 255
     }
+}
+
+fn pick_best_partition_2(block: &[Rgba<8>; 16], f: impl Fn(u8) -> Compressed) -> Compressed {
+    // let partitions = rank_partitions_2(block);
+    let mut best = Compressed::invalid();
+    for partition in 0..64 {
+        best = best.better(f(partition));
+    }
+    best
+}
+/// Returns the index of the partition that best fits the block.
+fn rank_partitions_2(block: &[Rgba<8>; 16]) -> [u8; 64] {
+    let vec = block.map(|p| p.to_vec());
+    let [c0, c1] = k_means::<2>(&vec);
+
+    // a bitmask indicating which cluster each pixel belongs to
+    let mut cluster_mask: u16 = 0;
+    for i in 0..16 {
+        let p = vec[i];
+        let dist0 = p.distance_squared(c0);
+        let dist1 = p.distance_squared(c1);
+        if dist1 < dist0 {
+            cluster_mask |= 1 << i;
+        }
+    }
+
+    let get_mean_error =
+        |c0: Vec4, c1: Vec4, cluster_mask: u16, block: &[Vec4; 16], block_mask: u16| -> f32 {
+            let mut error = 0.0;
+
+            let diff_mask = cluster_mask ^ block_mask;
+            for i in (0..16).filter(|&i| (diff_mask & (1 << i)) != 0) {
+                let p = block[i];
+                let dist0 = p.distance_squared(c0);
+                let dist1 = p.distance_squared(c1);
+                error += (dist0 - dist1).abs();
+            }
+
+            error
+        };
+
+    let mut rankings: [(u8, u8, f32); 64] = std::array::from_fn(|partition| {
+        let partition = partition as u8;
+        let subset = PARTITION_SET_2[partition as usize];
+        let mask = subset.subset_indexes;
+
+        // compute mask error
+        let mask_error_0 = (cluster_mask ^ mask).count_ones() as u8;
+        let mask_error_1 = (cluster_mask ^ !mask).count_ones() as u8;
+
+        let mask_error;
+        let mean_error;
+        if mask_error_0 < mask_error_1 {
+            mask_error = mask_error_0;
+            mean_error = get_mean_error(c0, c1, cluster_mask, &vec, mask);
+        } else {
+            mask_error = mask_error_1;
+            mean_error = get_mean_error(c1, c0, !cluster_mask, &vec, mask);
+        }
+
+        (partition, mask_error, mean_error)
+    });
+
+    rankings.sort_unstable_by(|a, b| a.1.cmp(&b.1).then_with(|| a.2.total_cmp(&b.2)));
+
+    rankings.map(|(partition, _, _)| partition)
+}
+fn k_means<const K: usize>(block: &[Vec4; 16]) -> [Vec4; K] {
+    debug_assert!(K == 2 || K == 3);
+
+    fn get_initial<const K: usize>(block: &[Vec4; 16]) -> [Vec4; K] {
+        let mut centroids = [Vec4::ZERO; K];
+
+        if K == 2 {
+            // specialized path for K=2
+            // The strategy is to pick the most extreme point and then the point most distant from it.
+            let mut mean = Vec4::ZERO;
+            for &point in block {
+                mean += point;
+            }
+            mean *= 1.0 / 16.0;
+
+            // find the most extreme point from the mean
+            let mut extreme = Vec4::ZERO;
+            let mut extreme_distance_sq = f32::NEG_INFINITY;
+            for &point in block {
+                let dist = point.distance_squared(mean);
+                if dist > extreme_distance_sq {
+                    extreme_distance_sq = dist;
+                    extreme = point;
+                }
+            }
+            centroids[0] = extreme;
+
+            // find the point most distant from the extreme point
+            let mut opposite = Vec4::ZERO;
+            let mut opposite_distance_sq = f32::NEG_INFINITY;
+            for &point in block {
+                let dist = point.distance_squared(extreme);
+                if dist > opposite_distance_sq {
+                    opposite_distance_sq = dist;
+                    opposite = point;
+                }
+            }
+            centroids[1] = opposite;
+        } else {
+            // general path
+            for i in 0..K {
+                centroids[i] = block[i * 16 / K];
+            }
+        }
+
+        centroids
+    }
+
+    // initialize centroids
+    let mut centroids = get_initial::<K>(block);
+
+    // iterate
+    for _ in 0..8 {
+        let mut sums = [Vec4::ZERO; K];
+        let mut counts = [0u32; K];
+
+        // assign points to clusters
+        for &point in block {
+            let mut best_cluster = 0;
+            let mut best_distance = f32::MAX;
+            for (i, &centroid) in centroids.iter().enumerate() {
+                let distance = point.distance_squared(centroid);
+                if distance < best_distance {
+                    best_distance = distance;
+                    best_cluster = i;
+                }
+            }
+            sums[best_cluster] += point;
+            counts[best_cluster] += 1;
+        }
+
+        // update centroids
+        for i in 0..K {
+            if counts[i] > 0 {
+                centroids[i] = sums[i] / counts[i] as f32;
+            }
+        }
+    }
+
+    centroids
 }
 
 struct BitStream {
