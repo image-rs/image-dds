@@ -30,7 +30,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     if stats.opaque() {
         best = best.better(compress_mode3(block));
     } else {
-        best = best.better(compress_mode7(block, stats));
+        best = best.better(compress_mode7(block));
     }
 
     // Mode 6 uses combined Color+Alpha. This is a problem for blocks that
@@ -40,7 +40,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     // is fully opaque or doesn't contain any opaque pixels. Constant alpha is
     // also fine.
     if stats.single_alpha().is_some() || stats.max.a != 255 {
-        best = best.better(compress_mode6(block, stats));
+        best = best.better(compress_mode6(block));
     }
 
     best.block
@@ -86,11 +86,11 @@ fn compress_mode0(block: [Rgba<8>; 16]) -> Compressed {
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_rgb(&reordered[..split_index], UniquePBit);
+            compress_rgb(&reordered[..split_index], UniquePBits);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_rgb(&reordered[split_index..split_index2], UniquePBit);
+            compress_rgb(&reordered[split_index..split_index2], UniquePBits);
         let (error_s2, [e0_s2, e1_s2], [p0_s2, p1_s2], indexes_s2) =
-            compress_rgb(&reordered[split_index2..], UniquePBit);
+            compress_rgb(&reordered[split_index2..], UniquePBits);
 
         best = best.better(Compressed::mode0(
             error_s0 + error_s1 + error_s2,
@@ -168,9 +168,9 @@ fn compress_mode3(block: [Rgba<8>; 16]) -> Compressed {
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_rgb(&reordered[..split_index], UniquePBit);
+            compress_rgb(&reordered[..split_index], UniquePBits);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_rgb(&reordered[split_index..], UniquePBit);
+            compress_rgb(&reordered[split_index..], UniquePBits);
 
         Compressed::mode3(
             error_s0 + error_s1,
@@ -348,29 +348,11 @@ fn compress_color_separate_alpha_with_rotation<
     )
 }
 
-fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
-    // RGBA
-    let p0 = stats.min.a & 1 != 0;
-    let p1 = stats.max.a & 1 != 0;
-
-    let rgba_vec = block.map(|p| p.to_vec());
-    let (c0, c1) = bcn_util::line4_fit_endpoints(&rgba_vec, 0.9);
-    let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
-        closest_rgba::<4>(Rgba::round(min), Rgba::round(max), &block).1
-    });
-    let promote = |c0: Rgba<7>, c1: Rgba<7>| (c0.p_promote(p0), c1.p_promote(p1));
-    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<7>, e1: Rgba<7>| {
-        let e8 = promote(e0, e1);
-        closest_rgba::<4>(e8.0, e8.1, &block).1
-    });
-    let e8 = promote(e0, e1);
-    let (indexes, error) = closest_rgba::<4>(e8.0, e8.1, &block);
-
+fn compress_mode6(block: [Rgba<8>; 16]) -> Compressed {
+    let (error, [e0, e1], [p0, p1], indexes) = compress_rgba(&block);
     Compressed::mode6(error, [e0, e1], [p0, p1], indexes)
 }
-
-#[allow(clippy::all)]
-fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode7(block: [Rgba<8>; 16]) -> Compressed {
     pick_best_partition_2(&block, |partition| {
         let subset = PARTITION_SET_2[partition as usize];
 
@@ -380,9 +362,9 @@ fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_mode7_subset(&reordered[..split_index]);
+            compress_rgba(&reordered[..split_index]);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_mode7_subset(&reordered[split_index..]);
+            compress_rgba(&reordered[split_index..]);
 
         Compressed::mode7(
             error_s0 + error_s1,
@@ -393,7 +375,10 @@ fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         )
     })
 }
-fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], IndexList<2>) {
+
+fn compress_rgba<const B: u8, const I: u8>(
+    block: &[Rgba<8>],
+) -> (u32, [Rgba<B>; 2], [bool; 2], IndexList<I>) {
     debug_assert!(block.len() <= 16);
     debug_assert!(block.len() >= 2);
 
@@ -408,11 +393,15 @@ fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], In
     }
 
     // RGBA
-    let [p0, p1] = if opaque_count == block.len() as u8 {
-        // make sure we can represent alpha=255 exactly
-        [true, true]
+    let possible_p_bits: &[[bool; 2]] = if min_alpha == 255 {
+        // all opaque
+        &[[true, true]]
+    } else if opaque_count == 0 {
+        // all transparent or semi-transparent
+        &[[false, false], [false, true], [true, false], [true, true]]
     } else {
-        [false, true]
+        // mixed opaque and semi-transparent
+        &[[false, true], [true, true]]
     };
 
     let mut rgba_vec = [Vec4::ZERO; 16];
@@ -422,19 +411,30 @@ fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], In
 
     let (c0, c1) = bcn_util::line4_fit_endpoints(&rgba_vec[..block.len()], 0.9);
     let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
-        closest_rgba::<2>(Rgba::round(min), Rgba::round(max), block).1
+        closest_rgba::<I>(Rgba::round(min), Rgba::round(max), block).1
     });
-    let promote = |c0: Rgba<5>, c1: Rgba<5>| (c0.p_promote(p0), c1.p_promote(p1));
-    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<5>, e1: Rgba<5>| {
+
+    let mut best = (
+        u32::MAX,
+        [Rgba::new(0, 0, 0, 0); 2],
+        [false; 2],
+        IndexList::<I>::new(),
+    );
+    for &[p0, p1] in possible_p_bits {
+        let promote = |c0: Rgba<B>, c1: Rgba<B>| (c0.p_promote(p0), c1.p_promote(p1));
+        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<B>, e1: Rgba<B>| {
+            let e8 = promote(e0, e1);
+            closest_rgba::<I>(e8.0, e8.1, block).1
+        });
         let e8 = promote(e0, e1);
-        closest_rgba::<2>(e8.0, e8.1, block).1
-    });
-    let e8 = promote(e0, e1);
-    let (indexes, error) = closest_rgba::<2>(e8.0, e8.1, block);
+        let (indexes, error) = closest_rgba::<I>(e8.0, e8.1, block);
 
-    (error, [e0, e1], [p0, p1], indexes)
+        if error < best.0 {
+            best = (error, [e0, e1], [p0, p1], indexes);
+        }
+    }
+    best
 }
-
 fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     block: &[Rgb<8>],
     p_bit: impl PBitHandling<State = State>,
@@ -475,8 +475,8 @@ trait PBitState {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2];
 }
 
-struct UniquePBit;
-impl PBitHandling for UniquePBit {
+struct UniquePBits;
+impl PBitHandling for UniquePBits {
     type State = [bool; 2];
     fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
         let mut best_error;
