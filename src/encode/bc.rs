@@ -4,10 +4,10 @@ use glam::Vec4;
 
 use crate::{
     cast, ch,
-    encode::{bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
+    encode::{bc7::Rgba, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
     n4,
     util::{self, clamp_0_1},
-    EncodingError, Report,
+    Dithering, EncodingError, Report,
 };
 
 use super::{
@@ -416,9 +416,40 @@ pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 
 pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
     block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
-        let block = get_4x4_rgba_vec4(data, row_pitch).map(bc7::Rgba::round);
+        let block_vec: [Vec4; 16] = get_4x4_rgba_vec4(data, row_pitch);
+
+        let block = if options.dithering == Dithering::None {
+            block_vec.map(Rgba::round)
+        } else {
+            // This is just going to be simple 2x2 ordered dithering.
+            // This is enough to raise the color depth to approx 10 bits for smooth gradients.
+            let dither_color = if options.dithering.color() { 1.0 } else { 0.0 };
+            let dither_alpha = if options.dithering.alpha() { 1.0 } else { 0.0 };
+            let dither_mask = Vec4::new(dither_color, dither_color, dither_color, dither_alpha);
+
+            let mut block: [Rgba<8>; 16] = [Rgba::new(0, 0, 0, 0); 16];
+
+            const DITHER_MATRIX: [f32; 4] = [-0.5, 0.0, 0.25, -0.25];
+
+            for y in 0..4 {
+                for x in 0..4 {
+                    let index = y * 4 + x;
+                    let pixel = block_vec[index];
+
+                    // 2x2 ordered dithering
+                    let dither_index = (x % 2) + (y % 2) * 2;
+                    let dither_weight = DITHER_MATRIX[dither_index] * (1. / 255.);
+                    let dither = dither_weight * dither_mask;
+
+                    block[index] = Rgba::round(pixel + dither);
+                }
+            }
+
+            block
+        };
 
         *out = bc7::compress_bc7_block(block);
     })
 })
+.add_flags(Flags::DITHER_ALL)
 .with_fragment_size(BC7_FRAGMENT_SIZE)]);
