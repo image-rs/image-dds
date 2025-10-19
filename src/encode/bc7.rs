@@ -409,8 +409,12 @@ fn compress_rgba<const B: u8, const I: u8>(
         rgba_vec[i] = p.to_vec();
     }
 
-    let (c0, c1) = bcn_util::line4_fit_endpoints(&rgba_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
+    let (mut c0, mut c1) = bcn_util::line4_fit_endpoints(&rgba_vec[..block.len()], 0.9);
+    // Ensure that c0.a < c1.a. This is necessary for certain p-bit possibilities.
+    if c0.w > c1.w {
+        std::mem::swap(&mut c0, &mut c1);
+    }
+    (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
         closest_rgba::<I>(Rgba::round(min), Rgba::round(max), block).1
     });
 

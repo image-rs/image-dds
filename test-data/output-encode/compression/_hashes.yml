@@ -302,7 +302,7 @@ BC4_UNORM ref base.dds: >
     2e9d3592a6264ddd7567fea9a3a971ae59c6fd648c8126d3c20a1c60a9830bb3
 
 BC7_UNORM bc7 base.dds: >
-    ba4dd66166c5294a6ba699a3f97aabe30c94c910eb4a3c838feb3792dca246d1
+    2f4e3441b9807cd9c4b510e2b494d9f666241ec30adafa4a9b7abf7c40a503e0
 
 BC7_UNORM bc7 color-twirl.dds: >
     8d47f06e4f6e7b12b18d68f54cdab7d2a4eacc451dc0adafbf7963566f065ce6
@@ -323,10 +323,10 @@ BC7_UNORM bc7 stone-d.dds: >
     d5d55f987b3c5277397720251883387b92cd7a33351e27cda92e5206fa729df1
 
 BC7_UNORM bc7 grass.dds: >
-    3a0494fa5683738af5794f4d76d53159ad5892170442e6d090cc0d9d32247b27
+    abe675fb54c905a395697589d6d423d74efa71671a12ce66833112268edb3b88
 
 BC7_UNORM bc7 leaves.dds: >
-    3ee9df8f60093a6d057644aeec6fe38ce2ad3650b7a0ff384c75cc74f8bc0235
+    3bd067bb0ea23c3d918b13b686d1ffdea5cc538318c0b9f8627119e2f5b56d69
 
 BC7_UNORM bc7 random color.dds: >
     188d7df3c930e9bbeb7c02c5a2c25a0c6dd22e1fe104de498d473be7201bcd2d
