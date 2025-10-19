@@ -18,9 +18,9 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     let mut best = Compressed::invalid();
 
     if stats.opaque() {
-        best = best.better(compress_mode0(block, stats));
-        best = best.better(compress_mode1(block, stats));
-        best = best.better(compress_mode2(block, stats));
+        best = best.better(compress_mode0(block));
+        best = best.better(compress_mode1(block));
+        best = best.better(compress_mode2(block));
     }
 
     best = best.better(compress_mode4(block, stats));
@@ -28,7 +28,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
 
     // Mode 3 is strictly better than mode 7 for opaque blocks.
     if stats.opaque() {
-        best = best.better(compress_mode3(block, stats));
+        best = best.better(compress_mode3(block));
     } else {
         best = best.better(compress_mode7(block, stats));
     }
@@ -72,8 +72,7 @@ fn compress_single_color(color: Rgba<8>) -> Compressed {
     )
 }
 
-#[allow(clippy::all)]
-fn compress_mode0(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode0(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
     let mut best = Compressed::invalid();
@@ -87,11 +86,11 @@ fn compress_mode0(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_mode0_subset(&reordered[..split_index]);
+            compress_rgb(&reordered[..split_index], UniquePBit);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_mode0_subset(&reordered[split_index..split_index2]);
+            compress_rgb(&reordered[split_index..split_index2], UniquePBit);
         let (error_s2, [e0_s2, e1_s2], [p0_s2, p1_s2], indexes_s2) =
-            compress_mode0_subset(&reordered[split_index2..]);
+            compress_rgb(&reordered[split_index2..], UniquePBit);
 
         best = best.better(Compressed::mode0(
             error_s0 + error_s1 + error_s2,
@@ -103,48 +102,7 @@ fn compress_mode0(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     }
     best
 }
-fn compress_mode0_subset(block: &[Rgb<8>]) -> (u32, [Rgb<4>; 2], [bool; 2], IndexList<3>) {
-    debug_assert!(block.len() <= 16);
-    debug_assert!(block.len() >= 2);
-
-    // RGB
-    let mut rgb_vec = [Vec3A::ZERO; 16];
-    for (i, p) in block.iter().enumerate() {
-        rgb_vec[i] = p.to_vec();
-    }
-
-    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-        closest_rgb::<3>(Rgb::round(min), Rgb::round(max), block).1
-    });
-
-    // just try out all p-bit combinations
-
-    let mut best = (
-        u32::MAX,
-        [Rgb::new(0, 0, 0); 2],
-        [false; 2],
-        IndexList::constant(0),
-    );
-
-    for [p0, p1] in [[false, false], [false, true], [true, false], [true, true]] {
-        let promote = |c0: Rgb<4>, c1: Rgb<4>| (c0.add_p(p0).promote(), c1.add_p(p1).promote());
-        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<4>, e1: Rgb<4>| {
-            let e8 = promote(e0, e1);
-            closest_rgb::<3>(e8.0, e8.1, block).1
-        });
-        let e8 = promote(e0, e1);
-        let (indexes, error) = closest_rgb::<3>(e8.0, e8.1, block);
-        if error < best.0 {
-            best = (error, [e0, e1], [p0, p1], indexes);
-        }
-    }
-
-    best
-}
-
-#[allow(clippy::all)]
-fn compress_mode1(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode1(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
     pick_best_partition_2(&block, |partition| {
@@ -156,9 +114,9 @@ fn compress_mode1(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], p_s0, indexes_s0) =
-            compress_mode1_subset(&reordered[..split_index]);
+            compress_rgb(&reordered[..split_index], SharedPBit);
         let (error_s1, [e0_s1, e1_s1], p_s1, indexes_s1) =
-            compress_mode1_subset(&reordered[split_index..]);
+            compress_rgb(&reordered[split_index..], SharedPBit);
 
         Compressed::mode1(
             error_s0 + error_s1,
@@ -169,48 +127,7 @@ fn compress_mode1(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         )
     })
 }
-fn compress_mode1_subset(block: &[Rgb<8>]) -> (u32, [Rgb<6>; 2], bool, IndexList<3>) {
-    debug_assert!(block.len() <= 16);
-    debug_assert!(block.len() >= 2);
-
-    // RGB
-    let mut rgb_vec = [Vec3A::ZERO; 16];
-    for (i, p) in block.iter().enumerate() {
-        rgb_vec[i] = p.to_vec();
-    }
-
-    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-        closest_rgb::<3>(Rgb::round(min), Rgb::round(max), block).1
-    });
-
-    // just try out all p-bit combinations
-
-    let mut best = (
-        u32::MAX,
-        [Rgb::new(0, 0, 0); 2],
-        false,
-        IndexList::constant(0),
-    );
-
-    for p in [false, true] {
-        let promote = |c0: Rgb<6>, c1: Rgb<6>| (c0.add_p(p).promote(), c1.add_p(p).promote());
-        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<6>, e1: Rgb<6>| {
-            let e8 = promote(e0, e1);
-            closest_rgb::<3>(e8.0, e8.1, block).1
-        });
-        let e8 = promote(e0, e1);
-        let (indexes, error) = closest_rgb::<3>(e8.0, e8.1, block);
-        if error < best.0 {
-            best = (error, [e0, e1], p, indexes);
-        }
-    }
-
-    best
-}
-
-#[allow(clippy::all)]
-fn compress_mode2(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode2(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
     let mut best = Compressed::invalid();
@@ -223,12 +140,12 @@ fn compress_mode2(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         let split_index2 = split_index + subset.count_ones() as usize;
 
         // subset0 and subset1
-        let (error_s0, [e0_s0, e1_s0], indexes_s0) =
-            compress_mode2_subset(&reordered[..split_index]);
-        let (error_s1, [e0_s1, e1_s1], indexes_s1) =
-            compress_mode2_subset(&reordered[split_index..split_index2]);
-        let (error_s2, [e0_s2, e1_s2], indexes_s2) =
-            compress_mode2_subset(&reordered[split_index2..]);
+        let (error_s0, [e0_s0, e1_s0], _, indexes_s0) =
+            compress_rgb(&reordered[..split_index], NoPBit);
+        let (error_s1, [e0_s1, e1_s1], _, indexes_s1) =
+            compress_rgb(&reordered[split_index..split_index2], NoPBit);
+        let (error_s2, [e0_s2, e1_s2], _, indexes_s2) =
+            compress_rgb(&reordered[split_index2..], NoPBit);
 
         best = best.better(Compressed::mode2(
             error_s0 + error_s1 + error_s2,
@@ -239,36 +156,7 @@ fn compress_mode2(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     }
     best
 }
-fn compress_mode2_subset(block: &[Rgb<8>]) -> (u32, [Rgb<5>; 2], IndexList<2>) {
-    debug_assert!(block.len() <= 16);
-    debug_assert!(block.len() >= 2);
-
-    // RGB
-    let mut rgb_vec = [Vec3A::ZERO; 16];
-    for (i, p) in block.iter().enumerate() {
-        rgb_vec[i] = p.to_vec();
-    }
-
-    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-        closest_rgb::<2>(Rgb::round(min), Rgb::round(max), block).1
-    });
-
-    // just try out all p-bit combinations
-
-    let promote = |c0: Rgb<5>, c1: Rgb<5>| (c0.promote(), c1.promote());
-    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<5>, e1: Rgb<5>| {
-        let e8 = promote(e0, e1);
-        closest_rgb::<2>(e8.0, e8.1, block).1
-    });
-    let e8 = promote(e0, e1);
-    let (indexes, error) = closest_rgb::<2>(e8.0, e8.1, block);
-
-    (error, [e0, e1], indexes)
-}
-
-#[allow(clippy::all)]
-fn compress_mode3(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode3(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
     pick_best_partition_2(&block, |partition| {
@@ -280,9 +168,9 @@ fn compress_mode3(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_mode3_subset(&reordered[..split_index]);
+            compress_rgb(&reordered[..split_index], UniquePBit);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_mode3_subset(&reordered[split_index..]);
+            compress_rgb(&reordered[split_index..], UniquePBit);
 
         Compressed::mode3(
             error_s0 + error_s1,
@@ -292,45 +180,6 @@ fn compress_mode3(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
             IndexList::merge2(subset, indexes_s0, indexes_s1),
         )
     })
-}
-fn compress_mode3_subset(block: &[Rgb<8>]) -> (u32, [Rgb<7>; 2], [bool; 2], IndexList<2>) {
-    debug_assert!(block.len() <= 16);
-    debug_assert!(block.len() >= 2);
-
-    // RGB
-    let mut rgb_vec = [Vec3A::ZERO; 16];
-    for (i, p) in block.iter().enumerate() {
-        rgb_vec[i] = p.to_vec();
-    }
-
-    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-        closest_rgb::<2>(Rgb::round(min), Rgb::round(max), block).1
-    });
-
-    // just try out all p-bit combinations
-
-    let mut best = (
-        u32::MAX,
-        [Rgb::new(0, 0, 0); 2],
-        [false; 2],
-        IndexList::<2>::constant(0),
-    );
-
-    for [p0, p1] in [[false, false], [false, true], [true, false], [true, true]] {
-        let promote = |c0: Rgb<7>, c1: Rgb<7>| (c0.add_p(p0), c1.add_p(p1));
-        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<7>, e1: Rgb<7>| {
-            let e8 = promote(e0, e1);
-            closest_rgb::<2>(e8.0, e8.1, block).1
-        });
-        let e8 = promote(e0, e1);
-        let (indexes, error) = closest_rgb::<2>(e8.0, e8.1, block);
-        if error < best.0 {
-            best = (error, [e0, e1], [p0, p1], indexes);
-        }
-    }
-
-    best
 }
 
 fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
@@ -509,7 +358,7 @@ fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
         closest_rgba::<4>(Rgba::round(min), Rgba::round(max), &block).1
     });
-    let promote = |c0: Rgba<7>, c1: Rgba<7>| (c0.add_p(p0), c1.add_p(p1));
+    let promote = |c0: Rgba<7>, c1: Rgba<7>| (c0.p_promote(p0), c1.p_promote(p1));
     let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<7>, e1: Rgba<7>| {
         let e8 = promote(e0, e1);
         closest_rgba::<4>(e8.0, e8.1, &block).1
@@ -575,7 +424,7 @@ fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], In
     let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
         closest_rgba::<2>(Rgba::round(min), Rgba::round(max), block).1
     });
-    let promote = |c0: Rgba<5>, c1: Rgba<5>| (c0.add_p(p0).promote(), c1.add_p(p1).promote());
+    let promote = |c0: Rgba<5>, c1: Rgba<5>| (c0.p_promote(p0), c1.p_promote(p1));
     let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<5>, e1: Rgba<5>| {
         let e8 = promote(e0, e1);
         closest_rgba::<2>(e8.0, e8.1, block).1
@@ -584,6 +433,106 @@ fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], In
     let (indexes, error) = closest_rgba::<2>(e8.0, e8.1, block);
 
     (error, [e0, e1], [p0, p1], indexes)
+}
+
+fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
+    block: &[Rgb<8>],
+    p_bit: impl PBitHandling<State = State>,
+) -> (u32, [Rgb<B>; 2], State, IndexList<I>) {
+    debug_assert!(block.len() <= 16);
+    debug_assert!(block.len() >= 2);
+
+    // RGB
+    let mut rgb_vec = [Vec3A::ZERO; 16];
+    for (i, p) in block.iter().enumerate() {
+        rgb_vec[i] = p.to_vec();
+    }
+
+    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
+    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+        closest_rgb::<I>(Rgb::round(min), Rgb::round(max), block).1
+    });
+
+    // pick the best p-bit configuration
+    let (error, (es, indexes), p) = p_bit.pick_best(|p| {
+        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<B>, e1: Rgb<B>| {
+            let e8 = p.promote_rgb(e0, e1);
+            closest_rgb::<I>(e8[0], e8[1], block).1
+        });
+        let e8 = p.promote_rgb(e0, e1);
+        let (indexes, error) = closest_rgb::<I>(e8[0], e8[1], block);
+        (error, ([e0, e1], indexes))
+    });
+
+    (error, es, p, indexes)
+}
+
+trait PBitHandling {
+    type State: PBitState;
+    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State);
+}
+trait PBitState {
+    fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2];
+}
+
+struct UniquePBit;
+impl PBitHandling for UniquePBit {
+    type State = [bool; 2];
+    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
+        let mut best_error;
+        let mut best_t;
+        let mut best_state = [false; 2];
+        (best_error, best_t) = f(best_state);
+
+        for p in [[false, true], [true, false], [true, true]] {
+            let (error, t) = f(p);
+            if error < best_error {
+                best_error = error;
+                best_t = t;
+                best_state = p;
+            }
+        }
+
+        (best_error, best_t, best_state)
+    }
+}
+impl PBitState for [bool; 2] {
+    fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
+        [c0.p_promote(self[0]), c1.p_promote(self[1])]
+    }
+}
+
+struct SharedPBit;
+impl PBitHandling for SharedPBit {
+    type State = bool;
+    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
+        let (error_false, t_false) = f(false);
+        let (error_true, t_true) = f(true);
+        if error_false <= error_true {
+            (error_false, t_false, false)
+        } else {
+            (error_true, t_true, true)
+        }
+    }
+}
+impl PBitState for bool {
+    fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
+        [c0.p_promote(*self), c1.p_promote(*self)]
+    }
+}
+
+struct NoPBit;
+impl PBitHandling for NoPBit {
+    type State = NoPBit;
+    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
+        let (error, t) = f(NoPBit);
+        (error, t, NoPBit)
+    }
+}
+impl PBitState for NoPBit {
+    fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
+        [c0.promote(), c1.promote()]
+    }
 }
 
 fn refine_along_line3(
@@ -1453,6 +1402,23 @@ impl<const B: u8> Rgba<B> {
             )
         }
     }
+    pub fn p_promote(self, p: bool) -> Rgba<8> {
+        debug_assert!(B < 8);
+        let r = (self.r << 1) | (p as u8);
+        let g = (self.g << 1) | (p as u8);
+        let b = (self.b << 1) | (p as u8);
+        let a = (self.a << 1) | (p as u8);
+        if B == 7 {
+            Rgba::new(r, g, b, a)
+        } else {
+            Rgba::new(
+                promote(r, B + 1),
+                promote(g, B + 1),
+                promote(b, B + 1),
+                promote(a, B + 1),
+            )
+        }
+    }
 }
 impl<const B: u8> PartialEq for Rgba<B> {
     fn eq(&self, other: &Self) -> bool {
@@ -1553,6 +1519,17 @@ impl<const B: u8> Rgb<B> {
             Rgb::new(self.r, self.g, self.b)
         } else {
             Rgb::new(promote(self.r, B), promote(self.g, B), promote(self.b, B))
+        }
+    }
+    pub fn p_promote(self, p: bool) -> Rgb<8> {
+        debug_assert!(B < 8);
+        let r = (self.r << 1) | (p as u8);
+        let g = (self.g << 1) | (p as u8);
+        let b = (self.b << 1) | (p as u8);
+        if B == 7 {
+            Rgb::new(r, g, b)
+        } else {
+            Rgb::new(promote(r, B + 1), promote(g, B + 1), promote(b, B + 1))
         }
     }
 }
@@ -1740,48 +1717,6 @@ fn promote(mut number: u8, number_bits: u8) -> u8 {
     number <<= 8 - number_bits;
     number |= number >> number_bits;
     number
-}
-
-trait AddPBit {
-    type Output;
-    fn add_p(self, p: bool) -> Self::Output;
-}
-impl AddPBit for Rgba<5> {
-    type Output = Rgba<6>;
-    fn add_p(self, p: bool) -> Self::Output {
-        let p = p as u8;
-        let Self { r, g, b, a } = self;
-        Rgba::new((r << 1) | p, (g << 1) | p, (b << 1) | p, (a << 1) | p)
-    }
-}
-impl AddPBit for Rgba<7> {
-    type Output = Rgba<8>;
-    fn add_p(self, p: bool) -> Self::Output {
-        let p = p as u8;
-        let Self { r, g, b, a } = self;
-        Rgba::new((r << 1) | p, (g << 1) | p, (b << 1) | p, (a << 1) | p)
-    }
-}
-impl AddPBit for Rgb<4> {
-    type Output = Rgb<5>;
-    fn add_p(self, p: bool) -> Self::Output {
-        let p = p as u8;
-        Rgb::new((self.r << 1) | p, (self.g << 1) | p, (self.b << 1) | p)
-    }
-}
-impl AddPBit for Rgb<6> {
-    type Output = Rgb<7>;
-    fn add_p(self, p: bool) -> Self::Output {
-        let p = p as u8;
-        Rgb::new((self.r << 1) | p, (self.g << 1) | p, (self.b << 1) | p)
-    }
-}
-impl AddPBit for Rgb<7> {
-    type Output = Rgb<8>;
-    fn add_p(self, p: bool) -> Self::Output {
-        let p = p as u8;
-        Rgb::new((self.r << 1) | p, (self.g << 1) | p, (self.b << 1) | p)
-    }
 }
 
 // Weights are all multiplied by 4 compared to the original ones. This changes
