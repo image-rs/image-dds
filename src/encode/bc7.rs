@@ -3,7 +3,7 @@
 use glam::{Vec3A, Vec4};
 
 use crate::{
-    bcn_data::{Subset2Map, Subset3Map, PARTITION_SET_2},
+    bcn_data::{Subset2Map, Subset3Map, PARTITION_SET_2, PARTITION_SET_3},
     encode::bcn_util::{self, Quantization, Quantized, WithChannels},
 };
 
@@ -18,7 +18,9 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     let mut best = Compressed::invalid();
 
     if stats.opaque() {
+        best = best.better(compress_mode0(block, stats));
         best = best.better(compress_mode1(block, stats));
+        best = best.better(compress_mode2(block, stats));
     }
 
     best = best.better(compress_mode4(block, stats));
@@ -68,6 +70,77 @@ fn compress_single_color(color: Rgba<8>) -> Compressed {
         // the index for alpha doesn't matter since both endpoints are the same
         IndexList::<2>::constant(1),
     )
+}
+
+#[allow(clippy::all)]
+fn compress_mode0(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    let block_rgb = block.map(|p| p.color());
+
+    let mut best = Compressed::invalid();
+    for partition in [3] {
+        let subset = PARTITION_SET_3[partition as usize];
+
+        let mut reordered = block_rgb;
+        subset.sort_block(&mut reordered);
+        let split_index = subset.count_zeros() as usize;
+        let split_index2 = split_index + subset.count_ones() as usize;
+
+        // subset0 and subset1
+        let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
+            compress_mode0_subset(&reordered[..split_index]);
+        let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
+            compress_mode0_subset(&reordered[split_index..split_index2]);
+        let (error_s2, [e0_s2, e1_s2], [p0_s2, p1_s2], indexes_s2) =
+            compress_mode0_subset(&reordered[split_index2..]);
+
+        best = best.better(Compressed::mode0(
+            error_s0 + error_s1 + error_s2,
+            partition,
+            [e0_s0, e1_s0, e0_s1, e1_s1, e0_s2, e1_s2],
+            [p0_s0, p1_s0, p0_s1, p1_s1, p0_s2, p1_s2],
+            IndexList::merge3(subset, indexes_s0, indexes_s1, indexes_s2),
+        ));
+    }
+    best
+}
+fn compress_mode0_subset(block: &[Rgb<8>]) -> (u32, [Rgb<4>; 2], [bool; 2], IndexList<3>) {
+    debug_assert!(block.len() <= 16);
+    debug_assert!(block.len() >= 2);
+
+    // RGB
+    let mut rgb_vec = [Vec3A::ZERO; 16];
+    for (i, p) in block.iter().enumerate() {
+        rgb_vec[i] = p.to_vec();
+    }
+
+    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
+    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+        closest_rgb::<3>(Rgb::round(min), Rgb::round(max), block).1
+    });
+
+    // just try out all p-bit combinations
+
+    let mut best = (
+        u32::MAX,
+        [Rgb::new(0, 0, 0); 2],
+        [false; 2],
+        IndexList::constant(0),
+    );
+
+    for [p0, p1] in [[false, false], [false, true], [true, false], [true, true]] {
+        let promote = |c0: Rgb<4>, c1: Rgb<4>| (c0.add_p(p0).promote(), c1.add_p(p1).promote());
+        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<4>, e1: Rgb<4>| {
+            let e8 = promote(e0, e1);
+            closest_rgb::<3>(e8.0, e8.1, block).1
+        });
+        let e8 = promote(e0, e1);
+        let (indexes, error) = closest_rgb::<3>(e8.0, e8.1, block);
+        if error < best.0 {
+            best = (error, [e0, e1], [p0, p1], indexes);
+        }
+    }
+
+    best
 }
 
 #[allow(clippy::all)]
@@ -134,6 +207,64 @@ fn compress_mode1_subset(block: &[Rgb<8>]) -> (u32, [Rgb<6>; 2], bool, IndexList
     }
 
     best
+}
+
+#[allow(clippy::all)]
+fn compress_mode2(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    let block_rgb = block.map(|p| p.color());
+
+    let mut best = Compressed::invalid();
+    for partition in 0..64 {
+        let subset = PARTITION_SET_3[partition as usize];
+
+        let mut reordered = block_rgb;
+        subset.sort_block(&mut reordered);
+        let split_index = subset.count_zeros() as usize;
+        let split_index2 = split_index + subset.count_ones() as usize;
+
+        // subset0 and subset1
+        let (error_s0, [e0_s0, e1_s0], indexes_s0) =
+            compress_mode2_subset(&reordered[..split_index]);
+        let (error_s1, [e0_s1, e1_s1], indexes_s1) =
+            compress_mode2_subset(&reordered[split_index..split_index2]);
+        let (error_s2, [e0_s2, e1_s2], indexes_s2) =
+            compress_mode2_subset(&reordered[split_index2..]);
+
+        best = best.better(Compressed::mode2(
+            error_s0 + error_s1 + error_s2,
+            partition,
+            [e0_s0, e1_s0, e0_s1, e1_s1, e0_s2, e1_s2],
+            IndexList::merge3(subset, indexes_s0, indexes_s1, indexes_s2),
+        ));
+    }
+    best
+}
+fn compress_mode2_subset(block: &[Rgb<8>]) -> (u32, [Rgb<5>; 2], IndexList<2>) {
+    debug_assert!(block.len() <= 16);
+    debug_assert!(block.len() >= 2);
+
+    // RGB
+    let mut rgb_vec = [Vec3A::ZERO; 16];
+    for (i, p) in block.iter().enumerate() {
+        rgb_vec[i] = p.to_vec();
+    }
+
+    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
+    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+        closest_rgb::<2>(Rgb::round(min), Rgb::round(max), block).1
+    });
+
+    // just try out all p-bit combinations
+
+    let promote = |c0: Rgb<5>, c1: Rgb<5>| (c0.promote(), c1.promote());
+    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<5>, e1: Rgb<5>| {
+        let e8 = promote(e0, e1);
+        closest_rgb::<2>(e8.0, e8.1, block).1
+    });
+    let e8 = promote(e0, e1);
+    let (indexes, error) = closest_rgb::<2>(e8.0, e8.1, block);
+
+    (error, [e0, e1], indexes)
 }
 
 #[allow(clippy::all)]
@@ -787,6 +918,40 @@ impl Compressed {
         }
     }
 
+    fn mode0(
+        error: u32,
+        partition: u8,
+        mut rgb: [Rgb<4>; 6],
+        mut p: [bool; 6],
+        indexes: IndexList<3>,
+    ) -> Self {
+        debug_assert!(partition < 16);
+        let subset = PARTITION_SET_3[partition as usize];
+        let (indexes, [swap0, swap1, swap2]) = indexes.compress_p3(subset);
+
+        if swap0 {
+            rgb.swap(0, 1);
+            p.swap(0, 1);
+        }
+        if swap1 {
+            rgb.swap(2, 3);
+            p.swap(2, 3);
+        }
+        if swap2 {
+            rgb.swap(4, 5);
+            p.swap(4, 5);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(0);
+        stream.write_u64(partition as u64, 4);
+        stream.write_endpoints_rgb(&rgb);
+        stream.write_endpoints_p(&p);
+        stream.write_indexes(indexes);
+        let block = stream.finish();
+
+        Self { block, error }
+    }
     fn mode1(
         error: u32,
         partition: u8,
@@ -810,6 +975,30 @@ impl Compressed {
         stream.write_u64(partition as u64, 6);
         stream.write_endpoints_rgb(&rgb);
         stream.write_endpoints_p(&p);
+        stream.write_indexes(indexes);
+        let block = stream.finish();
+
+        Self { block, error }
+    }
+    fn mode2(error: u32, partition: u8, mut rgb: [Rgb<5>; 6], indexes: IndexList<2>) -> Self {
+        debug_assert!(partition < 64);
+        let subset = PARTITION_SET_3[partition as usize];
+        let (indexes, [swap0, swap1, swap2]) = indexes.compress_p3(subset);
+
+        if swap0 {
+            rgb.swap(0, 1);
+        }
+        if swap1 {
+            rgb.swap(2, 3);
+        }
+        if swap2 {
+            rgb.swap(4, 5);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(2);
+        stream.write_u64(partition as u64, 6);
+        stream.write_endpoints_rgb(&rgb);
         stream.write_indexes(indexes);
         let block = stream.finish();
 
@@ -1094,13 +1283,31 @@ impl<const I: u8> IndexList<I> {
     fn compress_p3(mut self, subset: Subset3Map) -> (CompressedIndexList, [bool; 3]) {
         debug_assert!(I == 2 || I == 3);
 
+        fn get_mask<const I: u8>(subset: Subset3Map, value: u8) -> u64 {
+            let mut mask = 0_u64;
+            let element_mask = (1 << I) - 1;
+            for i in 0..16 {
+                if subset.get_subset_index(i) == value {
+                    mask |= element_mask << (i * I);
+                }
+            }
+            mask
+        }
+
         let p2_fixup = subset.fixup_index_2;
         let p3_fixup = subset.fixup_index_3;
         debug_assert!(0 < p2_fixup && p2_fixup < p3_fixup && p3_fixup < 16);
-        todo!();
-        let swap1 = self.ensure_msb_zero(0, 0);
-        let swap2 = self.ensure_msb_zero(p2_fixup, 0);
-        let swap3 = self.ensure_msb_zero(p3_fixup, 0);
+
+        // Fix up indexes are stored ordered by ascending numeric value, not
+        // subset index. But here we need them ordered by subset index.
+        let (mut s1_index, mut s2_index) = (p2_fixup, p3_fixup);
+        if subset.get_subset_index(s1_index) == 2 {
+            std::mem::swap(&mut s1_index, &mut s2_index);
+        }
+        let swap1 = self.ensure_msb_zero(0, get_mask::<I>(subset, 0));
+        let swap2 = self.ensure_msb_zero(s1_index, get_mask::<I>(subset, 1));
+        let swap3 = self.ensure_msb_zero(s2_index, get_mask::<I>(subset, 2));
+
         let mut compressed = self.indexes;
         compressed = Self::compress_single_index(compressed, p3_fixup);
         compressed = Self::compress_single_index(compressed, p2_fixup);
@@ -1145,7 +1352,7 @@ impl<const I: u8> IndexList<I> {
         (indexes & before_mask) | ((indexes & after_mask) >> 1)
     }
 
-    fn merge2(subset: Subset2Map, s0: IndexList<I>, s1: IndexList<I>) -> Self {
+    fn merge2(subset: Subset2Map, s0: Self, s1: Self) -> Self {
         let mut indexes = Self::new();
         let mut s0_index = 0;
         let mut s1_index = 0;
@@ -1162,7 +1369,7 @@ impl<const I: u8> IndexList<I> {
         }
         indexes
     }
-    fn merge3(subset: Subset3Map, s0: IndexList<I>, s1: IndexList<I>, s2: IndexList<I>) -> Self {
+    fn merge3(subset: Subset3Map, s0: Self, s1: Self, s2: Self) -> Self {
         let mut indexes = Self::new();
         let mut s0_index = 0;
         let mut s1_index = 0;
