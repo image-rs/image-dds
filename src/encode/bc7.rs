@@ -2,7 +2,10 @@
 
 use glam::{Vec3A, Vec4};
 
-use crate::encode::bcn_util::{self, Quantization, Quantized, WithChannels};
+use crate::{
+    bcn_data::{Subset2Map, Subset3Map, PARTITION_SET_2},
+    encode::bcn_util::{self, Quantization, Quantized, WithChannels},
+};
 
 pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
     let stats = BlockStats::new(&block);
@@ -16,6 +19,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
 
     best = best.better(compress_mode4(block, stats));
     best = best.better(compress_mode5(block, stats));
+    best = best.better(compress_mode7(block, stats));
 
     // Mode 6 uses combined Color+Alpha. This is a problem for blocks that
     // contain both opaque and partially transparent pixels, because the opaque
@@ -243,6 +247,74 @@ fn compress_mode6(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
     Compressed::mode6(error, [e0, e1], [p0, p1], indexes)
 }
 
+#[allow(clippy::all)]
+fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    let mut best = Compressed::invalid();
+    for partition in 0..64 {
+        let subset = PARTITION_SET_2[partition as usize];
+
+        let mut reordered = block;
+        subset.partition_block(&mut reordered);
+        let split_index = subset.zero_count() as usize;
+
+        // subset0 and subset1
+        let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
+            compress_mode7_subset(&reordered[..split_index]);
+        let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
+            compress_mode7_subset(&reordered[split_index..]);
+
+        best = best.better(Compressed::mode7(
+            error_s0 + error_s1,
+            partition,
+            [e0_s0, e1_s0, e0_s1, e1_s1],
+            [p0_s0, p1_s0, p0_s1, p1_s1],
+            IndexList::merge2(subset, indexes_s0, indexes_s1),
+        ));
+    }
+    best
+}
+fn compress_mode7_subset(block: &[Rgba<8>]) -> (u32, [Rgba<5>; 2], [bool; 2], IndexList<2>) {
+    debug_assert!(block.len() <= 16);
+    debug_assert!(block.len() >= 2);
+
+    // Analyze alpha channel to determine p-bits
+    let mut min_alpha: u8 = 255;
+    let mut opaque_count: u8 = 0;
+    for p in block {
+        min_alpha = min_alpha.min(p.a);
+        if p.a == 255 {
+            opaque_count += 1;
+        }
+    }
+
+    // RGBA
+    let [p0, p1] = if opaque_count == block.len() as u8 {
+        // make sure we can represent alpha=255 exactly
+        [true, true]
+    } else {
+        [false, true]
+    };
+
+    let mut rgba_vec = [Vec4::ZERO; 16];
+    for (i, p) in block.iter().enumerate() {
+        rgba_vec[i] = p.to_vec();
+    }
+
+    let (c0, c1) = bcn_util::line4_fit_endpoints(&rgba_vec[..block.len()], 0.9);
+    let (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
+        closest_rgba::<2>(Rgba::round(min), Rgba::round(max), block).1
+    });
+    let promote = |c0: Rgba<5>, c1: Rgba<5>| (c0.add_p(p0).promote(), c1.add_p(p1).promote());
+    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<5>, e1: Rgba<5>| {
+        let e8 = promote(e0, e1);
+        closest_rgba::<2>(e8.0, e8.1, block).1
+    });
+    let e8 = promote(e0, e1);
+    let (indexes, error) = closest_rgba::<2>(e8.0, e8.1, block);
+
+    (error, [e0, e1], [p0, p1], indexes)
+}
+
 fn refine_along_line3(
     min: Vec3A,
     max: Vec3A,
@@ -306,17 +378,16 @@ fn refine_along_line4(
     get_min_max(min_t, max_t)
 }
 
-fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (IndexList<B>, u32) {
-    debug_assert!(B == 2 || B == 3);
+fn closest_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (IndexList<I>, u32) {
+    debug_assert!(I == 2 || I == 3);
 
-    fn foo<const N: usize, const B: u8>(
+    fn foo<const N: usize, const I: u8>(
         palette: [Rgb<8>; N],
         pixels: &[Rgb<8>; 16],
-    ) -> (IndexList<B>, u32) {
-        let mut indexes = IndexList::<B>::new();
+    ) -> (IndexList<I>, u32) {
+        let mut indexes = IndexList::<I>::new();
         let mut error = 0_u32;
-        for i in 0..16 {
-            let p = pixels[i];
+        for (i, &p) in pixels.iter().enumerate() {
             let mut best_index = 0;
             let mut best_dist = u32::MAX;
             for (j, &c) in palette.iter().enumerate() {
@@ -335,7 +406,7 @@ fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (I
         (indexes, error)
     }
 
-    match B {
+    match I {
         2 => {
             let palette: [Rgb<8>; 4] = [
                 e0,
@@ -361,21 +432,16 @@ fn closest_rgb<const B: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>; 16]) -> (I
         _ => unreachable!(),
     }
 }
-fn closest_rgba<const B: u8>(
-    e0: Rgba<8>,
-    e1: Rgba<8>,
-    pixels: &[Rgba<8>; 16],
-) -> (IndexList<B>, u32) {
-    debug_assert!(B == 2 || B == 3 || B == 4);
+fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (IndexList<I>, u32) {
+    debug_assert!(I == 2 || I == 3 || I == 4);
 
-    fn foo<const N: usize, const B: u8>(
+    fn foo<const N: usize, const I: u8>(
         palette: [Rgba<8>; N],
-        pixels: &[Rgba<8>; 16],
-    ) -> (IndexList<B>, u32) {
-        let mut indexes = IndexList::<B>::new();
+        pixels: &[Rgba<8>],
+    ) -> (IndexList<I>, u32) {
+        let mut indexes = IndexList::<I>::new();
         let mut error = 0_u32;
-        for i in 0..16 {
-            let p = pixels[i];
+        for (i, &p) in pixels.iter().enumerate() {
             let mut best_index = 0;
             let mut best_dist = u32::MAX;
             for (j, &c) in palette.iter().enumerate() {
@@ -395,7 +461,7 @@ fn closest_rgba<const B: u8>(
         (indexes, error)
     }
 
-    match B {
+    match I {
         2 => {
             let palette: [Rgba<8>; 4] = [
                 e0,
@@ -442,18 +508,18 @@ fn closest_rgba<const B: u8>(
         _ => unreachable!(),
     }
 }
-fn closest_alpha<const B: u8>(
+fn closest_alpha<const I: u8>(
     e0: Alpha<8>,
     e1: Alpha<8>,
     pixels: &[Alpha<8>; 16],
-) -> (IndexList<B>, u32) {
-    debug_assert!(B == 2 || B == 3);
+) -> (IndexList<I>, u32) {
+    debug_assert!(I == 2 || I == 3);
 
-    fn foo<const N: usize, const B: u8>(
+    fn foo<const N: usize, const I: u8>(
         palette: [Alpha<8>; N],
         pixels: &[Alpha<8>; 16],
-    ) -> (IndexList<B>, u32) {
-        let mut indexes = IndexList::<B>::new();
+    ) -> (IndexList<I>, u32) {
+        let mut indexes = IndexList::<I>::new();
         let mut error = 0_u32;
         for i in 0..16 {
             let p = pixels[i];
@@ -473,7 +539,7 @@ fn closest_alpha<const B: u8>(
         (indexes, error)
     }
 
-    match B {
+    match I {
         2 => {
             let palette: [Alpha<8>; 4] = [
                 e0,
@@ -500,8 +566,8 @@ fn closest_alpha<const B: u8>(
     }
 }
 /// The square error of the closest alpha values.
-fn closest_error_alpha<const B: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alpha<8>; 16]) -> u32 {
-    debug_assert!(B == 2 || B == 3);
+fn closest_error_alpha<const I: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alpha<8>; 16]) -> u32 {
+    debug_assert!(I == 2 || I == 3);
 
     debug_assert!(min.a <= max.a);
     if min.a >= max.a {
@@ -532,7 +598,7 @@ fn closest_error_alpha<const B: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alph
                 .sum()
         }
 
-        match B {
+        match I {
             2 => {
                 let interpolated = [
                     min.a,
@@ -606,8 +672,8 @@ impl Compressed {
         stream.write_mode(4);
         stream.write_rotation(rotation);
         stream.write_u64(index_mode as u64, 1);
-        stream.write_endpoints_rgb(color);
-        stream.write_endpoints_alpha(alpha);
+        stream.write_endpoints_rgb(&color);
+        stream.write_endpoints_alpha(&alpha);
         stream.write_indexes(color_indexes);
         stream.write_indexes(alpha_indexes);
         let block = stream.finish();
@@ -635,8 +701,8 @@ impl Compressed {
         let mut stream = BitStream::new();
         stream.write_mode(5);
         stream.write_rotation(rotation);
-        stream.write_endpoints_rgb(color);
-        stream.write_endpoints_alpha(alpha);
+        stream.write_endpoints_rgb(&color);
+        stream.write_endpoints_alpha(&alpha);
         stream.write_indexes(color_indexes);
         stream.write_indexes(alpha_indexes);
         let block = stream.finish();
@@ -653,8 +719,38 @@ impl Compressed {
 
         let mut stream = BitStream::new();
         stream.write_mode(6);
-        stream.write_endpoints_rgba(rgba);
-        stream.write_endpoints_p(p);
+        stream.write_endpoints_rgba(&rgba);
+        stream.write_endpoints_p(&p);
+        stream.write_indexes(indexes);
+        let block = stream.finish();
+
+        Self { block, error }
+    }
+    fn mode7(
+        error: u32,
+        partition: u8,
+        mut rgba: [Rgba<5>; 4],
+        mut p: [bool; 4],
+        indexes: IndexList<2>,
+    ) -> Self {
+        debug_assert!(partition < 64);
+        let subset = PARTITION_SET_2[partition as usize];
+        let (indexes, [swap0, swap1]) = indexes.compress_p2(subset);
+
+        if swap0 {
+            rgba.swap(0, 1);
+            p.swap(0, 1);
+        }
+        if swap1 {
+            rgba.swap(2, 3);
+            p.swap(2, 3);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(7);
+        stream.write_u64(partition as u64, 6);
+        stream.write_endpoints_rgba(&rgba);
+        stream.write_endpoints_p(&p);
         stream.write_indexes(indexes);
         let block = stream.finish();
 
@@ -711,35 +807,35 @@ impl Rotation {
     }
 }
 
-/// A list of 16 indexes each using B bits.
+/// A list of 16 indexes each using I bits.
 ///
-/// B must be 2, 3, or 4.
-struct IndexList<const B: u8> {
+/// I must be 2, 3, or 4.
+struct IndexList<const I: u8> {
     indexes: u64,
 }
-impl<const B: u8> IndexList<B> {
-    const MAX_INDEX: u8 = (1 << B) - 1;
-    const INDEXES_MASK: u64 = if B == 4 {
+impl<const I: u8> IndexList<I> {
+    const MAX_INDEX: u8 = (1 << I) - 1;
+    const INDEXES_MASK: u64 = if I == 4 {
         u64::MAX
     } else {
-        (1 << (B * 16)) - 1
+        (1 << (I * 16)) - 1
     };
 
     const fn new() -> Self {
-        debug_assert!(B == 2 || B == 3 || B == 4);
+        debug_assert!(I == 2 || I == 3 || I == 4);
         Self { indexes: 0 }
     }
     const CONSTANT_MULTIPLE: u64 = {
         let mut m = 0;
         let mut i = 0;
         while i < 16 {
-            m |= 1 << (i * B);
+            m |= 1 << (i * I);
             i += 1;
         }
         m
     };
     fn constant(value: u8) -> Self {
-        debug_assert!(B == 2 || B == 3 || B == 4);
+        debug_assert!(I == 2 || I == 3 || I == 4);
         debug_assert!(value <= Self::MAX_INDEX);
 
         Self {
@@ -749,47 +845,150 @@ impl<const B: u8> IndexList<B> {
 
     fn get(&self, index: usize) -> u8 {
         debug_assert!(index < 16);
-        ((self.indexes >> (index * B as usize)) & Self::MAX_INDEX as u64) as u8
+        ((self.indexes >> (index * I as usize)) & Self::MAX_INDEX as u64) as u8
     }
     fn set(&mut self, index: usize, value: u8) {
         debug_assert!(index < 16);
         debug_assert!(value <= Self::MAX_INDEX);
         debug_assert!(self.get(index) == 0, "Cannot set an index twice.");
-        self.indexes |= (value as u64) << (index * B as usize);
+        self.indexes |= (value as u64) << (index * I as usize);
     }
 
     /// Compresses the index list and returns whether the endpoints need to be swapped.
-    fn compress_p1(self) -> (CompressedIndexList, bool) {
-        let (compressed, swap) = Self::compress_single_index(self.indexes, 0);
+    fn compress_p1(mut self) -> (CompressedIndexList, bool) {
+        let swap = self.ensure_msb_zero(0, Self::INDEXES_MASK);
+        let compressed = Self::compress_single_index(self.indexes, 0);
         (
             CompressedIndexList {
                 compressed_indexes: compressed,
-                bits: 16 * B - 1,
+                bits: 16 * I - 1,
             },
             swap,
         )
     }
+    fn compress_p2(mut self, subset: Subset2Map) -> (CompressedIndexList, [bool; 2]) {
+        debug_assert!(I == 2 || I == 3);
 
-    fn compress_single_index(mut indexes: u64, index: u8) -> (u64, bool) {
-        debug_assert!(B == 2 || B == 3 || B == 4);
+        let p2_fixup = subset.fixup_index_2;
+        debug_assert!(0 < p2_fixup && p2_fixup < 16);
+
+        let mask_s1 = match I {
+            2 => bits_repeat2_u16(subset.subset_indexes) as u64,
+            3 => bits_repeat3_u16(subset.subset_indexes),
+            _ => unreachable!(),
+        };
+        debug_assert!(mask_s1 & Self::INDEXES_MASK == mask_s1);
+
+        let swap1 = self.ensure_msb_zero(0, mask_s1 ^ Self::INDEXES_MASK);
+        let swap2 = self.ensure_msb_zero(p2_fixup, mask_s1);
+
+        let mut compressed = self.indexes;
+        compressed = Self::compress_single_index(compressed, p2_fixup);
+        compressed = Self::compress_single_index(compressed, 0);
+        (
+            CompressedIndexList {
+                compressed_indexes: compressed,
+                bits: 16 * I - 2,
+            },
+            [swap1, swap2],
+        )
+    }
+    fn compress_p3(mut self, subset: Subset3Map) -> (CompressedIndexList, [bool; 3]) {
+        debug_assert!(I == 2 || I == 3);
+
+        let p2_fixup = subset.fixup_index_2;
+        let p3_fixup = subset.fixup_index_3;
+        debug_assert!(0 < p2_fixup && p2_fixup < p3_fixup && p3_fixup < 16);
+        todo!();
+        let swap1 = self.ensure_msb_zero(0, 0);
+        let swap2 = self.ensure_msb_zero(p2_fixup, 0);
+        let swap3 = self.ensure_msb_zero(p3_fixup, 0);
+        let mut compressed = self.indexes;
+        compressed = Self::compress_single_index(compressed, p3_fixup);
+        compressed = Self::compress_single_index(compressed, p2_fixup);
+        compressed = Self::compress_single_index(compressed, 0);
+        (
+            CompressedIndexList {
+                compressed_indexes: compressed,
+                bits: 16 * I - 3,
+            },
+            [swap1, swap2, swap3],
+        )
+    }
+
+    /// This method makes the MSB of the index-th value 0 by possibly flipping
+    /// all bits. Returns `true` if the bits were flipped, `false` otherwise.
+    fn ensure_msb_zero(&mut self, index: u8, subset_mask: u64) -> bool {
+        debug_assert!(I == 2 || I == 3 || I == 4);
         debug_assert!(index < 16);
 
         // the MSB of the index-th value has to be 0
-        let msb_mask = 1 << (B - 1 + index * B);
-        let swap = (indexes & msb_mask) != 0;
+        let msb_mask = 1 << (I - 1 + index * I);
+        let swap = (self.indexes & msb_mask) != 0;
 
         // if the MSB is 1, flip all bits
         if swap {
-            indexes ^= Self::INDEXES_MASK;
+            self.indexes ^= subset_mask;
         }
 
+        swap
+    }
+    fn compress_single_index(indexes: u64, index: u8) -> u64 {
+        debug_assert!(I == 2 || I == 3 || I == 4);
+        debug_assert!(index < 16);
+
+        // the MSB of the index-th value has to be 0
+        let msb_mask = 1 << (I - 1 + index * I);
         // now the MSB of the given index value is 0, so we can drop it
         debug_assert!((indexes & msb_mask) == 0);
         let before_mask = msb_mask - 1;
         let after_mask = !before_mask << 1;
 
-        let compressed = (indexes & before_mask) | ((indexes & after_mask) >> 1);
-        (compressed, swap)
+        (indexes & before_mask) | ((indexes & after_mask) >> 1)
+    }
+
+    fn merge2(subset: Subset2Map, s0: IndexList<I>, s1: IndexList<I>) -> Self {
+        let mut indexes = Self::new();
+        let mut s0_index = 0;
+        let mut s1_index = 0;
+        for i in 0..16 {
+            let value;
+            if subset.get_subset_index(i) == 0 {
+                value = s0.get(s0_index);
+                s0_index += 1;
+            } else {
+                value = s1.get(s1_index);
+                s1_index += 1;
+            }
+            indexes.set(i as usize, value);
+        }
+        indexes
+    }
+    fn merge3(subset: Subset3Map, s0: IndexList<I>, s1: IndexList<I>, s2: IndexList<I>) -> Self {
+        let mut indexes = Self::new();
+        let mut s0_index = 0;
+        let mut s1_index = 0;
+        let mut s2_index = 0;
+        for i in 0..16 {
+            let value;
+            match subset.get_subset_index(i) {
+                0 => {
+                    value = s0.get(s0_index);
+                    s0_index += 1;
+                }
+                1 => {
+                    value = s1.get(s1_index);
+                    s1_index += 1;
+                }
+                2 => {
+                    value = s2.get(s2_index);
+                    s2_index += 1;
+                }
+                _ => unreachable!(),
+            }
+            indexes.set(i as usize, value);
+        }
+        indexes
     }
 }
 
@@ -1137,115 +1336,6 @@ fn promote(mut number: u8, number_bits: u8) -> u8 {
     number |= number >> number_bits;
     number
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const EPS: f32 = 0.000001;
-
-    #[test]
-    fn round() {
-        for v in (0..=1000).map(|i| i as f32 / 1000.) {
-            macro_rules! test_b {
-                ($b:literal) => {
-                    let r = Alpha::<$b>::round(v);
-                    let p1 = Alpha::<$b>::new(r.a.saturating_add(1).min(Alpha::<$b>::MAX));
-                    let m1 = Alpha::<$b>::new(r.a.saturating_sub(1));
-
-                    let diff_r = (r.to_vec() - v).abs();
-                    let diff_p1 = (p1.to_vec() - v).abs();
-                    let diff_m1 = (m1.to_vec() - v).abs();
-                    assert!(
-                        diff_r <= diff_p1 + EPS && diff_r <= diff_m1 + EPS,
-                        "Failed for v={v} and B={}!\nr-1={} ({} Δ={})\nr  ={} ({} Δ={})\nr+1={} ({} Δ={})",
-                        $b,
-                        m1.a,
-                        m1.to_vec(),
-                        diff_m1,
-                        r.a,
-                        r.to_vec(),
-                        diff_r,
-                        p1.a,
-                        p1.to_vec(),
-                        diff_p1
-                    );
-                };
-            }
-
-            test_b!(8);
-            test_b!(7);
-            test_b!(6);
-            test_b!(5);
-            test_b!(4);
-        }
-    }
-    #[test]
-    fn floor() {
-        for v in (0..=1000).map(|i| i as f32 / 1000.) {
-            macro_rules! test_b {
-                ($b:literal) => {
-                    let f = Alpha::<$b>::floor(v);
-                    let p1 = Alpha::<$b>::new(f.a.saturating_add(1).min(Alpha::<$b>::MAX));
-                    let m1 = Alpha::<$b>::new(f.a.saturating_sub(1));
-
-                    let v_f = f.to_vec();
-                    let v_p1 = p1.to_vec();
-                    let v_m1 = m1.to_vec();
-                    assert!(
-                        v_f <= v + EPS && v_p1 >= v - EPS && v_m1 <= v + EPS,
-                        "Failed for v={v} and B={}!\nf-1={} ({})\nf  ={} ({})\nf+1={} ({})",
-                        $b,
-                        m1.a,
-                        m1.to_vec(),
-                        f.a,
-                        f.to_vec(),
-                        p1.a,
-                        p1.to_vec()
-                    );
-                };
-            }
-
-            test_b!(8);
-            test_b!(7);
-            test_b!(6);
-            test_b!(5);
-            test_b!(4);
-        }
-    }
-    #[test]
-    fn ceil() {
-        for v in (0..=1000).map(|i| i as f32 / 1000.) {
-            macro_rules! test_b {
-                ($b:literal) => {
-                    let c = Alpha::<$b>::ceil(v);
-                    let p1 = Alpha::<$b>::new(c.a.saturating_add(1).min(Alpha::<$b>::MAX));
-                    let m1 = Alpha::<$b>::new(c.a.saturating_sub(1));
-
-                    let v_c = c.to_vec();
-                    let v_p1 = p1.to_vec();
-                    let v_m1 = m1.to_vec();
-                    assert!(
-                        v_c >= v - EPS && v_p1 >= v - EPS && v_m1 <= v + EPS,
-                        "Failed for v={v} and B={}!\nc-1={} ({})\nc  ={} ({})\nc+1={} ({})",
-                        $b,
-                        m1.a,
-                        m1.to_vec(),
-                        c.a,
-                        c.to_vec(),
-                        p1.a,
-                        p1.to_vec()
-                    );
-                };
-            }
-
-            test_b!(8);
-            test_b!(7);
-            test_b!(6);
-            test_b!(5);
-            test_b!(4);
-        }
-    }
-}
 
 trait AddPBit {
     type Output;
@@ -1429,37 +1519,217 @@ impl BitStream {
     fn write_indexes(&mut self, indexes: CompressedIndexList) {
         self.write_u64(indexes.compressed_indexes, indexes.bits);
     }
-    fn write_endpoints_rgba<const B: u8>(&mut self, endpoints: [Rgba<B>; 2]) {
-        self.write_u64(endpoints[0].r as u64, B);
-        self.write_u64(endpoints[1].r as u64, B);
-        self.write_u64(endpoints[0].g as u64, B);
-        self.write_u64(endpoints[1].g as u64, B);
-        self.write_u64(endpoints[0].b as u64, B);
-        self.write_u64(endpoints[1].b as u64, B);
-        self.write_u64(endpoints[0].a as u64, B);
-        self.write_u64(endpoints[1].a as u64, B);
+    fn write_endpoints_rgba<const B: u8>(&mut self, endpoints: &[Rgba<B>]) {
+        debug_assert!(endpoints.len() % 2 == 0);
+        endpoints.iter().for_each(|e| self.write_u64(e.r as u64, B));
+        endpoints.iter().for_each(|e| self.write_u64(e.g as u64, B));
+        endpoints.iter().for_each(|e| self.write_u64(e.b as u64, B));
+        endpoints.iter().for_each(|e| self.write_u64(e.a as u64, B));
     }
-    fn write_endpoints_rgb<const B: u8>(&mut self, endpoints: [Rgb<B>; 2]) {
-        self.write_u64(endpoints[0].r as u64, B);
-        self.write_u64(endpoints[1].r as u64, B);
-        self.write_u64(endpoints[0].g as u64, B);
-        self.write_u64(endpoints[1].g as u64, B);
-        self.write_u64(endpoints[0].b as u64, B);
-        self.write_u64(endpoints[1].b as u64, B);
+    fn write_endpoints_rgb<const B: u8>(&mut self, endpoints: &[Rgb<B>]) {
+        debug_assert!(endpoints.len() % 2 == 0);
+        endpoints.iter().for_each(|e| self.write_u64(e.r as u64, B));
+        endpoints.iter().for_each(|e| self.write_u64(e.g as u64, B));
+        endpoints.iter().for_each(|e| self.write_u64(e.b as u64, B));
     }
-    fn write_endpoints_alpha<const B: u8>(&mut self, endpoints: [Alpha<B>; 2]) {
-        self.write_u64(endpoints[0].a as u64, B);
-        self.write_u64(endpoints[1].a as u64, B);
+    fn write_endpoints_alpha<const B: u8>(&mut self, endpoints: &[Alpha<B>]) {
+        debug_assert!(endpoints.len() % 2 == 0);
+        endpoints.iter().for_each(|e| self.write_u64(e.a as u64, B));
     }
-    fn write_endpoints_p<const N: usize>(&mut self, p: [bool; N]) {
-        debug_assert!(N % 2 == 0);
-        for p in p {
-            self.write_u64(p as u64, 1);
-        }
+    fn write_endpoints_p(&mut self, p: &[bool]) {
+        debug_assert!(p.len() % 2 == 0);
+        p.iter().for_each(|p| self.write_u64(*p as u64, 1));
     }
 
     fn finish(self) -> [u8; 16] {
         debug_assert!(self.bits == 128);
         self.data.to_le_bytes()
+    }
+}
+
+/// Turns a 16-bit value into a 32-bit value where each bit is duplicated.
+///
+/// E.g. `0b1010` becomes `0b11001100`.
+fn bits_repeat2_u16(x: u16) -> u32 {
+    let mut x = x as u32;
+    x = (x | (x << 8)) & 0x00FF_00FF;
+    x = (x | (x << 4)) & 0x0F0F_0F0F;
+    x = (x | (x << 2)) & 0x3333_3333;
+    x = (x | (x << 1)) & 0x5555_5555;
+    x | (x << 1)
+}
+/// Turns a 16-bit value into a 64-bit value where each bit is repeated 3 times.
+///
+/// E.g. `0b1010` becomes `0b111000111000`.
+fn bits_repeat3_u16(x: u16) -> u64 {
+    // TODO: find a faster algorithm
+    let mut result: u64 = 0;
+    for i in 0..16 {
+        let bit = ((x >> i) & 1) * 0b111;
+        result |= (bit as u64) << (i * 3);
+    }
+    result
+}
+/// Turns a 16-bit value into a 64-bit value where each bit is repeated 4 times.
+///
+/// E.g. `0b1010` becomes `0b1111000011110000`.
+fn bits_repeat4_u16(x: u16) -> u64 {
+    let mut x = x as u64;
+    x = (x | (x << 24)) & 0x0000_00FF_0000_00FF;
+    x = (x | (x << 12)) & 0x000F_000F_000F_000F;
+    x = (x | (x << 6)) & 0x0303_0303_0303_0303;
+    x = (x | (x << 3)) & 0x1111_1111_1111_1111;
+    x | (x << 1) | (x << 2) | (x << 3)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeat_bits() {
+        /// Reference implementation that repeats each bit `repeat` times.
+        fn repeat(x: u64, repeat: u8) -> u64 {
+            assert!(repeat > 0);
+            let mut result = 0;
+            for i in 0..64 / repeat {
+                let bit = (x >> i) & 1;
+                for j in 0..repeat {
+                    result |= bit << (i * repeat + j);
+                }
+            }
+            result
+        }
+
+        assert_eq!(repeat(0b0010_1100, 1), 0b0010_1100);
+        assert_eq!(repeat(0b0010_1100, 2), 0b00001100_11110000);
+        assert_eq!(repeat(0b0010_1100, 3), 0b000000111000_111111000000);
+        assert_eq!(repeat(0b0010_1100, 4), 0b0000000011110000_1111111100000000);
+
+        for x in 0..=u16::MAX {
+            assert_eq!(repeat(x as u64, 1), x as u64, "Failed for {x:#b}");
+
+            assert_eq!(
+                repeat(x as u64, 2),
+                bits_repeat2_u16(x) as u64,
+                "Failed for {x:#b}"
+            );
+
+            assert_eq!(
+                repeat(x as u64, 3),
+                bits_repeat3_u16(x),
+                "Failed for {x:#b}"
+            );
+
+            assert_eq!(
+                repeat(x as u64, 4),
+                bits_repeat4_u16(x),
+                "Failed for {x:#b}"
+            );
+        }
+    }
+
+    const EPS: f32 = 0.000001;
+    #[test]
+    fn round() {
+        for v in (0..=1000).map(|i| i as f32 / 1000.) {
+            macro_rules! test_b {
+                ($b:literal) => {
+                    let r = Alpha::<$b>::round(v);
+                    let p1 = Alpha::<$b>::new(r.a.saturating_add(1).min(Alpha::<$b>::MAX));
+                    let m1 = Alpha::<$b>::new(r.a.saturating_sub(1));
+
+                    let diff_r = (r.to_vec() - v).abs();
+                    let diff_p1 = (p1.to_vec() - v).abs();
+                    let diff_m1 = (m1.to_vec() - v).abs();
+                    assert!(
+                        diff_r <= diff_p1 + EPS && diff_r <= diff_m1 + EPS,
+                        "Failed for v={v} and B={}!\nr-1={} ({} Δ={})\nr  ={} ({} Δ={})\nr+1={} ({} Δ={})",
+                        $b,
+                        m1.a,
+                        m1.to_vec(),
+                        diff_m1,
+                        r.a,
+                        r.to_vec(),
+                        diff_r,
+                        p1.a,
+                        p1.to_vec(),
+                        diff_p1
+                    );
+                };
+            }
+
+            test_b!(8);
+            test_b!(7);
+            test_b!(6);
+            test_b!(5);
+            test_b!(4);
+        }
+    }
+    #[test]
+    fn floor() {
+        for v in (0..=1000).map(|i| i as f32 / 1000.) {
+            macro_rules! test_b {
+                ($b:literal) => {
+                    let f = Alpha::<$b>::floor(v);
+                    let p1 = Alpha::<$b>::new(f.a.saturating_add(1).min(Alpha::<$b>::MAX));
+                    let m1 = Alpha::<$b>::new(f.a.saturating_sub(1));
+
+                    let v_f = f.to_vec();
+                    let v_p1 = p1.to_vec();
+                    let v_m1 = m1.to_vec();
+                    assert!(
+                        v_f <= v + EPS && v_p1 >= v - EPS && v_m1 <= v + EPS,
+                        "Failed for v={v} and B={}!\nf-1={} ({})\nf  ={} ({})\nf+1={} ({})",
+                        $b,
+                        m1.a,
+                        m1.to_vec(),
+                        f.a,
+                        f.to_vec(),
+                        p1.a,
+                        p1.to_vec()
+                    );
+                };
+            }
+
+            test_b!(8);
+            test_b!(7);
+            test_b!(6);
+            test_b!(5);
+            test_b!(4);
+        }
+    }
+    #[test]
+    fn ceil() {
+        for v in (0..=1000).map(|i| i as f32 / 1000.) {
+            macro_rules! test_b {
+                ($b:literal) => {
+                    let c = Alpha::<$b>::ceil(v);
+                    let p1 = Alpha::<$b>::new(c.a.saturating_add(1).min(Alpha::<$b>::MAX));
+                    let m1 = Alpha::<$b>::new(c.a.saturating_sub(1));
+
+                    let v_c = c.to_vec();
+                    let v_p1 = p1.to_vec();
+                    let v_m1 = m1.to_vec();
+                    assert!(
+                        v_c >= v - EPS && v_p1 >= v - EPS && v_m1 <= v + EPS,
+                        "Failed for v={v} and B={}!\nc-1={} ({})\nc  ={} ({})\nc+1={} ({})",
+                        $b,
+                        m1.a,
+                        m1.to_vec(),
+                        c.a,
+                        c.to_vec(),
+                        p1.a,
+                        p1.to_vec()
+                    );
+                };
+            }
+
+            test_b!(8);
+            test_b!(7);
+            test_b!(6);
+            test_b!(5);
+            test_b!(4);
+        }
     }
 }

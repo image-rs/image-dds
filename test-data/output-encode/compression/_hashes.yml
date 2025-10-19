@@ -302,31 +302,31 @@ BC4_UNORM ref base.dds: >
     2e9d3592a6264ddd7567fea9a3a971ae59c6fd648c8126d3c20a1c60a9830bb3
 
 BC7_UNORM bc7 base.dds: >
-    94ad617c9a08f86d8ce454f349fb91f1b522b52cc6f4c45cfcd2d08220ff035c
+    4003a1c6c78099e7e864a0d0aefd90fbb2b7c2d8787c72d14138775e004f7b60
 
 BC7_UNORM bc7 color-twirl.dds: >
-    98b9a96a44c3562a32264726f2c6950b8c63016cee5660ead4722c23cbb41ff0
+    d003f1d5fcadbbd20ccda07e42d79bac364b27d6d1db785ebd11ec3a09cf7c34
 
 BC7_UNORM bc7 bricks-d.dds: >
-    a5ad30ea96f0b98e3f7eed426db300aa0977b8eab12be38ada6e9f9cc90b9f09
+    121d02ae0761ab0e4df5cd73eabd627d9d3e2cce56c5fcf13209a6deaba6147b
 
 BC7_UNORM bc7 bricks-n.dds: >
-    22037038a47c09581a35414535315e2530cbdef37c6a294cda875db0f4a5f6eb
+    67b84de2b446a5facafdc50453b9cdfe8c290ecc7b06d7b10bf68737501a9735
 
 BC7_UNORM bc7 clovers-d.dds: >
-    694bb54a223e37c13674cb440c15d0e8da5f65c449c02f3cefc6d15a1e6c3bd5
+    8a4717f6984be9ccc885e256ab92aac94026dc8795fb70d2824a93add674405a
 
 BC7_UNORM bc7 clovers-r.dds: >
-    6f5cca5e23df739fc18bf1be35f39ae2f328aa1e7b23d2d74703fdd0a8bde20c
+    2cfebfe6bfeda3391400d2db2c5a07d254a9d1d5c8136a36ea4f42652171193f
 
 BC7_UNORM bc7 stone-d.dds: >
-    36bfdc4bead6d89ed3ec0d175c24d5d847f274595759feeb5057980e398869af
+    6348c303c226c565ce830fb6a651d0e9c253c3df56a93465b24ba850230ec5af
 
 BC7_UNORM bc7 grass.dds: >
-    cf0c06ebc04979dab94450102a50f0fc472e238641e39b26926ddcc3af36414e
+    b6a932d55fa03b1deed07d8b73b9a123331b3245c7721c0d60db791d8d86ed8e
 
 BC7_UNORM bc7 leaves.dds: >
-    8c0da6ba5804cf69d67edccd6e026523048cce71a3d7a0b539ca89ee71db2dd0
+    c54bd92480c3bd21670b0c886f0606e4c52cb8a3c7e63b1cb8778c8cfa6cce41
 
 BC7_UNORM bc7 random color.dds: >
     188d7df3c930e9bbeb7c02c5a2c25a0c6dd22e1fe104de498d473be7201bcd2d
