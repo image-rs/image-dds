@@ -254,8 +254,8 @@ fn compress_mode7(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         let subset = PARTITION_SET_2[partition as usize];
 
         let mut reordered = block;
-        subset.partition_block(&mut reordered);
-        let split_index = subset.zero_count() as usize;
+        subset.sort_block(&mut reordered);
+        let split_index = subset.count_zeros() as usize;
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =

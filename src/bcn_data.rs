@@ -16,32 +16,42 @@ impl Subset2Map {
         debug_assert!(pixel_index < 16);
         (self.subset_indexes.wrapping_shr(pixel_index as u32) & 0b1) as u8
     }
+
     /// Returns the number of pixels assigned to subset index 0.
-    pub const fn zero_count(self) -> u8 {
+    pub const fn count_zeros(self) -> u8 {
         self.subset_indexes.count_zeros() as u8
     }
-    /// Reorders the elements in a block according to the given subset map. After
-    /// calling this function, all pixels belonging to subset 0 will be at the start of
-    /// the block, followed by all pixels belonging to subset 1.
+    /// Returns the number of pixels assigned to subset index 1.
+    pub const fn count_ones(self) -> u8 {
+        self.subset_indexes.count_ones() as u8
+    }
+
+    /// Reorders the elements in a block according to the subset indexes.
     ///
     /// The relative order of pixels within each subset is preserved. In that
     /// sense, this is a stable partition.
-    pub fn partition_block<T: Copy>(self, block: &mut [T; 16]) {
-        // all subsets start with a 0
-        debug_assert!(self.get_subset_index(0) == 0);
-
-        let mut indexes: [u8; 16] = [0; 16];
+    pub fn sort_block<T: Copy>(self, block: &mut [T; 16]) {
+        // This implements counting sort.
+        // The idea is that we want to sort the numbers:
+        //   for i in 0..16:
+        //     i | (subset_index(i) << 4)
+        // These 16 numbers are (1) unique and (2) in the range 0..32. So we can
+        // use a 32-bit bitset to count them.
+        let mut bitset: u32 = 0;
         for i in 0..16 {
-            indexes[i as usize] = i | (self.get_subset_index(i) << 4);
-        }
-        indexes.sort();
-        for i in 0..16 {
-            indexes[i] &= 0x0F;
+            let index = i | (self.get_subset_index(i) << 4);
+            bitset |= 1 << index;
         }
 
         let original = *block;
-        for i in 0..16 {
-            block[i] = original[indexes[i] as usize];
+        let mut count = 0;
+        for i in 0..32 {
+            // The count < 16 check is just to allow the compiler to optimize
+            // away bounds checks on block[count].
+            if (bitset & (1 << i)) != 0 && count < 16 {
+                block[count] = original[i & 0x0F];
+                count += 1;
+            }
         }
     }
 }
@@ -62,6 +72,47 @@ impl Subset3Map {
     pub const fn get_subset_index(self, pixel_index: u8) -> u8 {
         debug_assert!(pixel_index < 16);
         (self.subset_indexes.wrapping_shr(pixel_index as u32 * 2) & 0b11) as u8
+    }
+
+    const ONE_MASK: u32 = 0x5555_5555;
+    const TWO_MASK: u32 = 0xAAAA_AAAA;
+
+    /// Returns the number of pixels assigned to subset index 0.
+    pub const fn count_zeros(self) -> u8 {
+        16 - self.subset_indexes.count_ones() as u8
+    }
+    /// Returns the number of pixels assigned to subset index 1.
+    pub const fn count_ones(self) -> u8 {
+        (self.subset_indexes & Self::ONE_MASK).count_ones() as u8
+    }
+    /// Returns the number of pixels assigned to subset index 2.
+    pub const fn count_twos(self) -> u8 {
+        (self.subset_indexes & Self::TWO_MASK).count_ones() as u8
+    }
+
+    /// Reorders the elements in a block according to the subset indexes.
+    ///
+    /// The relative order of pixels within each subset is preserved. In that
+    /// sense, this is a stable partition.
+    pub fn sort_block<T: Copy>(self, block: &mut [T; 16]) {
+        // This implements counting sort.
+        // The idea is the same as Subset2Map::sort_block, but now we have 3 subsets.
+        let mut bitset: u64 = 0;
+        for i in 0..16 {
+            let index = i | (self.get_subset_index(i) << 4);
+            bitset |= 1 << index;
+        }
+
+        let original = *block;
+        let mut count = 0;
+        for i in 0..48 {
+            // The count < 16 check is just to allow the compiler to optimize
+            // away bounds checks on block[count].
+            if (bitset & (1 << i)) != 0 && count < 16 {
+                block[count] = original[i & 0x0F];
+                count += 1;
+            }
+        }
     }
 }
 
@@ -293,33 +344,69 @@ mod tests {
     }
 
     #[test]
+    fn count_members() {
+        for subset in PARTITION_SET_2.iter() {
+            let mut count = [0, 0];
+            for i in 0..16 {
+                let index = subset.get_subset_index(i);
+                count[index as usize] += 1;
+            }
+
+            assert_eq!(count[0], subset.count_zeros());
+            assert_eq!(count[1], subset.count_ones());
+        }
+
+        for subset in PARTITION_SET_3.iter() {
+            let mut count = [0, 0, 0];
+            for i in 0..16 {
+                let index = subset.get_subset_index(i);
+                count[index as usize] += 1;
+            }
+
+            assert_eq!(count[0], subset.count_zeros());
+            assert_eq!(count[1], subset.count_ones());
+            assert_eq!(count[2], subset.count_twos());
+        }
+    }
+
+    #[test]
     #[allow(clippy::needless_range_loop)]
     fn partition_block() {
         for subset in PARTITION_SET_2.iter() {
             let mut block = [0u8; 16];
             for i in 0..16 {
-                let value = if subset.get_subset_index(i as u8) == 0 {
-                    i as u8
-                } else {
-                    100 + i as u8
-                };
-                block[i] = value;
+                block[i as usize] = i | (subset.get_subset_index(i) << 4);
             }
-            subset.partition_block(&mut block);
-            let zeros = subset.zero_count() as usize;
+            subset.sort_block(&mut block);
+            let zeros = subset.count_zeros() as usize;
             assert!(block[..zeros].iter().all(|i| *i < 16));
-            assert!(block[zeros..].iter().all(|i| *i > 16));
+            assert!(block[zeros..].iter().all(|i| *i >= 16));
 
-            // no duplicates
+            // no duplicates and stable
             block.sort();
             for i in 1..16 {
-                assert_ne!(block[i], block[i - 1]);
+                assert!(block[i - 1] < block[i]);
             }
+        }
 
-            // stable
+        for subset in PARTITION_SET_3.iter() {
+            let mut block = [0u8; 16];
+            for i in 0..16 {
+                block[i as usize] = i | (subset.get_subset_index(i) << 4);
+            }
+            subset.sort_block(&mut block);
+            let zeros = subset.count_zeros() as usize;
+            let ones = subset.count_ones() as usize;
+            assert!(block[..zeros].iter().all(|i| *i < 16));
+            assert!(block[zeros..zeros + ones]
+                .iter()
+                .all(|i| *i >= 16 && *i < 32));
+            assert!(block[zeros + ones..].iter().all(|i| *i >= 32));
+
+            // no duplicates and stable
             block.sort();
             for i in 1..16 {
-                assert!(block[i - 1] <= block[i]);
+                assert!(block[i - 1] < block[i]);
             }
         }
     }
