@@ -76,7 +76,7 @@ fn compress_mode0(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
     let mut best = Compressed::invalid();
-    for partition in [3] {
+    for partition in 0..16 {
         let subset = PARTITION_SET_3[partition as usize];
 
         let mut reordered = block_rgb;
