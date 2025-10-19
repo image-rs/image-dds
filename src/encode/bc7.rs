@@ -17,6 +17,10 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
 
     let mut best = Compressed::invalid();
 
+    if stats.opaque() {
+        best = best.better(compress_mode1(block, stats));
+    }
+
     best = best.better(compress_mode4(block, stats));
     best = best.better(compress_mode5(block, stats));
 
@@ -64,6 +68,74 @@ fn compress_single_color(color: Rgba<8>) -> Compressed {
         // the index for alpha doesn't matter since both endpoints are the same
         IndexList::<2>::constant(1),
     )
+}
+
+#[allow(clippy::all)]
+fn compress_mode1(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+    let block = block.map(|p| p.color());
+
+    let mut best = Compressed::invalid();
+    for partition in 0..64 {
+        let subset = PARTITION_SET_2[partition as usize];
+
+        let mut reordered = block;
+        subset.sort_block(&mut reordered);
+        let split_index = subset.count_zeros() as usize;
+
+        // subset0 and subset1
+        let (error_s0, [e0_s0, e1_s0], p_s0, indexes_s0) =
+            compress_mode1_subset(&reordered[..split_index]);
+        let (error_s1, [e0_s1, e1_s1], p_s1, indexes_s1) =
+            compress_mode1_subset(&reordered[split_index..]);
+
+        best = best.better(Compressed::mode1(
+            error_s0 + error_s1,
+            partition,
+            [e0_s0, e1_s0, e0_s1, e1_s1],
+            [p_s0, p_s1],
+            IndexList::merge2(subset, indexes_s0, indexes_s1),
+        ));
+    }
+    best
+}
+fn compress_mode1_subset(block: &[Rgb<8>]) -> (u32, [Rgb<6>; 2], bool, IndexList<3>) {
+    debug_assert!(block.len() <= 16);
+    debug_assert!(block.len() >= 2);
+
+    // RGB
+    let mut rgb_vec = [Vec3A::ZERO; 16];
+    for (i, p) in block.iter().enumerate() {
+        rgb_vec[i] = p.to_vec();
+    }
+
+    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
+    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+        closest_rgb::<3>(Rgb::round(min), Rgb::round(max), block).1
+    });
+
+    // just try out all p-bit combinations
+
+    let mut best = (
+        u32::MAX,
+        [Rgb::new(0, 0, 0); 2],
+        false,
+        IndexList::constant(0),
+    );
+
+    for p in [false, true] {
+        let promote = |c0: Rgb<6>, c1: Rgb<6>| (c0.add_p(p).promote(), c1.add_p(p).promote());
+        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<6>, e1: Rgb<6>| {
+            let e8 = promote(e0, e1);
+            closest_rgb::<3>(e8.0, e8.1, block).1
+        });
+        let e8 = promote(e0, e1);
+        let (indexes, error) = closest_rgb::<3>(e8.0, e8.1, block);
+        if error < best.0 {
+            best = (error, [e0, e1], p, indexes);
+        }
+    }
+
+    best
 }
 
 #[allow(clippy::all)]
@@ -721,6 +793,34 @@ impl Compressed {
         }
     }
 
+    fn mode1(
+        error: u32,
+        partition: u8,
+        mut rgb: [Rgb<6>; 4],
+        p: [bool; 2],
+        indexes: IndexList<3>,
+    ) -> Self {
+        debug_assert!(partition < 64);
+        let subset = PARTITION_SET_2[partition as usize];
+        let (indexes, [swap0, swap1]) = indexes.compress_p2(subset);
+
+        if swap0 {
+            rgb.swap(0, 1);
+        }
+        if swap1 {
+            rgb.swap(2, 3);
+        }
+
+        let mut stream = BitStream::new();
+        stream.write_mode(1);
+        stream.write_u64(partition as u64, 6);
+        stream.write_endpoints_rgb(&rgb);
+        stream.write_endpoints_p(&p);
+        stream.write_indexes(indexes);
+        let block = stream.finish();
+
+        Self { block, error }
+    }
     fn mode3(
         error: u32,
         partition: u8,
