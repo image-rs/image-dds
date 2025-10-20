@@ -1,5 +1,6 @@
 #![allow(clippy::needless_range_loop)]
 
+use bitflags::bitflags;
 use glam::{Vec3A, Vec4};
 
 use crate::{
@@ -7,40 +8,122 @@ use crate::{
     encode::bcn_util::{self, Quantization, Quantized, WithChannels},
 };
 
-pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16]) -> [u8; 16] {
+bitflags! {
+    #[derive(Copy, Clone, Debug)]
+    pub(crate) struct Bc7Modes: u8 {
+        const MODE0 = 1 << 0;
+        const MODE1 = 1 << 1;
+        const MODE2 = 1 << 2;
+        const MODE3 = 1 << 3;
+        const MODE4 = 1 << 4;
+        const MODE5 = 1 << 5;
+        const MODE6 = 1 << 6;
+        const MODE7 = 1 << 7;
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Bc7Options {
+    /// Allowed BC7 modes for compression.
+    pub allowed_modes: Bc7Modes,
+
+    /// Forces the encoder to only use the specified BC7 mode (0-7).
+    ///
+    /// This is mainly for testing purposes.
+    pub force_mode: Option<u8>,
+}
+
+pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [u8; 16] {
     let stats = BlockStats::new(&block);
 
-    // a block of a single color can be compressed exactly
+    // a block of a single color can always be compressed exactly
     if let Some(color) = stats.single_color() {
         return compress_single_color(color).block;
     }
 
-    let mut best = Compressed::invalid();
+    let mut modes = Bc7Modes::empty();
 
+    // for modes, we want to first determine which modes are sensible to use and
+    // then filter by allowed modes
+    modes |= Bc7Modes::MODE4 | Bc7Modes::MODE5; // always useful
     if stats.opaque() {
-        best = best.better(compress_mode0(block));
-        best = best.better(compress_mode1(block));
-        best = best.better(compress_mode2(block));
-    }
-
-    best = best.better(compress_mode4(block, stats));
-    best = best.better(compress_mode5(block, stats));
-
-    // Mode 3 is strictly better than mode 7 for opaque blocks.
-    if stats.opaque() {
-        best = best.better(compress_mode3(block));
+        // modes exclusively for opaque blocks
+        modes |= Bc7Modes::MODE0 | Bc7Modes::MODE1 | Bc7Modes::MODE2 | Bc7Modes::MODE3;
     } else {
-        best = best.better(compress_mode7(block));
+        // modes exclusively for transparent blocks
+        // (mode 7 is strictly worse than mode 3 for opaque blocks)
+        modes |= Bc7Modes::MODE7;
     }
-
     // Mode 6 uses combined Color+Alpha. This is a problem for blocks that
     // contain both opaque and partially transparent pixels, because the opaque
     // pixels will be become partially transparent as well. Since we want to
     // ensure that opaque pixels stay opaque, we only try mode 6 if the block
     // is fully opaque or doesn't contain any opaque pixels. Constant alpha is
     // also fine.
-    if stats.single_alpha().is_some() || stats.max.a != 255 {
+    // Lastly, if no other alpha mode is allowed, it's better than nothing.
+    if stats.single_alpha().is_some()
+        || stats.max.a != 255
+        || (stats.min.a != 255
+            && !options
+                .allowed_modes
+                .intersects(Bc7Modes::MODE4 | Bc7Modes::MODE5 | Bc7Modes::MODE7))
+    {
+        modes |= Bc7Modes::MODE6;
+    }
+
+    // Filter by allowed modes
+    modes &= options.allowed_modes;
+    if modes.is_empty() {
+        // no allowed modes left, fall back to all modes
+        modes = options.allowed_modes;
+        debug_assert!(!modes.is_empty());
+    }
+
+    // Overwrite with force mode (if any)
+    if let Some(forced_mode) = options.force_mode {
+        modes = Bc7Modes::from_bits_truncate(1 << forced_mode);
+    }
+
+    // force mode for testing
+    if let Some(force_mode) = options.force_mode {
+        let compressed = match force_mode {
+            0 => compress_mode0(block),
+            1 => compress_mode1(block),
+            2 => compress_mode2(block),
+            3 => compress_mode3(block),
+            4 => compress_mode4(block, stats),
+            5 => compress_mode5(block, stats),
+            6 => compress_mode6(block),
+            7 => compress_mode7(block),
+            _ => panic!("Invalid BC7 mode {}", force_mode),
+        };
+        return compressed.block;
+    }
+
+    let mut best = Compressed::invalid();
+    if modes.contains(Bc7Modes::MODE0) {
+        best = best.better(compress_mode0(block));
+    }
+    if modes.contains(Bc7Modes::MODE1) {
+        best = best.better(compress_mode1(block));
+    }
+    if modes.contains(Bc7Modes::MODE2) {
+        best = best.better(compress_mode2(block));
+    }
+    if modes.contains(Bc7Modes::MODE3) {
+        best = best.better(compress_mode3(block));
+    }
+    if modes.contains(Bc7Modes::MODE4) {
+        best = best.better(compress_mode4(block, stats));
+    }
+    if modes.contains(Bc7Modes::MODE5) {
+        best = best.better(compress_mode5(block, stats));
+    }
+    if modes.contains(Bc7Modes::MODE6) {
         best = best.better(compress_mode6(block));
+    }
+    if modes.contains(Bc7Modes::MODE7) {
+        best = best.better(compress_mode7(block));
     }
 
     best.block

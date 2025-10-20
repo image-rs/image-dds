@@ -270,6 +270,7 @@ fn encode_measure_quality() {
     use ErrorMetric::*;
 
     let bc1_metrics = MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C;
+    let bc7_metrics = MetricChannelSet::RGB | MetricChannel::C;
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
@@ -339,11 +340,11 @@ fn encode_measure_quality() {
         TestCase {
             format: Format::BC7_UNORM,
             get_overview_channel: Some(|_, _| MetricChannel::C),
-            options: vec![(
-                "bc7",
-                new_options!(),
-                MetricChannelSet::RGBA | MetricChannel::C,
-            )],
+            options: vec![
+                ("fast", new_options!(Fast), bc7_metrics),
+                ("norm", new_options!(Normal), bc7_metrics),
+                ("high", new_options!(High), bc7_metrics),
+            ],
             images: &[
                 base,
                 color_twirl,

@@ -4,7 +4,11 @@ use glam::Vec4;
 
 use crate::{
     cast, ch,
-    encode::{bc7::Rgba, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
+    encode::{
+        bc7::{Bc7Modes, Bc7Options, Rgba},
+        bcn_util::Quantized,
+        write_util::for_each_f32_rgba_rows,
+    },
     n4,
     util::{self, clamp_0_1},
     Dithering, EncodingError, Report,
@@ -448,7 +452,23 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
             block
         };
 
-        *out = bc7::compress_bc7_block(block);
+        let options = Bc7Options {
+            allowed_modes: match options.quality {
+                CompressionQuality::Fast => Bc7Modes::MODE6 | Bc7Modes::MODE1,
+                CompressionQuality::Normal => {
+                    Bc7Modes::MODE0
+                        | Bc7Modes::MODE1
+                        | Bc7Modes::MODE4
+                        | Bc7Modes::MODE5
+                        | Bc7Modes::MODE6
+                        | Bc7Modes::MODE7
+                }
+                CompressionQuality::High | CompressionQuality::Unreasonable => Bc7Modes::all(),
+            },
+            force_mode: None,
+        };
+
+        *out = bc7::compress_bc7_block(block, options);
     })
 })
 .add_flags(Flags::DITHER_ALL)
