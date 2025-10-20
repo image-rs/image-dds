@@ -75,8 +75,7 @@ fn compress_single_color(color: Rgba<8>) -> Compressed {
 fn compress_mode0(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
-    let mut best = Compressed::invalid();
-    for partition in 0..16 {
+    pick_best_partition_3(&block, 16, |partition| {
         let subset = PARTITION_SET_3[partition as usize];
 
         let mut reordered = block_rgb;
@@ -92,15 +91,14 @@ fn compress_mode0(block: [Rgba<8>; 16]) -> Compressed {
         let (error_s2, [e0_s2, e1_s2], [p0_s2, p1_s2], indexes_s2) =
             compress_rgb(&reordered[split_index2..], UniquePBits);
 
-        best = best.better(Compressed::mode0(
+        Compressed::mode0(
             error_s0 + error_s1 + error_s2,
             partition,
             [e0_s0, e1_s0, e0_s1, e1_s1, e0_s2, e1_s2],
             [p0_s0, p1_s0, p0_s1, p1_s1, p0_s2, p1_s2],
             IndexList::merge3(subset, indexes_s0, indexes_s1, indexes_s2),
-        ));
-    }
-    best
+        )
+    })
 }
 fn compress_mode1(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
@@ -130,8 +128,7 @@ fn compress_mode1(block: [Rgba<8>; 16]) -> Compressed {
 fn compress_mode2(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
 
-    let mut best = Compressed::invalid();
-    for partition in 0..64 {
+    pick_best_partition_3(&block, 64, |partition| {
         let subset = PARTITION_SET_3[partition as usize];
 
         let mut reordered = block_rgb;
@@ -147,14 +144,13 @@ fn compress_mode2(block: [Rgba<8>; 16]) -> Compressed {
         let (error_s2, [e0_s2, e1_s2], _, indexes_s2) =
             compress_rgb(&reordered[split_index2..], NoPBit);
 
-        best = best.better(Compressed::mode2(
+        Compressed::mode2(
             error_s0 + error_s1 + error_s2,
             partition,
             [e0_s0, e1_s0, e0_s1, e1_s1, e0_s2, e1_s2],
             IndexList::merge3(subset, indexes_s0, indexes_s1, indexes_s2),
-        ));
-    }
-    best
+        )
+    })
 }
 fn compress_mode3(block: [Rgba<8>; 16]) -> Compressed {
     let block_rgb = block.map(|p| p.color());
@@ -1839,6 +1835,17 @@ fn pick_best_partition_2(block: &[Rgba<8>; 16], f: impl Fn(u8) -> Compressed) ->
     // let partitions = rank_partitions_2(block);
     let mut best = Compressed::invalid();
     for partition in 0..64 {
+        best = best.better(f(partition));
+    }
+    best
+}
+fn pick_best_partition_3(
+    block: &[Rgba<8>; 16],
+    max: u8,
+    f: impl Fn(u8) -> Compressed,
+) -> Compressed {
+    let mut best = Compressed::invalid();
+    for partition in 0..max.min(64) {
         best = best.better(f(partition));
     }
     best
