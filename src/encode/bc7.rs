@@ -2061,17 +2061,6 @@ fn bits_repeat3_u16(x: u16) -> u64 {
     }
     result
 }
-/// Turns a 16-bit value into a 64-bit value where each bit is repeated 4 times.
-///
-/// E.g. `0b1010` becomes `0b1111000011110000`.
-fn bits_repeat4_u16(x: u16) -> u64 {
-    let mut x = x as u64;
-    x = (x | (x << 24)) & 0x0000_00FF_0000_00FF;
-    x = (x | (x << 12)) & 0x000F_000F_000F_000F;
-    x = (x | (x << 6)) & 0x0303_0303_0303_0303;
-    x = (x | (x << 3)) & 0x1111_1111_1111_1111;
-    x | (x << 1) | (x << 2) | (x << 3)
-}
 
 #[cfg(test)]
 mod tests {
@@ -2109,12 +2098,6 @@ mod tests {
             assert_eq!(
                 repeat(x as u64, 3),
                 bits_repeat3_u16(x),
-                "Failed for {x:#b}"
-            );
-
-            assert_eq!(
-                repeat(x as u64, 4),
-                bits_repeat4_u16(x),
                 "Failed for {x:#b}"
             );
         }
