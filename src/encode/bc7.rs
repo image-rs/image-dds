@@ -487,8 +487,9 @@ fn compress_rgba<const B: u8, const I: u8>(
     for (i, p) in block.iter().enumerate() {
         rgba_vec[i] = p.to_vec();
     }
+    let rgba_vec = &rgba_vec[..block.len()];
 
-    let (mut c0, mut c1) = bcn_util::line4_fit_endpoints(&rgba_vec[..block.len()], 0.9);
+    let (mut c0, mut c1) = bcn_util::line4_fit_endpoints(rgba_vec, 0.9);
     // Ensure that c0.a < c1.a. This is necessary for certain p-bit possibilities.
     if c0.w > c1.w {
         std::mem::swap(&mut c0, &mut c1);
@@ -783,7 +784,7 @@ fn closest_error_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> 
     }
 }
 fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (IndexList<I>, u32) {
-    debug_assert!(I == 2 || I == 3 || I == 4);
+    debug_assert!(I == 2 || I == 4);
 
     fn closest<const N: usize, const I: u8>(
         palette: [Rgba<8>; N],
@@ -823,19 +824,6 @@ fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (I
             ];
             closest(palette, pixels)
         }
-        3 => {
-            let palette: [Rgba<8>; 8] = [
-                e0,
-                interpolate_rgba::<3>(e0, e1, 1),
-                interpolate_rgba::<3>(e0, e1, 2),
-                interpolate_rgba::<3>(e0, e1, 3),
-                interpolate_rgba::<3>(e0, e1, 4),
-                interpolate_rgba::<3>(e0, e1, 5),
-                interpolate_rgba::<3>(e0, e1, 6),
-                e1,
-            ];
-            closest(palette, pixels)
-        }
         4 => {
             let palette: [Rgba<8>; 16] = [
                 e0,
@@ -861,7 +849,7 @@ fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (I
     }
 }
 fn closest_error_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> u32 {
-    debug_assert!(I == 2 || I == 3 || I == 4);
+    debug_assert!(I == 2 || I == 4);
 
     fn error<const N: usize>(palette: [Rgba<8>; N], pixels: &[Rgba<8>]) -> u32 {
         let mut error = 0_u32;
@@ -886,19 +874,6 @@ fn closest_error_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>])
                 e0,
                 interpolate_rgba::<2>(e0, e1, 1),
                 interpolate_rgba::<2>(e0, e1, 2),
-                e1,
-            ];
-            error(palette, pixels)
-        }
-        3 => {
-            let palette: [Rgba<8>; 8] = [
-                e0,
-                interpolate_rgba::<3>(e0, e1, 1),
-                interpolate_rgba::<3>(e0, e1, 2),
-                interpolate_rgba::<3>(e0, e1, 3),
-                interpolate_rgba::<3>(e0, e1, 4),
-                interpolate_rgba::<3>(e0, e1, 5),
-                interpolate_rgba::<3>(e0, e1, 6),
                 e1,
             ];
             error(palette, pixels)
