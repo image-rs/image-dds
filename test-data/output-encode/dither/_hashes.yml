@@ -86,10 +86,10 @@ BC4_UNORM twirl.dds: >
     d7a88ee5a37018459deec642e4e48a39844779448dd28871b984afff3dd6d64d
 
 BC7_UNORM base.dds: >
-    2f4e3441b9807cd9c4b510e2b494d9f666241ec30adafa4a9b7abf7c40a503e0
+    66f7cf57ffcade9abe993b16e11a58d321aaeecf3be6b066f1be3d85dadada1e
 
 BC7_UNORM twirl.dds: >
-    88d6917dd3c0d550a3fad10102cdc0d9f4762651328d2c4a4c0740dec04cacd1
+    717ad2ec38670b715b5eff5ec1dbbdb5ff9b21aed4f0f7e890e5c899c6435b76
 
 BC3_UNORM_RXGB base.dds: >
     ff87540a60f61a6020afca05d217b9c090726d60a8bd6d952b3dd14973a65229

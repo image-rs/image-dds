@@ -465,6 +465,12 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                 }
                 CompressionQuality::High | CompressionQuality::Unreasonable => Bc7Modes::all(),
             },
+            max_partition_candidates: match options.quality {
+                CompressionQuality::Fast => 1,
+                CompressionQuality::Normal => 2,
+                CompressionQuality::High => 4,
+                CompressionQuality::Unreasonable => 64,
+            },
             force_mode: None,
         };
 

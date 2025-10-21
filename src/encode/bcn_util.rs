@@ -275,14 +275,14 @@ pub(crate) fn line4_fit_endpoints<C: Copy + Into<Vec4>>(
     // select initial points along the line
     (line.at(min_t), line.at(max_t))
 }
-struct ColorLine3 {
+pub(crate) struct ColorLine3 {
     /// The centroid of the colors
     centroid: Vec3A,
     /// The normalized direction of the line
     d: Vec3A,
 }
 impl ColorLine3 {
-    fn new<C: Copy + Into<Vec3A>>(colors: &[C]) -> Self {
+    pub fn new<C: Copy + Into<Vec3A>>(colors: &[C]) -> Self {
         fn mean<C: Copy + Into<Vec3A>>(colors: &[C]) -> Vec3A {
             let mut mean = Vec3A::ZERO;
             for &color in colors {
@@ -334,23 +334,23 @@ impl ColorLine3 {
     }
 
     /// Returns the point along the line at parameter `t`.
-    fn at(&self, t: f32) -> Vec3A {
+    pub fn at(&self, t: f32) -> Vec3A {
         self.centroid + self.d * t
     }
     /// Projects the points onto the line and returns the parameter `t`.
-    fn project(&self, color: Vec3A) -> f32 {
+    pub fn project(&self, color: Vec3A) -> f32 {
         let diff = color - self.centroid;
         diff.dot(self.d)
     }
 }
-struct ColorLine4 {
+pub(crate) struct ColorLine4 {
     /// The centroid of the colors
     centroid: Vec4,
     /// The normalized direction of the line
     d: Vec4,
 }
 impl ColorLine4 {
-    fn new<C: Copy + Into<Vec4>>(colors: &[C]) -> Self {
+    pub fn new<C: Copy + Into<Vec4>>(colors: &[C]) -> Self {
         fn mean<C: Copy + Into<Vec4>>(colors: &[C]) -> Vec4 {
             let mut mean = Vec4::ZERO;
             for &color in colors {
@@ -405,11 +405,11 @@ impl ColorLine4 {
     }
 
     /// Returns the point along the line at parameter `t`.
-    fn at(&self, t: f32) -> Vec4 {
+    pub fn at(&self, t: f32) -> Vec4 {
         self.centroid + self.d * t
     }
     /// Projects the points onto the line and returns the parameter `t`.
-    fn project(&self, color: Vec4) -> f32 {
+    pub fn project(&self, color: Vec4) -> f32 {
         let diff = color - self.centroid;
         diff.dot(self.d)
     }
