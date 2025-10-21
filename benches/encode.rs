@@ -208,6 +208,10 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, high, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
     // bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
+
+    bench_encoder(c, Format::BC7_UNORM, fast, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, normal, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, high, &random_rgb);
 }
 
 pub fn encode_parallel(c: &mut Criterion) {

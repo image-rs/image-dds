@@ -370,10 +370,10 @@ fn compress_color_separate_alpha_with_rotation<
     let rgb_vec = rgb.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
     let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-        closest_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb).1
+        closest_error_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb)
     });
     let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<C>, e1: Rgb<C>| {
-        closest_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb).1
+        closest_error_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb)
     });
     let (color_indexes, color_error) = closest_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb);
     let color_endpoints = [e0, e1];
@@ -494,7 +494,7 @@ fn compress_rgba<const B: u8, const I: u8>(
         std::mem::swap(&mut c0, &mut c1);
     }
     (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
-        closest_rgba::<I>(Rgba::round(min), Rgba::round(max), block).1
+        closest_error_rgba::<I>(Rgba::round(min), Rgba::round(max), block)
     });
 
     let mut best = (
@@ -507,7 +507,7 @@ fn compress_rgba<const B: u8, const I: u8>(
         let promote = |c0: Rgba<B>, c1: Rgba<B>| (c0.p_promote(p0), c1.p_promote(p1));
         let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<B>, e1: Rgba<B>| {
             let e8 = promote(e0, e1);
-            closest_rgba::<I>(e8.0, e8.1, block).1
+            closest_error_rgba::<I>(e8.0, e8.1, block)
         });
         let e8 = promote(e0, e1);
         let (indexes, error) = closest_rgba::<I>(e8.0, e8.1, block);
@@ -533,14 +533,14 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
 
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
     let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
-        closest_rgb::<I>(Rgb::round(min), Rgb::round(max), block).1
+        closest_error_rgb::<I>(Rgb::round(min), Rgb::round(max), block)
     });
 
     // pick the best p-bit configuration
     let (error, (es, indexes), p) = p_bit.pick_best(|p| {
         let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<B>, e1: Rgb<B>| {
             let e8 = p.promote_rgb(e0, e1);
-            closest_rgb::<I>(e8[0], e8[1], block).1
+            closest_error_rgb::<I>(e8[0], e8[1], block)
         });
         let e8 = p.promote_rgb(e0, e1);
         let (indexes, error) = closest_rgb::<I>(e8[0], e8[1], block);
@@ -684,10 +684,12 @@ fn refine_along_line4(
 fn closest_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> (IndexList<I>, u32) {
     debug_assert!(I == 2 || I == 3);
 
-    fn foo<const N: usize, const I: u8>(
+    fn closest<const N: usize, const I: u8>(
         palette: [Rgb<8>; N],
         pixels: &[Rgb<8>],
     ) -> (IndexList<I>, u32) {
+        debug_assert_eq!(N, 1 << I);
+
         let mut indexes = IndexList::<I>::new();
         let mut error = 0_u32;
         for (i, &p) in pixels.iter().enumerate() {
@@ -717,7 +719,7 @@ fn closest_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> (Index
                 interpolate_rgb::<2>(e0, e1, 2),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
         }
         3 => {
             let palette: [Rgb<8>; 8] = [
@@ -730,7 +732,52 @@ fn closest_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> (Index
                 interpolate_rgb::<3>(e0, e1, 6),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
+        }
+        _ => unreachable!(),
+    }
+}
+fn closest_error_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> u32 {
+    debug_assert!(I == 2 || I == 3);
+
+    fn error<const N: usize>(palette: [Rgb<8>; N], pixels: &[Rgb<8>]) -> u32 {
+        let mut error = 0_u32;
+        for (i, &p) in pixels.iter().enumerate() {
+            let mut best_dist = u32::MAX;
+            for (j, &c) in palette.iter().enumerate() {
+                let dr = p.r as i32 - c.r as i32;
+                let dg = p.g as i32 - c.g as i32;
+                let db = p.b as i32 - c.b as i32;
+                let dist = (dr * dr + dg * dg + db * db) as u32;
+                best_dist = best_dist.min(dist);
+            }
+            error += best_dist;
+        }
+        error
+    }
+
+    match I {
+        2 => {
+            let palette: [Rgb<8>; 4] = [
+                e0,
+                interpolate_rgb::<2>(e0, e1, 1),
+                interpolate_rgb::<2>(e0, e1, 2),
+                e1,
+            ];
+            error(palette, pixels)
+        }
+        3 => {
+            let palette: [Rgb<8>; 8] = [
+                e0,
+                interpolate_rgb::<3>(e0, e1, 1),
+                interpolate_rgb::<3>(e0, e1, 2),
+                interpolate_rgb::<3>(e0, e1, 3),
+                interpolate_rgb::<3>(e0, e1, 4),
+                interpolate_rgb::<3>(e0, e1, 5),
+                interpolate_rgb::<3>(e0, e1, 6),
+                e1,
+            ];
+            error(palette, pixels)
         }
         _ => unreachable!(),
     }
@@ -738,10 +785,12 @@ fn closest_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> (Index
 fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (IndexList<I>, u32) {
     debug_assert!(I == 2 || I == 3 || I == 4);
 
-    fn foo<const N: usize, const I: u8>(
+    fn closest<const N: usize, const I: u8>(
         palette: [Rgba<8>; N],
         pixels: &[Rgba<8>],
     ) -> (IndexList<I>, u32) {
+        debug_assert_eq!(N, 1 << I);
+
         let mut indexes = IndexList::<I>::new();
         let mut error = 0_u32;
         for (i, &p) in pixels.iter().enumerate() {
@@ -772,7 +821,7 @@ fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (I
                 interpolate_rgba::<2>(e0, e1, 2),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
         }
         3 => {
             let palette: [Rgba<8>; 8] = [
@@ -785,7 +834,7 @@ fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (I
                 interpolate_rgba::<3>(e0, e1, 6),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
         }
         4 => {
             let palette: [Rgba<8>; 16] = [
@@ -806,7 +855,74 @@ fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (I
                 interpolate_rgba::<4>(e0, e1, 14),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
+        }
+        _ => unreachable!(),
+    }
+}
+fn closest_error_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> u32 {
+    debug_assert!(I == 2 || I == 3 || I == 4);
+
+    fn error<const N: usize>(palette: [Rgba<8>; N], pixels: &[Rgba<8>]) -> u32 {
+        let mut error = 0_u32;
+        for &p in pixels {
+            let mut best_dist = u32::MAX;
+            for &c in &palette {
+                let dr = p.r as i32 - c.r as i32;
+                let dg = p.g as i32 - c.g as i32;
+                let db = p.b as i32 - c.b as i32;
+                let da = p.a as i32 - c.a as i32;
+                let dist = (dr * dr + dg * dg + db * db + da * da) as u32;
+                best_dist = best_dist.min(dist);
+            }
+            error += best_dist;
+        }
+        error
+    }
+
+    match I {
+        2 => {
+            let palette: [Rgba<8>; 4] = [
+                e0,
+                interpolate_rgba::<2>(e0, e1, 1),
+                interpolate_rgba::<2>(e0, e1, 2),
+                e1,
+            ];
+            error(palette, pixels)
+        }
+        3 => {
+            let palette: [Rgba<8>; 8] = [
+                e0,
+                interpolate_rgba::<3>(e0, e1, 1),
+                interpolate_rgba::<3>(e0, e1, 2),
+                interpolate_rgba::<3>(e0, e1, 3),
+                interpolate_rgba::<3>(e0, e1, 4),
+                interpolate_rgba::<3>(e0, e1, 5),
+                interpolate_rgba::<3>(e0, e1, 6),
+                e1,
+            ];
+            error(palette, pixels)
+        }
+        4 => {
+            let palette: [Rgba<8>; 16] = [
+                e0,
+                interpolate_rgba::<4>(e0, e1, 1),
+                interpolate_rgba::<4>(e0, e1, 2),
+                interpolate_rgba::<4>(e0, e1, 3),
+                interpolate_rgba::<4>(e0, e1, 4),
+                interpolate_rgba::<4>(e0, e1, 5),
+                interpolate_rgba::<4>(e0, e1, 6),
+                interpolate_rgba::<4>(e0, e1, 7),
+                interpolate_rgba::<4>(e0, e1, 8),
+                interpolate_rgba::<4>(e0, e1, 9),
+                interpolate_rgba::<4>(e0, e1, 10),
+                interpolate_rgba::<4>(e0, e1, 11),
+                interpolate_rgba::<4>(e0, e1, 12),
+                interpolate_rgba::<4>(e0, e1, 13),
+                interpolate_rgba::<4>(e0, e1, 14),
+                e1,
+            ];
+            error(palette, pixels)
         }
         _ => unreachable!(),
     }
@@ -818,10 +934,12 @@ fn closest_alpha<const I: u8>(
 ) -> (IndexList<I>, u32) {
     debug_assert!(I == 2 || I == 3);
 
-    fn foo<const N: usize, const I: u8>(
+    fn closest<const N: usize, const I: u8>(
         palette: [Alpha<8>; N],
         pixels: &[Alpha<8>; 16],
     ) -> (IndexList<I>, u32) {
+        debug_assert_eq!(N, 1 << I);
+
         let mut indexes = IndexList::<I>::new();
         let mut error = 0_u32;
         for i in 0..16 {
@@ -850,7 +968,7 @@ fn closest_alpha<const I: u8>(
                 interpolate_alpha::<2>(e0, e1, 2),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
         }
         3 => {
             let palette: [Alpha<8>; 8] = [
@@ -863,7 +981,7 @@ fn closest_alpha<const I: u8>(
                 interpolate_alpha::<3>(e0, e1, 6),
                 e1,
             ];
-            foo(palette, pixels)
+            closest(palette, pixels)
         }
         _ => unreachable!(),
     }
