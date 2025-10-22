@@ -22,6 +22,7 @@ impl Subset2Map {
         self.subset_indexes.count_zeros() as u8
     }
     /// Returns the number of pixels assigned to subset index 1.
+    #[allow(dead_code)]
     pub const fn count_ones(self) -> u8 {
         self.subset_indexes.count_ones() as u8
     }
@@ -86,6 +87,7 @@ impl Subset3Map {
         (self.subset_indexes & Self::ONE_MASK).count_ones() as u8
     }
     /// Returns the number of pixels assigned to subset index 2.
+    #[allow(dead_code)]
     pub const fn count_twos(self) -> u8 {
         (self.subset_indexes & Self::TWO_MASK).count_ones() as u8
     }
