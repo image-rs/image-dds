@@ -34,6 +34,9 @@ pub(crate) struct Bc7Options {
 
     pub quantization: Quantization,
 
+    /// If true, the encoder will consider color channel rotations for modes 4 and 5.
+    pub allow_color_rotation: bool,
+
     /// Forces the encoder to use exactly the specified BC7 modes. If none are
     /// specified, this option is ignored.
     ///
@@ -256,7 +259,7 @@ fn compress_mode3(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 }
 
 fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
-    decide_rotations(&block, stats, |r| {
+    decide_rotations(&block, stats, options, |r| {
         let c2a3 = {
             let (error, color, color_indexes, alpha, alpha_indexes) =
                 compress_color_separate_alpha_with_rotation(block, stats, options, r);
@@ -287,7 +290,7 @@ fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) 
     })
 }
 fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
-    decide_rotations(&block, stats, |r| {
+    decide_rotations(&block, stats, options, |r| {
         let (error, color, color_indexes, alpha, alpha_indexes) =
             compress_color_separate_alpha_with_rotation(block, stats, options, r);
         Compressed::mode5(error, r, color, color_indexes, alpha, alpha_indexes)
@@ -297,9 +300,15 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) 
 fn decide_rotations(
     block: &[Rgba<8>; 16],
     stats: BlockStats,
+    options: Bc7Options,
     mut compress: impl FnMut(Rotation) -> Compressed,
 ) -> Compressed {
     let mut best = compress(Rotation::None);
+
+    // Only consider rotations if allowed.
+    if !options.allow_color_rotation {
+        return best;
+    }
 
     // Having a low error for alpha is important for visual quality, so we only
     // want to swap alpha with other channels if there isn't much in the alpha

@@ -454,7 +454,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 
         let options = Bc7Options {
             allowed_modes: match options.quality {
-                CompressionQuality::Fast => Bc7Modes::MODE6 | Bc7Modes::MODE1,
+                CompressionQuality::Fast => Bc7Modes::MODE1 | Bc7Modes::MODE4 | Bc7Modes::MODE6,
                 CompressionQuality::Normal => {
                     Bc7Modes::MODE0
                         | Bc7Modes::MODE1
@@ -478,6 +478,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                     bcn_util::Quantization::ChannelWise
                 }
             },
+            allow_color_rotation: options.quality > CompressionQuality::Fast,
             force_modes: Bc7Modes::empty(),
         };
 
