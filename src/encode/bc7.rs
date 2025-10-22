@@ -2057,28 +2057,27 @@ impl<'a> PartitionSelect<'a> {
         let block = self.block;
 
         self.cache_partitions_2.get_or_insert_with(|| {
-            let mut scored: [_; 64] = std::array::from_fn(move |i| {
+            let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
                 let partition = i as u8;
                 let subset = PARTITION_SET_2[partition as usize];
 
                 let split_index = subset.count_zeros() as usize;
-                let score = if has_alpha {
+                let error = if has_alpha {
                     let mut reordered = block.map(|p| p.to_vec());
                     subset.sort_block(&mut reordered);
-                    score_line_4(&reordered[..split_index])
-                        + score_line_4(&reordered[split_index..])
+                    squared_error_line_4(&reordered[..split_index])
+                        + squared_error_line_4(&reordered[split_index..])
                 } else {
                     let mut reordered = block.map(|p| p.color().to_vec());
                     subset.sort_block(&mut reordered);
-                    score_line_3(&reordered[..split_index])
-                        + score_line_3(&reordered[split_index..])
+                    squared_error_line_3(&reordered[..split_index])
+                        + squared_error_line_3(&reordered[split_index..])
                 };
 
-                (partition, score)
+                (partition, error)
             });
 
-            scored
-                .sort_unstable_by(|a, b| a.1.total_cmp(&b.1).reverse().then_with(|| a.0.cmp(&b.0)));
+            scored.sort_unstable_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
 
             scored.map(|(p, _)| p)
         })
@@ -2109,12 +2108,12 @@ impl<'a> PartitionSelect<'a> {
 
         let block = self.block;
 
-        let mut scored: [_; 64] = std::array::from_fn(move |i| {
+        let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
             let partition = i as u8;
             let subset = PARTITION_SET_3[partition as usize];
 
             if partition >= max {
-                return (i as u8, f32::NEG_INFINITY);
+                return (i as u8, f32::INFINITY);
             }
 
             let mut reordered = block.map(|p| p.color().to_vec());
@@ -2122,14 +2121,14 @@ impl<'a> PartitionSelect<'a> {
             let split_index = subset.count_zeros() as usize;
             let split_index2 = split_index + subset.count_ones() as usize;
 
-            let score = score_line_3(&reordered[..split_index])
-                + score_line_3(&reordered[split_index..split_index2])
-                + score_line_3(&reordered[split_index2..]);
+            let error = squared_error_line_3(&reordered[..split_index])
+                + squared_error_line_3(&reordered[split_index..split_index2])
+                + squared_error_line_3(&reordered[split_index2..]);
 
-            (partition, score)
+            (partition, error)
         });
 
-        scored.sort_unstable_by(|a, b| a.1.total_cmp(&b.1).reverse().then_with(|| a.0.cmp(&b.0)));
+        scored.sort_unstable_by(|a, b| a.1.total_cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
 
         let partitions_64: [u8; 64] = scored.map(|(p, _)| p);
         let mut iter_16 = partitions_64.iter().copied().filter(|p| *p < 16);
@@ -2172,23 +2171,23 @@ impl<'a> PartitionSelect<'a> {
     }
 }
 
-fn score_line_3(colors: &[Vec3A]) -> f32 {
+fn squared_error_line_3(colors: &[Vec3A]) -> f32 {
     let line = ColorLine3::new(colors);
     let mut sq_error = 0.0;
     for &color in colors {
         let closest = line.at(line.project(color));
         sq_error += closest.distance_squared(color)
     }
-    -sq_error
+    sq_error
 }
-fn score_line_4(colors: &[Vec4]) -> f32 {
+fn squared_error_line_4(colors: &[Vec4]) -> f32 {
     let line = ColorLine4::new(colors);
     let mut sq_error = 0.0;
     for &color in colors {
         let closest = line.at(line.project(color));
         sq_error += closest.distance_squared(color)
     }
-    -sq_error
+    sq_error
 }
 
 struct BitStream {
