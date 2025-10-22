@@ -270,7 +270,7 @@ fn encode_measure_quality() {
     use ErrorMetric::*;
 
     let bc1_metrics = MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C;
-    let bc7_metrics = MetricChannelSet::RGB | MetricChannel::C;
+    let bc7_metrics = MetricChannelSet::RGBA | MetricChannel::C;
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
