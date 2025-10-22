@@ -4,11 +4,7 @@ use glam::Vec4;
 
 use crate::{
     cast, ch,
-    encode::{
-        bc7::{Bc7Modes, Bc7Options, Rgba},
-        bcn_util::Quantized,
-        write_util::for_each_f32_rgba_rows,
-    },
+    encode::{bc7::Bc7Modes, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
     n4,
     util::{self, clamp_0_1},
     Dithering, EncodingError, Report,
@@ -423,7 +419,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
         let block_vec: [Vec4; 16] = get_4x4_rgba_vec4(data, row_pitch);
 
         let block = if options.dithering == Dithering::None {
-            block_vec.map(Rgba::round)
+            block_vec.map(bc7::Rgba::round)
         } else {
             // This is just going to be simple 2x2 ordered dithering.
             // This is enough to raise the color depth to approx 10 bits for smooth gradients.
@@ -431,7 +427,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
             let dither_alpha = if options.dithering.alpha() { 1.0 } else { 0.0 };
             let dither_mask = Vec4::new(dither_color, dither_color, dither_color, dither_alpha);
 
-            let mut block: [Rgba<8>; 16] = [Rgba::new(0, 0, 0, 0); 16];
+            let mut block = [bc7::Rgba::new(0, 0, 0, 0); 16];
 
             const DITHER_MATRIX: [f32; 4] = [-0.5, 0.0, 0.25, -0.25];
 
@@ -445,14 +441,14 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                     let dither_weight = DITHER_MATRIX[dither_index] * (1. / 255.);
                     let dither = dither_weight * dither_mask;
 
-                    block[index] = Rgba::round(pixel + dither);
+                    block[index] = bc7::Rgba::round(pixel + dither);
                 }
             }
 
             block
         };
 
-        let options = Bc7Options {
+        let options = bc7::Bc7Options {
             allowed_modes: match options.quality {
                 CompressionQuality::Fast => Bc7Modes::MODE0 | Bc7Modes::MODE4 | Bc7Modes::MODE6,
                 CompressionQuality::Normal => {
@@ -474,9 +470,8 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
             quantization: match options.quality {
                 CompressionQuality::Fast => bcn_util::Quantization::ChannelWiseOptimized,
                 CompressionQuality::Normal => bcn_util::Quantization::ChannelWiseOptimized,
-                CompressionQuality::High | CompressionQuality::Unreasonable => {
-                    bcn_util::Quantization::ChannelWise
-                }
+                CompressionQuality::High => bcn_util::Quantization::ChannelWise,
+                CompressionQuality::Unreasonable => bcn_util::Quantization::ChannelWise,
             },
             allow_color_rotation: options.quality > CompressionQuality::Fast,
             refinement_iters: match options.quality {
