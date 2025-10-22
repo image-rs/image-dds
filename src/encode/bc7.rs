@@ -722,10 +722,7 @@ fn closest_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> (Index
             let mut best_index = 0;
             let mut best_dist = u32::MAX;
             for (j, &c) in palette.iter().enumerate() {
-                let dr = p.r as i32 - c.r as i32;
-                let dg = p.g as i32 - c.g as i32;
-                let db = p.b as i32 - c.b as i32;
-                let dist = (dr * dr + dg * dg + db * db) as u32;
+                let dist = p.dist_sq(c);
                 if dist < best_dist {
                     best_dist = dist;
                     best_index = j;
@@ -771,11 +768,7 @@ fn closest_error_rgb<const I: u8>(e0: Rgb<8>, e1: Rgb<8>, pixels: &[Rgb<8>]) -> 
         for &p in pixels {
             let mut best_dist = u32::MAX;
             for &c in &palette {
-                let dr = p.r as i32 - c.r as i32;
-                let dg = p.g as i32 - c.g as i32;
-                let db = p.b as i32 - c.b as i32;
-                let dist = (dr * dr + dg * dg + db * db) as u32;
-                best_dist = best_dist.min(dist);
+                best_dist = best_dist.min(c.dist_sq(p));
             }
             error += best_dist;
         }
@@ -1737,6 +1730,14 @@ impl<const B: u8> Rgb<B> {
         } else {
             Rgb::new(promote(r, B + 1), promote(g, B + 1), promote(b, B + 1))
         }
+    }
+
+    #[inline(always)]
+    pub fn dist_sq(self, other: Rgb<8>) -> u32 {
+        let dr = self.r as i32 - other.r as i32;
+        let dg = self.g as i32 - other.g as i32;
+        let db = self.b as i32 - other.b as i32;
+        (dr * dr + dg * dg + db * db) as u32
     }
 }
 impl<const B: u8> PartialEq for Rgb<B> {
