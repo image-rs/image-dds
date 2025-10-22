@@ -1,7 +1,7 @@
 #![allow(clippy::needless_range_loop)]
 
 use bitflags::bitflags;
-use glam::{Vec3A, Vec4};
+use glam::{IVec4, Vec3A, Vec4};
 
 use crate::{
     bcn_data::{Subset2Map, Subset3Map, PARTITION_SET_2, PARTITION_SET_3},
@@ -810,11 +810,7 @@ fn closest_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> (I
             let mut best_index = 0;
             let mut best_dist = u32::MAX;
             for (j, &c) in palette.iter().enumerate() {
-                let dr = p.r as i32 - c.r as i32;
-                let dg = p.g as i32 - c.g as i32;
-                let db = p.b as i32 - c.b as i32;
-                let da = p.a as i32 - c.a as i32;
-                let dist = (dr * dr + dg * dg + db * db + da * da) as u32;
+                let dist = c.dist_sq(p);
                 if dist < best_dist {
                     best_dist = dist;
                     best_index = j;
@@ -868,14 +864,42 @@ fn closest_error_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>])
         for &p in pixels {
             let mut best_dist = u32::MAX;
             for &c in &palette {
-                let dr = p.r as i32 - c.r as i32;
-                let dg = p.g as i32 - c.g as i32;
-                let db = p.b as i32 - c.b as i32;
-                let da = p.a as i32 - c.a as i32;
-                let dist = (dr * dr + dg * dg + db * db + da * da) as u32;
-                best_dist = best_dist.min(dist);
+                best_dist = best_dist.min(c.dist_sq(p));
             }
             error += best_dist;
+        }
+        error
+    }
+
+    fn error_16(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>]) -> u32 {
+        if e0 == e1 {
+            return pixels.iter().map(move |p| p.dist_sq(e0)).sum();
+        }
+
+        // This approximates the true error calculation by projecting
+        // the pixel onto the line defined by e0 and e1. The line parameter t
+        // t is quantized using rounding to nearest.
+        // This is only an approximation because round to nearest is not the
+        // correct quantization. (See the weights table and observe that weights
+        // are not equally spaced.) This error could be corrected by simply
+        // testing the 2 nearest quantized t values. However, the addition perf
+        // cost is not worth the small accuracy gain.
+        let (e0_8, e1_8) = (e0, e1);
+        let e0 = IVec4::new(e0.r as i32, e0.g as i32, e0.b as i32, e0.a as i32);
+        let e1 = IVec4::new(e1.r as i32, e1.g as i32, e1.b as i32, e1.a as i32);
+        let d = e1 - e0;
+        let d_len_sq = d.length_squared();
+        let d_len_sq_half = d_len_sq >> 1;
+        debug_assert!(d_len_sq > 0);
+
+        let mut error = 0_u32;
+        for &p in pixels {
+            let q = IVec4::new(p.r as i32, p.g as i32, p.b as i32, p.a as i32);
+            let v = q - e0;
+            let t = (v.dot(d) * 15 + d_len_sq_half) / d_len_sq;
+            let t = t.clamp(0, 15) as u8;
+            let c = interpolate_rgba::<4>(e0_8, e1_8, t);
+            error += c.dist_sq(p);
         }
         error
     }
@@ -890,27 +914,7 @@ fn closest_error_rgba<const I: u8>(e0: Rgba<8>, e1: Rgba<8>, pixels: &[Rgba<8>])
             ];
             error(palette, pixels)
         }
-        4 => {
-            let palette: [Rgba<8>; 16] = [
-                e0,
-                interpolate_rgba::<4>(e0, e1, 1),
-                interpolate_rgba::<4>(e0, e1, 2),
-                interpolate_rgba::<4>(e0, e1, 3),
-                interpolate_rgba::<4>(e0, e1, 4),
-                interpolate_rgba::<4>(e0, e1, 5),
-                interpolate_rgba::<4>(e0, e1, 6),
-                interpolate_rgba::<4>(e0, e1, 7),
-                interpolate_rgba::<4>(e0, e1, 8),
-                interpolate_rgba::<4>(e0, e1, 9),
-                interpolate_rgba::<4>(e0, e1, 10),
-                interpolate_rgba::<4>(e0, e1, 11),
-                interpolate_rgba::<4>(e0, e1, 12),
-                interpolate_rgba::<4>(e0, e1, 13),
-                interpolate_rgba::<4>(e0, e1, 14),
-                e1,
-            ];
-            error(palette, pixels)
-        }
+        4 => error_16(e0, e1, pixels),
         _ => unreachable!(),
     }
 }
@@ -1606,6 +1610,15 @@ impl<const B: u8> Rgba<B> {
                 promote(a, B + 1),
             )
         }
+    }
+
+    #[inline(always)]
+    pub fn dist_sq(self, other: Rgba<8>) -> u32 {
+        let dr = self.r as i32 - other.r as i32;
+        let dg = self.g as i32 - other.g as i32;
+        let db = self.b as i32 - other.b as i32;
+        let da = self.a as i32 - other.a as i32;
+        (dr * dr + dg * dg + db * db + da * da) as u32
     }
 }
 impl<const B: u8> PartialEq for Rgba<B> {
