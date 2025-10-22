@@ -260,19 +260,6 @@ fn compress_mode3(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
 fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
     decide_rotations(&block, stats, options, |r| {
-        let c2a3 = {
-            let (error, color, color_indexes, alpha, alpha_indexes) =
-                compress_color_separate_alpha_with_rotation(block, stats, options, r);
-            Compressed::mode4(
-                error,
-                r,
-                IndexMode::C2A3,
-                color,
-                color_indexes,
-                alpha,
-                alpha_indexes,
-            )
-        };
         let c3a2 = {
             let (error, color, color_indexes, alpha, alpha_indexes) =
                 compress_color_separate_alpha_with_rotation(block, stats, options, r);
@@ -284,6 +271,27 @@ fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) 
                 alpha_indexes,
                 alpha,
                 color_indexes,
+            )
+        };
+
+        // If the separated channel is a constant value, then we don't want to
+        // waste the 3-bit per pixel indexes on it.
+        let c = r.channel();
+        if stats.min.get(c) == stats.max.get(c) {
+            return c3a2;
+        }
+
+        let c2a3 = {
+            let (error, color, color_indexes, alpha, alpha_indexes) =
+                compress_color_separate_alpha_with_rotation(block, stats, options, r);
+            Compressed::mode4(
+                error,
+                r,
+                IndexMode::C2A3,
+                color,
+                color_indexes,
+                alpha,
+                alpha_indexes,
             )
         };
         c2a3.better(c3a2)
