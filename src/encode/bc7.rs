@@ -360,8 +360,8 @@ fn decide_rotations(
 fn compress_color_separate_alpha_with_rotation<
     const C: u8,
     const A: u8,
-    const INDEXC: u8,
-    const INDEXA: u8,
+    const IC: u8,
+    const IA: u8,
 >(
     mut block: [Rgba<8>; 16],
     mut stats: BlockStats,
@@ -370,9 +370,9 @@ fn compress_color_separate_alpha_with_rotation<
 ) -> (
     u32,
     [Rgb<C>; 2],
-    IndexList<INDEXC>,
+    IndexList<IC>,
     [Alpha<A>; 2],
-    IndexList<INDEXA>,
+    IndexList<IA>,
 ) {
     // Apply rotation
     if rotation != Rotation::None {
@@ -385,14 +385,14 @@ fn compress_color_separate_alpha_with_rotation<
     let rgb_vec = rgb.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
     let (c0, c1) = refine_along_line3(c0, c1, options, |(min, max)| {
-        closest_error_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb)
+        closest_error_rgb::<IC>(Rgb::round(min), Rgb::round(max), &rgb)
     });
     let (e0, e1) = options
         .quantization
         .pick_best(c0, c1, |e0: Rgb<C>, e1: Rgb<C>| {
-            closest_error_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb)
+            closest_error_rgb::<IC>(e0.promote(), e1.promote(), &rgb)
         });
-    let (color_indexes, color_error) = closest_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb);
+    let (color_indexes, color_error) = closest_rgb::<IC>(e0.promote(), e1.promote(), &rgb);
     let color_endpoints = [e0, e1];
 
     // Alpha
@@ -405,7 +405,7 @@ fn compress_color_separate_alpha_with_rotation<
                 None
             }
         }) {
-        ([alpha; 2], IndexList::<INDEXA>::constant(0), 0) // exact, so 0 error
+        ([alpha; 2], IndexList::<IA>::constant(0), 0) // exact, so 0 error
     } else {
         let alpha_pixels = block.map(|p| p.alpha());
 
@@ -425,13 +425,13 @@ fn compress_color_separate_alpha_with_rotation<
                 if force_opaque && max < 1.0 {
                     return u32::MAX;
                 }
-                closest_error_alpha::<INDEXA>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
+                closest_error_alpha::<IA>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
             },
         );
         let a_min: Alpha<A> = Alpha::floor(a_min);
         let a_max: Alpha<A> = Alpha::ceil(a_max);
         let (alpha_indexes, alpha_error) =
-            closest_alpha::<INDEXA>(a_min.promote(), a_max.promote(), &alpha_pixels);
+            closest_alpha::<IA>(a_min.promote(), a_max.promote(), &alpha_pixels);
         ([a_min, a_max], alpha_indexes, alpha_error)
     };
 
@@ -1583,10 +1583,6 @@ impl<const B: u8> Rgba<B> {
     pub fn to_u32(self) -> u32 {
         u32::from_le_bytes([self.r, self.g, self.b, self.a])
     }
-    pub fn from_u32(x: u32) -> Self {
-        let [r, g, b, a] = x.to_le_bytes();
-        Self::new(r, g, b, a)
-    }
 
     pub fn color(self) -> Rgb<B> {
         Rgb::new(self.r, self.g, self.b)
@@ -1722,10 +1718,6 @@ impl<const B: u8> Rgb<B> {
 
     pub fn to_u32(self) -> u32 {
         u32::from_le_bytes([self.r, self.g, self.b, 0])
-    }
-    pub fn from_u32(x: u32) -> Self {
-        let [r, g, b, _] = x.to_le_bytes();
-        Self::new(r, g, b)
     }
 
     pub fn promote(self) -> Rgb<8> {
@@ -2020,13 +2012,6 @@ impl BlockStats {
     fn single_color(&self) -> Option<Rgba<8>> {
         if self.min == self.max {
             Some(self.min)
-        } else {
-            None
-        }
-    }
-    fn single_rgb_color(&self) -> Option<Rgb<8>> {
-        if self.min.r == self.max.r && self.min.g == self.max.g && self.min.b == self.max.b {
-            Some(self.min.color())
         } else {
             None
         }
