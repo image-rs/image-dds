@@ -32,6 +32,8 @@ pub(crate) struct Bc7Options {
     /// Must be between 1 and 64.
     pub max_partition_candidates: u8,
 
+    pub quantization: Quantization,
+
     /// Forces the encoder to only use the specified BC7 mode (0-7).
     ///
     /// This is mainly for testing purposes.
@@ -105,13 +107,13 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
         best = best.better(compress_mode3(&mut partitions, options));
     }
     if modes.contains(Bc7Modes::MODE4) {
-        best = best.better(compress_mode4(block, stats));
+        best = best.better(compress_mode4(block, stats, options));
     }
     if modes.contains(Bc7Modes::MODE5) {
-        best = best.better(compress_mode5(block, stats));
+        best = best.better(compress_mode5(block, stats, options));
     }
     if modes.contains(Bc7Modes::MODE6) {
-        best = best.better(compress_mode6(block));
+        best = best.better(compress_mode6(block, options));
     }
     if modes.contains(Bc7Modes::MODE7) {
         best = best.better(compress_mode7(&mut partitions, options));
@@ -159,11 +161,11 @@ fn compress_mode0(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_rgb(&reordered[..split_index], UniquePBits);
+            compress_rgb(&reordered[..split_index], UniquePBits, options);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_rgb(&reordered[split_index..split_index2], UniquePBits);
+            compress_rgb(&reordered[split_index..split_index2], UniquePBits, options);
         let (error_s2, [e0_s2, e1_s2], [p0_s2, p1_s2], indexes_s2) =
-            compress_rgb(&reordered[split_index2..], UniquePBits);
+            compress_rgb(&reordered[split_index2..], UniquePBits, options);
 
         Compressed::mode0(
             error_s0 + error_s1 + error_s2,
@@ -186,9 +188,9 @@ fn compress_mode1(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], p_s0, indexes_s0) =
-            compress_rgb(&reordered[..split_index], SharedPBit);
+            compress_rgb(&reordered[..split_index], SharedPBit, options);
         let (error_s1, [e0_s1, e1_s1], p_s1, indexes_s1) =
-            compress_rgb(&reordered[split_index..], SharedPBit);
+            compress_rgb(&reordered[split_index..], SharedPBit, options);
 
         Compressed::mode1(
             error_s0 + error_s1,
@@ -212,11 +214,11 @@ fn compress_mode2(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], _, indexes_s0) =
-            compress_rgb(&reordered[..split_index], NoPBit);
+            compress_rgb(&reordered[..split_index], NoPBit, options);
         let (error_s1, [e0_s1, e1_s1], _, indexes_s1) =
-            compress_rgb(&reordered[split_index..split_index2], NoPBit);
+            compress_rgb(&reordered[split_index..split_index2], NoPBit, options);
         let (error_s2, [e0_s2, e1_s2], _, indexes_s2) =
-            compress_rgb(&reordered[split_index2..], NoPBit);
+            compress_rgb(&reordered[split_index2..], NoPBit, options);
 
         Compressed::mode2(
             error_s0 + error_s1 + error_s2,
@@ -238,9 +240,9 @@ fn compress_mode3(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_rgb(&reordered[..split_index], UniquePBits);
+            compress_rgb(&reordered[..split_index], UniquePBits, options);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_rgb(&reordered[split_index..], UniquePBits);
+            compress_rgb(&reordered[split_index..], UniquePBits, options);
 
         Compressed::mode3(
             error_s0 + error_s1,
@@ -252,11 +254,11 @@ fn compress_mode3(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
     })
 }
 
-fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
     decide_rotations(&block, stats, |r| {
         let c2a3 = {
             let (error, color, color_indexes, alpha, alpha_indexes) =
-                compress_color_separate_alpha_with_rotation(block, stats, r);
+                compress_color_separate_alpha_with_rotation(block, stats, options, r);
             Compressed::mode4(
                 error,
                 r,
@@ -269,7 +271,7 @@ fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         };
         let c3a2 = {
             let (error, color, color_indexes, alpha, alpha_indexes) =
-                compress_color_separate_alpha_with_rotation(block, stats, r);
+                compress_color_separate_alpha_with_rotation(block, stats, options, r);
             Compressed::mode4(
                 error,
                 r,
@@ -283,10 +285,10 @@ fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
         c2a3.better(c3a2)
     })
 }
-fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats) -> Compressed {
+fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
     decide_rotations(&block, stats, |r| {
         let (error, color, color_indexes, alpha, alpha_indexes) =
-            compress_color_separate_alpha_with_rotation(block, stats, r);
+            compress_color_separate_alpha_with_rotation(block, stats, options, r);
         Compressed::mode5(error, r, color, color_indexes, alpha, alpha_indexes)
     })
 }
@@ -342,6 +344,7 @@ fn compress_color_separate_alpha_with_rotation<
 >(
     mut block: [Rgba<8>; 16],
     mut stats: BlockStats,
+    options: Bc7Options,
     rotation: Rotation,
 ) -> (
     u32,
@@ -363,9 +366,11 @@ fn compress_color_separate_alpha_with_rotation<
     let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
         closest_error_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb)
     });
-    let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<C>, e1: Rgb<C>| {
-        closest_error_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb)
-    });
+    let (e0, e1) = options
+        .quantization
+        .pick_best(c0, c1, |e0: Rgb<C>, e1: Rgb<C>| {
+            closest_error_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb)
+        });
     let (color_indexes, color_error) = closest_rgb::<INDEXC>(e0.promote(), e1.promote(), &rgb);
     let color_endpoints = [e0, e1];
 
@@ -418,8 +423,8 @@ fn compress_color_separate_alpha_with_rotation<
     )
 }
 
-fn compress_mode6(block: [Rgba<8>; 16]) -> Compressed {
-    let (error, [e0, e1], [p0, p1], indexes) = compress_rgba(&block);
+fn compress_mode6(block: [Rgba<8>; 16], options: Bc7Options) -> Compressed {
+    let (error, [e0, e1], [p0, p1], indexes) = compress_rgba(&block, options);
     Compressed::mode6(error, [e0, e1], [p0, p1], indexes)
 }
 fn compress_mode7(partitions: &mut PartitionSelect, options: Bc7Options) -> Compressed {
@@ -432,9 +437,9 @@ fn compress_mode7(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
         // subset0 and subset1
         let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_rgba(&reordered[..split_index]);
+            compress_rgba(&reordered[..split_index], options);
         let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_rgba(&reordered[split_index..]);
+            compress_rgba(&reordered[split_index..], options);
 
         Compressed::mode7(
             error_s0 + error_s1,
@@ -448,6 +453,7 @@ fn compress_mode7(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 
 fn compress_rgba<const B: u8, const I: u8>(
     block: &[Rgba<8>],
+    options: Bc7Options,
 ) -> (u32, [Rgba<B>; 2], [bool; 2], IndexList<I>) {
     debug_assert!(block.len() <= 16);
     debug_assert!(block.len() >= 2);
@@ -497,10 +503,12 @@ fn compress_rgba<const B: u8, const I: u8>(
     );
     for &[p0, p1] in possible_p_bits {
         let promote = |c0: Rgba<B>, c1: Rgba<B>| (c0.p_promote(p0), c1.p_promote(p1));
-        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgba<B>, e1: Rgba<B>| {
-            let e8 = promote(e0, e1);
-            closest_error_rgba::<I>(e8.0, e8.1, block)
-        });
+        let (e0, e1) = options
+            .quantization
+            .pick_best(c0, c1, |e0: Rgba<B>, e1: Rgba<B>| {
+                let e8 = promote(e0, e1);
+                closest_error_rgba::<I>(e8.0, e8.1, block)
+            });
         let e8 = promote(e0, e1);
         let (indexes, error) = closest_rgba::<I>(e8.0, e8.1, block);
 
@@ -513,6 +521,7 @@ fn compress_rgba<const B: u8, const I: u8>(
 fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     block: &[Rgb<8>],
     p_bit: impl PBitHandling<State = State>,
+    options: Bc7Options,
 ) -> (u32, [Rgb<B>; 2], State, IndexList<I>) {
     debug_assert!(block.len() <= 16);
     debug_assert!(block.len() >= 2);
@@ -530,10 +539,12 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
 
     // pick the best p-bit configuration
     let (error, (es, indexes), p) = p_bit.pick_best(|p| {
-        let (e0, e1) = Quantization::ChannelWise.pick_best(c0, c1, |e0: Rgb<B>, e1: Rgb<B>| {
-            let e8 = p.promote_rgb(e0, e1);
-            closest_error_rgb::<I>(e8[0], e8[1], block)
-        });
+        let (e0, e1) = options
+            .quantization
+            .pick_best(c0, c1, |e0: Rgb<B>, e1: Rgb<B>| {
+                let e8 = p.promote_rgb(e0, e1);
+                closest_error_rgb::<I>(e8[0], e8[1], block)
+            });
         let e8 = p.promote_rgb(e0, e1);
         let (indexes, error) = closest_rgb::<I>(e8[0], e8[1], block);
         (error, ([e0, e1], indexes))
