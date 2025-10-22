@@ -478,7 +478,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                     bcn_util::Quantization::ChannelWise
                 }
             },
-            force_mode: None,
+            force_modes: Bc7Modes::empty(),
         };
 
         *out = bc7::compress_bc7_block(block, options);

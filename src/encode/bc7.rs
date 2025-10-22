@@ -34,10 +34,11 @@ pub(crate) struct Bc7Options {
 
     pub quantization: Quantization,
 
-    /// Forces the encoder to only use the specified BC7 mode (0-7).
+    /// Forces the encoder to use exactly the specified BC7 modes. If none are
+    /// specified, this option is ignored.
     ///
     /// This is mainly for testing purposes.
-    pub force_mode: Option<u8>,
+    pub force_modes: Bc7Modes,
 }
 
 pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [u8; 16] {
@@ -87,8 +88,8 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
     }
 
     // Overwrite with force mode (if any)
-    if let Some(forced_mode) = options.force_mode {
-        modes = Bc7Modes::from_bits_truncate(1 << forced_mode);
+    if !options.force_modes.is_empty() {
+        modes = options.force_modes;
     }
 
     let mut partitions = PartitionSelect::new(&block, !stats.opaque(), modes);
