@@ -467,8 +467,8 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
             },
             max_partition_candidates: match options.quality {
                 CompressionQuality::Fast => 1,
-                CompressionQuality::Normal => 2,
-                CompressionQuality::High => 4,
+                CompressionQuality::Normal => 1,
+                CompressionQuality::High => 2,
                 CompressionQuality::Unreasonable => 64,
             },
             quantization: match options.quality {
