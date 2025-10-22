@@ -37,6 +37,9 @@ pub(crate) struct Bc7Options {
     /// If true, the encoder will consider color channel rotations for modes 4 and 5.
     pub allow_color_rotation: bool,
 
+    /// The maximum number of refinement iterations for endpoint optimization.
+    pub refinement_iters: u8,
+
     /// Forces the encoder to use exactly the specified BC7 modes. If none are
     /// specified, this option is ignored.
     ///
@@ -381,7 +384,7 @@ fn compress_color_separate_alpha_with_rotation<
     let rgb = block.map(|p| p.color());
     let rgb_vec = rgb.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+    let (c0, c1) = refine_along_line3(c0, c1, options, |(min, max)| {
         closest_error_rgb::<INDEXC>(Rgb::round(min), Rgb::round(max), &rgb)
     });
     let (e0, e1) = options
@@ -509,7 +512,7 @@ fn compress_rgba<const B: u8, const I: u8>(
     if c0.w > c1.w {
         std::mem::swap(&mut c0, &mut c1);
     }
-    (c0, c1) = refine_along_line4(c0, c1, |(min, max)| {
+    (c0, c1) = refine_along_line4(c0, c1, options, |(min, max)| {
         closest_error_rgba::<I>(Rgba::round(min), Rgba::round(max), block)
     });
 
@@ -551,7 +554,7 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     }
 
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, |(min, max)| {
+    let (c0, c1) = refine_along_line3(c0, c1, options, |(min, max)| {
         closest_error_rgb::<I>(Rgb::round(min), Rgb::round(max), block)
     });
 
@@ -642,6 +645,7 @@ impl PBitState for NoPBit {
 fn refine_along_line3(
     min: Vec3A,
     max: Vec3A,
+    options: Bc7Options,
     compute_error: impl Fn((Vec3A, Vec3A)) -> u32,
 ) -> (Vec3A, Vec3A) {
     let dist = min.distance(max);
@@ -661,7 +665,7 @@ fn refine_along_line3(
         step_initial: 0.2,
         step_decay: 0.5,
         step_min: 0.005 / dist,
-        max_iter: 3,
+        max_iter: options.refinement_iters as u32,
     };
 
     let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
@@ -673,6 +677,7 @@ fn refine_along_line3(
 fn refine_along_line4(
     min: Vec4,
     max: Vec4,
+    options: Bc7Options,
     compute_error: impl Fn((Vec4, Vec4)) -> u32,
 ) -> (Vec4, Vec4) {
     let dist = min.distance(max);
@@ -692,7 +697,7 @@ fn refine_along_line4(
         step_initial: 0.2,
         step_decay: 0.5,
         step_min: 0.005 / dist,
-        max_iter: 3,
+        max_iter: options.refinement_iters as u32,
     };
 
     let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {

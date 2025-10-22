@@ -302,82 +302,82 @@ BC4_UNORM ref base.dds: >
     2e9d3592a6264ddd7567fea9a3a971ae59c6fd648c8126d3c20a1c60a9830bb3
 
 BC7_UNORM fast base.dds: >
-    d3fa2a9c808a2d8e39f7632f1eb35d13d3d4be14862c41fbb28fccb4fef31eed
+    513d641bcbdb95de11f92ded7d509714cc6772a244b1eb684cf90fe0df93a8ce
 
 BC7_UNORM norm base.dds: >
-    fde7ad29f0c575c4749e2093bffb07228592c1f6fa989c7cd05e0bb4ae68f042
+    cb4fe2ed742ccbd40f8c2a0976b2f19f3ab1d1b47ebccdca017ac0223f1656b8
 
 BC7_UNORM high base.dds: >
     4b8567193844936b671109b5db4527beee510b04edd2be1ea5bf023ada65ca71
 
 BC7_UNORM fast color-twirl.dds: >
-    bd974a2b151f1188c88ada6942ec69279c2b3abd077b038edbedffdda6c28ab0
+    bd6a16a92514787dece94b78c089214f787d61eb46a5894fb6c932e1e67448aa
 
 BC7_UNORM norm color-twirl.dds: >
-    43ae5ad3decdb4370486eda49eaafb01b1d7132b2d3cf29f485781c317ce2d53
+    47aeae3433c86c1921b00e3b38d3b14b68bd0e311dc641d5e91e76eb37bffc33
 
 BC7_UNORM high color-twirl.dds: >
     704df805ab6091774c32bd95b1aa0b584cf7d8a9379007d473361c07d00051e6
 
 BC7_UNORM fast bricks-d.dds: >
-    aa50fcb3e775e7a1b1b6a81e4cf6e72d46e0febb6f3a1ec5e488e69b019d16a1
+    c549da2d1c425f4acbce7f90fd054cc557b033fd95e9087f01e55a8313dfc605
 
 BC7_UNORM norm bricks-d.dds: >
-    dfb908024b0962e81b3235d9585d4f02c6513447d5a71d332c6fac42280195de
+    098b0bc08a7a1f88fcb6c1d5d9a9a42d8e3de1925c87fe02aad6f22b148582f5
 
 BC7_UNORM high bricks-d.dds: >
     5bc358c485c763337c83fd22e18e18cfaabc5d47e8f42f860d422766e5c05b94
 
 BC7_UNORM fast bricks-n.dds: >
-    f75067fd7fc3005312c0989a9adb6d01b63f6fa67e75514f706af129e3e040e0
+    2ac00c29ff3ee547c971f76bc26526fe2bb4cc20376925ce2734fd21af4c42c1
 
 BC7_UNORM norm bricks-n.dds: >
-    29bc37ba0cc4d5b77372d070000fdce21b6dffbfc9b327aa5c318648d9639b1b
+    45e18d66f67373443bbeb066b19f39d32d2599e02c7af7fae9d2b0042ebc649a
 
 BC7_UNORM high bricks-n.dds: >
     3999ebc2e1b42763b139ea623a4510356aa887c94f7c95d65e2a8ee51cd01591
 
 BC7_UNORM fast clovers-d.dds: >
-    757f3aa6f3f2e68c2ddfc056e9568af7280f78189204debd83782031c29e8972
+    dc82b22711f83d7a6b5d695fdfa997cfff3bc5752782c1c456dc5b30ad552ae9
 
 BC7_UNORM norm clovers-d.dds: >
-    9417d54f039ef9384b09e00d7110cf85368fdc8cbf3d3e08fa442b42ff2a64df
+    7cc9a3ae62039bfbff128aa42afe621c26c568881eeb4c52414183a4a5b940ff
 
 BC7_UNORM high clovers-d.dds: >
     27d309fac6621d03aa1697582b82c1ded923bcec6f1fdba51dd10e0f2049e5f9
 
 BC7_UNORM fast clovers-r.dds: >
-    6eeb4d620b698ec4864885a46e02cd3be9136c05a26a633927533ba22af3f5cf
+    63fa3e21293c2416a42e1f83ed27f23f09ce528d243c650648dad00b0fde42c4
 
 BC7_UNORM norm clovers-r.dds: >
-    0aef7ad27302480fd26ebb5094eb388061b60514b66b561b0482fe5550c3b3d0
+    fa46546cc16719dad9f9967fc13073e2fd72723c1c96c611a561d1c6ed78ba3e
 
 BC7_UNORM high clovers-r.dds: >
     09314ec4f7cedf3233b8d67958699d2b8654f8ab63b3c8bdba5bc01342b81247
 
 BC7_UNORM fast stone-d.dds: >
-    b1c31bd7fed67df0c6f397ace09b430d5ca7aaaa5203670cf63f8f003eccb2d1
+    f1b6d8ab2af4cd73097c9a809b3ff58eb9646bc1216b7f35c13c0f02ed980610
 
 BC7_UNORM norm stone-d.dds: >
-    6ae84b574ad039ec18772631cf445e1cad32c16a24969b946ac0dd4b674fc805
+    a8069690bc9738277a2b22c34e505a94eca0877526acc9863b535e86dfbb008c
 
 BC7_UNORM high stone-d.dds: >
     0d3172e6b5652d3f862b90914406b18c39a3e3bfd18b5fd269504453ae88ad95
 
 BC7_UNORM fast grass.dds: >
-    94636f58a0057f4baf2423286897fe02e6550a6a1fa4aa8ff2762eda7a5d83d5
+    ea5ec9d488b7dbc8b269fe9d36ab1f94cb84a37557370901d372c5e6b988f747
 
 BC7_UNORM norm grass.dds: >
-    cd9097a86bdf7d8a1cd6d8495ef3cb432d9df9219d8e6287ade6be616c9a7319
+    ddfa2cdece03865eddc19c7abd8d927aa582d0de8c2c2be81d61a18525100773
 
 BC7_UNORM high grass.dds: >
     f209d2576126386b60965cf3b5cdaf403558fdfdc783aa44b34735742da847a8
 
 BC7_UNORM fast leaves.dds: >
-    f9df83eb3f21350eed52bcfefcfb91e7218eb9063eabb9d1ed6615f228c14843
+    33ffca9356e5555f2c87ede637983ec2ead0ad5a8c1f898390b299b8fa442c33
 
 BC7_UNORM norm leaves.dds: >
-    0b442a8a9b2527ae7f91875deb096162956b650399ae298e1a33915007cedb70
+    e27689f024e02a39d399052fa95bacd6f6b2f79b20dc1cb8e7486df6bcf13175
 
 BC7_UNORM high leaves.dds: >
     6fcad3c3356fdffdbe5901cd8c52969d1404edeadfd5d2e511fbd97240599dc8
