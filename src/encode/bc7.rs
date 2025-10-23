@@ -41,7 +41,15 @@ pub(crate) struct Bc7Options {
     pub allow_color_rotation: bool,
 
     /// The maximum number of refinement iterations for endpoint optimization.
-    pub refinement_iters: u8,
+    pub max_refinement_iters: u8,
+
+    /// The maximum number of p-bit combinations to try per subset per mode.
+    ///
+    /// If this number is less then 4, a heuristic is used to pick a good p-bit
+    /// (or two) instead of trying all combinations.
+    ///
+    /// Must be 1, 2, or 4.
+    pub max_p_bit_combinations: u8,
 
     /// Forces the encoder to use exactly the specified BC7 modes. If none are
     /// specified, this option is ignored.
@@ -481,28 +489,7 @@ fn compress_rgba<const B: u8, const I: u8>(
     debug_assert!(block.len() <= 16);
     debug_assert!(block.len() >= 2);
 
-    // Analyze alpha channel to determine p-bits
-    let mut min_alpha: u8 = 255;
-    let mut opaque_count: u8 = 0;
-    for p in block {
-        min_alpha = min_alpha.min(p.a);
-        if p.a == 255 {
-            opaque_count += 1;
-        }
-    }
-
     // RGBA
-    let possible_p_bits: &[[bool; 2]] = if min_alpha == 255 {
-        // all opaque
-        &[[true, true]]
-    } else if opaque_count == 0 {
-        // all transparent or semi-transparent
-        &[[false, false], [false, true], [true, false], [true, true]]
-    } else {
-        // mixed opaque and semi-transparent
-        &[[false, true], [true, true]]
-    };
-
     let mut rgba_vec = [Vec4::ZERO; 16];
     for (i, p) in block.iter().enumerate() {
         rgba_vec[i] = p.to_vec();
@@ -510,36 +497,30 @@ fn compress_rgba<const B: u8, const I: u8>(
     let rgba_vec = &rgba_vec[..block.len()];
 
     let (mut c0, mut c1) = bcn_util::line4_fit_endpoints(rgba_vec, 0.9);
-    // Ensure that c0.a < c1.a. This is necessary for certain p-bit possibilities.
-    if c0.w > c1.w {
-        std::mem::swap(&mut c0, &mut c1);
-    }
     (c0, c1) = refine_along_line4(c0, c1, options, |(min, max)| {
         closest_error_rgba::<I>(Rgba::round(min), Rgba::round(max), block)
     });
 
-    let mut best = (
-        u32::MAX,
-        [Rgba::new(0, 0, 0, 0); 2],
-        [false; 2],
-        IndexList::<I>::new(),
-    );
-    for &[p0, p1] in possible_p_bits {
-        let promote = |c0: Rgba<B>, c1: Rgba<B>| (c0.p_promote(p0), c1.p_promote(p1));
-        let (e0, e1) = options
-            .quantization
-            .pick_best(c0, c1, |e0: Rgba<B>, e1: Rgba<B>| {
-                let e8 = promote(e0, e1);
-                closest_error_rgba::<I>(e8.0, e8.1, block)
-            });
-        let e8 = promote(e0, e1);
-        let (indexes, error) = closest_rgba::<I>(e8.0, e8.1, block);
+    // Quantize
+    // If all pixels are opaque, the p-bits have to be (1,1) to keep them opaque.
+    let opaque = block.iter().all(|p| p.a == 255);
+    let possible_p_bits: Option<&[[bool; 2]]> = if opaque { Some(&[[true, true]]) } else { None };
 
-        if error < best.0 {
-            best = (error, [e0, e1], [p0, p1], indexes);
-        }
-    }
-    best
+    let estimate = estimate_rgba::<B>(c0, c1);
+    let (error, (es, indexes), p) =
+        UniquePBits.pick_best(possible_p_bits, estimate, options, |p| {
+            let (e0, e1) = options
+                .quantization
+                .pick_best(c0, c1, |e0: Rgba<B>, e1: Rgba<B>| {
+                    let e8 = p.promote_rgba(e0, e1);
+                    closest_error_rgba::<I>(e8[0], e8[1], block)
+                });
+            let e8 = p.promote_rgba(e0, e1);
+            let (indexes, error) = closest_rgba::<I>(e8[0], e8[1], block);
+            (error, ([e0, e1], indexes))
+        });
+
+    (error, es, p, indexes)
 }
 fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     block: &[Rgb<8>],
@@ -561,7 +542,8 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     });
 
     // pick the best p-bit configuration
-    let (error, (es, indexes), p) = p_bit.pick_best(|p| {
+    let estimate = estimate_rgb::<B>(c0, c1);
+    let (error, (es, indexes), p) = p_bit.pick_best(None, estimate, options, |p| {
         let (e0, e1) = options
             .quantization
             .pick_best(c0, c1, |e0: Rgb<B>, e1: Rgb<B>| {
@@ -576,24 +558,117 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     (error, es, p, indexes)
 }
 
-trait PBitHandling {
-    type State: PBitState;
-    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State);
+trait EstimatePQuantizationError<const B: u8> {
+    fn estimate(&self, p: impl PBitState) -> f32;
+
+    fn get_best<P: PBitState + Copy>(&self, states: &[P]) -> P {
+        let mut best_state = states[0];
+        let mut best_error = self.estimate(best_state);
+
+        for &p in &states[1..] {
+            let error = self.estimate(p);
+            if error < best_error {
+                best_error = error;
+                best_state = p;
+            }
+        }
+
+        best_state
+    }
+    fn get_best_2<P: PBitState + Copy>(&self, states: &[P]) -> [P; 2] {
+        debug_assert!(states.len() >= 2);
+
+        let mut best_states = [states[0], states[1]];
+        let mut best_error = [self.estimate(best_states[0]), self.estimate(best_states[1])];
+
+        if best_error[1] < best_error[0] {
+            best_error.swap(0, 1);
+            best_states.swap(0, 1);
+        }
+
+        for &p in &states[2..] {
+            let error = self.estimate(p);
+            if error < best_error[0] {
+                best_error[1] = best_error[0];
+                best_states[1] = best_states[0];
+                best_error[0] = error;
+                best_states[0] = p;
+            } else if error < best_error[1] {
+                best_error[1] = error;
+                best_states[1] = p;
+            }
+        }
+
+        best_states
+    }
 }
-trait PBitState {
-    fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2];
+impl<const B: u8> EstimatePQuantizationError<B> for (Vec3A, Vec3A) {
+    fn estimate(&self, p: impl PBitState) -> f32 {
+        let (c0, c1) = *self;
+        let [e0, e1] = p.promote_rgb(Rgb::<B>::round(c0), Rgb::<B>::round(c1));
+        let err0 = e0.to_vec().distance_squared(c0);
+        let err1 = e1.to_vec().distance_squared(c1);
+        err0 + err1
+    }
+}
+impl<const B: u8> EstimatePQuantizationError<B> for (Vec4, Vec4) {
+    fn estimate(&self, p: impl PBitState) -> f32 {
+        let (c0, c1) = *self;
+        let [e0, e1] = p.promote_rgba(Rgba::<B>::round(c0), Rgba::<B>::round(c1));
+        let err0 = e0.to_vec().distance_squared(c0);
+        let err1 = e1.to_vec().distance_squared(c1);
+        err0 + err1
+    }
+}
+fn estimate_rgb<const B: u8>(c0: Vec3A, c1: Vec3A) -> impl EstimatePQuantizationError<B> {
+    (c0, c1)
+}
+fn estimate_rgba<const B: u8>(c0: Vec4, c1: Vec4) -> impl EstimatePQuantizationError<B> {
+    (c0, c1)
 }
 
-struct UniquePBits;
-impl PBitHandling for UniquePBits {
-    type State = [bool; 2];
-    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
+trait PBitHandling {
+    type State: PBitState + Copy + 'static;
+    const ALL: &'static [Self::State];
+
+    fn pick_best<const B: u8, T>(
+        &self,
+        all: Option<&[Self::State]>,
+        e: impl EstimatePQuantizationError<B>,
+        options: Bc7Options,
+        f: impl Fn(Self::State) -> (u32, T),
+    ) -> (u32, T, Self::State) {
+        let all = all.unwrap_or(Self::ALL);
+
+        debug_assert!(!all.is_empty());
+        if all.len() == 1 || all.len() <= options.max_p_bit_combinations as usize {
+            return self.pick_best_of_directly(all, f);
+        }
+
+        if options.max_p_bit_combinations == 1 {
+            let best = e.get_best(all);
+            return self.pick_best_of_directly(&[best], f);
+        }
+        if options.max_p_bit_combinations == 2 {
+            let best = e.get_best_2(all);
+            return self.pick_best_of_directly(&best, f);
+        }
+
+        self.pick_best_of_directly(Self::ALL, f)
+    }
+    fn pick_best_of_directly<T>(
+        &self,
+        possibilities: &[Self::State],
+        f: impl Fn(Self::State) -> (u32, T),
+    ) -> (u32, T, Self::State) {
+        debug_assert!(!possibilities.is_empty());
+
         let mut best_error;
         let mut best_t;
-        let mut best_state = [false; 2];
+        let mut best_state = possibilities[0];
         (best_error, best_t) = f(best_state);
 
-        for p in [[false, true], [true, false], [true, true]] {
+        for &p in &possibilities[1..] {
             let (error, t) = f(p);
             if error < best_error {
                 best_error = error;
@@ -605,8 +680,21 @@ impl PBitHandling for UniquePBits {
         (best_error, best_t, best_state)
     }
 }
+trait PBitState {
+    fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2];
+    fn promote_rgba<const B: u8>(&self, c0: Rgba<B>, c1: Rgba<B>) -> [Rgba<8>; 2];
+}
+
+struct UniquePBits;
+impl PBitHandling for UniquePBits {
+    type State = [bool; 2];
+    const ALL: &[[bool; 2]] = &[[false, false], [false, true], [true, false], [true, true]];
+}
 impl PBitState for [bool; 2] {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
+        [c0.p_promote(self[0]), c1.p_promote(self[1])]
+    }
+    fn promote_rgba<const B: u8>(&self, c0: Rgba<B>, c1: Rgba<B>) -> [Rgba<8>; 2] {
         [c0.p_promote(self[0]), c1.p_promote(self[1])]
     }
 }
@@ -614,32 +702,28 @@ impl PBitState for [bool; 2] {
 struct SharedPBit;
 impl PBitHandling for SharedPBit {
     type State = bool;
-    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
-        let (error_false, t_false) = f(false);
-        let (error_true, t_true) = f(true);
-        if error_false <= error_true {
-            (error_false, t_false, false)
-        } else {
-            (error_true, t_true, true)
-        }
-    }
+    const ALL: &[bool] = &[false, true];
 }
 impl PBitState for bool {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
         [c0.p_promote(*self), c1.p_promote(*self)]
     }
+    fn promote_rgba<const B: u8>(&self, c0: Rgba<B>, c1: Rgba<B>) -> [Rgba<8>; 2] {
+        [c0.p_promote(*self), c1.p_promote(*self)]
+    }
 }
 
+#[derive(Copy, Clone)]
 struct NoPBit;
 impl PBitHandling for NoPBit {
     type State = NoPBit;
-    fn pick_best<T>(&self, f: impl Fn(Self::State) -> (u32, T)) -> (u32, T, Self::State) {
-        let (error, t) = f(NoPBit);
-        (error, t, NoPBit)
-    }
+    const ALL: &[NoPBit] = &[NoPBit];
 }
 impl PBitState for NoPBit {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
+        [c0.promote(), c1.promote()]
+    }
+    fn promote_rgba<const B: u8>(&self, c0: Rgba<B>, c1: Rgba<B>) -> [Rgba<8>; 2] {
         [c0.promote(), c1.promote()]
     }
 }
@@ -667,7 +751,7 @@ fn refine_along_line3(
         step_initial: 0.2,
         step_decay: 0.5,
         step_min: 0.005 / dist,
-        max_iter: options.refinement_iters as u32,
+        max_iter: options.max_refinement_iters as u32,
     };
 
     let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
@@ -699,7 +783,7 @@ fn refine_along_line4(
         step_initial: 0.2,
         step_decay: 0.5,
         step_min: 0.005 / dist,
-        max_iter: options.refinement_iters as u32,
+        max_iter: options.max_refinement_iters as u32,
     };
 
     let (min_t, max_t) = bcn_util::refine_endpoints(0.5, 0.5, options, move |(min_t, max_t)| {
