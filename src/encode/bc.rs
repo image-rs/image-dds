@@ -473,7 +473,13 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                 CompressionQuality::High => bcn_util::Quantization::ChannelWise,
                 CompressionQuality::Unreasonable => bcn_util::Quantization::ChannelWise,
             },
-            allow_color_rotation: options.quality > CompressionQuality::Fast,
+            allow_color_rotation: true,
+            max_color_rotations: match options.quality {
+                CompressionQuality::Fast => 1,
+                CompressionQuality::Normal => 1,
+                CompressionQuality::High => 2,
+                CompressionQuality::Unreasonable => 4,
+            },
             max_refinement_iters: match options.quality {
                 CompressionQuality::Fast => 2,
                 CompressionQuality::Normal => 3,

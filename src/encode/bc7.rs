@@ -40,6 +40,11 @@ pub(crate) struct Bc7Options {
     /// If true, the encoder will consider color channel rotations for modes 4 and 5.
     pub allow_color_rotation: bool,
 
+    /// If color rotation is allowed, this controls how many rotations are tried.
+    ///
+    /// Must be between 1 and 4.
+    pub max_color_rotations: u8,
+
     /// The maximum number of refinement iterations for endpoint optimization.
     pub max_refinement_iters: u8,
 
@@ -110,6 +115,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
     }
 
     let mut partitions = PartitionSelect::new(&block, !stats.opaque(), modes);
+    let mut rotations = RotationSelect::new(&block, stats);
 
     let mut best = Compressed::invalid();
     if modes.contains(Bc7Modes::MODE0) {
@@ -125,10 +131,10 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
         best = best.better(compress_mode3(&mut partitions, options));
     }
     if modes.contains(Bc7Modes::MODE4) {
-        best = best.better(compress_mode4(block, stats, options));
+        best = best.better(compress_mode4(&mut rotations, options));
     }
     if modes.contains(Bc7Modes::MODE5) {
-        best = best.better(compress_mode5(block, stats, options));
+        best = best.better(compress_mode5(&mut rotations, options));
     }
     if modes.contains(Bc7Modes::MODE6) {
         best = best.better(compress_mode6(block, options));
@@ -271,11 +277,14 @@ fn compress_mode3(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
         )
     })
 }
-fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
-    decide_rotations(&block, stats, options, |r| {
+fn compress_mode4(rotations: &mut RotationSelect, options: Bc7Options) -> Compressed {
+    let block = rotations.block;
+    let stats = rotations.stats;
+
+    rotations.pick_best(options, |r| {
         let c3a2 = {
             let (error, color, color_indexes, alpha, alpha_indexes) =
-                compress_color_separate_alpha_with_rotation(block, stats, options, r);
+                compress_color_separate_alpha_with_rotation(*block, stats, options, r);
             Compressed::mode4(
                 error,
                 r,
@@ -296,7 +305,7 @@ fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) 
 
         let c2a3 = {
             let (error, color, color_indexes, alpha, alpha_indexes) =
-                compress_color_separate_alpha_with_rotation(block, stats, options, r);
+                compress_color_separate_alpha_with_rotation(*block, stats, options, r);
             Compressed::mode4(
                 error,
                 r,
@@ -310,10 +319,13 @@ fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) 
         c2a3.better(c3a2)
     })
 }
-fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
-    decide_rotations(&block, stats, options, |r| {
+fn compress_mode5(rotations: &mut RotationSelect, options: Bc7Options) -> Compressed {
+    let block = rotations.block;
+    let stats = rotations.stats;
+
+    rotations.pick_best(options, |r| {
         let (error, color, color_indexes, alpha, alpha_indexes) =
-            compress_color_separate_alpha_with_rotation(block, stats, options, r);
+            compress_color_separate_alpha_with_rotation(*block, stats, options, r);
         Compressed::mode5(error, r, color, color_indexes, alpha, alpha_indexes)
     })
 }
@@ -346,52 +358,115 @@ fn compress_mode7(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
 }
 
 /// Strategy for which rotations to use for mode 4 and mode 5.
-fn decide_rotations(
-    block: &[Rgba<8>; 16],
+struct RotationSelect<'a> {
+    block: &'a [Rgba<8>; 16],
     stats: BlockStats,
-    options: Bc7Options,
-    mut compress: impl FnMut(Rotation) -> Compressed,
-) -> Compressed {
-    let mut best = compress(Rotation::None);
 
-    // Only consider rotations if allowed.
-    if !options.allow_color_rotation {
-        return best;
-    }
+    forced_rotation_cache: Option<Option<Rotation>>,
+    rotations_cache: Option<[Rotation; 4]>,
+}
+impl<'a> RotationSelect<'a> {
+    fn new(block: &'a [Rgba<8>; 16], stats: BlockStats) -> RotationSelect<'a> {
+        RotationSelect {
+            block,
+            stats,
 
-    // Having a low error for alpha is important for visual quality, so we only
-    // want to swap alpha with other channels if there isn't much in the alpha
-    // channel.
-    const ALPHA_THRESHOLD: u8 = 16;
-    if stats.max.a.abs_diff(stats.min.a) > ALPHA_THRESHOLD {
-        return best;
-    }
-
-    // If the color is approximately grayscale, don't try swapping.
-    // It will only cause discolorations.
-    const COLOR_VARIANCE_THRESHOLD: u8 = 8;
-    if block.iter().all(|p| {
-        let gr = p.g.abs_diff(p.r);
-        let gb = p.g.abs_diff(p.b);
-        gr.max(gb) < COLOR_VARIANCE_THRESHOLD
-    }) {
-        return best;
-    }
-
-    for (channel, r) in [Rotation::AR, Rotation::AG, Rotation::AB]
-        .into_iter()
-        .enumerate()
-    {
-        let min = stats.min.get(channel);
-        let max = stats.max.get(channel);
-        if min == max {
-            // no point in swapping with a constant channel
-            continue;
+            forced_rotation_cache: None,
+            rotations_cache: None,
         }
-        best = best.better(compress(r));
     }
 
-    best
+    fn get_forced_rotation(&mut self, options: Bc7Options) -> Option<Rotation> {
+        let stats = self.stats;
+        let block = self.block;
+
+        *self.forced_rotation_cache.get_or_insert_with(|| {
+            // Color rotation may be disabled
+            if !options.allow_color_rotation {
+                return Some(Rotation::None);
+            }
+
+            // Having a low error for alpha is important for visual quality, so we only
+            // want to swap alpha with other channels if there isn't much in the alpha
+            // channel.
+            const ALPHA_THRESHOLD: u8 = 16;
+            if stats.max.a.abs_diff(stats.min.a) > ALPHA_THRESHOLD {
+                return Some(Rotation::None);
+            }
+
+            // If the color is approximately grayscale, don't try swapping.
+            // It will only cause discolorations.
+            const COLOR_VARIANCE_THRESHOLD: u8 = 8;
+            if block.iter().all(|p| {
+                let gr = p.g.abs_diff(p.r);
+                let gb = p.g.abs_diff(p.b);
+                gr.max(gb) < COLOR_VARIANCE_THRESHOLD
+            }) {
+                return Some(Rotation::None);
+            }
+
+            None
+        })
+    }
+    fn get_rotations(&mut self, options: Bc7Options) -> &[Rotation; 4] {
+        let stats = self.stats;
+        let block = self.block;
+
+        const ALL: [Rotation; 4] = [Rotation::None, Rotation::AR, Rotation::AG, Rotation::AB];
+
+        self.rotations_cache.get_or_insert_with(|| {
+            if options.max_color_rotations >= 4 {
+                return ALL;
+            }
+
+            let mut scored: [(Rotation, f32); 4] = ALL.map(|r| {
+                let channel = r.channel();
+                if stats.min.get(channel) == stats.max.get(channel) {
+                    // no point in swapping with a constant channel
+                    return (r, f32::INFINITY);
+                }
+
+                let block3 = match r {
+                    Rotation::None => block.map(|p| p.color().to_vec()),
+                    Rotation::AR => block.map(|p| Rgb::<8>::new(p.a, p.g, p.b).to_vec()),
+                    Rotation::AG => block.map(|p| Rgb::<8>::new(p.r, p.a, p.b).to_vec()),
+                    Rotation::AB => block.map(|p| Rgb::<8>::new(p.r, p.g, p.a).to_vec()),
+                };
+
+                let error = squared_error_line_3(&block3);
+                (r, error)
+            });
+            scored.sort_unstable_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+
+            scored.map(|(r, _)| r)
+        })
+    }
+
+    fn pick_best(
+        &mut self,
+        options: Bc7Options,
+        mut f: impl FnMut(Rotation) -> Compressed,
+    ) -> Compressed {
+        if let Some(r) = self.get_forced_rotation(options) {
+            return f(r);
+        }
+
+        let stats = self.stats;
+        let rotations = self.get_rotations(options);
+
+        let mut best = Compressed::invalid();
+        for &r in rotations.iter().take(options.max_color_rotations as usize) {
+            let channel = r.channel();
+            if stats.min.get(channel) == stats.max.get(channel) {
+                // no point in swapping with a constant channel
+                continue;
+            }
+
+            best = best.better(f(r))
+        }
+
+        best
+    }
 }
 /// Compression function for mode 4 and mode 5.
 fn compress_color_separate_alpha_with_rotation<
@@ -1385,7 +1460,7 @@ enum IndexMode {
     C3A2 = 1,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Rotation {
     None = 0,
     AR = 1,
