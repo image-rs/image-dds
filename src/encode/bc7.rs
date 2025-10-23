@@ -2171,22 +2171,10 @@ impl<'a> PartitionSelect<'a> {
 }
 
 fn squared_error_line_3(colors: &[Vec3A]) -> f32 {
-    let line = ColorLine3::new(colors);
-    let mut sq_error = 0.0;
-    for &color in colors {
-        let closest = line.at(line.project(color));
-        sq_error += closest.distance_squared(color)
-    }
-    sq_error
+    ColorLine3::new(colors).sum_dist_sq(colors)
 }
 fn squared_error_line_4(colors: &[Vec4]) -> f32 {
-    let line = ColorLine4::new(colors);
-    let mut sq_error = 0.0;
-    for &color in colors {
-        let closest = line.at(line.project(color));
-        sq_error += closest.distance_squared(color)
-    }
-    sq_error
+    ColorLine4::new(colors).sum_dist_sq(colors)
 }
 
 struct BitStream {

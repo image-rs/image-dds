@@ -342,6 +342,23 @@ impl ColorLine3 {
         let diff = color - self.centroid;
         diff.dot(self.d)
     }
+    /// Returns the squared distance from the color to the line.
+    pub fn dist_sq(&self, color: Vec3A) -> f32 {
+        let diff = color - self.centroid;
+        let t = self.d.dot(diff);
+        (diff - self.d * t).length_squared()
+    }
+    /// Returns the sum of squared distance from the colors to the line.
+    pub fn sum_dist_sq(&self, colors: &[Vec3A]) -> f32 {
+        let mut sum = Vec3A::ZERO;
+        for &color in colors {
+            let diff = color - self.centroid;
+            let t = self.d.dot(diff);
+            let dist = diff - self.d * t;
+            sum += dist * dist;
+        }
+        sum.x + sum.y + sum.z
+    }
 }
 pub(crate) struct ColorLine4 {
     /// The centroid of the colors
@@ -412,6 +429,23 @@ impl ColorLine4 {
     pub fn project(&self, color: Vec4) -> f32 {
         let diff = color - self.centroid;
         diff.dot(self.d)
+    }
+    /// Returns the squared distance from the color to the line.
+    pub fn dist_sq(&self, color: Vec4) -> f32 {
+        let diff = color - self.centroid;
+        let t = self.d.dot(diff);
+        (diff - self.d * t).length_squared()
+    }
+    /// Returns the sum of squared distance from the colors to the line.
+    pub fn sum_dist_sq(&self, colors: &[Vec4]) -> f32 {
+        let mut sum = Vec4::ZERO;
+        for &color in colors {
+            let diff = color - self.centroid;
+            let t = self.d.dot(diff);
+            let dist = diff - self.d * t;
+            sum += dist * dist;
+        }
+        (sum.x + sum.y) + (sum.z + sum.w)
     }
 }
 
