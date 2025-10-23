@@ -260,7 +260,6 @@ fn compress_mode3(partitions: &mut PartitionSelect, options: Bc7Options) -> Comp
         )
     })
 }
-
 fn compress_mode4(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) -> Compressed {
     decide_rotations(&block, stats, options, |r| {
         let c3a2 = {
@@ -307,6 +306,34 @@ fn compress_mode5(block: [Rgba<8>; 16], stats: BlockStats, options: Bc7Options) 
         Compressed::mode5(error, r, color, color_indexes, alpha, alpha_indexes)
     })
 }
+fn compress_mode6(block: [Rgba<8>; 16], options: Bc7Options) -> Compressed {
+    let (error, [e0, e1], [p0, p1], indexes) = compress_rgba(&block, options);
+    Compressed::mode6(error, [e0, e1], [p0, p1], indexes)
+}
+fn compress_mode7(partitions: &mut PartitionSelect, options: Bc7Options) -> Compressed {
+    partitions.pick_best_partition_2(options, |partition| {
+        let subset = PARTITION_SET_2[partition as usize];
+
+        let mut reordered = *partitions.block;
+        subset.sort_block(&mut reordered);
+        let split_index = subset.count_zeros() as usize;
+
+        // subset0 and subset1
+        let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
+            compress_rgba(&reordered[..split_index], options);
+        let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
+            compress_rgba(&reordered[split_index..], options);
+
+        Compressed::mode7(
+            error_s0 + error_s1,
+            partition,
+            [e0_s0, e1_s0, e0_s1, e1_s1],
+            [p0_s0, p1_s0, p0_s1, p1_s1],
+            IndexList::merge2(subset, indexes_s0, indexes_s1),
+        )
+    })
+}
+
 /// Strategy for which rotations to use for mode 4 and mode 5.
 fn decide_rotations(
     block: &[Rgba<8>; 16],
@@ -355,7 +382,6 @@ fn decide_rotations(
 
     best
 }
-
 /// Compression function for mode 4 and mode 5.
 fn compress_color_separate_alpha_with_rotation<
     const C: u8,
@@ -396,19 +422,20 @@ fn compress_color_separate_alpha_with_rotation<
     let color_endpoints = [e0, e1];
 
     // Alpha
-    let (alpha_endpoints, alpha_indexes, alpha_error) = if let Some(alpha) =
-        stats.single_alpha().and_then(|a| {
-            let q = Alpha::<A>::round(a as f32 / 255.0);
-            if q.promote().a == a {
-                Some(q)
-            } else {
-                None
-            }
-        }) {
-        ([alpha; 2], IndexList::<IA>::constant(0), 0) // exact, so 0 error
+    let alpha_pixels = block.map(|p| p.alpha());
+    let (alpha_endpoints, alpha_indexes, alpha_error) = if let Some(a) = stats.single_alpha() {
+        let a_f = a as f32 * (1.0 / 255.0);
+        let round = Alpha::<A>::round(a_f);
+        if round.promote().a == a {
+            ([round; 2], IndexList::<IA>::constant(0), 0) // exact, so 0 error
+        } else {
+            let floor = Alpha::<A>::floor(a_f);
+            let ceil = Alpha::<A>::ceil(a_f);
+            let (indexes, error) =
+                closest_alpha::<IA>(floor.promote(), ceil.promote(), &alpha_pixels);
+            ([floor, ceil], indexes, error)
+        }
     } else {
-        let alpha_pixels = block.map(|p| p.alpha());
-
         // We want opaque pixels to stay opaque no matter what.
         let force_opaque = rotation == Rotation::None && stats.max.a == 255;
         let initial = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
@@ -442,34 +469,6 @@ fn compress_color_separate_alpha_with_rotation<
         alpha_endpoints,
         alpha_indexes,
     )
-}
-
-fn compress_mode6(block: [Rgba<8>; 16], options: Bc7Options) -> Compressed {
-    let (error, [e0, e1], [p0, p1], indexes) = compress_rgba(&block, options);
-    Compressed::mode6(error, [e0, e1], [p0, p1], indexes)
-}
-fn compress_mode7(partitions: &mut PartitionSelect, options: Bc7Options) -> Compressed {
-    partitions.pick_best_partition_2(options, |partition| {
-        let subset = PARTITION_SET_2[partition as usize];
-
-        let mut reordered = *partitions.block;
-        subset.sort_block(&mut reordered);
-        let split_index = subset.count_zeros() as usize;
-
-        // subset0 and subset1
-        let (error_s0, [e0_s0, e1_s0], [p0_s0, p1_s0], indexes_s0) =
-            compress_rgba(&reordered[..split_index], options);
-        let (error_s1, [e0_s1, e1_s1], [p0_s1, p1_s1], indexes_s1) =
-            compress_rgba(&reordered[split_index..], options);
-
-        Compressed::mode7(
-            error_s0 + error_s1,
-            partition,
-            [e0_s0, e1_s0, e0_s1, e1_s1],
-            [p0_s0, p1_s0, p0_s1, p1_s1],
-            IndexList::merge2(subset, indexes_s0, indexes_s1),
-        )
-    })
 }
 
 fn compress_rgba<const B: u8, const I: u8>(
@@ -983,7 +982,6 @@ fn closest_alpha<const I: u8>(
         _ => unreachable!(),
     }
 }
-/// The square error of the closest alpha values.
 fn closest_error_alpha<const I: u8>(min: Alpha<8>, max: Alpha<8>, pixels: &[Alpha<8>; 16]) -> u32 {
     debug_assert!(I == 2 || I == 3);
 
