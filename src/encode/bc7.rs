@@ -4,7 +4,10 @@ use bitflags::bitflags;
 use glam::{IVec4, Vec3A, Vec4};
 
 use crate::{
-    bcn_data::{Subset2Map, Subset3Map, PARTITION_SET_2, PARTITION_SET_3},
+    bcn_data::{
+        Subset2Map, Subset3Map, PARTITION_SET_2, PARTITION_SET_3, PARTITION_SET_3_DUPLICATES,
+        PARTITION_SET_3_DUPLICATE_COUNT,
+    },
     encode::bcn_util::{self, ColorLine3, ColorLine4, Quantization, Quantized, WithChannels},
 };
 
@@ -2106,6 +2109,7 @@ impl<'a> PartitionSelect<'a> {
         let max = if has_mode_2 { 64 } else { 16 };
 
         let block = self.block;
+        let mut partial_error_cache = [f32::NAN; PARTITION_SET_3_DUPLICATE_COUNT];
 
         let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
             let partition = i as u8;
@@ -2120,9 +2124,24 @@ impl<'a> PartitionSelect<'a> {
             let split_index = subset.count_zeros() as usize;
             let split_index2 = split_index + subset.count_ones() as usize;
 
-            let error = squared_error_line_3(&reordered[..split_index])
-                + squared_error_line_3(&reordered[split_index..split_index2])
-                + squared_error_line_3(&reordered[split_index2..]);
+            let s0 = &reordered[..split_index];
+            let s1 = &reordered[split_index..split_index2];
+            let s2 = &reordered[split_index2..];
+            let [c0, c1, c2] = PARTITION_SET_3_DUPLICATES[partition as usize];
+
+            let mut error = 0.0;
+            for (s, cache_index) in [(s0, c0), (s1, c1), (s2, c2)] {
+                if cache_index == 255 {
+                    // no duplicate line
+                    error += squared_error_line_3(s);
+                } else {
+                    let cache = &mut partial_error_cache[cache_index as usize];
+                    if cache.is_nan() {
+                        *cache = squared_error_line_3(s);
+                    }
+                    error += *cache;
+                }
+            }
 
             (partition, error)
         });

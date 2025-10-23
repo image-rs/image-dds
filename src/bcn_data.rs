@@ -92,6 +92,21 @@ impl Subset3Map {
         (self.subset_indexes & Self::TWO_MASK).count_ones() as u8
     }
 
+    #[allow(dead_code)]
+    pub const fn get_zero_mask(self) -> u32 {
+        !(self.get_one_mask() | self.get_two_mask())
+    }
+    #[allow(dead_code)]
+    pub const fn get_one_mask(self) -> u32 {
+        let mask = self.subset_indexes & Self::ONE_MASK;
+        mask | (mask << 1)
+    }
+    #[allow(dead_code)]
+    pub const fn get_two_mask(self) -> u32 {
+        let mask = self.subset_indexes & Self::TWO_MASK;
+        mask | (mask >> 1)
+    }
+
     /// Reorders the elements in a block according to the subset indexes.
     ///
     /// The relative order of pixels within each subset is preserved. In that
@@ -331,8 +346,79 @@ pub(crate) const PARTITION_SET_3: [Subset3Map; 64] = [
     subset3(*b"011-12011-22012220"),
 ];
 
+/// The number of subsets that appear more than once in `PARTITION_SET_3`.
+pub(crate) const PARTITION_SET_3_DUPLICATE_COUNT: usize = 25;
+pub(crate) const PARTITION_SET_3_DUPLICATES: [[u8; 3]; 64] = [
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 255],
+    [0, 1, 2],
+    [4, 3, 2],
+    [5, 6, 3],
+    [5, 7, 1],
+    [0, 8, 9],
+    [10, 11, 9],
+    [10, 12, 6],
+    [4, 13, 14],
+    [15, 16, 14],
+    [15, 17, 7],
+    [255, 255, 18],
+    [255, 255, 19],
+    [255, 255, 255],
+    [255, 20, 255],
+    [10, 255, 255],
+    [255, 9, 255],
+    [15, 255, 255],
+    [255, 14, 255],
+    [255, 255, 2],
+    [255, 255, 1],
+    [255, 255, 3],
+    [5, 255, 255],
+    [255, 255, 255],
+    [255, 255, 21],
+    [255, 22, 255],
+    [255, 23, 255],
+    [255, 255, 24],
+    [255, 255, 19],
+    [255, 255, 18],
+    [255, 255, 20],
+    [255, 255, 18],
+    [255, 17, 13],
+    [255, 12, 8],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 6],
+    [0, 255, 255],
+    [255, 255, 7],
+    [4, 255, 255],
+    [255, 255, 16],
+    [255, 255, 11],
+    [10, 255, 255],
+    [255, 255, 9],
+    [15, 255, 255],
+    [255, 255, 14],
+    [10, 255, 255],
+    [15, 255, 255],
+    [255, 255, 14],
+    [255, 255, 9],
+    [0, 21, 255],
+    [255, 23, 6],
+    [4, 24, 255],
+    [255, 22, 7],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 255, 255],
+    [255, 20, 19],
+];
+
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -411,5 +497,56 @@ mod tests {
                 assert!(block[i - 1] < block[i]);
             }
         }
+    }
+
+    #[test]
+    fn subset3_overlap() {
+        let mut mask_counter: HashMap<u32, u32> = HashMap::new();
+
+        for subset in PARTITION_SET_3 {
+            let masks = [
+                subset.get_zero_mask(),
+                subset.get_one_mask(),
+                subset.get_two_mask(),
+            ];
+
+            for mask in masks {
+                *mask_counter.entry(mask).or_insert(0) += 1;
+            }
+        }
+
+        mask_counter.retain(|_, v| *v > 1);
+        assert_eq!(mask_counter.len(), PARTITION_SET_3_DUPLICATE_COUNT);
+
+        mask_counter.iter_mut().for_each(|(_, v)| *v = 255);
+        for (i, &subset) in PARTITION_SET_3.iter().enumerate() {
+            let masks = [
+                subset.get_zero_mask(),
+                subset.get_one_mask(),
+                subset.get_two_mask(),
+            ];
+
+            for mask in masks {
+                if let Some(counter) = mask_counter.get_mut(&mask) {
+                    *counter = u32::min(*counter, i as u32);
+                }
+            }
+        }
+
+        let mut sorted = Vec::from_iter(mask_counter);
+        sorted.sort_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)));
+        let sorted = Vec::from_iter(sorted.into_iter().map(|(k, _)| k));
+
+        let cache_array: [[u8; 3]; 64] = std::array::from_fn(|i| {
+            let subset = PARTITION_SET_3[i];
+            [
+                subset.get_zero_mask(),
+                subset.get_one_mask(),
+                subset.get_two_mask(),
+            ]
+            .map(|mask| sorted.iter().position(|m| *m == mask).unwrap_or(255) as u8)
+        });
+
+        assert_eq!(cache_array, PARTITION_SET_3_DUPLICATES);
     }
 }
