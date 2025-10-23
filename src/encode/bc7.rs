@@ -40,7 +40,11 @@ pub(crate) struct Bc7Options {
     /// If true, the encoder will consider color channel rotations for modes 4 and 5.
     pub allow_color_rotation: bool,
 
-    /// If color rotation is allowed, this controls how many rotations are tried.
+    /// If color rotation for mode 4 and 5 is allowed, this controls how many
+    /// rotations are tried.
+    ///
+    /// If set to 4, all rotations are tried. IF set to less then 4, a heuristic
+    /// is used to pick the best rotations to try.
     ///
     /// Must be between 1 and 4.
     pub max_color_rotations: u8,
