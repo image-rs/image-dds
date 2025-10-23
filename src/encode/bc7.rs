@@ -763,7 +763,7 @@ trait PBitState {
 struct UniquePBits;
 impl PBitHandling for UniquePBits {
     type State = [bool; 2];
-    const ALL: &[[bool; 2]] = &[[false, false], [false, true], [true, false], [true, true]];
+    const ALL: &'static [[bool; 2]] = &[[false, false], [false, true], [true, false], [true, true]];
 }
 impl PBitState for [bool; 2] {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
@@ -777,7 +777,7 @@ impl PBitState for [bool; 2] {
 struct SharedPBit;
 impl PBitHandling for SharedPBit {
     type State = bool;
-    const ALL: &[bool] = &[false, true];
+    const ALL: &'static [bool] = &[false, true];
 }
 impl PBitState for bool {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
@@ -792,7 +792,7 @@ impl PBitState for bool {
 struct NoPBit;
 impl PBitHandling for NoPBit {
     type State = NoPBit;
-    const ALL: &[NoPBit] = &[NoPBit];
+    const ALL: &'static [NoPBit] = &[NoPBit];
 }
 impl PBitState for NoPBit {
     fn promote_rgb<const B: u8>(&self, c0: Rgb<B>, c1: Rgb<B>) -> [Rgb<8>; 2] {
