@@ -510,7 +510,7 @@ fn compress_color_separate_alpha_with_rotation<
     let rgb = block.map(|p| p.color());
     let rgb_vec = rgb.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, options, |(min, max)| {
+    let (c0, c1) = refine_along_line3(c0, c1, 1 << IC, options, |(min, max)| {
         closest_error_rgb::<IC>(Rgb::round(min), Rgb::round(max), &rgb)
     });
     let (e0, e1) = options
@@ -586,7 +586,7 @@ fn compress_rgba<const B: u8, const I: u8>(
     let rgba_vec = &rgba_vec[..block.len()];
 
     let (mut c0, mut c1) = bcn_util::line4_fit_endpoints(rgba_vec, 0.9);
-    (c0, c1) = refine_along_line4(c0, c1, options, |(min, max)| {
+    (c0, c1) = refine_along_line4(c0, c1, 1 << I, options, |(min, max)| {
         closest_error_rgba::<I>(Rgba::round(min), Rgba::round(max), block)
     });
 
@@ -626,7 +626,7 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     }
 
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
-    let (c0, c1) = refine_along_line3(c0, c1, options, |(min, max)| {
+    let (c0, c1) = refine_along_line3(c0, c1, 1 << I, options, |(min, max)| {
         closest_error_rgb::<I>(Rgb::round(min), Rgb::round(max), block)
     });
 
@@ -820,6 +820,7 @@ impl PBitState for NoPBit {
 fn refine_along_line3(
     min: Vec3A,
     max: Vec3A,
+    palette_size: u8,
     options: Bc7Options,
     compute_error: impl Fn((Vec3A, Vec3A)) -> u32,
 ) -> (Vec3A, Vec3A) {
@@ -837,9 +838,13 @@ fn refine_along_line3(
     };
 
     let options = bcn_util::RefinementOptions {
-        step_initial: 0.2,
+        step_initial: match palette_size {
+            4 => 0.2,
+            8 => 0.1,
+            _ => unreachable!(),
+        },
         step_decay: 0.5,
-        step_min: 0.005 / dist,
+        step_min: 0.0025 / dist,
         max_iter: options.max_refinement_iters as u32,
     };
 
@@ -852,6 +857,7 @@ fn refine_along_line3(
 fn refine_along_line4(
     min: Vec4,
     max: Vec4,
+    palette_size: u8,
     options: Bc7Options,
     compute_error: impl Fn((Vec4, Vec4)) -> u32,
 ) -> (Vec4, Vec4) {
@@ -869,9 +875,14 @@ fn refine_along_line4(
     };
 
     let options = bcn_util::RefinementOptions {
-        step_initial: 0.2,
+        step_initial: match palette_size {
+            4 => 0.2,
+            8 => 0.1,
+            16 => 0.1,
+            _ => unreachable!(),
+        },
         step_decay: 0.5,
-        step_min: 0.005 / dist,
+        step_min: 0.0025 / dist,
         max_iter: options.max_refinement_iters as u32,
     };
 
