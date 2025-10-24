@@ -30,6 +30,15 @@ pub(crate) struct Bc7Options {
     /// Allowed BC7 modes for compression.
     pub allowed_modes: Bc7Modes,
 
+    /// Instead of considering the full range of 64 partitions, only consider
+    /// the first K partitions.
+    ///
+    /// This is not the same as `max_partition_candidates`. The encoder will
+    /// first score the first `max_partitions` partitions and then try the best
+    /// `max_partition_candidates` of those.
+    ///
+    /// Must be between 1 and 64.
+    pub max_partitions: u8,
     /// The maximum number of partitions to try per mode.
     ///
     /// Must be between 1 and 64.
@@ -118,7 +127,8 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
         modes = options.force_modes;
     }
 
-    let mut partitions = PartitionSelect::new(&block, !stats.opaque(), modes);
+    let mut partitions =
+        PartitionSelect::new(&block, !stats.opaque(), modes, options.max_partitions);
     let mut rotations = RotationSelect::new(&block, stats);
 
     let mut best = Compressed::invalid();
@@ -2199,17 +2209,19 @@ struct PartitionSelect<'a> {
     has_alpha: bool,
     block: &'a [Rgba<8>; 16],
     modes: Bc7Modes,
+    max_partitions: u8,
 
     cache_partitions_2: Option<[u8; 64]>,
     cache_partitions_3_64: Option<[u8; 64]>,
     cache_partitions_3_16: Option<[u8; 16]>,
 }
 impl<'a> PartitionSelect<'a> {
-    fn new(block: &'a [Rgba<8>; 16], has_alpha: bool, modes: Bc7Modes) -> Self {
+    fn new(block: &'a [Rgba<8>; 16], has_alpha: bool, modes: Bc7Modes, max_partitions: u8) -> Self {
         Self {
             has_alpha,
             block,
             modes,
+            max_partitions,
 
             cache_partitions_2: None,
             cache_partitions_3_64: None,
@@ -2220,11 +2232,16 @@ impl<'a> PartitionSelect<'a> {
     fn get_partitions_2(&mut self) -> &[u8; 64] {
         let has_alpha = self.has_alpha;
         let block = self.block;
+        let max_partitions = self.max_partitions;
 
         self.cache_partitions_2.get_or_insert_with(|| {
             let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
                 let partition = i as u8;
                 let subset = PARTITION_SET_2[partition as usize];
+
+                if partition >= max_partitions {
+                    return (partition, f32::INFINITY);
+                }
 
                 let split_index = subset.count_zeros() as usize;
                 let error = if has_alpha {
@@ -2269,7 +2286,7 @@ impl<'a> PartitionSelect<'a> {
         let has_mode_0 = self.modes.contains(Bc7Modes::MODE0);
         let has_mode_2 = self.modes.contains(Bc7Modes::MODE2);
         debug_assert!(has_mode_0 || has_mode_2);
-        let max = if has_mode_2 { 64 } else { 16 };
+        let max_partitions = self.max_partitions.min(if has_mode_2 { 64 } else { 16 });
 
         let block = self.block;
         let mut partial_error_cache = [f32::NAN; PARTITION_SET_3_DUPLICATE_COUNT];
@@ -2278,8 +2295,8 @@ impl<'a> PartitionSelect<'a> {
             let partition = i as u8;
             let subset = PARTITION_SET_3[partition as usize];
 
-            if partition >= max {
-                return (i as u8, f32::INFINITY);
+            if partition >= max_partitions {
+                return (partition, f32::INFINITY);
             }
 
             let mut reordered = block.map(|p| p.color().to_vec());
