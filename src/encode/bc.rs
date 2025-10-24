@@ -481,11 +481,12 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                 CompressionQuality::High => 2,
                 CompressionQuality::Unreasonable => 4,
             },
+            fit_optimal: true,
             max_refinement_iters: match options.quality {
-                CompressionQuality::Fast => 2,
-                CompressionQuality::Normal => 3,
-                CompressionQuality::High => 3,
-                CompressionQuality::Unreasonable => 5,
+                CompressionQuality::Fast => 0,
+                CompressionQuality::Normal => 0,
+                CompressionQuality::High => 1,
+                CompressionQuality::Unreasonable => 8,
             },
             max_p_bit_combinations: match options.quality {
                 CompressionQuality::Fast => 1,

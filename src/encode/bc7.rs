@@ -69,6 +69,9 @@ pub(crate) struct Bc7Options {
     /// Must be 1, 2, or 4.
     pub max_p_bit_combinations: u8,
 
+    /// Whether to least squares fit the endpoints before refinement.
+    pub fit_optimal: bool,
+
     /// Forces the encoder to use exactly the specified BC7 modes. If none are
     /// specified, this option is ignored.
     ///
@@ -510,6 +513,7 @@ fn compress_color_separate_alpha_with_rotation<
     let rgb = block.map(|p| p.color());
     let rgb_vec = rgb.map(|p| p.to_vec());
     let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec, 0.9);
+    let (c0, c1) = fit_optimal_endpoints_rgb::<C, IC>(c0, c1, &rgb, &rgb_vec, options);
     let (c0, c1) = refine_along_line3(c0, c1, 1 << IC, options, |(min, max)| {
         closest_error_rgb::<IC>(Rgb::round(min), Rgb::round(max), &rgb)
     });
@@ -538,15 +542,16 @@ fn compress_color_separate_alpha_with_rotation<
     } else {
         // We want opaque pixels to stay opaque no matter what.
         let force_opaque = rotation == Rotation::None && stats.max.a == 255;
-        let initial = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
-        let (a_min, a_max) = bcn_util::refine_endpoints(
-            initial.0,
-            initial.1,
+        let c = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
+        let c = fit_optimal_endpoints_alpha::<A, IA>(c.0, c.1, &alpha_pixels, options);
+        let c = bcn_util::refine_endpoints(
+            c.0,
+            c.1,
             bcn_util::RefinementOptions {
-                step_initial: (initial.1 - initial.0) * 0.2,
+                step_initial: (c.1 - c.0) * 0.2,
                 step_decay: 0.5,
                 step_min: 1.0 / 255.0,
-                max_iter: 4,
+                max_iter: options.max_refinement_iters as u32,
             },
             |(min, max)| {
                 if force_opaque && max < 1.0 {
@@ -555,8 +560,8 @@ fn compress_color_separate_alpha_with_rotation<
                 closest_error_alpha::<IA>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
             },
         );
-        let a_min: Alpha<A> = Alpha::floor(a_min);
-        let a_max: Alpha<A> = Alpha::ceil(a_max);
+        let a_min: Alpha<A> = Alpha::floor(c.0);
+        let a_max: Alpha<A> = Alpha::ceil(c.1);
         let (alpha_indexes, alpha_error) =
             closest_alpha::<IA>(a_min.promote(), a_max.promote(), &alpha_pixels);
         ([a_min, a_max], alpha_indexes, alpha_error)
@@ -585,8 +590,9 @@ fn compress_rgba<const B: u8, const I: u8>(
     }
     let rgba_vec = &rgba_vec[..block.len()];
 
-    let (mut c0, mut c1) = bcn_util::line4_fit_endpoints(rgba_vec, 0.9);
-    (c0, c1) = refine_along_line4(c0, c1, 1 << I, options, |(min, max)| {
+    let (c0, c1) = bcn_util::line4_fit_endpoints(rgba_vec, 0.9);
+    let (c0, c1) = fit_optimal_endpoints_rgba::<B, I>(c0, c1, block, rgba_vec, options);
+    let (c0, c1) = refine_along_line4(c0, c1, 1 << I, options, |(min, max)| {
         closest_error_rgba::<I>(Rgba::round(min), Rgba::round(max), block)
     });
 
@@ -624,8 +630,10 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     for (i, p) in block.iter().enumerate() {
         rgb_vec[i] = p.to_vec();
     }
+    let rgb_vec = &rgb_vec[..block.len()];
 
-    let (c0, c1) = bcn_util::line3_fit_endpoints(&rgb_vec[..block.len()], 0.9);
+    let (c0, c1) = bcn_util::line3_fit_endpoints(rgb_vec, 0.9);
+    let (c0, c1) = fit_optimal_endpoints_rgb::<B, I>(c0, c1, block, rgb_vec, options);
     let (c0, c1) = refine_along_line3(c0, c1, 1 << I, options, |(min, max)| {
         closest_error_rgb::<I>(Rgb::round(min), Rgb::round(max), block)
     });
@@ -815,6 +823,119 @@ impl PBitState for NoPBit {
     fn promote_rgba<const B: u8>(&self, c0: Rgba<B>, c1: Rgba<B>) -> [Rgba<8>; 2] {
         [c0.promote(), c1.promote()]
     }
+}
+
+fn fit_optimal_endpoints_rgba<const B: u8, const I: u8>(
+    c0: Vec4,
+    c1: Vec4,
+    block: &[Rgba<8>],
+    block_vec: &[Vec4],
+    options: Bc7Options,
+) -> (Vec4, Vec4) {
+    if !options.fit_optimal {
+        return (c0, c1);
+    }
+
+    debug_assert_eq!(block.len(), block_vec.len());
+
+    // If the endpoints are very close, then quantization artifacts have a
+    // significant effect on which indexes are chosen per pixel. This is a
+    // problem here, because we don't know the final quantized endpoints yet
+    // and have to guess them. The closer the endpoints are, the more the
+    // error in our guess matters. Since this method optimizes based on indexes,
+    // if the indexes aren't good, it will return garbage.
+    // This minimum distance is somewhat arbitrary. It seems to work, so I
+    // haven't looked into other value.
+    let min_dist = (1_u32 << I) as f32 / (1_u32 << B) as f32;
+    if c0.distance_squared(c1) < min_dist * min_dist {
+        return (c0, c1);
+    }
+
+    let (e0, e1): (Rgba<B>, Rgba<B>) = Quantization::wide(c0, c1);
+    let index_list: IndexList<I> = closest_rgba(e0.promote(), e1.promote(), block).0;
+    let weights = index_list.to_weights();
+
+    let optimal: (Vec4, Vec4) = bcn_util::least_squares_weights(block_vec, &weights[..block.len()]);
+
+    // TODO: should I clamp?
+    (
+        optimal.0.clamp(Vec4::ZERO, Vec4::ONE),
+        optimal.1.clamp(Vec4::ZERO, Vec4::ONE),
+    )
+}
+fn fit_optimal_endpoints_rgb<const B: u8, const I: u8>(
+    c0: Vec3A,
+    c1: Vec3A,
+    block: &[Rgb<8>],
+    block_vec: &[Vec3A],
+    options: Bc7Options,
+) -> (Vec3A, Vec3A) {
+    if !options.fit_optimal {
+        return (c0, c1);
+    }
+
+    debug_assert_eq!(block.len(), block_vec.len());
+
+    // If the endpoints are very close, then quantization artifacts have a
+    // significant effect on which indexes are chosen per pixel. This is a
+    // problem here, because we don't know the final quantized endpoints yet
+    // and have to guess them. The closer the endpoints are, the more the
+    // error in our guess matters. Since this method optimizes based on indexes,
+    // if the indexes aren't good, it will return garbage.
+    // This minimum distance is somewhat arbitrary. It seems to work, so I
+    // haven't looked into other value.
+    let min_dist = (1_u32 << I) as f32 / (1_u32 << B) as f32;
+    if c0.distance_squared(c1) < min_dist * min_dist {
+        return (c0, c1);
+    }
+
+    let (e0, e1): (Rgb<B>, Rgb<B>) = Quantization::wide(c0, c1);
+    let index_list: IndexList<I> = closest_rgb(e0.promote(), e1.promote(), block).0;
+    let weights = index_list.to_weights();
+
+    let optimal: (Vec3A, Vec3A) =
+        bcn_util::least_squares_weights(block_vec, &weights[..block.len()]);
+
+    // TODO: should I clamp?
+    (
+        optimal.0.clamp(Vec3A::ZERO, Vec3A::ONE),
+        optimal.1.clamp(Vec3A::ZERO, Vec3A::ONE),
+    )
+}
+fn fit_optimal_endpoints_alpha<const B: u8, const I: u8>(
+    mut min: f32,
+    mut max: f32,
+    block: &[Alpha<8>; 16],
+    options: Bc7Options,
+) -> (f32, f32) {
+    if !options.fit_optimal {
+        return (min, max);
+    }
+
+    let (e0, e1) = (Alpha::<B>::round(min), Alpha::<B>::round(max));
+    let index_list: IndexList<I> = closest_alpha(e0.promote(), e1.promote(), block).0;
+    let weights = index_list.to_weights();
+
+    let weights: [Vec4; 4] = [
+        Vec4::new(weights[0], weights[1], weights[2], weights[3]),
+        Vec4::new(weights[4], weights[5], weights[6], weights[7]),
+        Vec4::new(weights[8], weights[9], weights[10], weights[11]),
+        Vec4::new(weights[12], weights[13], weights[14], weights[15]),
+    ];
+
+    let alpha = block.map(|a| a.to_vec());
+    let alpha: [Vec4; 4] = [
+        Vec4::new(alpha[0], alpha[1], alpha[2], alpha[3]),
+        Vec4::new(alpha[4], alpha[5], alpha[6], alpha[7]),
+        Vec4::new(alpha[8], alpha[9], alpha[10], alpha[11]),
+        Vec4::new(alpha[12], alpha[13], alpha[14], alpha[15]),
+    ];
+
+    (min, max) = bcn_util::least_squares_weights_f32_vec4(&alpha, &weights);
+    min = min.clamp(0.0, 1.0);
+    max = max.clamp(0.0, 1.0);
+
+    (min, max)
 }
 
 fn refine_along_line3(
@@ -1571,6 +1692,15 @@ impl<const I: u8> IndexList<I> {
         debug_assert!(value <= Self::MAX_INDEX);
         debug_assert!(self.get(index) == 0, "Cannot set an index twice.");
         self.indexes |= (value as u64) << (index * I as usize);
+    }
+
+    fn to_weights(self) -> [f32; 16] {
+        let mut weights: [f32; 16] = [0.0; 16];
+        let f = 1.0 / ((1_u8 << I) - 1) as f32;
+        for i in 0..16 {
+            weights[i] = self.get(i) as f32 * f;
+        }
+        weights
     }
 
     /// Compresses the index list and returns whether the endpoints need to be swapped.
