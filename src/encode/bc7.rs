@@ -1694,7 +1694,7 @@ impl<const I: u8> IndexList<I> {
         self.indexes |= (value as u64) << (index * I as usize);
     }
 
-    fn to_weights(self) -> [f32; 16] {
+    fn to_weights(&self) -> [f32; 16] {
         let mut weights: [f32; 16] = [0.0; 16];
         let f = 1.0 / ((1_u8 << I) - 1) as f32;
         for i in 0..16 {
