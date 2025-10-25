@@ -43,6 +43,11 @@ pub(crate) struct Bc7Options {
     ///
     /// Must be between 1 and 64.
     pub max_partition_candidates: u8,
+    /// Instead of using the 16 partitions for mode 0, only a smaller subset of 10.
+    ///
+    /// This only applies when mode 1 is enabled, mode 2 is disabled, and the
+    /// block is opaque.
+    pub fast_mode_0_partitions: bool,
 
     pub quantization: Quantization,
 
@@ -130,8 +135,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
         modes = options.force_modes;
     }
 
-    let mut partitions =
-        PartitionSelect::new(&block, !stats.opaque(), modes, options.max_partitions);
+    let mut partitions = PartitionSelect::new(&block, !stats.opaque(), modes, options);
     let mut rotations = RotationSelect::new(&block, stats);
 
     let mut best = Compressed::invalid();
@@ -2351,18 +2355,25 @@ struct PartitionSelect<'a> {
     block: &'a [Rgba<8>; 16],
     modes: Bc7Modes,
     max_partitions: u8,
+    fast_mode_0: bool,
 
     cache_partitions_2: Option<[u8; 64]>,
     cache_partitions_3_64: Option<[u8; 64]>,
     cache_partitions_3_16: Option<[u8; 16]>,
 }
 impl<'a> PartitionSelect<'a> {
-    fn new(block: &'a [Rgba<8>; 16], has_alpha: bool, modes: Bc7Modes, max_partitions: u8) -> Self {
+    fn new(
+        block: &'a [Rgba<8>; 16],
+        has_alpha: bool,
+        modes: Bc7Modes,
+        options: Bc7Options,
+    ) -> Self {
         Self {
             has_alpha,
             block,
             modes,
-            max_partitions,
+            max_partitions: options.max_partitions,
+            fast_mode_0: options.fast_mode_0_partitions && !modes.contains(Bc7Modes::MODE2),
 
             cache_partitions_2: None,
             cache_partitions_3_64: None,
@@ -2428,6 +2439,14 @@ impl<'a> PartitionSelect<'a> {
         let has_mode_2 = self.modes.contains(Bc7Modes::MODE2);
         debug_assert!(has_mode_0 || has_mode_2);
         let max_partitions = self.max_partitions.min(if has_mode_2 { 64 } else { 16 });
+        let enabled_partitions: u64 = if self.fast_mode_0 {
+            debug_assert!(!has_mode_2);
+            0b11_1111_1111_0000
+        } else if max_partitions >= 64 {
+            u64::MAX // all 64 partitions
+        } else {
+            (1_u64 << max_partitions) - 1
+        };
 
         let block = self.block;
         let mut partial_error_cache = [f32::NAN; PARTITION_SET_3_DUPLICATE_COUNT];
@@ -2436,7 +2455,7 @@ impl<'a> PartitionSelect<'a> {
             let partition = i as u8;
             let subset = PARTITION_SET_3[partition as usize];
 
-            if partition >= max_partitions {
+            if enabled_partitions & (1 << partition) == 0 {
                 return (partition, f32::INFINITY);
             }
 

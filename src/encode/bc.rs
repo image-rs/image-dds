@@ -468,6 +468,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
                 CompressionQuality::High => 2,
                 CompressionQuality::Unreasonable => 64,
             },
+            fast_mode_0_partitions: options.quality == CompressionQuality::Fast,
             quantization: match options.quality {
                 CompressionQuality::Fast => bcn_util::Quantization::ChannelWiseOptimized,
                 CompressionQuality::Normal => bcn_util::Quantization::ChannelWiseOptimized,
