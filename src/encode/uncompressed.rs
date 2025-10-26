@@ -232,6 +232,11 @@ macro_rules! color_convert {
 }
 
 macro_rules! universal {
+    ($out:ty, gray = $f:expr) => {{
+        universal!($out, |rgba: [f32; 4]| -> $out {
+            ($f)(ch::rgba_to_grayscale(rgba)[0])
+        })
+    }};
     ($out:ty, $f:expr) => {{
         fn process_line(line: &[[f32; 4]], out: &mut [$out]) {
             assert!(line.len() == out.len());
@@ -243,12 +248,18 @@ macro_rules! universal {
         Encoder::new_universal(|args| uncompressed_universal(args, process_line))
     }};
 }
-macro_rules! universal_grayscale {
-    ($out:ty, $f:expr) => {
-        universal!($out, |rgba| ($f)(ch::rgba_to_grayscale(rgba)[0]))
-    };
-}
 macro_rules! universal_dither {
+    ($out:ty, gray = $f:expr, $g: expr) => {
+        universal_dither!($out, |pixel: Vec4| -> ($out, Vec4) {
+            let r: $out = ($f)(pixel.x);
+
+            let back = Vec4::new(($g)(r), 1.0, 1.0, 1.0);
+            let error = pixel - back;
+
+            (r, error)
+        })
+        .add_flags(Flags::DITHER_COLOR)
+    };
     ($out:ty, $f:expr) => {
         Encoder::new_universal(|args| uncompressed_universal_dither::<$out, _>(args, $f))
     };
@@ -490,30 +501,14 @@ pub(crate) const A4B4G4R4_UNORM: EncoderSet = EncoderSet::new(&[
 pub(crate) const R8_UNORM: EncoderSet = EncoderSet::new(&[
     Encoder::copy(ColorFormat::GRAYSCALE_U8),
     color_convert!(ColorFormat::GRAYSCALE_U8),
-    universal_grayscale!(u8, n8::from_f32),
-    universal_dither!(u8, |pixel| {
-        let r = n8::from_f32(pixel[0]);
-
-        let back = Vec4::new(n8::f32(r), 1.0, 1.0, 1.0);
-        let error = pixel - back;
-
-        (r, error)
-    })
-    .add_flags(Flags::DITHER_COLOR),
+    universal!(u8, gray = n8::from_f32),
+    universal_dither!(u8, gray = n8::from_f32, n8::f32),
 ]);
 
 pub(crate) const R8_SNORM: EncoderSet = EncoderSet::new(&[
     color_convert!(ColorFormat::GRAYSCALE_U8, snorm = true),
-    universal_grayscale!(u8, s8::from_uf32),
-    universal_dither!(u8, |pixel| {
-        let r = s8::from_uf32(pixel[0]);
-
-        let back = Vec4::new(s8::uf32(r), 1.0, 1.0, 1.0);
-        let error = pixel - back;
-
-        (r, error)
-    })
-    .add_flags(Flags::DITHER_COLOR),
+    universal!(u8, gray = s8::from_uf32),
+    universal_dither!(u8, gray = s8::from_uf32, s8::uf32),
 ]);
 
 pub(crate) const R8G8_UNORM: EncoderSet = EncoderSet::new(&[
@@ -562,30 +557,14 @@ pub(crate) const A8_UNORM: EncoderSet = EncoderSet::new(&[
 pub(crate) const R16_UNORM: EncoderSet = EncoderSet::new(&[
     Encoder::copy(ColorFormat::GRAYSCALE_U16),
     color_convert!(ColorFormat::GRAYSCALE_U16),
-    universal_grayscale!(u16, n16::from_f32),
-    universal_dither!(u16, |pixel| {
-        let r = n16::from_f32(pixel[0]);
-
-        let back = Vec4::new(n16::f32(r), 1.0, 1.0, 1.0);
-        let error = pixel - back;
-
-        (r, error)
-    })
-    .add_flags(Flags::DITHER_COLOR),
+    universal!(u16, gray = n16::from_f32),
+    universal_dither!(u16, gray = n16::from_f32, n16::f32),
 ]);
 
 pub(crate) const R16_SNORM: EncoderSet = EncoderSet::new(&[
     color_convert!(ColorFormat::GRAYSCALE_U16, snorm = true),
-    universal_grayscale!(u16, s16::from_uf32),
-    universal_dither!(u16, |pixel| {
-        let r = s16::from_uf32(pixel[0]);
-
-        let back = Vec4::new(s16::uf32(r), 1.0, 1.0, 1.0);
-        let error = pixel - back;
-
-        (r, error)
-    })
-    .add_flags(Flags::DITHER_COLOR),
+    universal!(u16, gray = s16::from_uf32),
+    universal_dither!(u16, gray = s16::from_uf32, s16::uf32),
 ]);
 
 pub(crate) const R16G16_UNORM: EncoderSet = EncoderSet::new(&[
@@ -713,16 +692,8 @@ pub(crate) const R9G9B9E5_SHAREDEXP: EncoderSet = EncoderSet::new(&[
 ]);
 
 pub(crate) const R16_FLOAT: EncoderSet = EncoderSet::new(&[
-    universal_grayscale!(u16, fp16::from_f32).add_flags(Flags::EXACT_U8),
-    universal_dither!(u16, |pixel| {
-        let r = fp16::from_f32(pixel[0]);
-
-        let back = Vec4::new(fp16::f32(r), 1.0, 1.0, 1.0);
-        let error = pixel - back;
-
-        (r, error)
-    })
-    .add_flags(Flags::DITHER_COLOR),
+    universal!(u16, gray = fp16::from_f32).add_flags(Flags::EXACT_U8),
+    universal_dither!(u16, gray = fp16::from_f32, fp16::f32),
 ]);
 
 pub(crate) const R16G16_FLOAT: EncoderSet = EncoderSet::new(&[
@@ -758,7 +729,7 @@ pub(crate) const R16G16B16A16_FLOAT: EncoderSet = EncoderSet::new(&[
 pub(crate) const R32_FLOAT: EncoderSet = EncoderSet::new(&[
     Encoder::copy(ColorFormat::GRAYSCALE_F32),
     color_convert!(ColorFormat::GRAYSCALE_F32),
-    universal_grayscale!(f32, |r| r),
+    universal!(f32, gray = |r| r),
 ]);
 
 pub(crate) const R32G32_FLOAT: EncoderSet =
