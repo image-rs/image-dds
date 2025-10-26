@@ -786,7 +786,7 @@ pub(crate) const AYUV: EncoderSet = EncoderSet::new(&[
 
         ([v, u, y, a], error)
     })
-    .add_flags(Flags::DITHER_ALPHA),
+    .add_flags(Flags::DITHER_ALL),
 ]);
 
 pub(crate) const Y410: EncoderSet = EncoderSet::new(&[
@@ -796,24 +796,38 @@ pub(crate) const Y410: EncoderSet = EncoderSet::new(&[
         (a << 30) | ((v as u32) << 20) | ((y as u32) << 10) | (u as u32)
     }),
     universal_dither!(u32, |pixel| {
-        let [r, g, b, a_f32] = pixel.to_array();
+        let [r, g, b, a] = pixel.to_array();
         let [y, u, v] = yuv10::from_rgb_f32([r, g, b]);
-        let a = n2::from_f32(a_f32) as u32;
+        let a = n2::from_f32(a) as u32;
 
-        let a_back = n2::f32(a as u8);
-        let error = Vec4::new(0.0, 0.0, 0.0, a_f32 - a_back);
+        let [r, g, b] = yuv10::f32([y, u, v]);
+        let back = Vec4::new(r, g, b, n2::f32(a as u8));
+        let error = pixel - back;
 
         (
             (a << 30) | ((v as u32) << 20) | ((y as u32) << 10) | (u as u32),
             error,
         )
     })
-    .add_flags(Flags::DITHER_ALPHA),
+    .add_flags(Flags::DITHER_ALL),
 ]);
 
-pub(crate) const Y416: EncoderSet = EncoderSet::new(&[universal!([u16; 4], |[r, g, b, a]| {
-    let [y, u, v] = yuv16::from_rgb_f32([r, g, b]);
-    let a = n16::from_f32(a);
-    [u, y, v, a]
-})
-.add_flags(Flags::EXACT_U8)]);
+pub(crate) const Y416: EncoderSet = EncoderSet::new(&[
+    universal!([u16; 4], |[r, g, b, a]| {
+        let [y, u, v] = yuv16::from_rgb_f32([r, g, b]);
+        let a = n16::from_f32(a);
+        [u, y, v, a]
+    })
+    .add_flags(Flags::EXACT_U8),
+    universal_dither!([u16; 4], |pixel| {
+        let [y, u, v] = yuv16::from_rgb_f32([pixel[0], pixel[1], pixel[2]]);
+        let a = n16::from_f32(pixel[3]);
+
+        let [r, g, b] = yuv16::f32([y, u, v]);
+        let back = Vec4::new(r, g, b, n16::f32(a));
+        let error = pixel - back;
+
+        ([u, y, v, a], error)
+    })
+    .add_flags(Flags::DITHER_ALL),
+]);

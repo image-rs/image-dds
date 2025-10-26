@@ -48,9 +48,9 @@
 | R32G32B32_FLOAT               | RGB   F32 | 96  | DX10   |        | ✔️       |            | ✔️     |
 | R32G32B32A32_FLOAT            | RGBA  F32 | 128 | ☑️     |        | ✔️       |            | ✔️     |
 | R10G10B10_XR_BIAS_A2_UNORM    | RGBA  F32 | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
-| AYUV                          | RGBA  U8  | 32  | DX10   |        | ✔️       | Alpha only | ✔️     |
-| Y410                          | RGBA  U16 | 32  | DX10   |        | ✔️       | Alpha only | ✔️     |
-| Y416                          | RGBA  U16 | 64  | DX10   |        | ✔️       |            | ✔️     |
+| AYUV                          | RGBA  U8  | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
+| Y410                          | RGBA  U16 | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
+| Y416                          | RGBA  U16 | 64  | DX10   |        | ✔️       | ✔️         | ✔️     |
 | — *Subsampled*                |           |     |        |        |          |            |        |
 | R1_UNORM                      | Gray  U8  | 1   | DX10   |        | ✔️       | ✔️         | ✔️     |
 | R8G8_B8G8_UNORM               | RGB   U8  | 16  | ☑️     | RGBG   | ✔️       |            | ✔️     |
