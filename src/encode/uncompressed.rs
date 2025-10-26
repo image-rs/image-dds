@@ -106,11 +106,7 @@ fn uncompressed_universal_dither(
     let mut encoded_buffer = [EncodedBufferType::default(); BUFFER_PIXELS];
     let encoded_buffer: &mut [u8] = cast::as_bytes_mut(&mut encoded_buffer[..]);
 
-    let chunk_pixels = usize::min(
-        BUFFER_PIXELS,
-        BUFFER_PIXELS * std::mem::size_of::<EncodedBufferType>() / encoded_pixel_size,
-    );
-
+    let chunk_pixels = usize::min(BUFFER_PIXELS, encoded_buffer.len() / encoded_pixel_size);
     let chunk_size = chunk_pixels * bytes_per_pixel;
     let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
     let mut chunk_index: usize = 0;
