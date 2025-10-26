@@ -60,21 +60,20 @@ where
     Ok(())
 }
 
-type DitherProcessChunkFn<EncodedPixel> = fn(
+type DitherProcessChunkFn = fn(
     chunk: &[[f32; 4]],
-    encoded: &mut [EncodedPixel],
+    encoded: &mut [u8],
     error_mask: Vec4,
     next_error_add: Vec4,
     current_line_error: &[Vec4],
     next_line_error: &mut [Vec4],
 ) -> Vec4;
-fn uncompressed_universal_dither<EncodedPixel>(
+fn uncompressed_universal_dither(
     args: Args,
-    process_chunk: DitherProcessChunkFn<EncodedPixel>,
-) -> Result<(), EncodingError>
-where
-    EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
-{
+    encoded_pixel_size: usize,
+    encoded_pixel_align: usize,
+    process_chunk: DitherProcessChunkFn,
+) -> Result<(), EncodingError> {
     let Args {
         image,
         writer,
@@ -86,6 +85,9 @@ where
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
     let width = image.width() as usize;
     let height = image.height() as usize;
+
+    type EncodedBufferType = u64;
+    assert!(encoded_pixel_align <= std::mem::align_of::<EncodedBufferType>());
 
     let error_padding = 2;
     let mut error_buffer = vec![Vec4::ZERO; 2 * (width + error_padding * 2)];
@@ -101,9 +103,15 @@ where
 
     const BUFFER_PIXELS: usize = 512;
     let mut intermediate_buffer = [[0_f32; 4]; BUFFER_PIXELS];
-    let mut encoded_buffer = [EncodedPixel::default(); BUFFER_PIXELS];
+    let mut encoded_buffer = [EncodedBufferType::default(); BUFFER_PIXELS];
+    let encoded_buffer: &mut [u8] = cast::as_bytes_mut(&mut encoded_buffer[..]);
 
-    let chunk_size = BUFFER_PIXELS * bytes_per_pixel;
+    let chunk_pixels = usize::min(
+        BUFFER_PIXELS,
+        BUFFER_PIXELS * std::mem::size_of::<EncodedBufferType>() / encoded_pixel_size,
+    );
+
+    let chunk_size = chunk_pixels * bytes_per_pixel;
     let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
     let mut chunk_index: usize = 0;
     for row in image.rows() {
@@ -126,7 +134,7 @@ where
             let pixels = line.len() / bytes_per_pixel;
 
             let intermediate = &mut intermediate_buffer[..pixels];
-            let encoded = &mut encoded_buffer[..pixels];
+            let encoded = &mut encoded_buffer[..pixels * encoded_pixel_size];
             let intermediate = as_rgba_f32(color, line, intermediate);
 
             next_error_add = process_chunk(
@@ -273,15 +281,19 @@ macro_rules! universal_dither {
         type Out = $out;
         fn process_chunk(
             chunk: &[[f32; 4]],
-            encoded: &mut [Out],
+            encoded: &mut [u8],
             error_mask: Vec4,
             mut next_error_add: Vec4,
             current_line_error: &[Vec4],
             next_line_error: &mut [Vec4],
         ) -> Vec4 {
+            let encoded: &mut [Out] =
+                cast::from_bytes_mut(encoded).expect("invalid encoded buffer size");
+
             debug_assert_eq!(chunk.len(), encoded.len());
             debug_assert_eq!(chunk.len(), current_line_error.len());
             debug_assert_eq!(chunk.len() + 2, next_line_error.len());
+
             let f = util::closure_types::<Vec4, (Out, Vec4), _>($f);
 
             let mut error_offset: usize = 1;
@@ -303,10 +315,20 @@ macro_rules! universal_dither {
                 *out = encoded_pixel;
                 error_offset += 1;
             }
+
+            cast::ToLe::to_le(encoded);
+
             next_error_add
         }
 
-        Encoder::new_universal(|args| uncompressed_universal_dither(args, process_chunk))
+        Encoder::new_universal(|args| {
+            uncompressed_universal_dither(
+                args,
+                std::mem::size_of::<Out>(),
+                std::mem::align_of::<Out>(),
+                process_chunk,
+            )
+        })
     }};
 }
 
