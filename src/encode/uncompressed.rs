@@ -60,10 +60,20 @@ where
     Ok(())
 }
 
-fn uncompressed_universal_dither<EncodedPixel, F>(args: Args, f: F) -> Result<(), EncodingError>
+type DitherProcessChunkFn<EncodedPixel> = fn(
+    chunk: &[[f32; 4]],
+    encoded: &mut [EncodedPixel],
+    error_mask: Vec4,
+    next_error_add: Vec4,
+    current_line_error: &[Vec4],
+    next_line_error: &mut [Vec4],
+) -> Vec4;
+fn uncompressed_universal_dither<EncodedPixel>(
+    args: Args,
+    process_chunk: DitherProcessChunkFn<EncodedPixel>,
+) -> Result<(), EncodingError>
 where
     EncodedPixel: Default + Copy + cast::ToLe + cast::Castable,
-    F: Fn(Vec4) -> (EncodedPixel, Vec4),
 {
     let Args {
         image,
@@ -119,20 +129,15 @@ where
             let encoded = &mut encoded_buffer[..pixels];
             let intermediate = as_rgba_f32(color, line, intermediate);
 
-            for (i, out) in intermediate.iter().zip(encoded.iter_mut()) {
-                let error = current_line_error[error_offset] + next_error_add;
-                let (encoded_pixel, mut error) = f(Vec4::from(*i) + error);
-
-                // diffuse error with Floyd-Steinberg weights
-                error *= error_mask;
-                next_error_add = error * (7.0 / 16.0);
-                next_line_error[error_offset - 1] += error * (3.0 / 16.0);
-                next_line_error[error_offset] += error * (5.0 / 16.0);
-                next_line_error[error_offset + 1] += error * (1.0 / 16.0);
-
-                *out = encoded_pixel;
-                error_offset += 1;
-            }
+            next_error_add = process_chunk(
+                intermediate,
+                encoded,
+                error_mask,
+                next_error_add,
+                &current_line_error[error_offset..(error_offset + pixels)],
+                &mut next_line_error[error_offset - 1..(error_offset + pixels + 1)],
+            );
+            error_offset += pixels;
 
             cast::ToLe::to_le(encoded);
             writer.write_all(cast::as_bytes(encoded))?;
@@ -242,9 +247,11 @@ macro_rules! universal {
         universal!($out, adopt_rgba($f))
     }};
     ($out:ty, $f:expr) => {{
-        fn process_line(line: &[[f32; 4]], out: &mut [$out]) {
-            assert!(line.len() == out.len());
-            let f = util::closure_types::<[f32; 4], $out, _>($f);
+        type Out = $out;
+        fn process_line(line: &[[f32; 4]], out: &mut [Out]) {
+            debug_assert!(line.len() == out.len());
+            let f = util::closure_types::<[f32; 4], Out, _>($f);
+
             for (i, o) in line.iter().zip(out.iter_mut()) {
                 *o = f(*i);
             }
@@ -262,9 +269,45 @@ macro_rules! universal_dither {
     ($out:ty, rgba = $f:expr, $g: expr) => {
         universal_dither!($out, adopt_dither_rgba($f, $g)).add_flags(Flags::DITHER_ALL)
     };
-    ($out:ty, $f:expr) => {
-        Encoder::new_universal(|args| uncompressed_universal_dither::<$out, _>(args, $f))
-    };
+    ($out:ty, $f:expr) => {{
+        type Out = $out;
+        fn process_chunk(
+            chunk: &[[f32; 4]],
+            encoded: &mut [Out],
+            error_mask: Vec4,
+            mut next_error_add: Vec4,
+            current_line_error: &[Vec4],
+            next_line_error: &mut [Vec4],
+        ) -> Vec4 {
+            debug_assert_eq!(chunk.len(), encoded.len());
+            debug_assert_eq!(chunk.len(), current_line_error.len());
+            debug_assert_eq!(chunk.len() + 2, next_line_error.len());
+            let f = util::closure_types::<Vec4, (Out, Vec4), _>($f);
+
+            let mut error_offset: usize = 1;
+            for ((&pixel, out), &current_error) in chunk
+                .iter()
+                .zip(encoded.iter_mut())
+                .zip(current_line_error.iter())
+            {
+                let error = current_error + next_error_add;
+                let (encoded_pixel, mut error) = f(Vec4::from(pixel) + error);
+
+                // diffuse error with Floyd-Steinberg weights
+                error *= error_mask;
+                next_error_add = error * (7.0 / 16.0);
+                next_line_error[error_offset - 1] += error * (3.0 / 16.0);
+                next_line_error[error_offset] += error * (5.0 / 16.0);
+                next_line_error[error_offset + 1] += error * (1.0 / 16.0);
+
+                *out = encoded_pixel;
+                error_offset += 1;
+            }
+            next_error_add
+        }
+
+        Encoder::new_universal(|args| uncompressed_universal_dither(args, process_chunk))
+    }};
 }
 
 fn adopt_gray<Out>(f: impl Fn(f32) -> Out) -> impl Fn([f32; 4]) -> Out {
