@@ -14,6 +14,7 @@ pub struct Bc4Options {
     pub high_quality_quantize: bool,
     pub fast_iter: bool,
     pub refine: bool,
+    pub size_variations: bool,
 }
 
 struct Block {
@@ -249,6 +250,54 @@ fn refinement_error_metric<P: Palette>(
 }
 
 fn compress_inter6(
+    block: &Block,
+    mut min: f32,
+    mut max: f32,
+    options: Bc4Options,
+) -> ([u8; 8], f32) {
+    // Nudge the min and max closer to the mean to reduce the impact of outliers.
+    let mean = {
+        let [b0, b1, b2, b3] = block.b;
+        let b = b0 + b1 + b2 + b3;
+        ((b.x + b.y) + (b.z + b.w)) * (1.0 / 16.0)
+    };
+    let nudge = 0.95;
+    min = mean + (min - mean) * nudge;
+    max = mean + (max - mean) * nudge;
+
+    let mut best = compress_inter6_impl(block, min, max, options);
+    let mut pick_better = |r: ([u8; 8], f32)| {
+        if r.1 < best.1 {
+            best = r;
+        }
+    };
+
+    // Instead of interpolating a total of 8 values, try interpolating 7 and 5
+    // as well. 6 is already covered by `compress_inter4`, and 4/3/2/1 are
+    // already covered by other sizes.
+    if options.size_variations {
+        let dist = max - min;
+
+        let min7 = min - dist * (1.0 / 6.0);
+        let max7 = max + dist * (1.0 / 6.0);
+        if min7 >= 0.0 {
+            pick_better(compress_inter6_impl(block, min7, max, options));
+        } else if max7 <= 1.0 {
+            pick_better(compress_inter6_impl(block, min, max7, options));
+        }
+
+        let min5 = min - dist * (1.0 / 4.0);
+        let max5 = max + dist * (1.0 / 4.0);
+        if min5 >= 0.0 {
+            pick_better(compress_inter6_impl(block, min5, max, options));
+        } else if max5 <= 1.0 {
+            pick_better(compress_inter6_impl(block, min, max5, options));
+        }
+    }
+
+    best
+}
+fn compress_inter6_impl(
     block: &Block,
     mut min: f32,
     mut max: f32,
