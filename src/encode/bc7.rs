@@ -135,7 +135,7 @@ pub(crate) fn compress_bc7_block(block: [Rgba<8>; 16], options: Bc7Options) -> [
         modes = options.force_modes;
     }
 
-    let mut partitions = PartitionSelect::new(&block, !stats.opaque(), modes, options);
+    let mut partitions = PartitionSelect::new(&block, stats, modes, options);
     let mut rotations = RotationSelect::new(&block, stats);
 
     let mut best = Compressed::invalid();
@@ -418,11 +418,13 @@ impl<'a> RotationSelect<'a> {
             // If the color is approximately grayscale, don't try swapping.
             // It will only cause discolorations.
             const COLOR_VARIANCE_THRESHOLD: u8 = 8;
-            if block.iter().all(|p| {
-                let gr = p.g.abs_diff(p.r);
-                let gb = p.g.abs_diff(p.b);
-                gr.max(gb) < COLOR_VARIANCE_THRESHOLD
-            }) {
+            if stats.is_grayscale
+                || block.iter().all(|p| {
+                    let gr = p.g.abs_diff(p.r);
+                    let gb = p.g.abs_diff(p.b);
+                    gr.max(gb) < COLOR_VARIANCE_THRESHOLD
+                })
+            {
                 return Some(Rotation::None);
             }
 
@@ -1638,7 +1640,12 @@ impl Rotation {
     }
     fn apply_stats(self, stats: BlockStats) -> BlockStats {
         let [min, max] = self.apply([stats.min, stats.max]);
-        BlockStats { min, max }
+
+        BlockStats {
+            min,
+            max,
+            is_grayscale: self == Self::None && stats.is_grayscale,
+        }
     }
 
     fn channel(self) -> usize {
@@ -2310,6 +2317,8 @@ fn interpolate_alpha<const W: usize>(e0: Alpha<8>, e1: Alpha<8>, index: u8) -> A
 struct BlockStats {
     min: Rgba<8>,
     max: Rgba<8>,
+    /// Whether all pixels are opaque and grayscale.
+    is_grayscale: bool,
 }
 impl BlockStats {
     fn new(block: &[Rgba<8>; 16]) -> Self {
@@ -2326,7 +2335,14 @@ impl BlockStats {
             max.b = max.b.max(pixel.b);
             max.a = max.a.max(pixel.a);
         }
-        Self { min, max }
+
+        let is_grayscale = min.a == 255 && block.iter().all(|&p| p.r == p.g && p.r == p.b);
+
+        Self {
+            min,
+            max,
+            is_grayscale,
+        }
     }
 
     fn single_color(&self) -> Option<Rgba<8>> {
@@ -2350,8 +2366,22 @@ impl BlockStats {
     }
 }
 
+/// This type has the responsibility of selecting which partitions to try
+/// for modes with 2 or 3 subsets.
+///
+/// The current strategy involves scoring all possible partitions based on
+/// some error metric per subset and then picking the best N partitions to try.
+///
+/// The error metric works as follows:
+/// - For grayscale blocks: Squared error from the mean. This is fast to compute
+///   and works okay.
+/// - For color blocks(with and without) alpha: Compute the best-fitting line
+///   and use the squared error from that line. Line fitting isn't cheap, but
+///   closely approximates the error from actual endpoint quantization and
+///   index selection.
 struct PartitionSelect<'a> {
     has_alpha: bool,
+    is_grayscale: bool,
     block: &'a [Rgba<8>; 16],
     modes: Bc7Modes,
     max_partitions: u8,
@@ -2364,12 +2394,13 @@ struct PartitionSelect<'a> {
 impl<'a> PartitionSelect<'a> {
     fn new(
         block: &'a [Rgba<8>; 16],
-        has_alpha: bool,
+        stats: BlockStats,
         modes: Bc7Modes,
         options: Bc7Options,
     ) -> Self {
         Self {
-            has_alpha,
+            has_alpha: !stats.opaque(),
+            is_grayscale: stats.is_grayscale,
             block,
             modes,
             max_partitions: options.max_partitions,
@@ -2383,6 +2414,7 @@ impl<'a> PartitionSelect<'a> {
 
     fn get_partitions_2(&mut self) -> &[u8; 64] {
         let has_alpha = self.has_alpha;
+        let is_grayscale = self.is_grayscale;
         let block = self.block;
         let max_partitions = self.max_partitions;
 
@@ -2396,16 +2428,25 @@ impl<'a> PartitionSelect<'a> {
                 }
 
                 let split_index = subset.count_zeros() as usize;
-                let error = if has_alpha {
-                    let mut reordered = block.map(|p| p.to_vec());
+                let error = if is_grayscale {
+                    // GRAYSCALE
+                    let mut reordered = block.map(|p| p.r as f32 * (1.0 / 255.0));
                     subset.sort_block(&mut reordered);
-                    squared_error_line_4(&reordered[..split_index])
-                        + squared_error_line_4(&reordered[split_index..])
+                    squared_error_grayscale(&reordered[..split_index])
+                        + squared_error_grayscale(&reordered[split_index..])
                 } else {
-                    let mut reordered = block.map(|p| p.color().to_vec());
-                    subset.sort_block(&mut reordered);
-                    squared_error_line_3(&reordered[..split_index])
-                        + squared_error_line_3(&reordered[split_index..])
+                    // RGB(A)
+                    if has_alpha {
+                        let mut reordered = block.map(|p| p.to_vec());
+                        subset.sort_block(&mut reordered);
+                        squared_error_line_4(&reordered[..split_index])
+                            + squared_error_line_4(&reordered[split_index..])
+                    } else {
+                        let mut reordered = block.map(|p| p.color().to_vec());
+                        subset.sort_block(&mut reordered);
+                        squared_error_line_3(&reordered[..split_index])
+                            + squared_error_line_3(&reordered[split_index..])
+                    }
                 };
 
                 (partition, error)
@@ -2441,6 +2482,8 @@ impl<'a> PartitionSelect<'a> {
         let max_partitions = self.max_partitions.min(if has_mode_2 { 64 } else { 16 });
         let enabled_partitions: u64 = if self.fast_mode_0 {
             debug_assert!(!has_mode_2);
+            // This subset of 3 subset partitions works well in practice and
+            // makes better use of caching.
             0b11_1111_1111_0000
         } else if max_partitions >= 64 {
             u64::MAX // all 64 partitions
@@ -2448,40 +2491,30 @@ impl<'a> PartitionSelect<'a> {
             (1_u64 << max_partitions) - 1
         };
 
+        let is_grayscale = self.is_grayscale;
         let block = self.block;
-        let mut partial_error_cache = [f32::NAN; PARTITION_SET_3_DUPLICATE_COUNT];
+        let mut error_cache = LineErrorCache3::new();
 
         let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
             let partition = i as u8;
-            let subset = PARTITION_SET_3[partition as usize];
 
             if enabled_partitions & (1 << partition) == 0 {
                 return (partition, f32::INFINITY);
             }
 
-            let mut reordered = block.map(|p| p.color().to_vec());
-            subset.sort_block(&mut reordered);
-            let split_index = subset.count_zeros() as usize;
-            let split_index2 = split_index + subset.count_ones() as usize;
-
-            let s0 = &reordered[..split_index];
-            let s1 = &reordered[split_index..split_index2];
-            let s2 = &reordered[split_index2..];
-            let [c0, c1, c2] = PARTITION_SET_3_DUPLICATES[partition as usize];
-
-            let mut error = 0.0;
-            for (s, cache_index) in [(s0, c0), (s1, c1), (s2, c2)] {
-                if cache_index == 255 {
-                    // no duplicate line
-                    error += squared_error_line_3(s);
-                } else {
-                    let cache = &mut partial_error_cache[cache_index as usize];
-                    if cache.is_nan() {
-                        *cache = squared_error_line_3(s);
-                    }
-                    error += *cache;
-                }
-            }
+            let error = if is_grayscale {
+                error_cache.get_error(
+                    partition,
+                    block.map(|p| p.r as f32 * (1.0 / 255.0)),
+                    squared_error_grayscale,
+                )
+            } else {
+                error_cache.get_error(
+                    partition,
+                    block.map(|p| p.color().to_vec()),
+                    squared_error_line_3,
+                )
+            };
 
             (partition, error)
         });
@@ -2528,12 +2561,66 @@ impl<'a> PartitionSelect<'a> {
         best
     }
 }
+/// The 3 subset partitions have some duplicate subsets between them. This can
+/// be exploited to cache line error computations.
+struct LineErrorCache3 {
+    cache: [f32; PARTITION_SET_3_DUPLICATE_COUNT],
+}
+impl LineErrorCache3 {
+    fn new() -> Self {
+        Self {
+            cache: [f32::NAN; PARTITION_SET_3_DUPLICATE_COUNT],
+        }
+    }
+
+    fn get_error<T: Copy>(
+        &mut self,
+        partition: u8,
+        mut block: [T; 16],
+        compute_error: impl Fn(&[T]) -> f32,
+    ) -> f32 {
+        let subset = PARTITION_SET_3[partition as usize];
+        subset.sort_block(&mut block);
+        let split_index = subset.count_zeros() as usize;
+        let split_index2 = split_index + subset.count_ones() as usize;
+
+        let s0 = &block[..split_index];
+        let s1 = &block[split_index..split_index2];
+        let s2 = &block[split_index2..];
+        let [c0, c1, c2] = PARTITION_SET_3_DUPLICATES[partition as usize];
+
+        let mut error = 0.0;
+        for (s, cache_index) in [(s0, c0), (s1, c1), (s2, c2)] {
+            if cache_index == 255 {
+                // no duplicate line
+                error += compute_error(s);
+            } else {
+                let cache = &mut self.cache[cache_index as usize];
+                if cache.is_nan() {
+                    *cache = compute_error(s);
+                }
+                error += *cache;
+            }
+        }
+        error
+    }
+}
 
 fn squared_error_line_3(colors: &[Vec3A]) -> f32 {
     ColorLine3::new(colors).sum_dist_sq(colors)
 }
 fn squared_error_line_4(colors: &[Vec4]) -> f32 {
     ColorLine4::new(colors).sum_dist_sq(colors)
+}
+fn squared_error_grayscale(colors: &[f32]) -> f32 {
+    let mean = colors.iter().copied().sum::<f32>() / colors.len() as f32;
+
+    let mut error = 0.0;
+    for &c in colors {
+        let d = c - mean;
+        error += d * d;
+    }
+    error
 }
 
 struct BitStream {
