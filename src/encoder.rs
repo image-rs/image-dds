@@ -279,18 +279,14 @@ impl<W> Encoder<W> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum ResizeFilter {
     Nearest,
+    #[default]
     Box,
     Triangle,
     Mitchell,
     Lanczos3,
-}
-impl Default for ResizeFilter {
-    fn default() -> Self {
-        Self::Box
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
