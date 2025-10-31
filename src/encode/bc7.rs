@@ -863,11 +863,7 @@ fn fit_optimal_endpoints_rgba<const B: u8, const I: u8>(
 
     let optimal: (Vec4, Vec4) = bcn_util::least_squares_weights(block_vec, &weights[..block.len()]);
 
-    // TODO: should I clamp?
-    (
-        optimal.0.clamp(Vec4::ZERO, Vec4::ONE),
-        optimal.1.clamp(Vec4::ZERO, Vec4::ONE),
-    )
+    (optimal.0, optimal.1)
 }
 fn fit_optimal_endpoints_rgb<const B: u8, const I: u8>(
     c0: Vec3A,
@@ -902,11 +898,7 @@ fn fit_optimal_endpoints_rgb<const B: u8, const I: u8>(
     let optimal: (Vec3A, Vec3A) =
         bcn_util::least_squares_weights(block_vec, &weights[..block.len()]);
 
-    // TODO: should I clamp?
-    (
-        optimal.0.clamp(Vec3A::ZERO, Vec3A::ONE),
-        optimal.1.clamp(Vec3A::ZERO, Vec3A::ONE),
-    )
+    (optimal.0, optimal.1)
 }
 fn fit_optimal_endpoints_alpha<const B: u8, const I: u8>(
     mut min: f32,
