@@ -312,14 +312,11 @@ pub fn to_png_compatible_channels(channels: Channels) -> (Channels, png::ColorTy
     }
 }
 
-pub fn read_png_u8(png_path: &Path) -> Result<Image<u8>, Box<dyn std::error::Error>> {
+pub fn read_png_u16(png_path: &Path) -> Result<Image<u16>, Box<dyn std::error::Error>> {
     let png_decoder = png::Decoder::new(File::open(png_path)?);
     let mut png_reader = png_decoder.read_info()?;
     let (color, bits) = png_reader.output_color_type();
 
-    if bits != png::BitDepth::Eight {
-        return Err("Output PNG is not 8-bit, which shouldn't happen.".into());
-    }
     let channels = match color {
         png::ColorType::Grayscale => Channels::Grayscale,
         png::ColorType::Rgb => Channels::Rgb,
@@ -327,15 +324,41 @@ pub fn read_png_u8(png_path: &Path) -> Result<Image<u8>, Box<dyn std::error::Err
         _ => return Err("Unsupported PNG color type".into()),
     };
 
-    let mut png_image_data = vec![0; png_reader.output_buffer_size()];
-    png_reader.next_frame(&mut png_image_data)?;
-    png_reader.finish()?;
+    match bits {
+        png::BitDepth::Sixteen => {
+            let mut png_image_data: Vec<u16> = vec![0; png_reader.output_buffer_size() / 2];
+            png_reader.next_frame(cast_slice_mut(&mut png_image_data))?;
+            png_reader.finish()?;
 
-    Ok(Image::new(
-        png_image_data,
-        channels,
-        Size::new(png_reader.info().width, png_reader.info().height),
-    ))
+            png_image_data.iter_mut().for_each(|v| *v = v.to_be());
+
+            Ok(Image::new(
+                png_image_data,
+                channels,
+                Size::new(png_reader.info().width, png_reader.info().height),
+            ))
+        }
+        png::BitDepth::Eight => {
+            let mut png_image_data = vec![0; png_reader.output_buffer_size()];
+            png_reader.next_frame(&mut png_image_data)?;
+            png_reader.finish()?;
+
+            let image_u8 = Image::new(
+                png_image_data,
+                channels,
+                Size::new(png_reader.info().width, png_reader.info().height),
+            );
+
+            Ok(image_u8.to_u16())
+        }
+        _ => Err("Output PNG is not 8/16-bit, which shouldn't happen.".into()),
+    }
+}
+pub fn read_png_u8(png_path: &Path) -> Result<Image<u8>, Box<dyn std::error::Error>> {
+    Ok(read_png_u16(png_path)?.to_u8())
+}
+pub fn read_png_f32(png_path: &Path) -> Result<Image<f32>, Box<dyn std::error::Error>> {
+    Ok(read_png_u16(png_path)?.to_f32())
 }
 
 pub fn write_simple_dds_header(
