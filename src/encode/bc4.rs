@@ -266,32 +266,32 @@ fn compress_inter6(
     max = mean + (max - mean) * nudge;
 
     let mut best = compress_inter6_impl(block, min, max, options);
-    let mut pick_better = |r: ([u8; 8], f32)| {
-        if r.1 < best.1 {
-            best = r;
-        }
-    };
 
-    // Instead of interpolating a total of 8 values, try interpolating 7 and 5
-    // as well. 6 is already covered by `compress_inter4`, and 4/3/2/1 are
-    // already covered by other sizes.
+    // Instead of interpolating a total of 8 values, try interpolating 5 values
+    // as well. 7 can be reached by refinement, 6 is already covered by
+    // `compress_inter4`, and 4/3/2/1 are already covered by other sizes.
     if options.size_variations {
         let dist = max - min;
 
-        let min7 = min - dist * (1.0 / 6.0);
-        let max7 = max + dist * (1.0 / 6.0);
-        if min7 >= 0.0 {
-            pick_better(compress_inter6_impl(block, min7, max, options));
-        } else if max7 <= 1.0 {
-            pick_better(compress_inter6_impl(block, min, max7, options));
-        }
+        // To test a palette with N interpolated values, we need a factor of
+        // 1/(N-1). So for 5 values, we need 1/4 and so on.
+        let min_5 = min - dist * 0.25;
+        let max_5 = max + dist * 0.25;
 
-        let min5 = min - dist * (1.0 / 4.0);
-        let max5 = max + dist * (1.0 / 4.0);
-        if min5 >= 0.0 {
-            pick_better(compress_inter6_impl(block, min5, max, options));
-        } else if max5 <= 1.0 {
-            pick_better(compress_inter6_impl(block, min, max5, options));
+        // We can chose between using (min_f, max) or (min, max_f) as the
+        // endpoints. Since the implementation will try variations of
+        // endpoints, we want to select the pair that can move around move.
+        let min_movement = min_5;
+        let max_movement = 1.0 - max_5;
+        let pair = if min_movement > max_movement {
+            (min_5.max(0.0), max)
+        } else {
+            (min, max_5.min(1.0))
+        };
+
+        let p5 = compress_inter6_impl(block, pair.0, pair.1, options);
+        if p5.1 < best.1 {
+            best = p5;
         }
     }
 

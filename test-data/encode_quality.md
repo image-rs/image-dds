@@ -695,28 +695,28 @@
 |                 |        |      |       |         |
 | Summary         | fast   | Gray | 42.24 | 54.06   |  0.15
 |                 | normal | Gray | 43.44 | 55.63   |  0.14
-|                 | high   | Gray | 43.92 | 57.13   |  0.08
-|                 | dither | Gray | 43.19 | 58.14   |  0.06
+|                 | high   | Gray | 43.98 | 57.22   |  0.08
+|                 | dither | Gray | 43.33 | 58.46   |  0.06
 |                 |        |      |       |         |
 | base.png        | fast   | Gray | 37.93 | 49.11   |  0.24
 |                 | normal | Gray | 40.10 | 51.93   |  0.20
-|                 | high   | Gray | 40.83 | 53.91   |  0.09
-|                 | dither | Gray | 40.23 | 55.11   |  0.07
+|                 | high   | Gray | 40.88 | 53.93   |  0.08
+|                 | dither | Gray | 40.26 | 55.31   |  0.07
 |                 |        |      |       |         |
 | color-twirl.png | fast   | Gray | 56.08 | 66.56   |  0.06
 |                 | normal | Gray | 56.18 | 67.16   |  0.06
-|                 | high   | Gray | 57.35 | 69.27   |  0.05
-|                 | dither | Gray | 56.35 | 71.78   |  0.02
+|                 | high   | Gray | 57.74 | 69.57   |  0.04
+|                 | dither | Gray | 56.76 | 72.30   |  0.02
 |                 |        |      |       |         |
 | clovers-r.png   | fast   | Gray | 39.25 | 52.14   |  0.24
 |                 | normal | Gray | 39.56 | 52.16   |  0.27
-|                 | high   | Gray | 39.82 | 53.23   |  0.13
-|                 | dither | Gray | 39.01 | 54.03   |  0.15
+|                 | high   | Gray | 39.88 | 53.34   |  0.13
+|                 | dither | Gray | 39.21 | 54.41   |  0.13
 |                 |        |      |       |         |
 | stone-h.png     | fast   | Gray | 47.84 | 59.89   |  0.16
 |                 | normal | Gray | 48.08 | 60.10   |  0.15
-|                 | high   | Gray | 48.53 | 61.41   |  0.11
-|                 | dither | Gray | 47.73 | 62.52   |  0.07
+|                 | high   | Gray | 48.61 | 61.62   |  0.10
+|                 | dither | Gray | 47.90 | 62.94   |  0.07
 |                 |        |      |       |         |
 | random color    | fast   | Gray | 77.56 | 80.27   |  0.03
 |                 | normal | Gray | 77.56 | 80.27   |  0.03

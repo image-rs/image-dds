@@ -349,7 +349,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
         high_quality_quantize: options.quality >= CompressionQuality::High,
         fast_iter: options.quality <= CompressionQuality::Normal,
         refine: options.quality >= CompressionQuality::Normal,
-        size_variations: false,
+        size_variations: options.quality >= CompressionQuality::High,
     }
 }
 
