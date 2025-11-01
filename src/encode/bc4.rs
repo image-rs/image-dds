@@ -13,6 +13,7 @@ pub struct Bc4Options {
     pub use_inter4_heuristic: bool,
     pub high_quality_quantize: bool,
     pub fast_iter: bool,
+    pub refine: bool,
 }
 
 struct Block {
@@ -190,16 +191,28 @@ fn refine_endpoints(
     options: Bc4Options,
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
-    (min, max) = bcn_util::refine_endpoints(
-        min,
-        max,
-        if options.fast_iter {
-            bcn_util::RefinementOptions::new_bc4_fast(min, max)
-        } else {
-            bcn_util::RefinementOptions::new_bc4(min, max)
-        },
-        compute_error,
-    );
+    if options.refine {
+        (min, max) = bcn_util::refine_endpoints(
+            min,
+            max,
+            if options.fast_iter {
+                bcn_util::RefinementOptions {
+                    step_initial: 0.1 * (max - min),
+                    step_decay: 0.5,
+                    step_min: 1. / 255.,
+                    max_iter: 2,
+                }
+            } else {
+                bcn_util::RefinementOptions {
+                    step_initial: 0.15 * (max - min),
+                    step_decay: 0.5,
+                    step_min: 1. / 255. / 2.,
+                    max_iter: 10,
+                }
+            },
+            compute_error,
+        );
+    }
 
     // Step 2: Quantize the endpoints and select the best
     if !options.high_quality_quantize {
@@ -241,6 +254,13 @@ fn compress_inter6(
     mut max: f32,
     options: Bc4Options,
 ) -> ([u8; 8], f32) {
+    for _ in 0..2 {
+        let weights = Inter6Palette::new(min, max).block_closest_weights(block);
+        (min, max) = bcn_util::least_squares_weights_f32_vec4(&block.b, &weights);
+        min = min.clamp(0.0, 1.0);
+        max = max.clamp(0.0, 1.0);
+    }
+
     (min, max) = refine_endpoints(
         min,
         max,
@@ -545,6 +565,14 @@ struct Inter6Palette {
 }
 impl Inter6Palette {
     const INDEX_MAP: [u8; 8] = [1, 7, 6, 5, 4, 3, 2, 0];
+
+    fn closest_weights4(&self, pixels: Vec4) -> Vec4 {
+        let blend = (pixels * self.factor1 + self.add1).min(Vec4::splat(7.0));
+        1.0 - blend.trunc() * (1.0 / 7.0)
+    }
+    fn block_closest_weights(&self, block: &Block) -> [Vec4; 4] {
+        block.b.map(|pixels| self.closest_weights4(pixels))
+    }
 }
 impl Palette for Inter6Palette {
     fn new(c0: f32, c1: f32) -> Self {

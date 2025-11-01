@@ -3,9 +3,8 @@
 //! This script is responsible for generating random block-compression images
 //! that exhaustively test certain properties.
 
-use std::{fs::File, io::Write};
-
 use dds::{header::*, *};
+use std::{fs::File, io::Write};
 
 mod util;
 

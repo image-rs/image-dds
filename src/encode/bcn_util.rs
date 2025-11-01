@@ -1,4 +1,4 @@
-use glam::Vec3A;
+use glam::{Vec3A, Vec4};
 
 /// Indicates the color is not in RGB/sRGB, but a different color space.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -25,6 +25,12 @@ impl std::ops::Mul<f32> for ColorSpace {
     type Output = Self;
     fn mul(self, rhs: f32) -> Self {
         ColorSpace(self.0 * rhs)
+    }
+}
+impl From<ColorSpace> for Vec3A {
+    #[inline(always)]
+    fn from(value: ColorSpace) -> Self {
+        value.0
     }
 }
 
@@ -127,32 +133,6 @@ pub(crate) struct RefinementOptions {
     /// The maximum number of iterations.
     pub max_iter: u32,
 }
-impl RefinementOptions {
-    pub fn new_bc4(min: f32, max: f32) -> Self {
-        Self {
-            step_initial: 0.15 * (max - min),
-            step_decay: 0.5,
-            step_min: 1. / 255. / 2.,
-            max_iter: 10,
-        }
-    }
-    pub fn new_bc4_fast(min: f32, max: f32) -> Self {
-        Self {
-            step_initial: 0.1 * (max - min),
-            step_decay: 0.5,
-            step_min: 1. / 255.,
-            max_iter: 3,
-        }
-    }
-    pub fn new_bc1(dist: f32, max_iter: u32) -> Self {
-        Self {
-            step_initial: 0.5 * dist,
-            step_decay: 0.5,
-            step_min: 1. / 64.,
-            max_iter,
-        }
-    }
-}
 pub(crate) fn refine_endpoints<T: RefinementSteps>(
     min: T,
     max: T,
@@ -230,5 +210,185 @@ impl RefinementSteps for ColorSpace {
         Vec3A::for_each_endpoint((min.0, max.0), step, move |(min, max)| {
             f((ColorSpace(min), ColorSpace(max)));
         });
+    }
+}
+
+/// This stores the result of `E = inv(A^T * A)`, where `A` is the n-by-2
+/// weight matrix. Each row in `A` has the form `[w_i, 1 - w_i]`.
+///
+/// `E` is stored in a form optimized for multiplication with `A^T` such that
+/// `E * A^T` can be computed efficiently. Let `G = E * A^T` be a 2-by-n matrix
+/// where each column is:
+///
+/// ```txt
+/// ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) ) = ( e01 + (e00 - e01) * w_i )
+/// ( g_1i ) = ( e10 * w_i + e11 * (1 - w_i) ) = ( e11 + (e10 - e11) * w_i )
+/// ```
+///
+/// Only `e01`, `e11`, `e00 - e01`, and `e10 - e11` are stored.
+///
+/// (Note that `E` is symmetric, so `e10 == e01`.)
+struct LeastSquaresWeightMatrix {
+    pub e01: f32,
+    pub e11: f32,
+    /// e00 - e01
+    pub e00_01: f32,
+    /// e10 - e11
+    pub e10_11: f32,
+}
+impl LeastSquaresWeightMatrix {
+    /// Returns a matrix that will set both endpoints to the mean of all input
+    /// colors regardless of weights.
+    fn mean(color_count: usize) -> Self {
+        let r = 1.0 / (color_count as f32);
+        Self {
+            e01: r,
+            e11: r,
+            e00_01: 0.0,
+            e10_11: 0.0,
+        }
+    }
+
+    /// ```txt
+    /// D = A^T*A = (a b)
+    ///             (b c)
+    /// ```
+    fn from_d(a: f32, b: f32, c: f32) -> Option<Self> {
+        // Find D^-1
+        let d_det = a * c - b * b;
+        if d_det.abs() < f32::EPSILON {
+            // All weights are the same, which is makes inversion impossible
+            return None;
+        }
+        // E = D^-1 = ( c/det  -b/det)
+        //            (-b/det   a/det)
+        let d_det_rep = 1.0 / d_det;
+        let (e00, e01, e11) = (c * d_det_rep, -b * d_det_rep, a * d_det_rep);
+
+        Some(Self {
+            e01,
+            e11,
+            e00_01: e00 - e01,
+            e10_11: e01 - e11, // e10 == e01
+        })
+    }
+}
+
+/// Least squares fits 2 endpoints to the given colors and weights.
+///
+/// If all weights are the same, the endpoints will be set to the mean of all colors.
+///
+/// https://fgiesen.wordpress.com/2024/08/29/when-is-a-bcn-astc-endpoints-from-indices-solve-singular/
+pub(crate) fn least_squares_weights<
+    R: Copy + Default + std::ops::Mul<f32, Output = R> + std::ops::AddAssign,
+    C: Copy + Into<R>,
+>(
+    colors: &[C],
+    weights: &[f32],
+) -> (R, R) {
+    assert_eq!(weights.len(), colors.len());
+
+    // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
+    // First, compute D = A^T*A = (a b)
+    //                            (b c)
+    let (mut a, mut b, mut c) = (0.0f32, 0.0f32, 0.0f32);
+    for &w in weights {
+        let w_inv = 1.0 - w;
+        a += w * w;
+        b += w * w_inv;
+        c += w_inv * w_inv;
+    }
+
+    // Second, find E = D^-1
+    let LeastSquaresWeightMatrix {
+        e01,
+        e11,
+        e00_01,
+        e10_11,
+    } = LeastSquaresWeightMatrix::from_d(a, b, c)
+        .unwrap_or(LeastSquaresWeightMatrix::mean(weights.len()));
+
+    // Let B be an n-by-3 matrix where each row is the color vector.
+    // Let X be the 2-by-3 matrix of the two endpoints we want to find.
+    // Third, compute X = (E * A^T) * B
+    let (mut x0, mut x1) = (R::default(), R::default());
+    for (&color, &w) in colors.iter().zip(weights) {
+        let color: R = color.into();
+        // Let G = E * A^T be a 2-by-n matrix where each column is:
+        //   ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) ) = ( e01 + (e00 - e01) * w )
+        //   ( g_1i ) = ( e01 * w_i + e11 * (1 - w_i) ) = ( e11 + (e01 - e11) * w )
+        // TODO: This can be a single FMA operation
+        let g0 = e01 + (e00_01) * w;
+        let g1 = e11 + (e10_11) * w;
+
+        x0 += color * g0;
+        x1 += color * g1;
+    }
+
+    (x0, x1)
+}
+
+/// Least squares fits 2 endpoints to the given colors and weights.
+///
+/// This version is optimized for vectorized 4x4 f32 blocks.
+pub(crate) fn least_squares_weights_f32_vec4(
+    colors: &[Vec4; 4],
+    weights: &[Vec4; 4],
+) -> (f32, f32) {
+    let [w0, w1, w2, w3] = *weights;
+
+    // Let A be a n-by-2 matrix where each row is [w_i, 1 - w_i].
+    // First, compute D = A^T*A = (a b)
+    //                            (b c)
+    let [w0_, w1_, w2_, w3_] = [1.0 - w0, 1.0 - w1, 1.0 - w2, 1.0 - w3];
+    let a = w0 * w0 + w1 * w1 + w2 * w2 + w3 * w3;
+    let b = w0 * w0_ + w1 * w1_ + w2 * w2_ + w3 * w3_;
+    let c = w0_ * w0_ + w1_ * w1_ + w2_ * w2_ + w3_ * w3_;
+    let a = (a.x + a.y) + (a.z + a.w);
+    let b = (b.x + b.y) + (b.z + b.w);
+    let c = (c.x + c.y) + (c.z + c.w);
+
+    // Second, find E = D^-1
+    let LeastSquaresWeightMatrix {
+        e01,
+        e11,
+        e00_01,
+        e10_11,
+    } = LeastSquaresWeightMatrix::from_d(a, b, c).unwrap_or(LeastSquaresWeightMatrix::mean(16));
+
+    // Let B be an n-by-1 matrix where each row is the color vector.
+    // Let X be the 2-by-1 matrix of the two endpoints we want to find.
+    // Third, compute X = (E * A^T) * B
+    // Let G = E * A^T be a 2-by-n matrix where each column is:
+    //   ( g_0i ) = ( e00 * w_i + e01 * (1 - w_i) ) = ( e01 + (e00 - e01) * w )
+    //   ( g_1i ) = ( e01 * w_i + e11 * (1 - w_i) ) = ( e11 + (e01 - e11) * w )
+    // TODO: This can be a single FMA operation
+    let [c0, c1, c2, c3] = *colors;
+    let x0 = (c0 * (e01 + e00_01 * w0))
+        + (c1 * (e01 + e00_01 * w1))
+        + (c2 * (e01 + e00_01 * w2))
+        + (c3 * (e01 + e00_01 * w3));
+    let x1 = (c0 * (e11 + e10_11 * w0))
+        + (c1 * (e11 + e10_11 * w1))
+        + (c2 * (e11 + e10_11 * w2))
+        + (c3 * (e11 + e10_11 * w3));
+    let x0 = (x0.x + x0.y) + (x0.z + x0.w);
+    let x1 = (x1.x + x1.y) + (x1.z + x1.w);
+
+    (x0, x1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tests that least_square_weights supports the case where all weights are the same.
+    #[test]
+    fn test_least_square_weights_all_the_same() {
+        let colors: &[f32] = &[1.0, 2.0, 3.0, 4.0];
+        let weights: &[f32] = &[0.5, 0.5, 0.5, 0.5];
+        let (min, max): (f32, f32) = least_squares_weights(colors, weights);
+        assert!((min - max).abs() < 1e-6);
+        assert!((max - 2.5).abs() < 1e-6);
     }
 }
