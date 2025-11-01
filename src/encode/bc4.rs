@@ -14,6 +14,7 @@ pub struct Bc4Options {
     pub high_quality_quantize: bool,
     pub fast_iter: bool,
     pub refine: bool,
+    pub size_variations: bool,
 }
 
 struct Block {
@@ -249,6 +250,54 @@ fn refinement_error_metric<P: Palette>(
 }
 
 fn compress_inter6(
+    block: &Block,
+    mut min: f32,
+    mut max: f32,
+    options: Bc4Options,
+) -> ([u8; 8], f32) {
+    // Nudge the min and max closer to the mean to reduce the impact of outliers.
+    let mean = {
+        let [b0, b1, b2, b3] = block.b;
+        let b = b0 + b1 + b2 + b3;
+        ((b.x + b.y) + (b.z + b.w)) * (1.0 / 16.0)
+    };
+    let nudge = 0.95;
+    min = mean + (min - mean) * nudge;
+    max = mean + (max - mean) * nudge;
+
+    let mut best = compress_inter6_impl(block, min, max, options);
+
+    // Instead of interpolating a total of 8 values, try interpolating 5 values
+    // as well. 7 can be reached by refinement, 6 is already covered by
+    // `compress_inter4`, and 4/3/2/1 are already covered by other sizes.
+    if options.size_variations {
+        let dist = max - min;
+
+        // To test a palette with N interpolated values, we need a factor of
+        // 1/(N-1). So for 5 values, we need 1/4 and so on.
+        let min_5 = min - dist * 0.25;
+        let max_5 = max + dist * 0.25;
+
+        // We can chose between using (min_f, max) or (min, max_f) as the
+        // endpoints. Since the implementation will try variations of
+        // endpoints, we want to select the pair that can move around move.
+        let min_movement = min_5;
+        let max_movement = 1.0 - max_5;
+        let pair = if min_movement > max_movement {
+            (min_5.max(0.0), max)
+        } else {
+            (min, max_5.min(1.0))
+        };
+
+        let p5 = compress_inter6_impl(block, pair.0, pair.1, options);
+        if p5.1 < best.1 {
+            best = p5;
+        }
+    }
+
+    best
+}
+fn compress_inter6_impl(
     block: &Block,
     mut min: f32,
     mut max: f32,
