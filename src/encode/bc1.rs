@@ -4,7 +4,7 @@ use glam::Vec3A;
 
 use crate::{fast_oklab_to_srgb, fast_srgb_to_oklab, n5, n6};
 
-use super::bcn_util::{self, Block4x4, ColorSpace};
+use super::bcn_util::{self, Block4x4, ColorSpace, Quantization, Quantized};
 
 const ALPHA_THRESHOLD: f32 = 0.5;
 
@@ -154,7 +154,7 @@ fn compress_with_palette(
     // 4. Given the quantized endpoints, find the best matching indices to
     //    finalize the BC1 encoded block.
 
-    let (mut min, mut max) = get_initial_endpoints_from(&block, alpha_map);
+    let (mut min, mut max) = get_initial_endpoints(&block, alpha_map);
 
     if options.refine {
         if options.fit_optimal {
@@ -228,8 +228,8 @@ fn get_refine_error(
 
         let min = error_metric.color_space_to_srgb(min);
         let max = error_metric.color_space_to_srgb(max);
-        let c0 = R5G6B5Color::from_color_round(min);
-        let c1 = R5G6B5Color::from_color_round(max);
+        let c0 = R5G6B5Color::round(min);
+        let c1 = R5G6B5Color::round(max);
 
         if palette_info.mode == PaletteMode::P4 {
             let endpoints = EndPoints::new_p4(c0, c1);
@@ -341,8 +341,8 @@ fn compress_single_color(
     alpha_map: AlphaMap,
     palette_info: PaletteInfo<impl ErrorMetric>,
 ) -> ([u8; 8], f32) {
-    let min = R5G6B5Color::from_color_floor(color);
-    let max = R5G6B5Color::from_color_ceil(color);
+    let min = R5G6B5Color::floor(color);
+    let max = R5G6B5Color::ceil(color);
 
     let in_color_space = palette_info.error_metric.srgb_to_color_space(color);
 
@@ -483,217 +483,23 @@ fn pick_best_quantization(
     palette_info.create_endpoints(c0, c1)
 }
 
-/// BC1 encoding is a discrete optimization problem. However, we treat it as a
-/// continuous problem and then quantize the results to get the final R5G6B5
-/// endpoints.
-///
-/// This enum determines how the quantization is performed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Quantization {
-    /// Continuous endpoints are rounded to the nearest R5G6B5 color.
-    ///
-    /// This is the fastest possible quantization, but also the one with the
-    /// worst quality.
-    Round,
-    /// Each channel is optimized independently. Optimization is performed
-    /// using all 4 possible combinations of floor/ceil for each endpoint (per
-    /// channel).
-    ///
-    /// This option is rather slow, but provides good quality.
-    ChannelWise,
-    /// This is a mix between `Round` and `ChannelWise`.
-    ///
-    /// This is based on 3 ideas:
-    ///
-    /// 1. The main performance cost comes from calling the error metric, so
-    ///    we want to minimize the number of calls to it.
-    /// 2. If the min and max (floor and ceil) of one endpoint is the same,
-    ///    then the number of calls to the error metric shrinks from 3 to 1.
-    /// 3. If the non-quantized endpoint is very close to the quantized min or
-    ///    max, then it is likely that the optimal quantized value is the min or
-    ///    max. So we can skip the other value.
-    ///    E.g. if the non-quantized value of a channel is 0.99, then the
-    ///    optimal quantized value for that channel is likely 1 and not 0.
-    ///
-    /// Using these ideas, a threshold can be defined for when a non-quantized
-    /// value is considered "close enough" to the min or max to skip checking
-    /// the other. This threshold can also be thought of a radius around the min
-    /// and max. As such, a threshold of 0 will have the same behavior as
-    /// `ChannelWise`, while a threshold of 0.5 will have the same behavior as
-    /// `Round`.
-    ///
-    /// Using this threshold, we can smoothly trade-off between quality and
-    /// performance.
-    ///
-    /// Right now, the threshold is hardcoded to 0.25.
-    ChannelWiseOptimized,
-}
-impl Quantization {
-    /// Rounds to the nearest R5G6B5 colors.
-    fn round(c0: Vec3A, c1: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
-        (
-            R5G6B5Color::from_color_round(c0),
-            R5G6B5Color::from_color_round(c1),
-        )
-    }
-    /// Uses floor/ceil for each channel depending to maximize the range. The
-    /// returned colors will me maximally apart within the constraints of rounding.
-    fn wide(c0: Vec3A, c1: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
-        let c0_rounding = Vec3A::select(
-            c0.cmple(c1),
-            Vec3A::splat(R5G6B5Color::ROUND_FLOOR),
-            Vec3A::splat(R5G6B5Color::ROUND_CEIL),
-        );
-        // c1 rounding is just the opposite of c0 rounding
-        let c1_rounding = R5G6B5Color::ROUND_CEIL - c0_rounding;
-        (
-            R5G6B5Color::from_color_with_rounding(c0, c0_rounding),
-            R5G6B5Color::from_color_with_rounding(c1, c1_rounding),
-        )
-    }
-
-    fn pick_best(
-        self,
-        c0: Vec3A,
-        c1: Vec3A,
-        mut error_metric: impl FnMut(R5G6B5Color, R5G6B5Color) -> f32,
-    ) -> (R5G6B5Color, R5G6B5Color) {
-        let mut best = Self::round(c0, c1);
-
-        if self == Quantization::Round {
-            // For simple rounding, we don't need to optimize at all
-            return best;
-        }
-
-        let mut best_error = error_metric(best.0, best.1);
-
-        let get_range = match self {
-            Quantization::ChannelWiseOptimized => Self::optimized_range,
-            _ => Self::full_range,
-        };
-
-        let (c0_min, c0_max) = get_range(c0);
-        let (c1_min, c1_max) = get_range(c1);
-
-        // Channel-wise optimization
-
-        macro_rules! optimize_channel {
-            ($c:ident) => {
-                for channel0 in c0_min.$c..=c0_max.$c {
-                    for channel1 in c1_min.$c..=c1_max.$c {
-                        if channel0 == best.0.$c && channel1 == best.1.$c {
-                            continue;
-                        }
-                        let (mut c0, mut c1) = best;
-                        c0.$c = channel0;
-                        c1.$c = channel1;
-                        let error = error_metric(c0, c1);
-                        if error < best_error {
-                            best = (c0, c1);
-                            best_error = error;
-                        }
-                    }
-                }
-            };
-        }
-
-        optimize_channel!(r);
-        optimize_channel!(g);
-        optimize_channel!(b);
-
-        best
-    }
-
-    /// Returns the floor and ceil of the given color.
-    fn full_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
-        (
-            R5G6B5Color::from_color_floor(c),
-            R5G6B5Color::from_color_ceil(c),
-        )
-    }
-
-    const CULL_THRESHOLD: f32 = 0.25;
-    /// Returns the floor and ceil of the given color. But if the color value
-    /// is very close to the floor or ceil, then it will only return one of the
-    /// two (returning the same value floor and ceil).
-    ///
-    /// The threshold for "very close" is defined by `CULL_THRESHOLD`. A
-    /// threshold of 0 will behave the same as `full_range`, while a threshold
-    /// of 0.5 will behave the same as `Quantization::Round`.
-    fn optimized_range(c: Vec3A) -> (R5G6B5Color, R5G6B5Color) {
-        let mut floor = R5G6B5Color::from_color_floor(c);
-        let mut ceil = R5G6B5Color::from_color_ceil(c);
-
-        let i = c.min(Vec3A::ONE) * Vec3A::new(31.0, 63.0, 31.0);
-        let floor_dist = i - Vec3A::new(floor.r as f32, floor.g as f32, floor.b as f32);
-
-        const FLOOR_THRESHOLD: f32 = Quantization::CULL_THRESHOLD;
-        const CEIL_THRESHOLD: f32 = 1.0 - Quantization::CULL_THRESHOLD;
-
-        if floor_dist.x < FLOOR_THRESHOLD {
-            ceil.r = floor.r;
-        }
-        if floor_dist.x > CEIL_THRESHOLD {
-            floor.r = ceil.r;
-        }
-
-        if floor_dist.y < FLOOR_THRESHOLD {
-            ceil.g = floor.g;
-        }
-        if floor_dist.y > CEIL_THRESHOLD {
-            floor.g = ceil.g;
-        }
-
-        if floor_dist.z < FLOOR_THRESHOLD {
-            ceil.b = floor.b;
-        }
-        if floor_dist.z > CEIL_THRESHOLD {
-            floor.b = ceil.b;
-        }
-
-        (floor, ceil)
-    }
-}
-
-fn get_initial_endpoints_from(
+fn get_initial_endpoints(
     block: &[ColorSpace; 16],
     alpha_map: AlphaMap,
 ) -> (ColorSpace, ColorSpace) {
-    if alpha_map == AlphaMap::ALL_OPAQUE {
-        get_initial_endpoints(block)
+    // a nudge factor of 0.9 seems to work best for BC1
+    let nudge_factor = 0.9;
+    let (e0, e1) = if alpha_map == AlphaMap::ALL_OPAQUE {
+        bcn_util::line3_fit_endpoints(block, nudge_factor)
     } else {
         debug_assert!(alpha_map != AlphaMap::ALL_TRANSPARENT);
         let mut color_buffer = [ColorSpace::default(); 16];
         let colors = get_opaque_colors(block, alpha_map, &mut color_buffer);
         debug_assert!(!colors.is_empty());
-        get_initial_endpoints(colors)
-    }
-}
-fn get_initial_endpoints(colors: &[ColorSpace]) -> (ColorSpace, ColorSpace) {
-    debug_assert!(colors.len() <= 16);
+        bcn_util::line3_fit_endpoints(colors, nudge_factor)
+    };
 
-    // find the best line through the colors
-    let line = ColorLine::new(colors);
-
-    // sort all colors along the line and find the min/max projection
-    let mut min_t = f32::INFINITY;
-    let mut max_t = f32::NEG_INFINITY;
-    for &color in colors.iter() {
-        let t = line.project(color);
-        min_t = min_t.min(t);
-        max_t = max_t.max(t);
-    }
-
-    // Instead of using min_t and max_t directly, it's better to slightly nudge
-    // them towards the midpoint. This prevent extreme endpoints and makes the
-    // refinement converge faster.
-    let nudge_factor = 0.90;
-    let mid_t = (min_t + max_t) * 0.5;
-    min_t = mid_t + (min_t - mid_t) * nudge_factor;
-    max_t = mid_t + (max_t - mid_t) * nudge_factor;
-
-    // select initial points along the line
-    (line.at(min_t), line.at(max_t))
+    (ColorSpace(e0), ColorSpace(e1))
 }
 
 fn get_alpha_map(block: &[[f32; 4]; 16]) -> AlphaMap {
@@ -702,75 +508,6 @@ fn get_alpha_map(block: &[[f32; 4]; 16]) -> AlphaMap {
         alpha_map.set_opaque_if(i, pixel[3] >= ALPHA_THRESHOLD);
     }
     alpha_map
-}
-
-fn mean(colors: &[ColorSpace]) -> ColorSpace {
-    let mut mean = Vec3A::ZERO;
-    for color in colors {
-        mean += color.0;
-    }
-    ColorSpace(mean * (1. / colors.len() as f32))
-}
-fn covariance_matrix(colors: &[ColorSpace], centroid: Vec3A) -> [Vec3A; 3] {
-    let mut cov = [Vec3A::ZERO; 3];
-
-    for p in colors {
-        let d = p.0 - centroid;
-        cov[0] += d * d.x;
-        cov[1] += d * d.y;
-        cov[2] += d * d.z;
-    }
-
-    let n = colors.len() as f32;
-    let n_r = 1.0 / n;
-    for i in 0..3 {
-        cov[i] *= n_r;
-    }
-
-    cov
-}
-fn largest_eigenvector(matrix: [Vec3A; 3]) -> Vec3A {
-    // A simple power iteration method to approximate the dominant eigenvector
-    let mut v = Vec3A::ONE;
-    for _ in 0..2 {
-        let r = matrix[0].dot(v);
-        let g = matrix[1].dot(v);
-        let b = matrix[2].dot(v);
-        v = Vec3A::new(r, g, b).normalize_or_zero();
-    }
-    v
-}
-
-struct ColorLine {
-    /// The centroid of the colors
-    centroid: ColorSpace,
-    /// The normalized direction of the line
-    d: Vec3A,
-}
-impl ColorLine {
-    fn new(colors: &[ColorSpace]) -> Self {
-        debug_assert!(!colors.is_empty());
-
-        let centroid = mean(colors);
-        let covariance = covariance_matrix(colors, centroid.0);
-        let eigenvector = largest_eigenvector(covariance);
-
-        Self {
-            centroid,
-            d: eigenvector,
-        }
-    }
-
-    fn at(&self, t: f32) -> ColorSpace {
-        ColorSpace(self.centroid.0 + self.d * t)
-    }
-
-    /// Projects the color onto the line and returns the distance from the
-    /// centroid.
-    fn project(&self, color: ColorSpace) -> f32 {
-        let diff = color.0 - self.centroid.0;
-        diff.dot(self.d)
-    }
 }
 
 struct CandidateList {
@@ -831,8 +568,8 @@ impl EndPoints {
 
         debug_assert!(c0.to_u16() > c1.to_u16());
 
-        let c0_f = c0.to_color();
-        let c1_f = c1.to_color();
+        let c0_f = c0.to_vec();
+        let c1_f = c1.to_vec();
         Self { c0, c1, c0_f, c1_f }
     }
     fn new_p3_default(mut c0: R5G6B5Color, mut c1: R5G6B5Color) -> Self {
@@ -844,8 +581,8 @@ impl EndPoints {
 
         debug_assert!(c0.to_u16() <= c1.to_u16());
 
-        let c0_f = c0.to_color();
-        let c1_f = c1.to_color();
+        let c0_f = c0.to_vec();
+        let c1_f = c1.to_vec();
         Self { c0, c1, c0_f, c1_f }
     }
 
@@ -876,30 +613,11 @@ impl R5G6B5Color {
     }
 
     const COMPONENT_MAX: Vec3A = Vec3A::new(31.0, 63.0, 31.0);
-    const ROUND_FLOOR: f32 = 0.0;
     // This approximates ceil. `as u8` will truncate, so by adding a number
     // slightly less than 1 beforehand, we get something very close to ceil.
     // This number is chosen because it is the largest number such that any
     // integer i∈[0,63] + A < i+1 after f32 rounding the sum.
     const ROUND_CEIL: f32 = 0.999995;
-    const ROUND_NEAREST: f32 = 0.5;
-    fn from_color_round(color: Vec3A) -> Self {
-        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_NEAREST))
-    }
-    fn from_color_floor(color: Vec3A) -> Self {
-        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_FLOOR))
-    }
-    fn from_color_ceil(color: Vec3A) -> Self {
-        Self::from_color_with_rounding(color, Vec3A::splat(Self::ROUND_CEIL))
-    }
-    fn from_color_with_rounding(color: Vec3A, rounding: Vec3A) -> Self {
-        let c = (color * Self::COMPONENT_MAX + rounding).min(Self::COMPONENT_MAX);
-        Self::new(c.x as u8, c.y as u8, c.z as u8)
-    }
-    fn to_color(self) -> Vec3A {
-        self.debug_check();
-        Vec3A::new(n5::f32(self.r), n6::f32(self.g), n5::f32(self.b))
-    }
 
     fn to_u16(self) -> u16 {
         self.debug_check();
@@ -910,6 +628,55 @@ impl R5G6B5Color {
         debug_assert!(self.r < 32);
         debug_assert!(self.g < 64);
         debug_assert!(self.b < 32);
+    }
+}
+impl Quantized for R5G6B5Color {
+    type V = Vec3A;
+
+    #[inline(always)]
+    fn round(v: Vec3A) -> Self {
+        let c = (v * Self::COMPONENT_MAX + 0.5).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
+    }
+    #[inline(always)]
+    fn floor(v: Vec3A) -> Self {
+        let c = (v * Self::COMPONENT_MAX).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
+    }
+    #[inline(always)]
+    fn ceil(v: Vec3A) -> Self {
+        let c = (v * Self::COMPONENT_MAX + Self::ROUND_CEIL).min(Self::COMPONENT_MAX);
+        Self::new(c.x as u8, c.y as u8, c.z as u8)
+    }
+
+    #[inline(always)]
+    fn to_vec(self) -> Vec3A {
+        self.debug_check();
+        Vec3A::new(n5::f32(self.r), n6::f32(self.g), n5::f32(self.b))
+    }
+}
+impl bcn_util::WithChannels for R5G6B5Color {
+    type E = u8;
+    const CHANNELS: usize = 3;
+
+    #[inline(always)]
+    fn get(&self, channel: usize) -> Self::E {
+        match channel {
+            0 => self.r,
+            1 => self.g,
+            2 => self.b,
+            _ => panic!("Channel index out of bounds"),
+        }
+    }
+    #[inline(always)]
+    fn set(&mut self, channel: usize, value: Self::E) {
+        match channel {
+            0 => self.r = value,
+            1 => self.g = value,
+            2 => self.b = value,
+            _ => panic!("Channel index out of bounds"),
+        }
+        self.debug_check();
     }
 }
 

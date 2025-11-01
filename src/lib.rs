@@ -170,6 +170,7 @@
     clippy::cast_possible_truncation
 )]
 
+mod bcn_data;
 mod cast;
 mod color;
 mod decode;

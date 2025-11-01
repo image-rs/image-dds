@@ -167,7 +167,7 @@ pub fn encode_compressed(c: &mut Criterion) {
     use Channels::*;
 
     // images
-    let random: Image<f32> = Image::random(Size::new(128, 128), Rgba);
+    let random_rgba: Image<f32> = Image::random(Size::new(128, 128), Rgba);
     let random_rgb: Image<f32> = Image::random(Size::new(128, 128), Rgb);
     let random_tiny: Image<f32> = Image::random(Size::new(16, 16), Rgba);
 
@@ -208,6 +208,13 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, high, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
     // bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
+
+    bench_encoder(c, Format::BC7_UNORM, fast, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, normal, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, high, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, fast, &random_rgba);
+    bench_encoder(c, Format::BC7_UNORM, normal, &random_rgba);
+    bench_encoder(c, Format::BC7_UNORM, high, &random_rgba);
 }
 
 pub fn encode_parallel(c: &mut Criterion) {
