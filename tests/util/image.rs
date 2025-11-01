@@ -128,6 +128,25 @@ impl Image<u8> {
         )
     }
 }
+impl Image<u16> {
+    pub fn to_u8(&self) -> Image<u8> {
+        Image::new(
+            self.data
+                .iter()
+                .map(|&x| ((x as u32 + 257 / 2) / 257) as u8)
+                .collect(),
+            self.channels,
+            self.size,
+        )
+    }
+    pub fn to_f32(&self) -> Image<f32> {
+        Image::new(
+            self.data.iter().map(|&x| x as f32 / 65535.0).collect(),
+            self.channels,
+            self.size,
+        )
+    }
+}
 
 pub trait WithPrecision {
     const PRECISION: Precision;
