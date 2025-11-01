@@ -245,10 +245,10 @@ BC4_UNORM normal base.dds: >
     db63cf5bf4cf1767659098deb3c850656d71ded4a12faf2164aa85f787d96a2f
 
 BC4_UNORM high base.dds: >
-    9f66fa4c3618e3abc7827bdf3ccfee93d84b1500ea5136dcf4782d9ad6c00d3e
+    e1295b859e03d47fb870343e98f0c4a667303317c42095a747ac0a5add5134c0
 
 BC4_UNORM dither base.dds: >
-    2dd3d92f2d34786dfcf18d0deeb4bae96cee947fac30f0d40a5fc12dc464aff2
+    29c718cef9802e4a99c9a3ef38144e8115a47fcee72ea4a7143ef9744cac5e64
 
 BC4_UNORM fast color-twirl.dds: >
     b4f462c3a3be05be0ce7d15e71ab112bcb7283bcce702ea551fa98b844fb7c49
@@ -257,10 +257,10 @@ BC4_UNORM normal color-twirl.dds: >
     db5b0e2dbcd7150f1a516382ad1fc2a1de0bd870e61895ea0ef48dc4416b6015
 
 BC4_UNORM high color-twirl.dds: >
-    a16cff5efb0bcd4dac22ebc6341b5bddef5c45461ab45bcccb1577a76705be7d
+    72d58c59694e1ae2fb53865dda172bfb675f9a124821410ea3269d8bb07b5d36
 
 BC4_UNORM dither color-twirl.dds: >
-    458530417112df0898e56dff4bd18e8799ebda35606c650b518f13fbd7929c79
+    985012e4e3070ac63fcea1272ea3c9c55ed4a036d6200fbe24cad2532cdf74a3
 
 BC4_UNORM fast clovers-r.dds: >
     b6fb72214d49d9c6e68fa86653aea0b6717de928e3d6caaaa8410d14623e3f10
@@ -269,10 +269,10 @@ BC4_UNORM normal clovers-r.dds: >
     1ff9e579502ad076894012cff7fe38331814271dfe2c6bb252316ae7e476d561
 
 BC4_UNORM high clovers-r.dds: >
-    20329223671d883098869f2a87fc9daa0b21e7cea1d6fe373da3726125371d0d
+    2a3e4fcb7f9e0e797301be4e7624b87f79f8ed0d0f79bfe0b3c20d2cb4630aba
 
 BC4_UNORM dither clovers-r.dds: >
-    399bc3a7239347de2a5ddaa6319c7d59901b53066ea6c6d4aa4a77c7497ba020
+    3241925241d629ab8d6f6f46a255b48ade51a66a4b9e8329d3a9369a2fa354bc
 
 BC4_UNORM fast stone-h.dds: >
     ffec255838956042efa926a8e198e81652cd900ffdd0747eb4a972c49c15b864
@@ -281,10 +281,10 @@ BC4_UNORM normal stone-h.dds: >
     fa44906c3f0f381030568173f3646c7c55359af74260885953699ae1e9a37533
 
 BC4_UNORM high stone-h.dds: >
-    b5570bcbfdd9cd425fd12c4add6bf8137af1991a407c7affcf0290ad31b98230
+    0733d994fd489c3e662df8227988ad096d72b5d6e5e0d4556ca4df6e3bb24fe3
 
 BC4_UNORM dither stone-h.dds: >
-    a91893bb10e29aea71094d508b9adbc8dcfc70bc9194cb23d2d0e472413406b7
+    3bfc9d467fede96992d7dcf3a9bf49652c6f863bff2956f70be57b17a1b9a1a9
 
 BC4_UNORM fast random color.dds: >
     081e3bde8eb862ded5353a9f46cb8f126b6de2847af2f05e54096da5c45c5925
