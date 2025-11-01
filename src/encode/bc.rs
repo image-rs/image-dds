@@ -7,7 +7,7 @@ use crate::{
     encode::{bc7::Bc7Modes, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
     n4,
     util::{self, clamp_0_1},
-    Dithering, EncodingError, Report,
+    Dithering, EncodingError,
 };
 
 use super::{
@@ -28,7 +28,7 @@ fn block_universal<
         image,
         writer,
         options,
-        mut progress,
+        progress,
         ..
     } = args;
     let width = image.width() as usize;
@@ -48,11 +48,13 @@ fn block_universal<
     };
     let block_count = util::div_ceil(width, BLOCK_WIDTH) * util::div_ceil(height, BLOCK_HEIGHT);
     let mut block_index: usize = 0;
-    let mut report_block = || {
-        if block_index % report_frequency == 0 {
-            progress.report(block_index as f32 / block_count as f32);
-        }
+    let mut report_block = || -> Result<(), EncodingError> {
+        progress.checked_report_if(
+            block_index % report_frequency == 0,
+            block_index as f32 / block_count as f32,
+        )?;
         block_index += 1;
+        Ok(())
     };
 
     for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| {
@@ -64,7 +66,7 @@ fn block_universal<
             let encoded = &mut encoded_buffer[block_index];
 
             encode_block(block, width, &options, encoded);
-            report_block();
+            report_block()?;
         }
 
         // handle last partial block
@@ -85,13 +87,13 @@ fn block_universal<
 
             let encoded = &mut encoded_buffer[block_index];
             encode_block(&block_data, BLOCK_WIDTH, &options, encoded);
-            report_block();
+            report_block()?;
         }
 
-        writer.write_all(cast::as_bytes(&encoded_buffer))
-    })?;
+        writer.write_all(cast::as_bytes(&encoded_buffer))?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 fn get_4x4_rgba(data: &[[f32; 4]], row_pitch: usize) -> [[f32; 4]; 16] {

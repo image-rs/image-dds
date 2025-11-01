@@ -1,7 +1,12 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use dds::{header::*, *};
 use rand::Rng;
 
-use util::Snapshot;
+use util::{Image, Snapshot};
 
 mod util;
 
@@ -219,6 +224,109 @@ fn forward_progress() {
                     panic!("Failed to encode {format:?} with dither {dither:?}: {e}");
                 }
             }
+        }
+    }
+}
+
+/// Tests that `encode` will never write anything if the given progress is already cancelled.
+#[test]
+fn immediate_cancel() {
+    let cancelled = CancellationToken::new();
+    cancelled.cancel();
+    let mut progress = Progress::none().with_cancellation(&cancelled);
+
+    let image: Image<u8> = Image::new_empty(Channels::Rgb, Size::new(2048, 2048));
+
+    let mut encoded = Vec::new();
+
+    let mut options = EncodeOptions::default();
+    for parallel in [false, true] {
+        options.parallel = parallel;
+
+        let result = encode(
+            &mut encoded,
+            image.view(),
+            Format::R8G8B8A8_UNORM,
+            Some(&mut progress),
+            &options,
+        );
+
+        assert!(matches!(result, Err(EncodingError::Cancelled)));
+        assert!(encoded.is_empty(), "Data was written even though cancelled");
+    }
+}
+
+/// Tests that `encode` will eventually cancel if the operation is cancelled
+/// while encoding.
+#[test]
+fn eventual_cancel() {
+    let image: Image<u8> = Image::new_empty(Channels::Rgb, Size::new(1024, 1024));
+
+    let mut options = EncodeOptions::default();
+    for parallel in [false, true] {
+        options.parallel = parallel;
+
+        for &format in util::ALL_FORMATS {
+            let cancelled = &CancellationToken::new();
+            let attempted_write = &Arc::new(AtomicBool::new(false));
+
+            let mut result = Ok(());
+
+            std::thread::scope(|s| {
+                // spawn a thread that will cancel the operation
+                s.spawn(|| {
+                    while !attempted_write.load(Ordering::SeqCst) && !cancelled.is_cancelled() {
+                        std::thread::yield_now();
+                    }
+                    cancelled.cancel();
+                });
+
+                // spawn a thread that will encode the image
+                s.spawn(|| {
+                    let mut progress = Progress::none().with_cancellation(cancelled);
+                    let mut writer = WriteUntilCancelled {
+                        token: cancelled.clone(),
+                        attempted_write: attempted_write.clone(),
+                    };
+                    result = encode(
+                        &mut writer,
+                        image.view(),
+                        format,
+                        Some(&mut progress),
+                        &options,
+                    );
+                    cancelled.cancel(); // ensure the other thread ends
+                });
+            });
+
+            assert!(
+                matches!(
+                    result,
+                    Err(EncodingError::Cancelled) | Err(EncodingError::UnsupportedFormat(_))
+                ),
+                "Expected cancellation but got {result:?} for {format:?}"
+            );
+        }
+    }
+
+    struct WriteUntilCancelled {
+        token: CancellationToken,
+        attempted_write: Arc<AtomicBool>,
+    }
+    impl std::io::Write for WriteUntilCancelled {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            if !self.token.is_cancelled() {
+                self.attempted_write.store(true, Ordering::SeqCst);
+                while !self.token.is_cancelled() {
+                    std::thread::yield_now();
+                }
+            }
+
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
         }
     }
 }

@@ -187,10 +187,8 @@ fn encode_dither() {
         Ok(hex)
     }
 
-    let base = util::read_png_u8(&get_sample("base.png")).unwrap().to_f32();
-    let twirl = util::read_png_u8(&get_sample("color-twirl.png"))
-        .unwrap()
-        .to_f32();
+    let base = util::read_png_f32(&get_sample("base.png")).unwrap();
+    let twirl = util::read_png_f32(&get_sample("color-twirl.png")).unwrap();
 
     let ignore = [Format::BC4_SNORM, Format::BC5_UNORM, Format::BC5_SNORM];
 
@@ -251,7 +249,7 @@ fn encode_measure_quality() {
             }
         }
         fn from_file(name: &str) -> Self {
-            let image = util::read_png_u8(&get_sample(name)).unwrap().to_f32();
+            let image = util::read_png_f32(&get_sample(name)).unwrap();
 
             Self {
                 name: name.to_string(),

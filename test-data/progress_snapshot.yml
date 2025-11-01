@@ -29,6 +29,16 @@ R8_UNORM:
     100.00%
     Done.
 
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
 
 
 B5G6R5_UNORM:
@@ -79,6 +89,16 @@ R8G8B8A8_UNORM:
     100.00%
     Done.
 
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
 
 
 R16G16B16A16_SNORM:
@@ -95,6 +115,23 @@ R16G16B16A16_SNORM:
     Done.
 
   "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
     0.00%
     100.00%
     Done.
@@ -119,6 +156,23 @@ R16G16B16A16_FLOAT:
     100.00%
     Done.
 
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
 
 
 R9G9B9E5_SHAREDEXP:
@@ -135,6 +189,23 @@ R9G9B9E5_SHAREDEXP:
     Done.
 
   "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
     0.00%
     100.00%
     Done.
@@ -270,6 +341,23 @@ AYUV:
     Done.
 
   "Dither None: Grayscale F32 Image 1024x1024": |
+    0.00%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Rgba U8 Image 4096x2048": |
+    0.00%
+    12.50%
+    25.00%
+    37.50%
+    50.00%
+    62.50%
+    75.00%
+    87.50%
+    100.00%
+    Done.
+
+  "Dither ColorAndAlpha: Grayscale F32 Image 1024x1024": |
     0.00%
     100.00%
     Done.
