@@ -546,11 +546,26 @@ fn compress_color_separate_alpha_with_rotation<
             ([floor, ceil], indexes, error)
         }
     } else {
+        let mut c = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
+
+        // start by nudging the endpoints towards the mean to reduce the impact of outliers
+        let nudge_factor = if IA == 2 { 0.9 } else { 0.95 };
+        let mean = alpha_pixels
+            .iter()
+            .copied()
+            .map(|a| a.to_vec())
+            .sum::<f32>()
+            / (alpha_pixels.len() as f32);
+        c = (
+            mean + (c.0 - mean) * nudge_factor,
+            mean + (c.1 - mean) * nudge_factor,
+        );
+
+        c = fit_optimal_endpoints_alpha::<A, IA>(c.0, c.1, &alpha_pixels, options);
+
         // We want opaque pixels to stay opaque no matter what.
         let force_opaque = rotation == Rotation::None && stats.max.a == 255;
-        let c = (stats.min.alpha().to_vec(), stats.max.alpha().to_vec());
-        let c = fit_optimal_endpoints_alpha::<A, IA>(c.0, c.1, &alpha_pixels, options);
-        let c = bcn_util::refine_endpoints(
+        c = bcn_util::refine_endpoints(
             c.0,
             c.1,
             bcn_util::RefinementOptions {
@@ -596,7 +611,8 @@ fn compress_rgba<const B: u8, const I: u8>(
     }
     let rgba_vec = &rgba_vec[..block.len()];
 
-    let (c0, c1) = bcn_util::line4_fit_endpoints(rgba_vec, 0.9);
+    let nudge_factor = if I == 2 { 0.9 } else { 0.95 };
+    let (c0, c1) = bcn_util::line4_fit_endpoints(rgba_vec, nudge_factor);
     let (c0, c1) = fit_optimal_endpoints_rgba::<B, I>(c0, c1, block, rgba_vec, options);
     let (c0, c1) = refine_along_line4(c0, c1, 1 << I, options, |(min, max)| {
         closest_error_rgba::<I>(Rgba::round(min), Rgba::round(max), block)
@@ -638,7 +654,8 @@ fn compress_rgb<const B: u8, const I: u8, State: PBitState>(
     }
     let rgb_vec = &rgb_vec[..block.len()];
 
-    let (c0, c1) = bcn_util::line3_fit_endpoints(rgb_vec, 0.9);
+    let nudge_factor = if I == 2 { 0.9 } else { 0.95 };
+    let (c0, c1) = bcn_util::line3_fit_endpoints(rgb_vec, nudge_factor);
     let (c0, c1) = fit_optimal_endpoints_rgb::<B, I>(c0, c1, block, rgb_vec, options);
     let (c0, c1) = refine_along_line3(c0, c1, 1 << I, options, |(min, max)| {
         closest_error_rgb::<I>(Rgb::round(min), Rgb::round(max), block)

@@ -224,10 +224,10 @@ BC4_UNORM twirl.dds: >
     d7a88ee5a37018459deec642e4e48a39844779448dd28871b984afff3dd6d64d
 
 BC7_UNORM base.dds: >
-    c1986d2ada51ef4467277aefa137ff0db66355ed5e0438cfbddf86eefafeba4f
+    fc889228ed953c98eab0b0c052d2361bee63b0ed1f252d05d113c131f834dff6
 
 BC7_UNORM twirl.dds: >
-    f8a7b4403da5f2287bc99a7995d704f7e5d2a9ce1529ce545ce4c11ae1c344ef
+    f1a0ebcd64e4dde57ff49230ecfff4f8fd9989b3892709f85c8d09e957dd4cfb
 
 BC3_UNORM_RXGB base.dds: >
     ff87540a60f61a6020afca05d217b9c090726d60a8bd6d952b3dd14973a65229
