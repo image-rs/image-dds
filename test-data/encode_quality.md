@@ -693,30 +693,30 @@
 |                 |        |      | ↑PSNR | ↑PSNR B | ↓Region err
 | --------------- | ------ | ---- | ----- | ------- | -----------
 |                 |        |      |       |         |
-| Summary         | fast   | Gray | 42.24 | 54.06   |  0.15
-|                 | normal | Gray | 43.34 | 55.91   |  0.12
-|                 | high   | Gray | 43.98 | 57.22   |  0.08
-|                 | dither | Gray | 43.33 | 58.49   |  0.06
+| Summary         | fast   | Gray | 42.29 | 54.32   |  0.12
+|                 | normal | Gray | 43.34 | 55.90   |  0.12
+|                 | high   | Gray | 43.99 | 57.18   |  0.08
+|                 | dither | Gray | 43.33 | 58.44   |  0.06
 |                 |        |      |       |         |
-| base.png        | fast   | Gray | 37.93 | 49.11   |  0.24
-|                 | normal | Gray | 39.85 | 52.07   |  0.18
-|                 | high   | Gray | 40.88 | 53.93   |  0.08
-|                 | dither | Gray | 40.27 | 55.27   |  0.07
+| base.png        | fast   | Gray | 37.97 | 49.36   |  0.18
+|                 | normal | Gray | 39.86 | 52.10   |  0.18
+|                 | high   | Gray | 40.90 | 53.92   |  0.08
+|                 | dither | Gray | 40.26 | 55.25   |  0.06
 |                 |        |      |       |         |
-| color-twirl.png | fast   | Gray | 56.08 | 66.56   |  0.06
-|                 | normal | Gray | 56.92 | 68.81   |  0.05
-|                 | high   | Gray | 57.82 | 69.74   |  0.04
-|                 | dither | Gray | 56.82 | 72.43   |  0.02
+| color-twirl.png | fast   | Gray | 56.81 | 68.74   |  0.05
+|                 | normal | Gray | 57.07 | 69.03   |  0.05
+|                 | high   | Gray | 57.82 | 69.64   |  0.04
+|                 | dither | Gray | 56.85 | 72.49   |  0.02
 |                 |        |      |       |         |
-| clovers-r.png   | fast   | Gray | 39.25 | 52.14   |  0.24
-|                 | normal | Gray | 39.53 | 52.46   |  0.20
-|                 | high   | Gray | 39.88 | 53.33   |  0.13
-|                 | dither | Gray | 39.20 | 54.50   |  0.13
+| clovers-r.png   | fast   | Gray | 39.29 | 52.29   |  0.21
+|                 | normal | Gray | 39.52 | 52.42   |  0.21
+|                 | high   | Gray | 39.87 | 53.28   |  0.13
+|                 | dither | Gray | 39.22 | 54.43   |  0.13
 |                 |        |      |       |         |
-| stone-h.png     | fast   | Gray | 47.84 | 59.89   |  0.16
-|                 | normal | Gray | 48.35 | 60.94   |  0.12
-|                 | high   | Gray | 48.62 | 61.63   |  0.10
-|                 | dither | Gray | 47.88 | 63.06   |  0.07
+| stone-h.png     | fast   | Gray | 48.10 | 60.66   |  0.14
+|                 | normal | Gray | 48.35 | 60.87   |  0.12
+|                 | high   | Gray | 48.62 | 61.52   |  0.10
+|                 | dither | Gray | 47.87 | 62.90   |  0.07
 |                 |        |      |       |         |
 | random color    | fast   | Gray | 77.56 | 80.27   |  0.03
 |                 | normal | Gray | 77.56 | 80.27   |  0.03

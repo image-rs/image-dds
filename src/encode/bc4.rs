@@ -1,6 +1,6 @@
 use glam::{UVec4, Vec4};
 
-use crate::{n8, s8};
+use crate::{n8, s8, util::unlikely_branch};
 
 use super::bcn_util::{self, Block4x4};
 
@@ -188,7 +188,6 @@ fn refine_endpoints(
     mut min: f32,
     mut max: f32,
     mut compute_error: impl Copy + FnMut((f32, f32)) -> f32,
-    mut quantize: impl FnMut((f32, f32)) -> (f32, f32),
     options: Bc4Options,
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
@@ -221,13 +220,13 @@ fn refine_endpoints(
     }
 
     const QUANT_STEP: f32 = 1. / 254. + 0.0001;
-    let mut error = compute_error(quantize((min, max)));
+    let mut error = compute_error(EndPoints::quantize((min, max), options.snorm));
     for pair in [
         (min + QUANT_STEP, max),
         (min, max - QUANT_STEP),
         (min + QUANT_STEP, max - QUANT_STEP),
     ] {
-        let new_error = compute_error(quantize(pair));
+        let new_error = compute_error(EndPoints::quantize(pair, options.snorm));
         if new_error < error {
             error = new_error;
             min = pair.0;
@@ -243,6 +242,7 @@ fn refinement_error_metric<P: Palette>(
     _options: Bc4Options,
 ) -> impl Copy + Fn((f32, f32)) -> f32 + '_ {
     move |(min, max)| {
+        // let (c0, c1) = EndPoints::fast_quantize((min, max), options.snorm);
         let palette = P::new(min, max);
         // TODO: find a better error metric for dithered blocks
         palette.block_closest_error_sq(block)
@@ -314,10 +314,6 @@ fn compress_inter6_impl(
         min,
         max,
         refinement_error_metric::<Inter6Palette>(block, options),
-        move |(min, max)| {
-            let endpoints = EndPoints::new_inter6(min, max, options.snorm);
-            (endpoints.c0_f, endpoints.c1_f)
-        },
         options,
     );
 
@@ -340,10 +336,6 @@ fn compress_inter4(block: &Block, options: Bc4Options) -> ([u8; 8], f32) {
         min,
         max,
         refinement_error_metric::<Inter4Palette>(block, options),
-        move |(min, max)| {
-            let endpoints = EndPoints::new_inter4(min, max, options.snorm);
-            (endpoints.c0_f, endpoints.c1_f)
-        },
         options,
     );
 
@@ -393,22 +385,101 @@ impl EndPoints {
             Self { c0, c1, c0_f, c1_f }
         }
     }
+
+    fn quantize((e0, e1): (f32, f32), snorm: bool) -> (f32, f32) {
+        let min = e0.min(e1);
+        let max = e0.max(e1);
+
+        if snorm {
+            unlikely_branch();
+
+            let min = min.clamp(0.0, 1.0);
+            let max = max.clamp(0.0, 1.0);
+
+            // round to nearest
+            let mut min_s8_norm = (254.0 * min + 0.5) as u8;
+            let mut max_s8_norm = (254.0 * max + 0.5) as u8;
+
+            // make sure they are different
+            if min_s8_norm == max_s8_norm {
+                unlikely_branch();
+
+                // round down min and round up max
+                min_s8_norm = (254.0 * min) as u8;
+                max_s8_norm = 254 - (254.0 * (1.0 - max)) as u8;
+
+                if min_s8_norm == max_s8_norm {
+                    if min_s8_norm == 0 {
+                        max_s8_norm = 1;
+                    } else {
+                        min_s8_norm -= 1;
+                    }
+                }
+            }
+            debug_assert!(min_s8_norm < max_s8_norm);
+
+            let c0 = s8::from_norm(max_s8_norm);
+            let c1 = s8::from_norm(min_s8_norm);
+            debug_assert!(c0 != c1);
+
+            let c0_f = s8::uf32(c0);
+            let c1_f = s8::uf32(c1);
+
+            (c0_f, c1_f)
+        } else {
+            // round to nearest
+            let mut min_u8 = (255.0 * min + 0.5) as u8;
+            let mut max_u8 = (255.0 * max + 0.5) as u8;
+
+            // make sure they are different
+            if min_u8 == max_u8 {
+                unlikely_branch();
+
+                // round down min and round up max
+                min_u8 = (255.0 * min) as u8;
+                max_u8 = 255 - (255.0 * (1.0 - max)) as u8;
+
+                if min_u8 == max_u8 {
+                    if min_u8 == 0 {
+                        max_u8 = 1;
+                    } else {
+                        min_u8 -= 1;
+                    }
+                }
+            }
+            debug_assert!(min_u8 < max_u8);
+
+            (n8::f32(max_u8), n8::f32(min_u8))
+        }
+    }
+
     fn new_inter6(e0: f32, e1: f32, snorm: bool) -> Self {
         let min = e0.min(e1);
         let max = e0.max(e1);
 
         // For the 6 interpolation mode, we need c0 > c1
         if snorm {
-            // round down min and round up max
-            let mut min_s8_norm = (254.0 * min) as u8;
-            let mut max_s8_norm = 254 - (254.0 * (1.0 - max)) as u8;
+            let min = min.clamp(0.0, 1.0);
+            let max = max.clamp(0.0, 1.0);
+
+            // round to nearest
+            let mut min_s8_norm = (254.0 * min + 0.5) as u8;
+            let mut max_s8_norm = (254.0 * max + 0.5) as u8;
 
             // make sure they are different
             if min_s8_norm == max_s8_norm {
-                if min_s8_norm == 0 {
-                    max_s8_norm = 1;
-                } else {
-                    min_s8_norm -= 1;
+                unlikely_branch();
+
+                // round down min and round up max
+                min_s8_norm = (254.0 * min) as u8;
+                max_s8_norm = 254 - (254.0 * (1.0 - max)) as u8;
+
+                if min_s8_norm == max_s8_norm {
+                    if min_s8_norm == 0 {
+                        max_s8_norm = 1;
+                    } else {
+                        min_s8_norm -= 1;
+                    }
                 }
             }
             debug_assert!(min_s8_norm < max_s8_norm);
@@ -426,16 +497,24 @@ impl EndPoints {
 
             Self { c0, c1, c0_f, c1_f }
         } else {
-            // round down min and round up max
-            let mut min_u8 = (255.0 * min) as u8;
-            let mut max_u8 = 255 - (255.0 * (1.0 - max)) as u8;
+            // round to nearest
+            let mut min_u8 = (255.0 * min + 0.5) as u8;
+            let mut max_u8 = (255.0 * max + 0.5) as u8;
 
             // make sure they are different
             if min_u8 == max_u8 {
-                if min_u8 == 0 {
-                    max_u8 = 1;
-                } else {
-                    min_u8 -= 1;
+                unlikely_branch();
+
+                // round down min and round up max
+                min_u8 = (255.0 * min) as u8;
+                max_u8 = 255 - (255.0 * (1.0 - max)) as u8;
+
+                if min_u8 == max_u8 {
+                    if min_u8 == 0 {
+                        max_u8 = 1;
+                    } else {
+                        min_u8 -= 1;
+                    }
                 }
             }
             debug_assert!(min_u8 < max_u8);
