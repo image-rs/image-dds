@@ -13,7 +13,7 @@ pub struct Bc4Options {
     pub use_inter4_heuristic: bool,
     pub high_quality_quantize: bool,
     pub fast_iter: bool,
-    pub refine: bool,
+    pub max_refine_iter: u8,
     pub size_variations: bool,
 }
 
@@ -192,7 +192,7 @@ fn refine_endpoints(
     options: Bc4Options,
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
-    if options.refine {
+    if options.max_refine_iter > 0 {
         (min, max) = bcn_util::refine_endpoints(
             min,
             max,
@@ -201,14 +201,14 @@ fn refine_endpoints(
                     step_initial: 0.1 * (max - min),
                     step_decay: 0.5,
                     step_min: 1. / 255.,
-                    max_iter: 2,
+                    max_iter: options.max_refine_iter as u32,
                 }
             } else {
                 bcn_util::RefinementOptions {
                     step_initial: 0.15 * (max - min),
                     step_decay: 0.5,
                     step_min: 1. / 255. / 2.,
-                    max_iter: 10,
+                    max_iter: options.max_refine_iter as u32,
                 }
             },
             compute_error,
