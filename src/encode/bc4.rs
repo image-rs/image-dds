@@ -1,20 +1,28 @@
 use glam::{UVec4, Vec4};
+use rayon::iter::MaxLen;
 
 use crate::{n8, s8, util::unlikely_branch};
 
 use super::bcn_util::{self, Block4x4};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Bc4Options {
+pub(crate) struct Bc4Options {
     pub dither: bool,
     pub snorm: bool,
     pub brute_force: bool,
     pub use_inter4: bool,
     pub use_inter4_heuristic: bool,
-    pub high_quality_quantize: bool,
+    pub quantization: Bc4Quantization,
     pub fast_iter: bool,
     pub max_refine_iter: u8,
     pub size_variations: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Bc4Quantization {
+    Round,
+    MediumQuality,
+    HighQuality,
 }
 
 struct Block {
@@ -215,26 +223,54 @@ fn refine_endpoints(
     }
 
     // Step 2: Quantize the endpoints and select the best
-    if !options.high_quality_quantize {
-        return (min, max);
-    }
 
     const QUANT_STEP: f32 = 1. / 254. + 0.0001;
-    let mut error = compute_error(EndPoints::quantize((min, max), options.snorm));
-    for pair in [
-        (min + QUANT_STEP, max),
-        (min, max - QUANT_STEP),
-        (min + QUANT_STEP, max - QUANT_STEP),
-    ] {
-        let new_error = compute_error(EndPoints::quantize(pair, options.snorm));
-        if new_error < error {
-            error = new_error;
-            min = pair.0;
-            max = pair.1;
+    match options.quantization {
+        Bc4Quantization::Round => (min, max),
+        Bc4Quantization::MediumQuality => {
+            let base_quantized = EndPoints::quantize((min, max), options.snorm);
+            let min_diff = min - base_quantized.0;
+            let max_diff = max - base_quantized.1;
+            let other = if min_diff.abs() > max_diff.abs() {
+                if min_diff > 0.0 {
+                    (min + QUANT_STEP, max)
+                } else {
+                    (min - QUANT_STEP, max)
+                }
+            } else {
+                if max_diff > 0.0 {
+                    (min, min + QUANT_STEP)
+                } else {
+                    (min, min - QUANT_STEP)
+                }
+            };
+            let other_quantized = EndPoints::quantize(other, options.snorm);
+            let base_error = compute_error(base_quantized);
+            let other_error = compute_error(other_quantized);
+            if other_error < base_error {
+                other_quantized
+            } else {
+                base_quantized
+            }
+        }
+        Bc4Quantization::HighQuality => {
+            let mut best = EndPoints::quantize((min, max), options.snorm);
+            let mut error = compute_error(best);
+            for pair in [
+                (min + QUANT_STEP, max),
+                (min, max - QUANT_STEP),
+                (min + QUANT_STEP, max - QUANT_STEP),
+            ] {
+                let q = EndPoints::quantize(pair, options.snorm);
+                let new_error = compute_error(q);
+                if new_error < error {
+                    error = new_error;
+                    best = q;
+                }
+            }
+            best
         }
     }
-
-    (min, max)
 }
 
 fn refinement_error_metric<P: Palette>(

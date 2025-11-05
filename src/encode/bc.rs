@@ -346,11 +346,16 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
         brute_force: options.quality == CompressionQuality::Unreasonable,
         use_inter4: options.quality > CompressionQuality::Fast,
         use_inter4_heuristic: options.quality < CompressionQuality::High,
-        high_quality_quantize: options.quality >= CompressionQuality::Normal,
+        quantization: match options.quality {
+            CompressionQuality::Fast => bc4::Bc4Quantization::Round,
+            CompressionQuality::Normal => bc4::Bc4Quantization::MediumQuality,
+            CompressionQuality::High => bc4::Bc4Quantization::HighQuality,
+            CompressionQuality::Unreasonable => bc4::Bc4Quantization::HighQuality,
+        },
         fast_iter: options.quality <= CompressionQuality::Normal,
         max_refine_iter: match options.quality {
             CompressionQuality::Fast => 0,
-            CompressionQuality::Normal => 1,
+            CompressionQuality::Normal => 2,
             CompressionQuality::High => 10,
             CompressionQuality::Unreasonable => 10,
         },
