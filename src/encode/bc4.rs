@@ -231,17 +231,19 @@ fn refine_endpoints(
             let min_diff = min - base_quantized.0;
             let max_diff = max - base_quantized.1;
             let other = if min_diff.abs() > max_diff.abs() {
-                if min_diff > 0.0 {
-                    (min + QUANT_STEP, max)
+                let step = if min_diff > 0.0 {
+                    QUANT_STEP
                 } else {
-                    (min - QUANT_STEP, max)
-                }
+                    -QUANT_STEP
+                };
+                (min + step, max)
             } else {
-                if max_diff > 0.0 {
-                    (min, min + QUANT_STEP)
+                let step = if max_diff > 0.0 {
+                    QUANT_STEP
                 } else {
-                    (min, min - QUANT_STEP)
-                }
+                    -QUANT_STEP
+                };
+                (min, max + step)
             };
             let other_quantized = EndPoints::quantize(other, options.snorm);
             let base_error = compute_error(base_quantized);
