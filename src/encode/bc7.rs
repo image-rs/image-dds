@@ -560,9 +560,21 @@ fn compress_color_separate_alpha_with_rotation<
         );
 
         c = fit_optimal_endpoints_alpha::<A, IA>(c.0, c.1, &alpha_pixels, options);
+        if c.0 > c.1 {
+            std::mem::swap(&mut c.0, &mut c.1);
+        }
+        debug_assert!(c.0 <= c.1);
 
-        // We want opaque pixels to stay opaque no matter what.
-        let force_opaque = rotation == Rotation::None && stats.max.a == 255;
+        fn quantize<const A: u8>((min, max): (f32, f32)) -> (Alpha<A>, Alpha<A>) {
+            let mut q0 = Alpha::<A>::round(min);
+            let mut q1 = Alpha::<A>::round(max);
+            if q0 == q1 {
+                q0 = Alpha::<A>::floor(min);
+                q1 = Alpha::<A>::ceil(max);
+            }
+            (q0, q1)
+        }
+
         c = bcn_util::refine_endpoints(
             c.0,
             c.1,
@@ -573,14 +585,11 @@ fn compress_color_separate_alpha_with_rotation<
                 max_iter: options.max_refinement_iters as u32,
             },
             |(min, max)| {
-                if force_opaque && max < 1.0 {
-                    return u32::MAX;
-                }
-                closest_error_alpha::<IA>(Alpha::floor(min), Alpha::ceil(max), &alpha_pixels)
+                let (a_min, a_max) = quantize::<8>((min, max));
+                closest_error_alpha::<IA>(a_min, a_max, &alpha_pixels)
             },
         );
-        let a_min: Alpha<A> = Alpha::floor(c.0);
-        let a_max: Alpha<A> = Alpha::ceil(c.1);
+        let (a_min, a_max) = quantize::<A>(c);
         let (alpha_indexes, alpha_error) =
             closest_alpha::<IA>(a_min.promote(), a_max.promote(), &alpha_pixels);
         ([a_min, a_max], alpha_indexes, alpha_error)
