@@ -167,7 +167,7 @@ BC6H_SF16.dds: >
     Error: Unsupported format for encoding: BC6H_SF16
 
 BC7_UNORM.dds: >
-    fc889228ed953c98eab0b0c052d2361bee63b0ed1f252d05d113c131f834dff6
+    2feba5179b648bdc6216928a9a1d5f1c80e62cbf5d221e43e36b1e7fe0e47733
 
 ASTC_4X4_UNORM.dds: >
     Error: Unsupported format for encoding: ASTC_4X4_UNORM

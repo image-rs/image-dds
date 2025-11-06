@@ -277,7 +277,7 @@ pub(crate) fn line4_fit_endpoints<C: Copy + Into<Vec4>>(
 }
 pub(crate) struct ColorLine3 {
     /// The centroid of the colors
-    centroid: Vec3A,
+    pub centroid: Vec3A,
     /// The normalized direction of the line
     d: Vec3A,
 }
@@ -357,7 +357,7 @@ impl ColorLine3 {
 }
 pub(crate) struct ColorLine4 {
     /// The centroid of the colors
-    centroid: Vec4,
+    pub centroid: Vec4,
     /// The normalized direction of the line
     d: Vec4,
 }

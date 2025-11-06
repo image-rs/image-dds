@@ -418,13 +418,11 @@ impl<'a> RotationSelect<'a> {
             // If the color is approximately grayscale, don't try swapping.
             // It will only cause discolorations.
             const COLOR_VARIANCE_THRESHOLD: u8 = 8;
-            if stats.is_grayscale
-                || block.iter().all(|p| {
-                    let gr = p.g.abs_diff(p.r);
-                    let gb = p.g.abs_diff(p.b);
-                    gr.max(gb) < COLOR_VARIANCE_THRESHOLD
-                })
-            {
+            if block.iter().all(|p| {
+                let gr = p.g.abs_diff(p.r);
+                let gb = p.g.abs_diff(p.b);
+                gr.max(gb) < COLOR_VARIANCE_THRESHOLD
+            }) {
                 return Some(Rotation::None);
             }
 
@@ -1649,12 +1647,7 @@ impl Rotation {
     }
     fn apply_stats(self, stats: BlockStats) -> BlockStats {
         let [min, max] = self.apply([stats.min, stats.max]);
-
-        BlockStats {
-            min,
-            max,
-            is_grayscale: self == Self::None && stats.is_grayscale,
-        }
+        BlockStats { min, max }
     }
 
     fn channel(self) -> usize {
@@ -2326,8 +2319,6 @@ fn interpolate_alpha<const W: usize>(e0: Alpha<8>, e1: Alpha<8>, index: u8) -> A
 struct BlockStats {
     min: Rgba<8>,
     max: Rgba<8>,
-    /// Whether all pixels are opaque and grayscale.
-    is_grayscale: bool,
 }
 impl BlockStats {
     fn new(block: &[Rgba<8>; 16]) -> Self {
@@ -2345,13 +2336,7 @@ impl BlockStats {
             max.a = max.a.max(pixel.a);
         }
 
-        let is_grayscale = min.a == 255 && block.iter().all(|&p| p.r == p.g && p.r == p.b);
-
-        Self {
-            min,
-            max,
-            is_grayscale,
-        }
+        Self { min, max }
     }
 
     fn single_color(&self) -> Option<Rgba<8>> {
@@ -2381,16 +2366,21 @@ impl BlockStats {
 /// The current strategy involves scoring all possible partitions based on
 /// some error metric per subset and then picking the best N partitions to try.
 ///
-/// The error metric works as follows:
-/// - For grayscale blocks: Squared error from the mean. This is fast to compute
-///   and works okay.
-/// - For color blocks(with and without) alpha: Compute the best-fitting line
-///   and use the squared error from that line. Line fitting isn't cheap, but
-///   closely approximates the error from actual endpoint quantization and
-///   index selection.
+/// The error metric is a weighted sum of the squared error to the best-fit line
+/// for the subset and the squared error to the mean color of the subset. The
+/// weight is chosen per block, with blocks that better fit a single line having
+/// a higher weight for the mean error term. The idea is that if all colors in a
+/// block are roughly collinear, then the line fit error for all subsets will be
+/// close to zero, which defeats the purpose of scoring partitions. Mean error
+/// on the other hand is effectively a measure of how tightly the colors are
+/// clustered. So by giving more weight to the mean error for such blocks, we
+/// smoothly transition to scoring partitions based on how well they cluster
+/// colors, which is a better heuristic for collinear blocks.
+///
+/// (The most extreme case of collinearity are single-color blocks. They always
+/// have a line error of zero.)
 struct PartitionSelect<'a> {
     has_alpha: bool,
-    is_grayscale: bool,
     block: &'a [Rgba<8>; 16],
     modes: Bc7Modes,
     max_partitions: u8,
@@ -2409,7 +2399,6 @@ impl<'a> PartitionSelect<'a> {
     ) -> Self {
         Self {
             has_alpha: !stats.opaque(),
-            is_grayscale: stats.is_grayscale,
             block,
             modes,
             max_partitions: options.max_partitions,
@@ -2421,11 +2410,49 @@ impl<'a> PartitionSelect<'a> {
         }
     }
 
+    const MAX_LINE_ERROR: f32 = 0.02; // approx max error for a block
+    const MEAN_FACTOR: f32 = 0.02;
+    fn get_mean_factor_3(block: &[Vec3A]) -> f32 {
+        Self::get_mean_factor(squared_error_line_3(block))
+    }
+    fn get_mean_factor_4(block: &[Vec4]) -> f32 {
+        Self::get_mean_factor(squared_error_line_4(block))
+    }
+    fn get_mean_factor(line_error: f32) -> f32 {
+        Self::MEAN_FACTOR * (1.0 - (line_error * (1.0 / Self::MAX_LINE_ERROR)).clamp(0.0, 1.0))
+    }
+
     fn get_partitions_2(&mut self) -> &[u8; 64] {
         let has_alpha = self.has_alpha;
-        let is_grayscale = self.is_grayscale;
         let block = self.block;
         let max_partitions = self.max_partitions;
+
+        let mean_factor = if has_alpha {
+            Self::get_mean_factor_4(&block.map(|p| p.to_vec()))
+        } else {
+            Self::get_mean_factor_3(&block.map(|p| p.color().to_vec()))
+        };
+
+        let compute_error_rgb = move |colors: &[Vec3A]| -> f32 {
+            let line = ColorLine3::new(colors);
+            let line_error = line.sum_dist_sq(colors);
+            let mean_error = if mean_factor > 0.0 {
+                sum_dist_sq_point3(line.centroid, colors) * mean_factor
+            } else {
+                0.0
+            };
+            line_error + mean_error
+        };
+        let compute_error_rgba = move |colors: &[Vec4]| -> f32 {
+            let line = ColorLine4::new(colors);
+            let line_error = line.sum_dist_sq(colors);
+            let mean_error = if mean_factor > 0.0 {
+                sum_dist_sq_point4(line.centroid, colors) * mean_factor
+            } else {
+                0.0
+            };
+            line_error + mean_error
+        };
 
         self.cache_partitions_2.get_or_insert_with(|| {
             let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
@@ -2437,25 +2464,16 @@ impl<'a> PartitionSelect<'a> {
                 }
 
                 let split_index = subset.count_zeros() as usize;
-                let error = if is_grayscale {
-                    // GRAYSCALE
-                    let mut reordered = block.map(|p| p.r as f32 * (1.0 / 255.0));
+                let error = if has_alpha {
+                    let mut reordered = block.map(|p| p.to_vec());
                     subset.sort_block(&mut reordered);
-                    squared_error_grayscale(&reordered[..split_index])
-                        + squared_error_grayscale(&reordered[split_index..])
+                    compute_error_rgba(&reordered[..split_index])
+                        + compute_error_rgba(&reordered[split_index..])
                 } else {
-                    // RGB(A)
-                    if has_alpha {
-                        let mut reordered = block.map(|p| p.to_vec());
-                        subset.sort_block(&mut reordered);
-                        squared_error_line_4(&reordered[..split_index])
-                            + squared_error_line_4(&reordered[split_index..])
-                    } else {
-                        let mut reordered = block.map(|p| p.color().to_vec());
-                        subset.sort_block(&mut reordered);
-                        squared_error_line_3(&reordered[..split_index])
-                            + squared_error_line_3(&reordered[split_index..])
-                    }
+                    let mut reordered = block.map(|p| p.color().to_vec());
+                    subset.sort_block(&mut reordered);
+                    compute_error_rgb(&reordered[..split_index])
+                        + compute_error_rgb(&reordered[split_index..])
                 };
 
                 (partition, error)
@@ -2500,8 +2518,21 @@ impl<'a> PartitionSelect<'a> {
             (1_u64 << max_partitions) - 1
         };
 
-        let is_grayscale = self.is_grayscale;
         let block = self.block;
+        let block_rgb = block.map(|p| p.color().to_vec());
+        let mean_factor = Self::get_mean_factor_3(&block_rgb);
+
+        let compute_error = move |colors: &[Vec3A]| -> f32 {
+            let line = ColorLine3::new(colors);
+            let line_error = line.sum_dist_sq(colors);
+            let mean_error = if mean_factor > 0.0 {
+                sum_dist_sq_point3(line.centroid, colors) * mean_factor
+            } else {
+                0.0
+            };
+            line_error + mean_error
+        };
+
         let mut error_cache = LineErrorCache3::new();
 
         let mut scored: [(u8, f32); 64] = std::array::from_fn(move |i| {
@@ -2511,19 +2542,7 @@ impl<'a> PartitionSelect<'a> {
                 return (partition, f32::INFINITY);
             }
 
-            let error = if is_grayscale {
-                error_cache.get_error(
-                    partition,
-                    block.map(|p| p.r as f32 * (1.0 / 255.0)),
-                    squared_error_grayscale,
-                )
-            } else {
-                error_cache.get_error(
-                    partition,
-                    block.map(|p| p.color().to_vec()),
-                    squared_error_line_3,
-                )
-            };
+            let error = error_cache.get_error(partition, block_rgb, compute_error);
 
             (partition, error)
         });
@@ -2621,15 +2640,21 @@ fn squared_error_line_3(colors: &[Vec3A]) -> f32 {
 fn squared_error_line_4(colors: &[Vec4]) -> f32 {
     ColorLine4::new(colors).sum_dist_sq(colors)
 }
-fn squared_error_grayscale(colors: &[f32]) -> f32 {
-    let mean = colors.iter().copied().sum::<f32>() / colors.len() as f32;
-
-    let mut error = 0.0;
+fn sum_dist_sq_point3(point: Vec3A, colors: &[Vec3A]) -> f32 {
+    let mut error = Vec3A::ZERO;
     for &c in colors {
-        let d = c - mean;
+        let d = c - point;
         error += d * d;
     }
-    error
+    error.x + error.y + error.z
+}
+fn sum_dist_sq_point4(point: Vec4, colors: &[Vec4]) -> f32 {
+    let mut error = Vec4::ZERO;
+    for &c in colors {
+        let d = c - point;
+        error += d * d;
+    }
+    error.x + error.y + error.z + error.w
 }
 
 struct BitStream {
