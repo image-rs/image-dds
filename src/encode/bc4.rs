@@ -279,7 +279,6 @@ fn refinement_error_metric<P: Palette>(
     _options: Bc4Options,
 ) -> impl Copy + Fn((f32, f32)) -> f32 + '_ {
     move |(min, max)| {
-        // let (c0, c1) = EndPoints::fast_quantize((min, max), options.snorm);
         let palette = P::new(min, max);
         // TODO: find a better error metric for dithered blocks
         palette.block_closest_error_sq(block)
