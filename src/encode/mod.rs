@@ -8,6 +8,7 @@ use crate::{EncodingError, Format, ImageView, Progress, Size};
 mod bc;
 mod bc1;
 mod bc4;
+mod bc7;
 mod bcn_util;
 mod bi_planar;
 mod encoder;
@@ -84,6 +85,7 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::BC4_SNORM => BC4_SNORM,
         Format::BC5_UNORM => BC5_UNORM,
         Format::BC5_SNORM => BC5_SNORM,
+        Format::BC7_UNORM => BC7_UNORM,
 
         // ASTC formats
         Format::ASTC_4X4_UNORM
@@ -106,10 +108,28 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::BC3_UNORM_NORMAL => BC3_UNORM_NORMAL,
 
         // unsupported formats
-        Format::BC6H_UF16 | Format::BC6H_SF16 | Format::BC7_UNORM => return None,
+        Format::BC6H_UF16 | Format::BC6H_SF16 => return None,
     })
 }
 
+/// Encodes a single surfaces in the given format and writes the encoded pixel
+/// data to the given writer.
+///
+/// If an error is returned (or the operation is cancelled), the writer may be
+/// in an inconsistent state. Some, all, or none of the pixel data may have been
+/// written.
+///
+/// If `progress` is cancelled before this function returns,
+/// [`EncodingError::Cancelled`] is returned (unless another error occurs first).
+/// Passing `None` as `progress` is equivalent to [`Progress::none()`].
+///
+/// ## Panics
+///
+/// Panics if:
+///
+/// 1. `writer` panics during writes.
+/// 2. The underlying reporter function of `progress` panics (if given).
+/// 3. An allocation fails.
 pub fn encode(
     writer: &mut dyn Write,
     image: ImageView,
@@ -117,13 +137,22 @@ pub fn encode(
     progress: Option<&mut Progress>,
     options: &EncodeOptions,
 ) -> Result<(), EncodingError> {
+    let mut no_reporting = Progress::none();
+    let progress = progress.unwrap_or(&mut no_reporting);
+
+    // ending quickly if cancelled is a good property to have
+    progress.check_cancelled()?;
+
     #[cfg(feature = "rayon")]
     if options.parallel {
         return encode_parallel(writer, image, format, progress, options);
     }
 
     let encoders = get_encoders(format).ok_or(EncodingError::UnsupportedFormat(format))?;
-    encoders.encode(writer, image, progress, options)
+    encoders.encode(writer, image, progress, options)?;
+
+    // error if the operation was cancelled
+    progress.check_cancelled()
 }
 
 #[cfg(feature = "rayon")]
@@ -131,12 +160,12 @@ fn encode_parallel(
     writer: &mut dyn Write,
     image: ImageView,
     format: Format,
-    mut progress: Option<&mut Progress>,
+    mut progress: &mut Progress,
     options: &EncodeOptions,
 ) -> Result<(), EncodingError> {
     use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-    use crate::{ParallelProgress, PixelInfo, Report, SplitView};
+    use crate::{ParallelProgress, PixelInfo, SplitView};
 
     let mut options = options.clone();
     // don't cause an infinite loop
@@ -146,7 +175,7 @@ fn encode_parallel(
 
     // optimization for single fragment
     if let Some(single) = split.single() {
-        return encode(writer, single, format, progress, &options);
+        return encode(writer, single, format, Some(progress), &options);
     }
 
     // Prepare the parallel progress reporter. The +1 ensures that 100% is
@@ -160,6 +189,7 @@ fn encode_parallel(
         .into_par_iter()
         .map(|fragment_index| -> Result<Vec<u8>, EncodingError> {
             let fragment = split.get(fragment_index).expect("invalid fragment index");
+            parallel_progress.check_cancelled()?;
 
             // allocate exactly the right amount of memory
             let bytes: usize = pixel_info
@@ -169,10 +199,12 @@ fn encode_parallel(
                 .expect("too many bytes");
             let mut buffer: Vec<u8> = Vec::with_capacity(bytes);
 
-            // encode the fragment without any progress reporting.
-            // progress will be reported per fragment
+            // Encode the fragment without any progress reporting or cancellation.
+            // Fragments are typically very small and encoded quickly, so
+            // reporting progress or checking for cancellation is not necessary.
             encode(&mut buffer, fragment, format, None, &options)?;
 
+            parallel_progress.check_cancelled()?;
             parallel_progress.submit(fragment.height() as u64);
 
             debug_assert_eq!(buffer.len(), bytes);
@@ -182,13 +214,12 @@ fn encode_parallel(
 
     let encoded_fragments = result?;
     for fragment in encoded_fragments {
+        progress.check_cancelled()?;
         writer.write_all(&fragment)?;
     }
 
-    // Report 100%
-    progress.report(1.0);
-
-    Ok(())
+    // report completion
+    progress.checked_report(1.0)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -245,9 +276,10 @@ impl Default for EncodeOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Dithering {
     /// Dithering is disabled for all channels.
+    #[default]
     None = 0b00,
     /// Dithering is enabled for all channels (RGBA).
     ColorAndAlpha = 0b11,
@@ -285,21 +317,12 @@ impl Dithering {
         }
     }
 }
-impl Default for Dithering {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ErrorMetric {
+    #[default]
     Uniform,
     Perceptual,
-}
-impl Default for ErrorMetric {
-    fn default() -> Self {
-        Self::Uniform
-    }
 }
 
 /// The level of trade-off between compression quality and speed.
@@ -326,17 +349,13 @@ impl Default for ErrorMetric {
 ///
 /// Encoding DDS images is embarrassingly parallel, so using multiple cores
 /// should make encoding roughly 4-10x faster on normal consumer hardware.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub enum CompressionQuality {
     Fast,
+    #[default]
     Normal,
     High,
     Unreasonable,
-}
-impl Default for CompressionQuality {
-    fn default() -> Self {
-        Self::Normal
-    }
 }
 
 /// The preferred fragment size (=number of pixel in a fragment) when splitting

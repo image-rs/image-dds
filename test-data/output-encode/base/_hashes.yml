@@ -143,22 +143,22 @@ BC2_UNORM_PREMULTIPLIED_ALPHA.dds: >
     c695203a9836004f4947fc34346a4036ff26de1046447b7b0c13b1e74074f364
 
 BC3_UNORM.dds: >
-    a175eaaeb493ba696bc1855cbf01c000bd84e182a1fba1d994807a7886729839
+    e9c2f5a1c8b7245499fbaf9fc094c31a127e9a4bd0ba418a02df1873e7e130d4
 
 BC3_UNORM_PREMULTIPLIED_ALPHA.dds: >
-    6a8fa05d5fa33a13dbfc2a95c36bd6a87089a317a54f0e250500af7c47fcf7fa
+    cca39d093aaeee9fcb810ad147f9e65d66a961d5965d6e46b84e95a5b1c8463d
 
 BC4_UNORM.dds: >
-    0a861ff4233d05fae72e34d10f8e9616c9aba8ca14c97560308809343876678c
+    5d4b68c45bfafccaa34210f2a87f3dc8bf288dd7bd57754d73fa0e75b19d9a8d
 
 BC4_SNORM.dds: >
-    71f19f238bbd93f9fb9f425abb56176e638389590d3718bcab759f3a63df8157
+    cec65b805e9927bfaafb4733fc97437605089ec35b88894f75914d79b9906b9f
 
 BC5_UNORM.dds: >
-    700a43050ceee9fae3507cb28371d2c0bf36bab0d9fe352096a262d99bbba063
+    532e5a1c14c54b8d05fa46db89e3b3c0c905b5fc04b25701f63f2a1f502435d3
 
 BC5_SNORM.dds: >
-    533498149943218098fd625245a16a32ef5e61a52babaed9503bdd97beddf0ff
+    19f471d97c8b025feb5b016ea3dd1854034ab58cddb615373666cfa4166df41a
 
 BC6H_UF16.dds: >
     Error: Unsupported format for encoding: BC6H_UF16
@@ -167,7 +167,7 @@ BC6H_SF16.dds: >
     Error: Unsupported format for encoding: BC6H_SF16
 
 BC7_UNORM.dds: >
-    Error: Unsupported format for encoding: BC7_UNORM
+    67fedcfadb70aaa1a200a5cbf083e034eea48ececdeb328bb0694adb8e4ceb80
 
 ASTC_4X4_UNORM.dds: >
     Error: Unsupported format for encoding: ASTC_4X4_UNORM
@@ -212,8 +212,8 @@ ASTC_12X12_UNORM.dds: >
     Error: Unsupported format for encoding: ASTC_12X12_UNORM
 
 BC3_UNORM_RXGB.dds: >
-    7aad2cdfbefac2714b1caf43f60b1bb39bde9c168934377ae7e4eb8e8f159723
+    a24bce1eb9d97e89d0ba817e5f9a427fb7eab0b081286b5dc1dc955ae6b770f7
 
 BC3_UNORM_NORMAL.dds: >
-    25a18b8a7fefe9e17fe724205febd6337860099b932f6af7b22f73e7559fcf65
+    824b1de27dcaeef76f5b8e03bf79089ffd2c0d5e732a73669b6f514340d6c49f
 

@@ -1,5 +1,6 @@
 use crate::{
-    decode::bcn_util::{BitStream, Indexes, Subset2Map, PARTITION_SET_2},
+    bcn_data::{Subset2Map, PARTITION_SET_2},
+    decode::bcn_util::{BitStream, Indexes},
     util::unlikely_branch,
 };
 
