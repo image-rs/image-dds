@@ -127,6 +127,7 @@ fn encode_base() {
             &Header::new_image(size.width, size.height, format),
         )?;
         encoder.encoding.quality = CompressionQuality::High;
+        encoder.encoding.parallel = false;
 
         // and now the image data
         if format.precision() == Precision::U16 {
@@ -267,6 +268,7 @@ fn encode_measure_quality() {
     use ErrorMetric::*;
 
     let bc1_metrics = MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C;
+    let bc7_metrics = MetricChannelSet::RGBA | MetricChannel::C;
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
@@ -332,6 +334,27 @@ fn encode_measure_quality() {
                 MetricChannelSet::GRAY,
             )],
             images: &[base],
+        },
+        TestCase {
+            format: Format::BC7_UNORM,
+            get_overview_channel: Some(|_, _| MetricChannel::C),
+            options: vec![
+                ("fast", new_options!(Fast), bc7_metrics),
+                ("norm", new_options!(Normal), bc7_metrics),
+                ("high", new_options!(High), bc7_metrics),
+            ],
+            images: &[
+                base,
+                color_twirl,
+                bricks_d,
+                bricks_n,
+                clovers_d,
+                clovers_r,
+                stone_d,
+                grass,
+                leaves,
+                random,
+            ],
         },
     ];
 
