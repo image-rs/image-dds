@@ -26,7 +26,7 @@ This library supports a total of over 70 formats for decoding, including:
 - Over 30 uncompressed formats. E.g. `R8G8B8A8_UNORM`, `R9G9B9E5_SHAREDEXP`, `R32G32B32_FLOAT`.
 - Many YUV formats. E.g. `AYUV`, `Y416`, `YUY2`, `NV12`.
 
-Most formats support encoding. Notable exceptions are the ASTC formats ([#23](https://github.com/image-rs/image-dds/issues/23)) and BC6 (currently not planned).
+Most formats support encoding. Notable exceptions are the ASTC formats ([#23](https://github.com/image-rs/image-dds/issues/23)) and BC6 ([#88](https://github.com/image-rs/image-dds/issues/88)).
 
 For a full list of all support formats and their capabilities, see [this document](./supported-formats.md).
 
