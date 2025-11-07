@@ -3,34 +3,29 @@ use std::{io::Write, num::NonZeroU8};
 use bitflags::bitflags;
 
 use crate::{
-    cast, ColorFormat, ColorFormatSet, EncodingError, ImageView, Precision, Progress, Report,
+    cast, encode::write_util::for_each_chunk, ColorFormat, ColorFormatSet, EncodingError,
+    ImageView, Precision, Progress,
 };
 
 use super::{
-    Dithering, EncodeOptions, EncodingSupport, PreferredGroupSize, SizeMultiple, SIZE_MUL_2X2,
+    Dithering, EncodeOptions, EncodingSupport, PreferredFragmentSize, SizeMultiple, SIZE_MUL_2X2,
 };
 
 pub(crate) struct Args<'a, 'b, 'c, 'd> {
-    pub data: &'a [u8],
-    pub width: usize,
-    pub height: usize,
-    pub color: ColorFormat,
+    pub image: ImageView<'a>,
     pub writer: &'b mut dyn Write,
-    pub progress: Option<&'c mut Progress<'d>>,
+    pub progress: &'c mut Progress<'d>,
     pub options: EncodeOptions,
 }
 impl<'a, 'b, 'c, 'd> Args<'a, 'b, 'c, 'd> {
     fn from(
         image: ImageView<'a>,
         writer: &'b mut dyn Write,
-        progress: Option<&'c mut Progress<'d>>,
+        progress: &'c mut Progress<'d>,
         options: EncodeOptions,
     ) -> Result<Self, EncodingError> {
         Ok(Self {
-            data: image.data(),
-            width: image.width() as usize,
-            height: image.height() as usize,
-            color: image.color(),
+            image,
             writer,
             progress,
             options,
@@ -85,7 +80,7 @@ impl Flags {
 pub(crate) struct Encoder {
     pub color_formats: ColorFormatSet,
     pub flags: Flags,
-    group_size: PreferredGroupSize,
+    fragment_size: PreferredFragmentSize,
 
     pub encode: fn(Args) -> Result<(), EncodingError>,
 }
@@ -98,7 +93,7 @@ impl Encoder {
         Self {
             color_formats,
             flags,
-            group_size: PreferredGroupSize::EntireImage,
+            fragment_size: PreferredFragmentSize::EntireImage,
             encode,
         }
     }
@@ -109,8 +104,8 @@ impl Encoder {
         Self {
             color_formats: ColorFormatSet::from_single(color),
             flags: Flags::exact_for(color.precision),
-            group_size: PreferredGroupSize::EntireImage,
-            encode: |args| copy_directly(args),
+            fragment_size: PreferredFragmentSize::EntireImage,
+            encode: copy_directly,
         }
     }
 
@@ -118,14 +113,14 @@ impl Encoder {
         self.flags = self.flags.union(flags);
         self
     }
-    pub const fn with_group_size(mut self, group_size: PreferredGroupSize) -> Self {
-        self.group_size = group_size;
+    pub const fn with_fragment_size(mut self, fragment_size: PreferredFragmentSize) -> Self {
+        self.fragment_size = fragment_size;
         self
     }
 
     pub fn encode(&self, args: Args) -> Result<(), EncodingError> {
         assert!(
-            self.color_formats.contains(args.color),
+            self.color_formats.contains(args.image.color()),
             "Picked the wrong encoder"
         );
 
@@ -212,7 +207,7 @@ impl EncoderSet {
             split_height: self.split_height,
             local_dithering: self.local_dithering(),
             size_multiple: self.size_multiple,
-            group_size: self.encoders[0].group_size,
+            fragment_size: self.encoders[0].fragment_size,
         }
     }
 
@@ -250,7 +245,7 @@ impl EncoderSet {
         &self,
         writer: &mut dyn Write,
         image: ImageView,
-        progress: Option<&mut Progress>,
+        progress: &mut Progress,
         options: &EncodeOptions,
     ) -> Result<(), EncodingError> {
         let encoder = self.pick_encoder(image.color(), options);
@@ -261,33 +256,36 @@ impl EncoderSet {
 
 fn copy_directly(args: Args) -> Result<(), EncodingError> {
     let Args {
-        data,
-        color,
+        image,
         writer,
-        mut progress,
+        progress,
         ..
     } = args;
+    let color = image.color();
 
-    progress.report(0.0);
+    progress.checked_report(0.0)?;
 
-    // We can always just write everything directly on LE systems
-    // and when the precision is U8
-    if cfg!(target_endian = "little") || color.precision == Precision::U8 {
-        writer.write_all(data)?;
+    // sometimes we can always just write everything directly without any processing
+    if image.is_contiguous() && (cfg!(target_endian = "little") || color.precision == Precision::U8)
+    {
+        writer.write_all(image.data())?;
         return Ok(());
     }
 
-    // We need to convert to LE, so we need to allocate a buffer
-    let mut buffer = [0_u8; 4096];
-    let chuck_size = buffer.len();
-
-    for chunk in data.chunks(chuck_size) {
-        debug_assert!(chunk.len() % color.precision.size() as usize == 0);
-        let chunk_buffer = &mut buffer[..chunk.len()];
-        chunk_buffer.copy_from_slice(chunk);
-        cast::slice_ne_to_le(color.precision, chunk_buffer);
-        writer.write_all(chunk_buffer)?;
-    }
+    for_each_chunk(
+        image,
+        &mut [0_u8; 4096],
+        image.color().bytes_per_pixel() as usize,
+        |image_chunk, buffer| {
+            debug_assert_eq!(image_chunk.len(), buffer.len());
+            buffer.copy_from_slice(image_chunk);
+        },
+        |buffer| {
+            debug_assert!(buffer.len() % color.precision.size() as usize == 0);
+            cast::slice_ne_to_le(color.precision, buffer);
+            writer.write_all(buffer)
+        },
+    )?;
 
     Ok(())
 }

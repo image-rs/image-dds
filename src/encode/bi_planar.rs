@@ -8,7 +8,8 @@ use super::{
 };
 use crate::{
     cast::{self, ToLe},
-    convert_to_rgba_f32, util, yuv10, yuv16, yuv8, EncodingError, Report,
+    encode::write_util::for_each_f32_rgba_rows,
+    util, yuv10, yuv16, yuv8, EncodingError,
 };
 
 #[allow(clippy::type_complexity)]
@@ -20,16 +21,14 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     const BLOCK_HEIGHT: usize = 2;
 
     let Args {
-        data,
-        color,
+        image,
         writer,
-        width,
-        height,
         options,
-        mut progress,
+        progress,
         ..
     } = args;
-    let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
 
     if width % BLOCK_WIDTH != 0 || height % BLOCK_HEIGHT != 0 {
         return Err(EncodingError::InvalidSize(
@@ -38,36 +37,26 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         ));
     }
 
-    let mut intermediate_buffer = vec![[0_f32; 4]; width * BLOCK_HEIGHT];
     let mut plane1_buffer = vec![P1::default(); width * BLOCK_HEIGHT];
     let mut plane2: Vec<P2> = Vec::new();
 
-    let row_pitch = width * bytes_per_pixel;
     let line_group_count = util::div_ceil(height, BLOCK_HEIGHT);
     let report_frequency = util::div_ceil(1024 * 1024, width * BLOCK_HEIGHT);
-    for (group_index, line_group) in data.chunks(row_pitch * BLOCK_HEIGHT).enumerate() {
-        if group_index % report_frequency == 0 {
-            // occasionally report progress
-            progress.report(group_index as f32 / line_group_count as f32);
-        }
-
-        debug_assert!(line_group.len() % row_pitch == 0);
-        let rows_in_group = line_group.len() / row_pitch;
-
-        // fill the intermediate buffer
-        convert_to_rgba_f32(
-            color,
-            line_group,
-            &mut intermediate_buffer[..rows_in_group * width],
-        );
+    let mut group_index = 0;
+    for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| -> Result<(), EncodingError> {
+        // occasionally report progress
+        progress.checked_report_if(
+            group_index % report_frequency == 0,
+            group_index as f32 / line_group_count as f32,
+        )?;
+        group_index += 1;
 
         // handle full blocks
         for macro_x in 0..width / BLOCK_WIDTH {
             let mut block = [[0_f32; 4]; 4];
             for y in 0..BLOCK_HEIGHT {
                 for x in 0..BLOCK_WIDTH {
-                    block[y * BLOCK_WIDTH + x] =
-                        intermediate_buffer[y * width + macro_x * BLOCK_WIDTH + x];
+                    block[y * BLOCK_WIDTH + x] = rows[y * width + macro_x * BLOCK_WIDTH + x];
                 }
             }
 
@@ -82,9 +71,12 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         }
 
         P1::to_le(&mut plane1_buffer);
-        writer.write_all(cast::as_bytes(&plane1_buffer[..rows_in_group * width]))?;
-    }
+        writer.write_all(cast::as_bytes(&plane1_buffer))?;
 
+        Ok(())
+    })?;
+
+    progress.check_cancelled()?;
     P2::to_le(&mut plane2);
     writer.write_all(cast::as_bytes(&plane2))?;
 

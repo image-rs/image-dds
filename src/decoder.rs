@@ -5,7 +5,7 @@ use crate::{
     header::{Header, ParseOptions},
     iter::{SurfaceInfo, SurfaceIterator},
     util, ColorFormat, CubeMapFaces, DataLayout, DecodeOptions, DecodingError, Format,
-    ImageViewMut, Rect, Size, TextureArrayKind,
+    ImageViewMut, Offset, Size, TextureArrayKind,
 };
 
 /// A decoder for reading the pixel data of a DDS file.
@@ -124,18 +124,16 @@ impl<R> Decoder<R> {
         Ok(())
     }
 
-    /// Reads a rectangle of the next surface into the given buffer.
+    /// Reads a rectangle of the next surface into the given buffer. The
+    /// rectangle is defined by the given offset and the size of `image`.
     ///
     /// Similarly to [`Decoder::read_surface`], this operation will consume the
-    /// current surface and advance to the next one. It is not possible to read
-    /// multiple rectangles from the same surface. If this is what you want to
-    /// do, use the [`decode_rect`] function instead.
+    /// current surface and advance to the next one. Reading multiple rectangles
+    /// from the same surface is possible with [`Decoder::rewind_to_previous_surface`].
     pub fn read_surface_rect(
         &mut self,
-        buffer: &mut [u8],
-        row_pitch: usize,
-        rect: Rect,
-        color: ColorFormat,
+        image: ImageViewMut,
+        offset: Offset,
     ) -> Result<(), DecodingError>
     where
         R: Read + Seek,
@@ -144,11 +142,9 @@ impl<R> Decoder<R> {
 
         decode_rect(
             &mut self.reader,
-            buffer,
-            row_pitch,
-            color,
+            image,
+            offset,
             current.size(),
-            rect,
             self.format,
             &self.options,
         )?;
@@ -191,9 +187,7 @@ impl<R> Decoder<R> {
         R: Seek,
     {
         if let Ok(skip) = self.iter.skip_mipmaps() {
-            if skip > 0 {
-                self.reader.seek(std::io::SeekFrom::Current(skip as i64))?;
-            }
+            util::io_skip_exact(&mut self.reader, skip)?;
             Ok(())
         } else {
             Err(DecodingError::CannotSkipMipmapsInVolume)
@@ -258,10 +252,7 @@ impl<R> Decoder<R> {
         ];
 
         let color = image.color();
-        let bytes_per_pixel = color.bytes_per_pixel() as usize;
         let row_pitch = image.row_pitch();
-        let rect = Rect::new(0, 0, face_size.width, face_size.height);
-        let image_bytes = image.data();
 
         for (_, x, y) in face_offsets
             .into_iter()
@@ -272,11 +263,17 @@ impl<R> Decoder<R> {
                 return Err(DecodingError::UnexpectedSurfaceSize);
             }
 
-            let offset_x = x * face_size.width;
-            let offset_y = y * face_size.height;
-            let offset = offset_y as usize * row_pitch + offset_x as usize * bytes_per_pixel;
+            let offset = Offset::new(x * face_size.width, y * face_size.height);
 
-            self.read_surface_rect(&mut image_bytes[offset..], row_pitch, rect, color)?;
+            let crop = ImageViewMut::new_with(
+                image.cropped_data(offset, face_size),
+                row_pitch,
+                face_size,
+                color,
+            )
+            .expect("Failed to create cropped image view");
+
+            self.read_surface(crop)?;
             self.skip_mipmaps()?;
         }
 
@@ -297,7 +294,10 @@ impl<R> Decoder<R> {
         let current_bytes = self.iter.elapsed_bytes();
         self.iter.rewind();
         let previous_bytes = self.iter.elapsed_bytes();
-        let seek = previous_bytes as i64 - current_bytes as i64;
+        debug_assert!(previous_bytes <= current_bytes);
+
+        let seek = -i64::try_from(current_bytes - previous_bytes)
+            .expect("Cannot seek back more than i64::MAX bytes");
         self.reader.seek(std::io::SeekFrom::Current(seek))?;
 
         Ok(())
@@ -312,8 +312,8 @@ impl<R> Decoder<R> {
     where
         R: Seek,
     {
-        let elapsed_bytes = self.iter.elapsed_bytes();
-        let seek = -(elapsed_bytes as i64);
+        let seek = -i64::try_from(self.iter.elapsed_bytes())
+            .expect("Cannot seek back more than i64::MAX bytes");
         self.reader.seek(std::io::SeekFrom::Current(seek))?;
 
         self.iter = SurfaceIterator::new(self.layout);

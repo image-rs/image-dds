@@ -134,31 +134,31 @@ P016.dds: >
     f71a7133dc004e3de8aeff2a231b89b613c193002b42d84ed7e6aa6afcf2c4aa
 
 BC1_UNORM.dds: >
-    5bf9bf97755d8f4c7e9970dbcaf6513056bd4a3e43e216fde7bceee3f45d49df
+    d4d98156f7af9d6f644f4bd922019bde90ad22561bd491b31ed93fcb88042486
 
 BC2_UNORM.dds: >
-    d1ac3003ae97d6457ec28a81cafce7b1fb01d4a7cef6b378a081eb1dd7e38da1
+    11921f3b41dd1a69cb9a4d271b5d7553f2b091d689c2dfb8b19ba3e63ddd667f
 
 BC2_UNORM_PREMULTIPLIED_ALPHA.dds: >
-    decce77533707f8fd7e96395c6bcb78162ae2437f37d9260aa826693676dabbe
+    c695203a9836004f4947fc34346a4036ff26de1046447b7b0c13b1e74074f364
 
 BC3_UNORM.dds: >
-    5f0c6cf32ae1d9064d7c748b3931495c1007ec774e40562ae6f805ff091f4eca
+    e9c2f5a1c8b7245499fbaf9fc094c31a127e9a4bd0ba418a02df1873e7e130d4
 
 BC3_UNORM_PREMULTIPLIED_ALPHA.dds: >
-    b75e3f5a4c192e77f9847d2015fd92ebbad8bbfde158fe0936d879f47164c44a
+    cca39d093aaeee9fcb810ad147f9e65d66a961d5965d6e46b84e95a5b1c8463d
 
 BC4_UNORM.dds: >
-    7577051ab5ed9a488de58aa2d28da068a554d5ba5893b733bf887cdd8d45a438
+    5d4b68c45bfafccaa34210f2a87f3dc8bf288dd7bd57754d73fa0e75b19d9a8d
 
 BC4_SNORM.dds: >
-    dacccd042777369670c809cf3550d738dbd493f54459c07f272c81db0f416d3b
+    cec65b805e9927bfaafb4733fc97437605089ec35b88894f75914d79b9906b9f
 
 BC5_UNORM.dds: >
-    2f9df5109517e9b48362bf4827335fb2e8575a9bbcf3919b3655a37491d09f81
+    532e5a1c14c54b8d05fa46db89e3b3c0c905b5fc04b25701f63f2a1f502435d3
 
 BC5_SNORM.dds: >
-    87a0da7787d1e5134fd6ae91b8e01ce7b4b608490060da797830bfad74d7ffa5
+    19f471d97c8b025feb5b016ea3dd1854034ab58cddb615373666cfa4166df41a
 
 BC6H_UF16.dds: >
     Error: Unsupported format for encoding: BC6H_UF16
@@ -167,7 +167,7 @@ BC6H_SF16.dds: >
     Error: Unsupported format for encoding: BC6H_SF16
 
 BC7_UNORM.dds: >
-    Error: Unsupported format for encoding: BC7_UNORM
+    67fedcfadb70aaa1a200a5cbf083e034eea48ececdeb328bb0694adb8e4ceb80
 
 ASTC_4X4_UNORM.dds: >
     Error: Unsupported format for encoding: ASTC_4X4_UNORM
@@ -212,8 +212,8 @@ ASTC_12X12_UNORM.dds: >
     Error: Unsupported format for encoding: ASTC_12X12_UNORM
 
 BC3_UNORM_RXGB.dds: >
-    d5d5d409d9c5a472b958b24b074614b71114103e1db1c063eb78744972667c4a
+    a24bce1eb9d97e89d0ba817e5f9a427fb7eab0b081286b5dc1dc955ae6b770f7
 
 BC3_UNORM_NORMAL.dds: >
-    73455dcab525c3246b30d2523f0d0c05c0df47faf61ce741cec4e0d41cb8c084
+    824b1de27dcaeef76f5b8e03bf79089ffd2c0d5e732a73669b6f514340d6c49f
 

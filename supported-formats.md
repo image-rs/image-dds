@@ -16,41 +16,41 @@
 | Format                        | Color     | bpp | Header | FourCC | Encoding | Dithering  | Split  | Size Mult
 | ----------------------------- | --------- | --- | ------ | ------ | -------- | ---------- | ------ | ---------
 | — *Uncompressed*              |           |     |        |        |          |            |        |
-| R8G8B8_UNORM                  | RGB   U8  | 24  | DX9    |        | ✔️       |            | ✔️     |
-| B8G8R8_UNORM                  | RGB   U8  | 24  | DX9    |        | ✔️       |            | ✔️     |
-| R8G8B8A8_UNORM                | RGBA  U8  | 32  | ☑️     |        | ✔️       |            | ✔️     |
-| R8G8B8A8_SNORM                | RGBA  U8  | 32  | ☑️     |        | ✔️       |            | ✔️     |
-| B8G8R8A8_UNORM                | RGBA  U8  | 32  | ☑️     |        | ✔️       |            | ✔️     |
-| B8G8R8X8_UNORM                | RGB   U8  | 32  | ☑️     |        | ✔️       |            | ✔️     |
+| R8G8B8_UNORM                  | RGB   U8  | 24  | DX9    |        | ✔️       | ✔️         | ✔️     |
+| B8G8R8_UNORM                  | RGB   U8  | 24  | DX9    |        | ✔️       | ✔️         | ✔️     |
+| R8G8B8A8_UNORM                | RGBA  U8  | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R8G8B8A8_SNORM                | RGBA  U8  | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| B8G8R8A8_UNORM                | RGBA  U8  | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| B8G8R8X8_UNORM                | RGB   U8  | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | B5G6R5_UNORM                  | RGB   U8  | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | B5G5R5A1_UNORM                | RGBA  U8  | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | B4G4R4A4_UNORM                | RGBA  U8  | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | A4B4G4R4_UNORM                | RGBA  U8  | 16  | DX10   |        | ✔️       | ✔️         | ✔️     |
-| R8_SNORM                      | Gray  U8  | 8   | DX10   |        | ✔️       |            | ✔️     |
-| R8_UNORM                      | Gray  U8  | 8   | ☑️     |        | ✔️       |            | ✔️     |
-| R8G8_UNORM                    | RGB   U8  | 16  | ☑️     |        | ✔️       |            | ✔️     |
-| R8G8_SNORM                    | RGB   U8  | 16  | ☑️     |        | ✔️       |            | ✔️     |
-| A8_UNORM                      | Alpha U8  | 8   | ☑️     |        | ✔️       |            | ✔️     |
-| R16_UNORM                     | Gray  U16 | 16  | ☑️     |        | ✔️       |            | ✔️     |
-| R16_SNORM                     | Gray  U16 | 16  | DX10   |        | ✔️       |            | ✔️     |
-| R16G16_UNORM                  | RGB   U16 | 32  | ☑️     |        | ✔️       |            | ✔️     |
-| R16G16_SNORM                  | RGB   U16 | 32  | ☑️     |        | ✔️       |            | ✔️     |
-| R16G16B16A16_UNORM            | RGBA  U16 | 64  | ☑️     |        | ✔️       |            | ✔️     |
-| R16G16B16A16_SNORM            | RGBA  U16 | 64  | ☑️     |        | ✔️       |            | ✔️     |
+| R8_SNORM                      | Gray  U8  | 8   | DX10   |        | ✔️       | ✔️         | ✔️     |
+| R8_UNORM                      | Gray  U8  | 8   | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R8G8_UNORM                    | RGB   U8  | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R8G8_SNORM                    | RGB   U8  | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| A8_UNORM                      | Alpha U8  | 8   | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16_UNORM                     | Gray  U16 | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16_SNORM                     | Gray  U16 | 16  | DX10   |        | ✔️       | ✔️         | ✔️     |
+| R16G16_UNORM                  | RGB   U16 | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16G16_SNORM                  | RGB   U16 | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16G16B16A16_UNORM            | RGBA  U16 | 64  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16G16B16A16_SNORM            | RGBA  U16 | 64  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | R10G10B10A2_UNORM             | RGBA  U16 | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | R11G11B10_FLOAT               | RGB   F32 | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
-| R9G9B9E5_SHAREDEXP            | RGB   F32 | 32  | DX10   |        | ✔️       |            | ✔️     |
-| R16_FLOAT                     | Gray  F32 | 16  | ☑️     |        | ✔️       |            | ✔️     |
-| R16G16_FLOAT                  | RGB   F32 | 32  | ☑️     |        | ✔️       |            | ✔️     |
-| R16G16B16A16_FLOAT            | RGBA  F32 | 64  | ☑️     |        | ✔️       |            | ✔️     |
+| R9G9B9E5_SHAREDEXP            | RGB   F32 | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
+| R16_FLOAT                     | Gray  F32 | 16  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16G16_FLOAT                  | RGB   F32 | 32  | ☑️     |        | ✔️       | ✔️         | ✔️     |
+| R16G16B16A16_FLOAT            | RGBA  F32 | 64  | ☑️     |        | ✔️       | ✔️         | ✔️     |
 | R32_FLOAT                     | Gray  F32 | 32  | ☑️     |        | ✔️       |            | ✔️     |
 | R32G32_FLOAT                  | RGB   F32 | 64  | ☑️     |        | ✔️       |            | ✔️     |
 | R32G32B32_FLOAT               | RGB   F32 | 96  | DX10   |        | ✔️       |            | ✔️     |
 | R32G32B32A32_FLOAT            | RGBA  F32 | 128 | ☑️     |        | ✔️       |            | ✔️     |
 | R10G10B10_XR_BIAS_A2_UNORM    | RGBA  F32 | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
-| AYUV                          | RGBA  U8  | 32  | DX10   |        | ✔️       |            | ✔️     |
-| Y410                          | RGBA  U16 | 32  | DX10   |        | ✔️       | Alpha only | ✔️     |
-| Y416                          | RGBA  U16 | 64  | DX10   |        | ✔️       |            | ✔️     |
+| AYUV                          | RGBA  U8  | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
+| Y410                          | RGBA  U16 | 32  | DX10   |        | ✔️       | ✔️         | ✔️     |
+| Y416                          | RGBA  U16 | 64  | DX10   |        | ✔️       | ✔️         | ✔️     |
 | — *Subsampled*                |           |     |        |        |          |            |        |
 | R1_UNORM                      | Gray  U8  | 1   | DX10   |        | ✔️       | ✔️         | ✔️     |
 | R8G8_B8G8_UNORM               | RGB   U8  | 16  | ☑️     | RGBG   | ✔️       |            | ✔️     |
@@ -75,7 +75,7 @@
 | BC5_SNORM                     | RGB   U8  | 8   | ☑️     | BC5S   | ✔️       | ✔️ (local) | ✔️ (4) |
 | BC6H_UF16                     | RGB   F32 | 8   | DX10   |        | ❌        |            |        |
 | BC6H_SF16                     | RGB   F32 | 8   | DX10   |        | ❌        |            |        |
-| BC7_UNORM                     | RGBA  U8  | 8   | DX10   |        | ❌        |            |        |
+| BC7_UNORM                     | RGBA  U8  | 8   | DX10   |        | ✔️       | ✔️ (local) | ✔️ (4) |
 | — *ASTC*                      |           |     |        |        |          |            |        |
 | ASTC_4X4_UNORM                | RGBA  U8  | 8   | DX10   |        | ❌        |            |        |
 | ASTC_5X4_UNORM                | RGBA  U8  | 6.4 | DX10   |        | ❌        |            |        |

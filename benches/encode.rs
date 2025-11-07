@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dds::{header::*, *};
 use rand::Rng;
@@ -44,7 +46,7 @@ impl<T: 'static> Image<T> {
 trait ImageAsBytes {
     fn color(&self) -> ColorFormat;
     fn as_bytes(&self) -> &[u8];
-    fn view(&self) -> ImageView;
+    fn view(&self) -> ImageView<'_>;
 }
 impl ImageAsBytes for Image<u8> {
     fn color(&self) -> ColorFormat {
@@ -53,7 +55,7 @@ impl ImageAsBytes for Image<u8> {
     fn as_bytes(&self) -> &[u8] {
         &self.data
     }
-    fn view(&self) -> ImageView {
+    fn view(&self) -> ImageView<'_> {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
@@ -64,7 +66,7 @@ impl ImageAsBytes for Image<u16> {
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
     }
-    fn view(&self) -> ImageView {
+    fn view(&self) -> ImageView<'_> {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
@@ -75,7 +77,7 @@ impl ImageAsBytes for Image<f32> {
     fn as_bytes(&self) -> &[u8] {
         zerocopy::IntoBytes::as_bytes(self.data.as_slice())
     }
-    fn view(&self) -> ImageView {
+    fn view(&self) -> ImageView<'_> {
         ImageView::new(self.as_bytes(), self.size, self.color()).unwrap()
     }
 }
@@ -165,23 +167,26 @@ pub fn encode_compressed(c: &mut Criterion) {
     use Channels::*;
 
     // images
-    let random: Image<f32> = Image::random(Size::new(128, 128), Rgba);
+    let random_rgba: Image<f32> = Image::random(Size::new(128, 128), Rgba);
     let random_rgb: Image<f32> = Image::random(Size::new(128, 128), Rgb);
     let random_tiny: Image<f32> = Image::random(Size::new(16, 16), Rgba);
 
     // options
-    let mut fast = EncodeOptions::default();
+    let mut base = EncodeOptions::default();
+    base.parallel = false; // disable/enable parallel for benchmarking
+
+    let mut fast = base.clone();
     fast.quality = CompressionQuality::Fast;
-    let mut normal = EncodeOptions::default();
+    let mut normal = base.clone();
     normal.quality = CompressionQuality::Normal;
-    let mut high = EncodeOptions::default();
+    let mut high = base.clone();
     high.quality = CompressionQuality::High;
-    let mut dither = EncodeOptions::default();
+    let mut dither = base.clone();
     dither.quality = CompressionQuality::High;
     dither.dithering = Dithering::ColorAndAlpha;
-    let mut perceptual = EncodeOptions::default();
+    let mut perceptual = base.clone();
     perceptual.error_metric = ErrorMetric::Perceptual;
-    let mut unreasonable = EncodeOptions::default();
+    let mut unreasonable = base.clone();
     unreasonable.quality = CompressionQuality::Unreasonable;
 
     let fast = &fast;
@@ -203,6 +208,71 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, high, &random_rgb);
     bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
     // bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
+
+    bench_encoder(c, Format::BC7_UNORM, fast, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, normal, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, high, &random_rgb);
+    bench_encoder(c, Format::BC7_UNORM, fast, &random_rgba);
+    bench_encoder(c, Format::BC7_UNORM, normal, &random_rgba);
+    bench_encoder(c, Format::BC7_UNORM, high, &random_rgba);
+}
+
+pub fn encode_parallel(c: &mut Criterion) {
+    // Create a new group to make the benchmark faster.
+    // It's fine if the results are less accurate in this case.
+    let mut group = c.benchmark_group("par");
+    group.warm_up_time(std::time::Duration::from_millis(500));
+    group.measurement_time(std::time::Duration::from_secs(3));
+    group.sample_size(10);
+
+    use Channels::*;
+
+    // images
+    let random_64: Image<f32> = Image::random(Size::new(64, 64), Rgb);
+    let random_128: Image<f32> = Image::random(Size::new(128, 128), Rgb);
+    let random_256: Image<f32> = Image::random(Size::new(256, 256), Rgb);
+    let random_512: Image<f32> = Image::random(Size::new(512, 512), Rgb);
+    let random_1024: Image<f32> = Image::random(Size::new(1024, 1024), Rgb);
+    let images = [
+        &random_64,
+        &random_128,
+        &random_256,
+        &random_512,
+        &random_1024,
+    ];
+
+    for format in [Format::BC1_UNORM, Format::BC4_UNORM] {
+        for quality in [
+            CompressionQuality::Fast,
+            CompressionQuality::Normal,
+            CompressionQuality::High,
+        ] {
+            for image in images {
+                for parallel in [true, false] {
+                    let mut options = EncodeOptions::default();
+                    options.quality = quality;
+                    options.parallel = parallel;
+
+                    let name = format!(
+                        "{format:?} {quality:?} {} - {}x{} {}",
+                        if parallel { "parallel" } else { "!parallel" },
+                        image.size.width,
+                        image.size.height,
+                        image.color()
+                    );
+
+                    group.bench_function(&name, |b| {
+                        b.iter(|| {
+                            let writer = &mut black_box(std::io::sink());
+                            let image = black_box(image).view();
+                            let result = dds::encode(writer, image, format, None, &options);
+                            black_box(result).unwrap();
+                        });
+                    });
+                }
+            }
+        }
+    }
 }
 
 pub fn generate_mipmaps(c: &mut Criterion) {
@@ -235,6 +305,7 @@ criterion_group!(
     benches,
     // encode_uncompressed,
     encode_compressed,
+    // encode_parallel,
     // generate_mipmaps
 );
 criterion_main!(benches);

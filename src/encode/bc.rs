@@ -1,15 +1,19 @@
 // helpers
 
+use glam::Vec4;
+
 use crate::{
-    cast, ch, convert_to_rgba_f32, n4,
+    cast, ch,
+    encode::{bc7::Bc7Modes, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
+    n4,
     util::{self, clamp_0_1},
-    EncodingError, Report,
+    Dithering, EncodingError,
 };
 
 use super::{
-    bc1, bc4, bcn_util,
+    bc1, bc4, bc7, bcn_util,
     encoder::{Args, Encoder, EncoderSet, Flags},
-    CompressionQuality, EncodeOptions, ErrorMetric, PreferredGroupSize,
+    CompressionQuality, EncodeOptions, ErrorMetric, PreferredFragmentSize,
 };
 
 fn block_universal<
@@ -21,18 +25,15 @@ fn block_universal<
     encode_block: fn(&[[f32; 4]], usize, &EncodeOptions, &mut [u8; BLOCK_BYTES]),
 ) -> Result<(), EncodingError> {
     let Args {
-        data,
-        color,
+        image,
         writer,
-        width,
-        height,
         options,
-        mut progress,
+        progress,
         ..
     } = args;
-    let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
 
-    let mut intermediate_buffer = vec![[0_f32; 4]; width * BLOCK_HEIGHT];
     let mut encoded_buffer = vec![[0_u8; BLOCK_BYTES]; util::div_ceil(width, BLOCK_WIDTH)];
 
     // Report frequencies were chosen manually.
@@ -47,38 +48,25 @@ fn block_universal<
     };
     let block_count = util::div_ceil(width, BLOCK_WIDTH) * util::div_ceil(height, BLOCK_HEIGHT);
     let mut block_index: usize = 0;
-    let mut report_block = || {
-        if block_index % report_frequency == 0 {
-            progress.report(block_index as f32 / block_count as f32);
-        }
+    let mut report_block = || -> Result<(), EncodingError> {
+        progress.checked_report_if(
+            block_index % report_frequency == 0,
+            block_index as f32 / block_count as f32,
+        )?;
         block_index += 1;
+        Ok(())
     };
 
-    let row_pitch = width * bytes_per_pixel;
-    for line_group in data.chunks(row_pitch * BLOCK_HEIGHT) {
-        debug_assert!(line_group.len() % row_pitch == 0);
-        let rows_in_group = line_group.len() / row_pitch;
-
-        // fill the intermediate buffer
-        convert_to_rgba_f32(
-            color,
-            line_group,
-            &mut intermediate_buffer[..rows_in_group * width],
-        );
-        for i in 0..(BLOCK_HEIGHT - rows_in_group) {
-            // copy the first line to fill the rest
-            intermediate_buffer.copy_within(..width, (rows_in_group + i) * width);
-        }
-
+    for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| {
         // handle full blocks
         #[allow(clippy::needless_range_loop)]
         for block_index in 0..width / BLOCK_WIDTH {
             let block_start = block_index * BLOCK_WIDTH;
-            let block = &intermediate_buffer[block_start..];
+            let block = &rows[block_start..];
             let encoded = &mut encoded_buffer[block_index];
 
             encode_block(block, width, &options, encoded);
-            report_block();
+            report_block()?;
         }
 
         // handle last partial block
@@ -91,7 +79,7 @@ fn block_universal<
             let mut block_data = vec![[0_f32; 4]; BLOCK_WIDTH * BLOCK_HEIGHT];
             for i in 0..BLOCK_HEIGHT {
                 let row = &mut block_data[i * BLOCK_WIDTH..(i + 1) * BLOCK_WIDTH];
-                let partial_row = &intermediate_buffer[block_start + i * width..][..block_width];
+                let partial_row = &rows[block_start + i * width..][..block_width];
                 row[..block_width].copy_from_slice(partial_row);
                 let last = partial_row.last().copied().unwrap_or_default();
                 row[block_width..].fill(last);
@@ -99,13 +87,13 @@ fn block_universal<
 
             let encoded = &mut encoded_buffer[block_index];
             encode_block(&block_data, BLOCK_WIDTH, &options, encoded);
-            report_block();
+            report_block()?;
         }
 
         writer.write_all(cast::as_bytes(&encoded_buffer))?;
-    }
 
-    Ok(())
+        Ok(())
+    })
 }
 
 fn get_4x4_rgba(data: &[[f32; 4]], row_pitch: usize) -> [[f32; 4]; 16] {
@@ -113,6 +101,15 @@ fn get_4x4_rgba(data: &[[f32; 4]], row_pitch: usize) -> [[f32; 4]; 16] {
     for i in 0..4 {
         for j in 0..4 {
             block[i * 4 + j] = data[i * row_pitch + j];
+        }
+    }
+    block
+}
+fn get_4x4_rgba_vec4(data: &[[f32; 4]], row_pitch: usize) -> [Vec4; 16] {
+    let mut block: [Vec4; 16] = [Vec4::ZERO; 16];
+    for i in 0..4 {
+        for j in 0..4 {
+            block[i * 4 + j] = Vec4::from_array(data[i * row_pitch + j]);
         }
     }
     block
@@ -156,9 +153,14 @@ fn concat_blocks(left: [u8; 8], right: [u8; 8]) -> [u8; 16] {
     out
 }
 
-const BC1_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(256 * 256, 64 * 64, 64 * 64);
-const BC3_GROUP_SIZE: PreferredGroupSize = BC1_GROUP_SIZE.combine(BC4_GROUP_SIZE);
-const BC4_GROUP_SIZE: PreferredGroupSize = PreferredGroupSize::group(512 * 256, 128 * 128, 8 * 8);
+const BC1_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(64 * 64, 16 * 16, 16 * 16);
+const BC3_FRAGMENT_SIZE: PreferredFragmentSize = BC1_FRAGMENT_SIZE.combine(BC4_FRAGMENT_SIZE);
+const BC4_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(64 * 64, 32 * 32, 8 * 8);
+// TODO: adjust this later
+const BC7_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(16 * 16, 16 * 16, 16 * 16);
 
 // encoders
 
@@ -167,10 +169,17 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
         dither: options.dithering.color(),
         perceptual: options.error_metric == ErrorMetric::Perceptual,
         opaque_always_p4: options.quality <= CompressionQuality::Normal,
+        fit_optimal: options.quality >= CompressionQuality::Normal,
+        refine: options.quality >= CompressionQuality::Normal,
         refine_max_iter: match options.quality {
             CompressionQuality::Fast => 0,
-            CompressionQuality::Normal => 3,
-            CompressionQuality::High | CompressionQuality::Unreasonable => 10,
+            CompressionQuality::Normal => 0,
+            CompressionQuality::High => 4,
+            CompressionQuality::Unreasonable => 10,
+        },
+        quantization: match options.quality {
+            CompressionQuality::Fast => bcn_util::Quantization::ChannelWiseOptimized,
+            _ => bcn_util::Quantization::ChannelWise,
         },
         ..bc1::Bc1Options::default()
     }
@@ -193,7 +202,7 @@ pub(crate) const BC1_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_ALL)
-.with_group_size(BC1_GROUP_SIZE)]);
+.with_fragment_size(BC1_FRAGMENT_SIZE)]);
 
 fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
     let mut indexes: u64 = 0;
@@ -231,7 +240,7 @@ pub(crate) const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_ALL)
-.with_group_size(BC1_GROUP_SIZE)]);
+.with_fragment_size(BC1_FRAGMENT_SIZE)]);
 
 pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -248,11 +257,11 @@ pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_ALL)
-    .with_group_size(BC1_GROUP_SIZE)]);
+    .with_fragment_size(BC1_FRAGMENT_SIZE)]);
 
 fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options) {
     let mut bc1_options = get_bc1_options(options);
-    bc1_options.no_default = true;
+    bc1_options.no_p3_default = true;
 
     let mut bc4_options = get_bc4_options(options);
     bc4_options.snorm = false;
@@ -272,7 +281,7 @@ pub(crate) const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_ALL)
-.with_group_size(BC3_GROUP_SIZE)]);
+.with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -289,7 +298,7 @@ pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_ALL)
-    .with_group_size(BC3_GROUP_SIZE)]);
+    .with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 pub(crate) const BC3_UNORM_RXGB: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -316,7 +325,7 @@ pub(crate) const BC3_UNORM_RXGB: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_COLOR)
-    .with_group_size(BC3_GROUP_SIZE)]);
+    .with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 pub(crate) const BC3_UNORM_NORMAL: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
@@ -338,7 +347,7 @@ pub(crate) const BC3_UNORM_NORMAL: EncoderSet =
         })
     })
     .add_flags(Flags::DITHER_COLOR)
-    .with_group_size(BC3_GROUP_SIZE)]);
+    .with_fragment_size(BC3_FRAGMENT_SIZE)]);
 
 fn handle_bc4(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 8] {
     let block = get_4x4_grayscale(data, row_pitch);
@@ -350,9 +359,21 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
         snorm: false,
         brute_force: options.quality == CompressionQuality::Unreasonable,
         use_inter4: options.quality > CompressionQuality::Fast,
-        use_inter4_heuristic: true,
-        high_quality_quantize: options.quality >= CompressionQuality::High,
+        use_inter4_heuristic: options.quality < CompressionQuality::High,
+        quantization: match options.quality {
+            CompressionQuality::Fast => bc4::Bc4Quantization::Round,
+            CompressionQuality::Normal => bc4::Bc4Quantization::MediumQuality,
+            CompressionQuality::High => bc4::Bc4Quantization::HighQuality,
+            CompressionQuality::Unreasonable => bc4::Bc4Quantization::HighQuality,
+        },
         fast_iter: options.quality <= CompressionQuality::Normal,
+        max_refine_iter: match options.quality {
+            CompressionQuality::Fast => 0,
+            CompressionQuality::Normal => 2,
+            CompressionQuality::High => 10,
+            CompressionQuality::Unreasonable => 10,
+        },
+        size_variations: options.quality >= CompressionQuality::High,
     }
 }
 
@@ -364,7 +385,7 @@ pub(crate) const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
     block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
@@ -374,7 +395,7 @@ pub(crate) const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> [u8; 16] {
     let red_block = get_4x4_select_channel::<0>(data, row_pitch);
@@ -394,7 +415,7 @@ pub(crate) const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
     block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
@@ -404,4 +425,94 @@ pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
     })
 })
 .add_flags(Flags::DITHER_COLOR)
-.with_group_size(BC4_GROUP_SIZE)]);
+.with_fragment_size(BC4_FRAGMENT_SIZE)]);
+
+pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
+    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+        let block_vec: [Vec4; 16] = get_4x4_rgba_vec4(data, row_pitch);
+
+        let block = if options.dithering == Dithering::None {
+            block_vec.map(bc7::Rgba::round)
+        } else {
+            // This is just going to be simple 2x2 ordered dithering.
+            // This is enough to raise the color depth to approx 10 bits for smooth gradients.
+            let dither_color = if options.dithering.color() { 1.0 } else { 0.0 };
+            let dither_alpha = if options.dithering.alpha() { 1.0 } else { 0.0 };
+            let dither_mask = Vec4::new(dither_color, dither_color, dither_color, dither_alpha);
+
+            let mut block = [bc7::Rgba::new(0, 0, 0, 0); 16];
+
+            const DITHER_MATRIX: [f32; 4] = [-0.5, 0.0, 0.25, -0.25];
+
+            for y in 0..4 {
+                for x in 0..4 {
+                    let index = y * 4 + x;
+                    let pixel = block_vec[index];
+
+                    // 2x2 ordered dithering
+                    let dither_index = (x % 2) + (y % 2) * 2;
+                    let dither_weight = DITHER_MATRIX[dither_index] * (1. / 255.);
+                    let dither = dither_weight * dither_mask;
+
+                    block[index] = bc7::Rgba::round(pixel + dither);
+                }
+            }
+
+            block
+        };
+
+        let options = bc7::Bc7Options {
+            allowed_modes: match options.quality {
+                CompressionQuality::Fast => Bc7Modes::MODE0 | Bc7Modes::MODE4 | Bc7Modes::MODE6,
+                CompressionQuality::Normal => {
+                    Bc7Modes::MODE1
+                        | Bc7Modes::MODE3
+                        | Bc7Modes::MODE4
+                        | Bc7Modes::MODE5
+                        | Bc7Modes::MODE6
+                        | Bc7Modes::MODE7
+                }
+                CompressionQuality::High | CompressionQuality::Unreasonable => Bc7Modes::all(),
+            },
+            max_partitions: 64,
+            max_partition_candidates: match options.quality {
+                CompressionQuality::Fast => 1,
+                CompressionQuality::Normal => 1,
+                CompressionQuality::High => 2,
+                CompressionQuality::Unreasonable => 64,
+            },
+            fast_mode_0_partitions: options.quality == CompressionQuality::Fast,
+            quantization: match options.quality {
+                CompressionQuality::Fast => bcn_util::Quantization::ChannelWiseOptimized,
+                CompressionQuality::Normal => bcn_util::Quantization::ChannelWiseOptimized,
+                CompressionQuality::High => bcn_util::Quantization::ChannelWise,
+                CompressionQuality::Unreasonable => bcn_util::Quantization::ChannelWise,
+            },
+            allow_color_rotation: true,
+            max_color_rotations: match options.quality {
+                CompressionQuality::Fast => 1,
+                CompressionQuality::Normal => 1,
+                CompressionQuality::High => 2,
+                CompressionQuality::Unreasonable => 4,
+            },
+            fit_optimal: true,
+            max_refinement_iters: match options.quality {
+                CompressionQuality::Fast => 0,
+                CompressionQuality::Normal => 0,
+                CompressionQuality::High => 1,
+                CompressionQuality::Unreasonable => 8,
+            },
+            max_p_bit_combinations: match options.quality {
+                CompressionQuality::Fast => 1,
+                CompressionQuality::Normal => 1,
+                CompressionQuality::High => 2,
+                CompressionQuality::Unreasonable => 4,
+            },
+            force_modes: Bc7Modes::empty(),
+        };
+
+        *out = bc7::compress_bc7_block(block, options);
+    })
+})
+.add_flags(Flags::DITHER_ALL)
+.with_fragment_size(BC7_FRAGMENT_SIZE)]);

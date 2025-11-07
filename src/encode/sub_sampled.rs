@@ -1,4 +1,4 @@
-use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodingError, Report};
+use crate::{as_rgba_f32, cast, ch, n1, n8, util, yuv16, yuv8, EncodingError};
 
 use super::encoder::{Args, Encoder, EncoderSet, Flags};
 
@@ -36,15 +36,15 @@ where
     EncodedBlock: Default + Copy + cast::ToLe + cast::Castable,
 {
     let Args {
-        data,
-        color,
+        image,
         writer,
-        width,
-        height,
-        mut progress,
+        progress,
         ..
     } = args;
+    let color = image.color();
     let bytes_per_pixel = color.bytes_per_pixel() as usize;
+    let width = image.width() as usize;
+    let height = image.height() as usize;
 
     assert!(block_width >= 2);
 
@@ -58,14 +58,15 @@ where
     let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
     let mut chunk_index: usize = 0;
 
-    for (y_index, y_line) in data.chunks(width * bytes_per_pixel).enumerate() {
+    for (y_index, y_line) in image.rows().enumerate() {
         debug_assert!(y_line.len() == width * bytes_per_pixel);
 
         for chunk in y_line.chunks(chunk_size) {
-            if chunk_index % 4096 == 0 {
-                // occasionally report progress
-                progress.report(chunk_index as f32 / chunk_count as f32);
-            }
+            // occasionally report progress
+            progress.checked_report_if(
+                chunk_index % 4096 == 0,
+                chunk_index as f32 / chunk_count as f32,
+            )?;
             chunk_index += 1;
 
             let pixels = chunk.len() / bytes_per_pixel;

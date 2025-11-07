@@ -1,122 +1,184 @@
 use glam::Vec3A;
 
 trait Operations {
-    fn srgb_to_linear(c: f32) -> f32;
-    fn linear_to_srgb(c: f32) -> f32;
-    fn cbrt(x: f32) -> f32;
+    fn srgb_to_linear(c: Vec3A) -> Vec3A;
+    fn linear_to_srgb(c: Vec3A) -> Vec3A;
+    fn cbrt(x: Vec3A) -> Vec3A;
 }
 
 struct Reference;
 impl Operations for Reference {
-    fn srgb_to_linear(c: f32) -> f32 {
-        if c >= 0.04045 {
-            ((c + 0.055) / 1.055).powf(2.4)
-        } else {
-            c / 12.92
+    fn srgb_to_linear(c: Vec3A) -> Vec3A {
+        fn srgb_to_linear(c: f32) -> f32 {
+            if c >= 0.04045 {
+                ((c + 0.055) / 1.055).powf(2.4)
+            } else {
+                c / 12.92
+            }
         }
+
+        Vec3A::new(
+            srgb_to_linear(c.x),
+            srgb_to_linear(c.y),
+            srgb_to_linear(c.z),
+        )
     }
-    fn linear_to_srgb(c: f32) -> f32 {
-        if c > 0.0031308 {
-            1.055 * c.powf(1.0 / 2.4) - 0.055
-        } else {
-            12.92 * c
+    fn linear_to_srgb(c: Vec3A) -> Vec3A {
+        fn linear_to_srgb(c: f32) -> f32 {
+            if c > 0.0031308 {
+                1.055 * c.powf(1.0 / 2.4) - 0.055
+            } else {
+                12.92 * c
+            }
         }
+
+        Vec3A::new(
+            linear_to_srgb(c.x),
+            linear_to_srgb(c.y),
+            linear_to_srgb(c.z),
+        )
     }
-    fn cbrt(x: f32) -> f32 {
-        f32::cbrt(x)
+    fn cbrt(x: Vec3A) -> Vec3A {
+        Vec3A::new(x.x.cbrt(), x.y.cbrt(), x.z.cbrt())
+    }
+}
+
+/// A fast fused multiply-add operation that uses hardware FMA if available.
+/// If hardware FMA is not available, it falls back to a regular multiply-add.
+#[inline(always)]
+fn fma(a: Vec3A, b: Vec3A, c: Vec3A) -> Vec3A {
+    #[cfg(any(
+        all(
+            any(target_arch = "x86", target_arch = "x86_64"),
+            target_feature = "fma"
+        ),
+        target_arch = "aarch64"
+    ))]
+    {
+        a.mul_add(b, c)
+    }
+    #[cfg(not(any(
+        all(
+            any(target_arch = "x86", target_arch = "x86_64"),
+            target_feature = "fma"
+        ),
+        target_arch = "aarch64"
+    )))]
+    {
+        a * b + c
     }
 }
 
 struct Fast;
+#[allow(clippy::excessive_precision)]
 impl Operations for Fast {
-    fn srgb_to_linear(c: f32) -> f32 {
-        if c >= 0.04045 {
-            // This uses a Padé approximant for ((c + 0.055) / 1.055) ^ 2.4:
-            // (0.000857709 +0.0359438 x+0.524293 x^2+1.31193 x^3)/(1+0.992498 x-0.119725 x^2)
-            let c2 = c * c;
-            let c3 = c2 * c;
-            f32::min(
-                1.0,
-                (0.000857709 + 0.0359438 * c + 0.524293 * c2 + 1.31193 * c3)
-                    / (1.0 + 0.992498 * c - 0.119725 * c2),
-            )
-        } else {
-            c * (1.0 / 12.92)
-        }
+    fn srgb_to_linear(c: Vec3A) -> Vec3A {
+        Vec3A::select(
+            c.cmpge(Vec3A::splat(0.04045)),
+            {
+                // Polynomial approximation for ((c + 0.055) / 1.055) ^ 2.4
+                // This has a max error of 0.0001228 and is exact at c=0.04045 and c=1
+                const A0: f32 = 0.00117465;
+                const A1: f32 = 0.02381997;
+                const A2: f32 = 0.58750746;
+                const A3: f32 = 0.47736490;
+                const A4: f32 = -0.08986699;
+                let c2 = c * c;
+                let p01 = fma(c, Vec3A::splat(A1), Vec3A::splat(A0));
+                let p23 = fma(c, Vec3A::splat(A3), Vec3A::splat(A2));
+                let t = fma(c2, Vec3A::splat(A4), p23);
+                fma(c2, t, p01)
+            },
+            c * (1.0 / 12.92),
+        )
     }
-    fn linear_to_srgb(c: f32) -> f32 {
-        if c > 0.0031308 {
-            // This uses a Padé approximant for 1.055 c^(1/2.4) - 0.055:
-            // (-0.0117264+21.0897 x+949.46 x^2+2225.62 x^3)/(1+176.398 x+1983.15 x^2+1035.65 x^3)
-            let c2 = c * c;
-            let c3 = c2 * c;
-            (-0.0117264 + 21.0897 * c + 949.46 * c2 + 2225.62 * c3)
-                / (1.0 + 176.398 * c + 1983.15 * c2 + 1035.65 * c3)
-        } else {
-            12.92 * c
-        }
+    fn linear_to_srgb(c: Vec3A) -> Vec3A {
+        Vec3A::select(
+            c.cmpgt(Vec3A::splat(0.0031308)),
+            {
+                // This uses a Padé approximant for 1.055 c^(1/2.4) - 0.055:
+                // (-0.0117264+21.0897 x+949.46 x^2+2225.62 x^3)/(1+176.398 x+1983.15 x^2+1035.65 x^3)
+                const P0: f32 = -0.0117264;
+                const P1: f32 = 21.0897;
+                const P2: f32 = 949.46;
+                const P3: f32 = 2225.62;
+                const Q1: f32 = 176.398;
+                const Q2: f32 = 1983.15;
+                const Q3: f32 = 1035.65;
+                let c2 = c * c;
+                let p01 = fma(c, Vec3A::splat(P1), Vec3A::splat(P0));
+                let p23 = fma(c, Vec3A::splat(P3), Vec3A::splat(P2));
+                let p = fma(c2, p23, p01);
+                let q01 = fma(c, Vec3A::splat(Q1), Vec3A::ONE);
+                let q23 = fma(c, Vec3A::splat(Q3), Vec3A::splat(Q2));
+                let q = fma(c2, q23, q01);
+                p / q
+            },
+            c * 12.92,
+        )
     }
-    #[allow(clippy::excessive_precision)]
-    fn cbrt(x: f32) -> f32 {
-        // This is the fast cbrt approximation from the oklab crate.
-        // Source: https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61
-        // Author: Kornel (https://gitlab.com/kornelski/)
+    fn cbrt(x: Vec3A) -> Vec3A {
+        // This is the fast cbrt approximation inspired by the non-std cbrt
+        // implementation (https://gitlab.com/kornelski/oklab/-/blob/d3c074f154187dd5c0642119a6402a6c0753d70c/oklab/src/lib.rs#L61)
+        // in the oklab crate by Kornel (https://gitlab.com/kornelski/), which
+        // in turn seems to be based on the libm implementation.
+        // In this version, I replaced the part after the initial guess with
+        // one Halley iteration. This reduces accuracy, but saves 2 divisions
+        // which helps performance a lot.
         const B: u32 = 709957561;
-        const C: f32 = 5.4285717010e-1;
-        const D: f32 = -7.0530611277e-1;
-        const E: f32 = 1.4142856598e+0;
-        const F: f32 = 1.6071428061e+0;
-        const G: f32 = 3.5714286566e-1;
+        fn initial_guess(x: f32) -> f32 {
+            let bits = x.to_bits();
+            // divide by 3 using multiplication and bitshift
+            // this is only correct if bits <= 2^31, which is true for all
+            // positive f32 values
+            let div = ((bits as u64 * 1431655766) >> 32) as u32;
+            f32::from_bits(div + B)
+        }
+        let t = Vec3A::from_array(x.to_array().map(initial_guess));
 
-        let mut t = f32::from_bits((x.to_bits() / 3).wrapping_add(B));
-        let s = C + (t * t) * (t / x);
-        t *= G + F / (s + E + D / s);
-        t
+        // one halley iteration
+        let s = t * t * t;
+        t * fma(Vec3A::splat(2.0), x, s) / fma(Vec3A::splat(2.0), s, x)
     }
 }
 
 #[allow(clippy::excessive_precision)]
-fn srgb_to_oklab_impl<O: Operations>(rgb: Vec3A) -> Vec3A {
-    let [r, g, b] = rgb.to_array().map(O::srgb_to_linear);
+fn srgb_to_oklab_impl<O: Operations>(srgb: Vec3A) -> Vec3A {
+    let rgb = O::srgb_to_linear(srgb);
 
-    let mut l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
-    let mut m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
-    let mut s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+    let lms = Vec3A::new(
+        rgb.dot(Vec3A::new(0.4122214708, 0.5363325363, 0.0514459929)),
+        rgb.dot(Vec3A::new(0.2119034982, 0.6806995451, 0.1073969566)),
+        rgb.dot(Vec3A::new(0.0883024619, 0.2817188376, 0.6299787005)),
+    );
+    let lms = O::cbrt(lms);
 
-    l = O::cbrt(l);
-    m = O::cbrt(m);
-    s = O::cbrt(s);
-
-    let l_final = l * 0.2104542553 + m * 0.7936177850 + s * -0.0040720468;
-    let a = l * 1.9779984951 + m * -2.4285922050 + s * 0.4505937099;
-    let b = l * 0.0259040371 + m * 0.7827717662 + s * -0.8086757660;
+    let lab = Vec3A::new(
+        lms.dot(Vec3A::new(0.2104542553, 0.7936177850, -0.0040720468)),
+        lms.dot(Vec3A::new(1.9779984951, -2.4285922050, 0.4505937099)),
+        lms.dot(Vec3A::new(0.0259040371, 0.7827717662, -0.8086757660)),
+    );
 
     // normalize everything to the 0..1 range
-    Vec3A::new(l_final, a + 0.5, b + 0.5)
+    lab + Vec3A::new(0.0, 0.5, 0.5)
 }
 #[allow(clippy::excessive_precision)]
 fn oklab_to_srgb_impl<O: Operations>(lab: Vec3A) -> Vec3A {
-    let l_org = lab.x;
-    let a = lab.y - 0.5;
-    let b = lab.z - 0.5;
+    let lab_norm = lab - Vec3A::new(0.0, 0.5, 0.5);
+    let lms = Vec3A::new(
+        lab_norm.dot(Vec3A::new(1.0, 0.3963377774, 0.2158037573)),
+        lab_norm.dot(Vec3A::new(1.0, -0.1055613458, -0.0638541728)),
+        lab_norm.dot(Vec3A::new(1.0, -0.0894841775, -1.2914855480)),
+    );
+    let lms = lms * lms * lms; // lms^3
+    let rgb = Vec3A::new(
+        lms.dot(Vec3A::new(4.0767416621, -3.3077115913, 0.2309699292)),
+        lms.dot(Vec3A::new(-1.2684380046, 2.6097574011, -0.3413193965)),
+        lms.dot(Vec3A::new(-0.0041960863, -0.7034186147, 1.7076147010)),
+    );
 
-    let mut l = l_org + a * 0.3963377774 + b * 0.2158037573;
-    let mut m = l_org + a * -0.1055613458 + b * -0.0638541728;
-    let mut s = l_org + a * -0.0894841775 + b * -1.2914855480;
-
-    l = l * l * l;
-    m = m * m * m;
-    s = s * s * s;
-
-    let r = l * 4.0767416621 + m * -3.3077115913 + s * 0.2309699292;
-    let g = l * -1.2684380046 + m * 2.6097574011 + s * -0.3413193965;
-    let b = l * -0.0041960863 + m * -0.7034186147 + s * 1.7076147010;
-
-    Vec3A::new(
-        O::linear_to_srgb(r),
-        O::linear_to_srgb(g),
-        O::linear_to_srgb(b),
-    )
+    // the clamping is necessary for out-of-gamut colors
+    O::linear_to_srgb(rgb).clamp(Vec3A::ZERO, Vec3A::ONE)
 }
 
 #[allow(unused)]
@@ -176,14 +238,14 @@ mod tests {
                     let ref_oklab = srgb_to_oklab(color);
 
                     assert!(
-                        (fast_oklab - ref_oklab).abs().max_element() < 1e-3,
+                        (fast_oklab - ref_oklab).abs().max_element() < 0.001,
                         "{color:?} -> fast: {fast_oklab:?} vs ref: {ref_oklab:?}"
                     );
 
                     let srgb = fast_oklab_to_srgb(fast_oklab);
 
                     assert!(
-                        (color - srgb).abs().max_element() < 2.5e-3,
+                        (color - srgb).abs().max_element() < 0.0025,
                         "{color:?} -> {srgb:?}"
                     );
 
@@ -195,49 +257,79 @@ mod tests {
                         fast_oklab.min_element() >= 0.0,
                         "{color:?} -> {fast_oklab:?}"
                     );
+                    assert!(
+                        srgb.max_element() <= 1.0,
+                        "{color:?} -> {fast_oklab:?} -> {srgb:?}"
+                    );
+                    assert!(
+                        srgb.min_element() >= 0.0,
+                        "{color:?} -> {fast_oklab:?} -> {srgb:?}"
+                    );
                 }
             }
         }
     }
 
+    pub struct Scalar<O>(O);
+    impl<O: Operations> Scalar<O> {
+        fn srgb_to_linear(c: f32) -> f32 {
+            O::srgb_to_linear(Vec3A::splat(c)).x
+        }
+        fn linear_to_srgb(c: f32) -> f32 {
+            O::linear_to_srgb(Vec3A::splat(c)).x
+        }
+        fn cbrt(x: f32) -> f32 {
+            O::cbrt(Vec3A::splat(x)).x
+        }
+    }
+    type RefScalar = Scalar<Reference>;
+    type FastScalar = Scalar<Fast>;
+
     #[test]
     fn test_linear_srgb() {
         for c in 0..=255 {
             let c = c as f32 / 255.0;
-            let l = Reference::srgb_to_linear(c);
-            let c2 = Reference::linear_to_srgb(l);
+            let l = RefScalar::srgb_to_linear(c);
+            let c2 = RefScalar::linear_to_srgb(l);
 
             assert!((c - c2).abs() < 1e-6, "{c} -> {c2}");
         }
 
         for c in 0..=255 {
             let c = c as f32 / 255.0;
-            let l = Fast::srgb_to_linear(c);
-            let c2 = Fast::linear_to_srgb(l);
+            let l = FastScalar::srgb_to_linear(c);
+            let c2 = FastScalar::linear_to_srgb(l);
 
             assert!((c - c2).abs() < 2.5e-3, "{c} -> {c2}");
             assert!((0.0..=1.0).contains(&l), "{c} -> {l}");
             assert!((0.0..=1.0).contains(&c2), "{c} -> {l}");
         }
 
-        assert_eq!(Reference::srgb_to_linear(0.0), 0.0);
-        assert!((Reference::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
-        assert_eq!(Fast::linear_to_srgb(0.0), 0.0);
-        assert!((Fast::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
+        assert_eq!(RefScalar::srgb_to_linear(0.0), 0.0);
+        assert!((RefScalar::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
+        assert_eq!(FastScalar::linear_to_srgb(0.0), 0.0);
+        assert!((FastScalar::srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
     }
 
     #[test]
     fn test_error_fast_srgb_to_linear() {
         assert_eq!(
-            get_error_stats(Reference::srgb_to_linear, Fast::srgb_to_linear),
-            "Error: avg=0.00002514 max=0.00013047 for 0.999"
+            get_error_stats(RefScalar::srgb_to_linear, FastScalar::srgb_to_linear),
+            "Error: avg=0.00007546 max=0.00012287 for 0.641"
         );
     }
     #[test]
     fn test_error_fast_linear_to_srgb() {
         assert_eq!(
-            get_error_stats(Reference::linear_to_srgb, Fast::linear_to_srgb),
-            "Error: avg=0.00105457 max=0.00236702 for 0.732"
+            get_error_stats(RefScalar::linear_to_srgb, FastScalar::linear_to_srgb),
+            "Error: avg=0.00105456 max=0.00236708 for 0.730"
+        );
+    }
+    #[test]
+    fn test_error_fast_cbrt() {
+        assert_eq!(
+            get_error_stats(RefScalar::cbrt, FastScalar::cbrt),
+            "Error: avg=0.00000283 max=0.00001299 for 0.250"
         );
     }
 

@@ -8,11 +8,13 @@ use crate::{EncodingError, Format, ImageView, Progress, Size};
 mod bc;
 mod bc1;
 mod bc4;
+mod bc7;
 mod bcn_util;
 mod bi_planar;
 mod encoder;
 mod sub_sampled;
 mod uncompressed;
+mod write_util;
 
 use bc::*;
 use bi_planar::*;
@@ -83,6 +85,7 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::BC4_SNORM => BC4_SNORM,
         Format::BC5_UNORM => BC5_UNORM,
         Format::BC5_SNORM => BC5_SNORM,
+        Format::BC7_UNORM => BC7_UNORM,
 
         // ASTC formats
         Format::ASTC_4X4_UNORM
@@ -105,10 +108,28 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::BC3_UNORM_NORMAL => BC3_UNORM_NORMAL,
 
         // unsupported formats
-        Format::BC6H_UF16 | Format::BC6H_SF16 | Format::BC7_UNORM => return None,
+        Format::BC6H_UF16 | Format::BC6H_SF16 => return None,
     })
 }
 
+/// Encodes a single surfaces in the given format and writes the encoded pixel
+/// data to the given writer.
+///
+/// If an error is returned (or the operation is cancelled), the writer may be
+/// in an inconsistent state. Some, all, or none of the pixel data may have been
+/// written.
+///
+/// If `progress` is cancelled before this function returns,
+/// [`EncodingError::Cancelled`] is returned (unless another error occurs first).
+/// Passing `None` as `progress` is equivalent to [`Progress::none()`].
+///
+/// ## Panics
+///
+/// Panics if:
+///
+/// 1. `writer` panics during writes.
+/// 2. The underlying reporter function of `progress` panics (if given).
+/// 3. An allocation fails.
 pub fn encode(
     writer: &mut dyn Write,
     image: ImageView,
@@ -116,13 +137,22 @@ pub fn encode(
     progress: Option<&mut Progress>,
     options: &EncodeOptions,
 ) -> Result<(), EncodingError> {
+    let mut no_reporting = Progress::none();
+    let progress = progress.unwrap_or(&mut no_reporting);
+
+    // ending quickly if cancelled is a good property to have
+    progress.check_cancelled()?;
+
     #[cfg(feature = "rayon")]
     if options.parallel {
         return encode_parallel(writer, image, format, progress, options);
     }
 
     let encoders = get_encoders(format).ok_or(EncodingError::UnsupportedFormat(format))?;
-    encoders.encode(writer, image, progress, options)
+    encoders.encode(writer, image, progress, options)?;
+
+    // error if the operation was cancelled
+    progress.check_cancelled()
 }
 
 #[cfg(feature = "rayon")]
@@ -130,35 +160,37 @@ fn encode_parallel(
     writer: &mut dyn Write,
     image: ImageView,
     format: Format,
-    mut progress: Option<&mut Progress>,
+    mut progress: &mut Progress,
     options: &EncodeOptions,
 ) -> Result<(), EncodingError> {
-    use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-    use crate::Report;
+    use crate::{ParallelProgress, PixelInfo, SplitView};
 
     let mut options = options.clone();
     // don't cause an infinite loop
     options.parallel = false;
 
-    let split = crate::SplitSurface::new(image, format, &options);
+    let split = SplitView::new(image, format, &options);
 
     // optimization for single fragment
     if let Some(single) = split.single() {
-        return encode(writer, *single, format, progress, &options);
+        return encode(writer, single, format, Some(progress), &options);
     }
 
     // Prepare the parallel progress reporter. The +1 ensures that 100% is
     // reported only after everything written to disk.
     // Note: Parallel progress reporting is not supported for single-threaded
     // reporters. They will do nothing.
-    let parallel_progress = crate::ParallelProgress::new(&mut progress, image.height() as u64 + 1);
+    let parallel_progress = ParallelProgress::new(&mut progress, image.height() as u64 + 1);
 
-    let pixel_info = crate::PixelInfo::from(format);
-    let result: Result<Vec<Vec<u8>>, EncodingError> = split
-        .fragments()
-        .par_iter()
-        .map(|fragment| -> Result<Vec<u8>, EncodingError> {
+    let pixel_info = PixelInfo::from(format);
+    let result: Result<Vec<Vec<u8>>, EncodingError> = (0..split.len())
+        .into_par_iter()
+        .map(|fragment_index| -> Result<Vec<u8>, EncodingError> {
+            let fragment = split.get(fragment_index).expect("invalid fragment index");
+            parallel_progress.check_cancelled()?;
+
             // allocate exactly the right amount of memory
             let bytes: usize = pixel_info
                 .surface_bytes(fragment.size)
@@ -167,10 +199,12 @@ fn encode_parallel(
                 .expect("too many bytes");
             let mut buffer: Vec<u8> = Vec::with_capacity(bytes);
 
-            // encode the fragment without any progress reporting.
-            // progress will be reported per fragment
-            encode(&mut buffer, *fragment, format, None, &options)?;
+            // Encode the fragment without any progress reporting or cancellation.
+            // Fragments are typically very small and encoded quickly, so
+            // reporting progress or checking for cancellation is not necessary.
+            encode(&mut buffer, fragment, format, None, &options)?;
 
+            parallel_progress.check_cancelled()?;
             parallel_progress.submit(fragment.height() as u64);
 
             debug_assert_eq!(buffer.len(), bytes);
@@ -180,13 +214,12 @@ fn encode_parallel(
 
     let encoded_fragments = result?;
     for fragment in encoded_fragments {
+        progress.check_cancelled()?;
         writer.write_all(&fragment)?;
     }
 
-    // Report 100%
-    progress.report(1.0);
-
-    Ok(())
+    // report completion
+    progress.checked_report(1.0)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -243,9 +276,10 @@ impl Default for EncodeOptions {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Dithering {
     /// Dithering is disabled for all channels.
+    #[default]
     None = 0b00,
     /// Dithering is enabled for all channels (RGBA).
     ColorAndAlpha = 0b11,
@@ -283,21 +317,12 @@ impl Dithering {
         }
     }
 }
-impl Default for Dithering {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ErrorMetric {
+    #[default]
     Uniform,
     Perceptual,
-}
-impl Default for ErrorMetric {
-    fn default() -> Self {
-        Self::Uniform
-    }
 }
 
 /// The level of trade-off between compression quality and speed.
@@ -324,37 +349,38 @@ impl Default for ErrorMetric {
 ///
 /// Encoding DDS images is embarrassingly parallel, so using multiple cores
 /// should make encoding roughly 4-10x faster on normal consumer hardware.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
 pub enum CompressionQuality {
     Fast,
+    #[default]
     Normal,
     High,
     Unreasonable,
 }
-impl Default for CompressionQuality {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
-/// The preferred group size when splitting an image into chunks for parallel
-/// encoding.
+/// The preferred fragment size (=number of pixel in a fragment) when splitting
+/// an image into chunks for parallel encoding.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum PreferredGroupSize {
+pub(crate) enum PreferredFragmentSize {
+    /// Splitting the image is not preferred. The whole image should be
+    /// encoded as a single fragment.
     EntireImage,
-    Group {
+    Fragment {
         fast: u8,
         high: u8,
         unreasonable: u8,
     },
 }
-impl PreferredGroupSize {
-    pub const fn group(fast: u64, high: u64, unreasonable: u64) -> Self {
+impl PreferredFragmentSize {
+    pub const fn new(fast: u64, high: u64, unreasonable: u64) -> Self {
         const fn log2(x: u64) -> u8 {
-            64 - x.leading_zeros() as u8
+            debug_assert!(x != 0);
+            debug_assert!(x.is_power_of_two());
+
+            64 - x.leading_zeros() as u8 - 1
         }
 
-        Self::Group {
+        Self::Fragment {
             fast: log2(fast),
             high: log2(high),
             unreasonable: log2(unreasonable),
@@ -371,20 +397,20 @@ impl PreferredGroupSize {
         }
 
         match (*self, other) {
-            (PreferredGroupSize::EntireImage, _) => other,
-            (_, PreferredGroupSize::EntireImage) => *self,
+            (PreferredFragmentSize::EntireImage, _) => other,
+            (_, PreferredFragmentSize::EntireImage) => *self,
             (
-                PreferredGroupSize::Group {
+                PreferredFragmentSize::Fragment {
                     fast: a,
                     high: b,
                     unreasonable: c,
                 },
-                PreferredGroupSize::Group {
+                PreferredFragmentSize::Fragment {
                     fast: x,
                     high: y,
                     unreasonable: z,
                 },
-            ) => PreferredGroupSize::Group {
+            ) => PreferredFragmentSize::Fragment {
                 fast: u8_min(a, x),
                 high: u8_min(b, y),
                 unreasonable: u8_min(c, z),
@@ -392,10 +418,12 @@ impl PreferredGroupSize {
         }
     }
 
-    pub fn get_group_pixels(&self, quality: CompressionQuality) -> u64 {
+    /// Returns the preferred number of pixels in a fragment for the given
+    /// compression quality.
+    pub fn get_preferred(&self, quality: CompressionQuality) -> u64 {
         match *self {
-            PreferredGroupSize::EntireImage => u64::MAX,
-            PreferredGroupSize::Group {
+            PreferredFragmentSize::EntireImage => u64::MAX,
+            PreferredFragmentSize::Fragment {
                 fast,
                 high,
                 unreasonable,
@@ -429,7 +457,7 @@ pub struct EncodingSupport {
     split_height: Option<NonZeroU8>,
     local_dithering: bool,
     size_multiple: Option<SizeMultiple>,
-    group_size: PreferredGroupSize,
+    pub(crate) fragment_size: PreferredFragmentSize,
 }
 
 impl EncodingSupport {
@@ -449,7 +477,7 @@ impl EncodingSupport {
     /// height that is a multiple of 4. So e.g. an image with a height of 10
     /// pixels can split into chunks with heights of 4-4-2, 8-2, 4-6, or 10.
     ///
-    /// [`SplitSurface`](crate::SplitSurface) will automatically split the image into chunks
+    /// [`SplitView`](crate::SplitView) will automatically split the image into chunks
     /// of the correct height, so this value is only relevant if you are
     /// implementing your own encoder/splitter.
     ///
@@ -531,9 +559,5 @@ impl EncodingSupport {
         } else {
             true
         }
-    }
-
-    pub(crate) fn group_size(&self) -> PreferredGroupSize {
-        self.group_size
     }
 }

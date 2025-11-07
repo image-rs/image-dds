@@ -1,4 +1,6 @@
-use std::sync::Mutex;
+use std::sync::{atomic::AtomicBool, Arc, Mutex};
+
+use crate::EncodingError;
 
 trait ThreadSafeReporter: Send {
     fn report(&mut self, progress: f32);
@@ -9,13 +11,10 @@ impl<F: FnMut(f32) + Send> ThreadSafeReporter for F {
     }
 }
 
-pub(crate) trait Report {
-    fn report(&mut self, progress: f32);
-}
-
 enum ProgressInner<'a> {
     Send(&'a mut dyn ThreadSafeReporter),
     Bound(&'a mut dyn FnMut(f32)),
+    None,
 }
 
 #[derive(Clone, Copy)]
@@ -70,7 +69,7 @@ impl Default for ProgressRange {
 /// has been reported, the next report may be 40% again, 42%, or similar, but
 /// never 39% or lower. In particular, there may be multiple reports for 100%.
 ///
-/// ### Multi-threaded progress reporting
+/// ## Multi-threaded progress reporting
 ///
 /// Encoding may happen in parallel across multiple threads. As such, progress
 /// reports may come from multiple threads at the same time.
@@ -87,9 +86,17 @@ impl Default for ProgressRange {
 /// Note that single-threaded progress reporters will **not** prevent or
 /// interfere with parallel encoding in any way. There's no performance
 /// penalty.
+///
+/// ## Cancellation
+///
+/// A progress reporter may optionally be initialized with a
+/// [`CancellationToken`] using [`with_cancellation()`](Progress::with_cancellation).
+/// This allows operations that receive a [`Progress`] to be cancelled
+/// cooperatively and concurrently.
 pub struct Progress<'a> {
     reporter: ProgressInner<'a>,
     range: ProgressRange,
+    cancel: Option<CancellationToken>,
 }
 impl<'a> Progress<'a> {
     /// Creates a new progress reporter.
@@ -100,6 +107,7 @@ impl<'a> Progress<'a> {
         Self {
             reporter: ProgressInner::Send(reporter),
             range: ProgressRange::FULL,
+            cancel: None,
         }
     }
     /// Creates a new progress reporter.
@@ -110,7 +118,26 @@ impl<'a> Progress<'a> {
         Self {
             reporter: ProgressInner::Bound(reporter),
             range: ProgressRange::FULL,
+            cancel: None,
         }
+    }
+    /// Creates a progress reporter that does nothing when reporting progress.
+    ///
+    /// This can be used in combination with [`with_cancellation`](Progress::with_cancellation)
+    /// to create a progress reporter that only handles cancellation.
+    pub fn none() -> Self {
+        Self {
+            reporter: ProgressInner::None,
+            range: ProgressRange::FULL,
+            cancel: None,
+        }
+    }
+
+    /// Sets a cancellation token that can be used to cancel an operation given
+    /// this progress reporter.
+    pub fn with_cancellation(mut self, token: &CancellationToken) -> Self {
+        self.cancel = Some(token.clone());
+        self
     }
 
     /// Calls the underlying reporter function with the given progress.
@@ -126,6 +153,18 @@ impl<'a> Progress<'a> {
         match &mut self.reporter {
             ProgressInner::Send(report) => report.report(progress),
             ProgressInner::Bound(report) => report(progress),
+            ProgressInner::None => {}
+        }
+    }
+
+    /// Returns whether the operation has been cancelled.
+    ///
+    /// If no [`CancellationToken`] was set, this will always return `false`.
+    pub fn is_cancelled(&self) -> bool {
+        if let Some(cancel) = &self.cancel {
+            cancel.is_cancelled()
+        } else {
+            false
         }
     }
 
@@ -135,30 +174,109 @@ impl<'a> Progress<'a> {
             reporter: match &mut self.reporter {
                 ProgressInner::Send(f) => ProgressInner::Send(*f),
                 ProgressInner::Bound(f) => ProgressInner::Bound(*f),
+                ProgressInner::None => ProgressInner::None,
             },
             range,
+            cancel: self.cancel.clone(),
         }
     }
-}
-impl Report for Progress<'_> {
-    fn report(&mut self, progress: f32) {
-        self.report(progress);
+
+    pub(crate) fn check_cancelled(&self) -> Result<(), EncodingError> {
+        if self.is_cancelled() {
+            Err(EncodingError::Cancelled)
+        } else {
+            Ok(())
+        }
     }
-}
-impl Report for Option<&mut Progress<'_>> {
-    fn report(&mut self, progress: f32) {
-        if let Some(reporter) = self {
-            reporter.report(progress);
+    pub(crate) fn checked_report(&mut self, progress: f32) -> Result<(), EncodingError> {
+        self.check_cancelled()?;
+        self.report(progress);
+        Ok(())
+    }
+    /// Always checks if the operation has been cancelled, and reports progress if the condition is true.
+    pub(crate) fn checked_report_if(
+        &mut self,
+        cond: bool,
+        progress: f32,
+    ) -> Result<(), EncodingError> {
+        if cond {
+            self.checked_report(progress)
+        } else {
+            self.check_cancelled()
         }
     }
 }
 
-pub(crate) fn sub_progress<'a>(
-    progress: &'a mut Option<&mut Progress>,
-    range: ProgressRange,
-) -> Option<Progress<'a>> {
-    progress.as_mut().map(|progress| progress.sub_range(range))
+/// A token that can be used to cooperatively cancel an operation.
+///
+/// A `CancellationToken` can be shared between multiple threads. When one
+/// thread calls [`cancel()`](CancellationToken::cancel), other threads can
+/// check the cancellation state using [`is_cancelled()`](CancellationToken::is_cancelled).
+///
+/// ## Linked tokens
+///
+/// Cloning a `CancellationToken` will result in a new token that shares the
+/// same cancellation state. Cancelling one token will cancel all clones and
+/// vice versa. This behavior can be used to cancel multiple operations at
+/// once.
+pub struct CancellationToken {
+    cancelled: Arc<AtomicBool>,
 }
+impl CancellationToken {
+    /// Creates a new cancellation token that is not cancelled.
+    pub fn new() -> Self {
+        Self {
+            cancelled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Sets the cancellation state to cancelled.
+    ///
+    /// Any operation that checks this cancellation state will be cancelled,
+    /// unless the cancellation state has been [reset](Self::reset) before the
+    /// check.
+    pub fn cancel(&self) {
+        self.cancelled
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Resets the cancellation state to not cancelled.
+    ///
+    /// If operations that have previously been cancelled are still running
+    /// while the cancellation state is reset, they may continue running til
+    /// completion or be cancelled again. To cancel operations properly, only
+    /// reset after all operations checking the cancellation state have
+    /// completed.
+    pub fn reset(&self) {
+        self.cancelled
+            .store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Returns whether the operation has been cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+impl Default for CancellationToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+impl Clone for CancellationToken {
+    /// Creates a clone of this [`CancellationToken`], which will be cancelled
+    /// if this token gets cancelled and vice versa. The cancellation state is
+    /// shared between all clones.
+    fn clone(&self) -> Self {
+        CancellationToken {
+            cancelled: self.cancelled.clone(),
+        }
+    }
+}
+const _: () = {
+    // Ensure CancellationToken is Send + Sync
+    fn assert_send_sync<T: Send + Sync>() {}
+    let _ = assert_send_sync::<CancellationToken>;
+};
 
 /// The current progress and a function to report it.
 type InnerState<'a> = (u64, &'a mut dyn ThreadSafeReporter);
@@ -166,21 +284,18 @@ pub(crate) struct ParallelProgress<'a> {
     progress: Option<Mutex<InnerState<'a>>>,
     total: u64,
     range: ProgressRange,
+    cancel: Option<CancellationToken>,
 }
 impl<'a> ParallelProgress<'a> {
-    pub fn new(progress: &'a mut Option<&mut Progress>, total: u64) -> Self {
-        let range = progress.as_ref().map(|p| p.range).unwrap_or_default();
-
+    pub fn new(progress: &'a mut &mut Progress, total: u64) -> Self {
         Self {
-            progress: match progress {
-                Some(Progress {
-                    reporter: ProgressInner::Send(f),
-                    ..
-                }) => Some(Mutex::new((0, *f))),
+            progress: match &mut progress.reporter {
+                ProgressInner::Send(f) => Some(Mutex::new((0, *f))),
                 _ => None,
             },
             total,
-            range,
+            range: progress.range,
+            cancel: progress.cancel.clone(),
         }
     }
 
@@ -190,6 +305,20 @@ impl<'a> ParallelProgress<'a> {
             guard.0 += progress;
             let progress = self.range.project(guard.0 as f32 / self.total as f32);
             guard.1.report(progress);
+        }
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel
+            .as_ref()
+            .map(|c| c.is_cancelled())
+            .unwrap_or(false)
+    }
+    pub fn check_cancelled(&self) -> Result<(), EncodingError> {
+        if self.is_cancelled() {
+            Err(EncodingError::Cancelled)
+        } else {
+            Ok(())
         }
     }
 }

@@ -1,10 +1,38 @@
-use std::path::{Path, PathBuf};
-
 use dds::{header::*, *};
 use rand::{Rng, RngCore};
-use util::{test_data_dir, Image, WithPrecision};
+use std::path::{Path, PathBuf};
+
+use util::{test_data_dir, Image, Snapshot, WithPrecision};
 
 mod util;
+
+trait SetConfiguration<T> {
+    fn set(&mut self, value: T);
+}
+impl SetConfiguration<CompressionQuality> for EncodeOptions {
+    fn set(&mut self, value: CompressionQuality) {
+        self.quality = value;
+    }
+}
+impl SetConfiguration<ErrorMetric> for EncodeOptions {
+    fn set(&mut self, value: ErrorMetric) {
+        self.error_metric = value;
+    }
+}
+impl SetConfiguration<Dithering> for EncodeOptions {
+    fn set(&mut self, value: Dithering) {
+        self.dithering = value;
+    }
+}
+macro_rules! new_options {
+    ($($e:expr),*) => {{
+        let mut options = EncodeOptions::default();
+        $(
+            options.set($e);
+        )*
+        options
+    }};
+}
 
 fn get_sample(name: &str) -> PathBuf {
     util::test_data_dir().join("samples").join(name)
@@ -99,6 +127,7 @@ fn encode_base() {
             &Header::new_image(size.width, size.height, format),
         )?;
         encoder.encoding.quality = CompressionQuality::High;
+        encoder.encoding.parallel = false;
 
         // and now the image data
         if format.precision() == Precision::U16 {
@@ -158,10 +187,8 @@ fn encode_dither() {
         Ok(hex)
     }
 
-    let base = util::read_png_u8(&get_sample("base.png")).unwrap().to_f32();
-    let twirl = util::read_png_u8(&get_sample("color-twirl.png"))
-        .unwrap()
-        .to_f32();
+    let base = util::read_png_f32(&get_sample("base.png")).unwrap();
+    let twirl = util::read_png_f32(&get_sample("color-twirl.png")).unwrap();
 
     let ignore = [Format::BC4_SNORM, Format::BC5_UNORM, Format::BC5_SNORM];
 
@@ -195,6 +222,8 @@ fn encode_dither() {
 #[cfg(not(coverage))]
 #[test]
 fn encode_measure_quality() {
+    use crate::util::{MetricChannel, MetricChannelSet};
+
     let base = &TestImage::from_file("base.png");
     let color_twirl = &TestImage::from_file("color-twirl.png");
     let bricks_d = &TestImage::from_file("bricks-d.png");
@@ -220,7 +249,7 @@ fn encode_measure_quality() {
             }
         }
         fn from_file(name: &str) -> Self {
-            let image = util::read_png_u8(&get_sample(name)).unwrap().to_f32();
+            let image = util::read_png_f32(&get_sample(name)).unwrap();
 
             Self {
                 name: name.to_string(),
@@ -230,52 +259,42 @@ fn encode_measure_quality() {
     }
     struct TestCase<'a> {
         format: Format,
-        options: Vec<(&'a str, EncodeOptions)>,
+        options: Vec<(&'a str, EncodeOptions, MetricChannelSet)>,
+        get_overview_channel: Option<fn(&EncodeOptions, MetricChannelSet) -> MetricChannel>,
         images: &'a [&'a TestImage],
     }
 
-    fn new_options(f: impl FnOnce(&mut EncodeOptions)) -> EncodeOptions {
-        let mut options = EncodeOptions::default();
-        f(&mut options);
-        options
-    }
+    use CompressionQuality::*;
+    use ErrorMetric::*;
 
+    let bc1_metrics = MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C;
+    let bc7_metrics = MetricChannelSet::RGBA | MetricChannel::C;
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
+            get_overview_channel: Some(|options, _| {
+                if options.error_metric == Perceptual {
+                    MetricChannel::L
+                } else {
+                    MetricChannel::C
+                }
+            }),
             options: vec![
+                ("uni fast", new_options!(Fast, Uniform), bc1_metrics),
+                ("uni norm", new_options!(Normal, Uniform), bc1_metrics),
+                ("uni high", new_options!(High, Uniform), bc1_metrics),
+                ("per fast", new_options!(Fast, Perceptual), bc1_metrics),
+                ("per norm", new_options!(Normal, Perceptual), bc1_metrics),
+                ("per high", new_options!(High, Perceptual), bc1_metrics),
                 (
-                    "fast",
-                    new_options(|options| options.quality = CompressionQuality::Fast),
+                    "dith uni",
+                    new_options!(High, Uniform, Dithering::ColorAndAlpha),
+                    bc1_metrics | MetricChannel::A,
                 ),
                 (
-                    "normal",
-                    new_options(|options| options.quality = CompressionQuality::Normal),
-                ),
-                (
-                    "high",
-                    new_options(|options| options.quality = CompressionQuality::High),
-                ),
-                (
-                    "dither",
-                    new_options(|options| {
-                        options.dithering = Dithering::ColorAndAlpha;
-                    }),
-                ),
-                (
-                    "perc",
-                    new_options(|options| {
-                        options.quality = CompressionQuality::High;
-                        options.error_metric = ErrorMetric::Perceptual;
-                    }),
-                ),
-                (
-                    "perc d",
-                    new_options(|options| {
-                        options.quality = CompressionQuality::High;
-                        options.dithering = Dithering::Color;
-                        options.error_metric = ErrorMetric::Perceptual;
-                    }),
+                    "dith per",
+                    new_options!(High, Perceptual, Dithering::ColorAndAlpha),
+                    bc1_metrics | MetricChannel::A,
                 ),
             ],
             images: &[
@@ -293,54 +312,68 @@ fn encode_measure_quality() {
         },
         TestCase {
             format: Format::BC4_UNORM,
+            get_overview_channel: None,
             options: vec![
-                (
-                    "fast",
-                    new_options(|options| options.quality = CompressionQuality::Fast),
-                ),
-                (
-                    "normal",
-                    new_options(|options| options.quality = CompressionQuality::Normal),
-                ),
-                (
-                    "high",
-                    new_options(|options| options.quality = CompressionQuality::High),
-                ),
+                ("fast", new_options!(Fast), MetricChannelSet::GRAY),
+                ("normal", new_options!(Normal), MetricChannelSet::GRAY),
+                ("high", new_options!(High), MetricChannelSet::GRAY),
                 (
                     "dither",
-                    new_options(|options| {
-                        options.quality = CompressionQuality::High;
-                        options.dithering = Dithering::ColorAndAlpha;
-                    }),
+                    new_options!(High, Dithering::ColorAndAlpha),
+                    MetricChannelSet::GRAY,
                 ),
             ],
             images: &[base, color_twirl, clovers_r, stone_h, random],
         },
         TestCase {
             format: Format::BC4_UNORM,
+            get_overview_channel: None,
             options: vec![(
                 "ref",
-                new_options(|options| {
-                    options.quality = CompressionQuality::Unreasonable;
-                }),
+                new_options!(CompressionQuality::Unreasonable),
+                MetricChannelSet::GRAY,
             )],
             images: &[base],
+        },
+        TestCase {
+            format: Format::BC7_UNORM,
+            get_overview_channel: Some(|_, _| MetricChannel::C),
+            options: vec![
+                ("fast", new_options!(Fast), bc7_metrics),
+                ("norm", new_options!(Normal), bc7_metrics),
+                ("high", new_options!(High), bc7_metrics),
+            ],
+            images: &[
+                base,
+                color_twirl,
+                bricks_d,
+                bricks_n,
+                clovers_d,
+                clovers_r,
+                stone_d,
+                grass,
+                leaves,
+                random,
+            ],
         },
     ];
 
     let mut output_summaries = util::OutputSummaries::new("_hashes");
     struct ConfigMetrics(String, Vec<util::Metrics>);
+    struct ImageMeasurements {
+        image_name: String,
+        info: ImageInfo,
+        metrics_for_config: Vec<ConfigMetrics>,
+    }
+    #[derive(Clone)]
     struct ImageInfo {
         has_alpha: bool,
     }
     #[allow(clippy::type_complexity)]
-    let mut collect_metrics = |case: &TestCase| -> Result<
-        Vec<(String, ImageInfo, Vec<ConfigMetrics>)>,
-        Box<dyn std::error::Error>,
-    > {
+    let mut collect_metrics = |case: &TestCase| -> Result<_, Box<dyn std::error::Error>> {
         let options = case.options.clone();
 
-        let mut data: Vec<(String, ImageInfo, Vec<ConfigMetrics>)> = Vec::new();
+        let mut data: Vec<ImageMeasurements> = Vec::new();
 
         for image in case.images {
             let name = &image.name;
@@ -351,10 +384,12 @@ fn encode_measure_quality() {
                     || org_image.channels == Channels::Alpha,
             };
 
-            let image = org_image.to_channels(case.format.channels());
+            let image = org_image
+                .to_channels(case.format.channels())
+                .to_channels(Channels::Rgba);
             let mut metric_list: Vec<ConfigMetrics> = Vec::new();
 
-            for (opt_name, options) in &options {
+            for (opt_name, options, metric_channels) in &options {
                 let output_file = test_data_dir()
                     .join("output-encode/compression")
                     .join(format!(
@@ -372,78 +407,119 @@ fn encode_measure_quality() {
                 output_summaries.add_output_file(&output_file, &hash);
 
                 // get metrics
-                let metrics = util::measure_compression_quality(&image, &encoded_image);
+                let metrics =
+                    util::measure_compression_quality(&image, &encoded_image, *metric_channels);
 
                 metric_list.push(ConfigMetrics(opt_name.to_string(), metrics));
             }
 
-            data.push((name.to_string(), info, metric_list));
+            data.push(ImageMeasurements {
+                image_name: name.to_string(),
+                info,
+                metrics_for_config: metric_list,
+            });
         }
 
         // summary
         if data.len() > 1 {
-            let mut summary: Vec<ConfigMetrics> = Vec::new();
-            for (index, (opt_name, _)) in options.iter().enumerate() {
-                let mut averages: Vec<util::Metrics> = Vec::new();
-                let scale = 1.0 / data.len() as f64;
-                for (_, _, metrics_for_config) in &data {
-                    let metrics = &metrics_for_config[index].1;
-                    for m in metrics {
-                        let avg: &mut util::Metrics = if let Some(avg) =
-                            averages.iter_mut().find(|avg| avg.channel == m.channel)
-                        {
-                            avg
-                        } else {
-                            averages.push(util::Metrics {
-                                channel: m.channel,
-                                mse: 0.0,
-                                mse_blur: 0.0,
-                                region_error: 0.0,
-                            });
-                            averages.last_mut().unwrap()
-                        };
-
-                        avg.mse += m.mse * scale;
-                        avg.mse_blur += m.mse_blur * scale;
-                        avg.region_error += m.region_error * scale;
-                    }
-                }
-
-                summary.push(ConfigMetrics(opt_name.to_string(), averages));
-            }
-            data.insert(
-                0,
-                (
-                    "Summary".to_string(),
-                    ImageInfo { has_alpha: true },
-                    summary,
-                ),
-            );
+            let summary = create_measurement_summary(&data);
+            data.insert(0, summary);
         }
 
         Ok(data)
     };
-    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
-        let mut output = String::new();
-
-        let options = case.options.clone();
-        for (name, option) in &options {
-            output.push_str(&format!("- {name}: {option:?}\n"));
+    fn create_measurement_summary(data: &[ImageMeasurements]) -> ImageMeasurements {
+        let mut option_names: Vec<String> = Vec::new();
+        for m in &data[0].metrics_for_config {
+            option_names.push(m.0.clone());
         }
-        output.push('\n');
 
+        let mut summary: Vec<ConfigMetrics> = Vec::new();
+        for (index, opt_name) in option_names.into_iter().enumerate() {
+            let mut averages: Vec<util::Metrics> = Vec::new();
+            let scale = 1.0 / data.len() as f64;
+            for measurement in data {
+                let metrics = &measurement.metrics_for_config[index].1;
+                for m in metrics {
+                    let avg: &mut util::Metrics = if let Some(avg) =
+                        averages.iter_mut().find(|avg| avg.channel == m.channel)
+                    {
+                        avg
+                    } else {
+                        averages.push(util::Metrics {
+                            channel: m.channel,
+                            mse: 0.0,
+                            mse_blur: 0.0,
+                            region_error: 0.0,
+                        });
+                        averages.last_mut().unwrap()
+                    };
+
+                    avg.mse += m.mse * scale;
+                    avg.mse_blur += m.mse_blur * scale;
+                    avg.region_error += m.region_error * scale;
+                }
+            }
+
+            summary.push(ConfigMetrics(opt_name.to_string(), averages));
+        }
+
+        ImageMeasurements {
+            image_name: "Summary".to_string(),
+            info: ImageInfo { has_alpha: true },
+            metrics_for_config: summary,
+        }
+    }
+    fn create_overview(
+        data: &[ImageMeasurements],
+        channel_for_config: &[MetricChannel],
+    ) -> Vec<ImageMeasurements> {
+        let mut overview: Vec<ImageMeasurements> = Vec::new();
+
+        for measurement in data {
+            assert_eq!(
+                measurement.metrics_for_config.len(),
+                channel_for_config.len()
+            );
+
+            let mut metrics_for_config: Vec<ConfigMetrics> = Vec::new();
+
+            for (metrics, &overview_channel) in measurement
+                .metrics_for_config
+                .iter()
+                .zip(channel_for_config.iter())
+            {
+                let m = metrics
+                    .1
+                    .iter()
+                    .find(|m| m.channel == overview_channel)
+                    .unwrap_or(&metrics.1[0]);
+
+                metrics_for_config.push(ConfigMetrics(metrics.0.clone(), vec![m.clone()]));
+            }
+
+            overview.push(ImageMeasurements {
+                image_name: measurement.image_name.clone(),
+                info: measurement.info.clone(),
+                metrics_for_config,
+            });
+        }
+
+        overview
+    }
+    fn create_table(data: &[ImageMeasurements]) -> util::PrettyTable {
         let mut table =
             util::PrettyTable::from_header(&["", "", "", "↑PSNR", "↑PSNR B", "↓Region err"]);
 
-        for (name, info, metrics_for_config) in collect_metrics(case)? {
+        for measurement in data {
             table.add_empty_row();
 
             let mut name_mentioned = false;
-            for ConfigMetrics(opt_name, metrics) in metrics_for_config {
+            for ConfigMetrics(opt_name, metrics) in &measurement.metrics_for_config {
                 let mut opt_mentioned = false;
                 let mut printed_metrics = 0;
                 for m in metrics {
-                    if m.channel == util::MetricChannel::A && !info.has_alpha {
+                    if m.channel == util::MetricChannel::A && !measurement.info.has_alpha {
                         continue;
                     }
 
@@ -451,7 +527,7 @@ fn encode_measure_quality() {
                         if name_mentioned {
                             String::new()
                         } else {
-                            name.to_string()
+                            measurement.image_name.clone()
                         },
                         if opt_mentioned {
                             String::new()
@@ -473,13 +549,46 @@ fn encode_measure_quality() {
             }
         }
 
-        table.print_markdown(&mut output);
+        table
+    }
+    let mut collect_info = |case: &TestCase| -> Result<String, Box<dyn std::error::Error>> {
+        let mut output = String::new();
+
+        let options = case.options.clone();
+        for (name, option, _) in &options {
+            output.push_str(&format!("- {name}: {option:?}\n"));
+        }
+        output.push('\n');
+
+        let measurements = collect_metrics(case)?;
+
+        if let Some(get_overview_channel) = case.get_overview_channel {
+            let mut overview_channels = Vec::new();
+            for option in &case.options {
+                overview_channels.push(get_overview_channel(&option.1, option.2));
+            }
+            let overview = create_overview(&measurements, &overview_channels);
+            create_table(&overview).print_markdown(&mut output);
+
+            output.push_str("\n<details>\n<summary>Full details</summary>\n\n");
+            create_table(&measurements).print_markdown(&mut output);
+            output.push_str("\n</details>\n");
+        } else {
+            create_table(&measurements).print_markdown(&mut output);
+        }
+
         Ok(output)
     };
 
     let mut output = r"# Encode quality
 
 <!-- This file is generated by `tests/encode.rs` -->
+
+**Channels:**
+- **R/G/B/A:** Red, green, blue, and alpha channels.
+- **C:** Average error of R+G+B.
+- **L:** Oklab luminance channel.
+- **Gray:** Grayscale. This is the same as (R+G+B)/3.
 
 **Metrics:**
 - **↑PSNR:** Peak Signal to Noise Ratio.
@@ -501,7 +610,7 @@ fn encode_measure_quality() {
     }
 
     _ = output_summaries.snapshot();
-    util::compare_snapshot_text(&util::test_data_dir().join("encode_quality.md"), &output).unwrap();
+    util::TextSnapshot.assert(&util::test_data_dir().join("encode_quality.md"), &output);
 }
 
 #[test]
@@ -557,11 +666,10 @@ fn block_dither() {
     image.size.height *= 2;
     image.data.extend_from_slice(&image_smooth.data);
 
-    util::compare_snapshot_png_u8(
+    util::PngSnapshot.assert(
         &util::test_data_dir().join("output-encode/dither.png"),
         &image,
-    )
-    .unwrap();
+    );
 }
 
 /// Ensures that all color formats can be encoded (1) without error and (2)
@@ -637,29 +745,21 @@ fn encode_mipmap() {
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
         let mut decoded: Image<u8> =
             Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
-        let color = ColorFormat::RGBA_U8;
-        let stride = decoded.size.width as usize * 4;
-        decoder.read_surface_rect(
-            decoded.as_bytes_mut(),
-            stride,
-            Rect::new(0, 0, width, height),
-            color,
-        )?;
+        decoder.read_surface(decoded.view_mut().cropped(Offset::ZERO, base.size))?;
         let mut offset_y = 0;
         while let Some(info) = decoder.surface_info() {
             let mip_size = info.size();
 
-            decoder.read_surface_rect(
-                &mut decoded.as_bytes_mut()[offset_y * stride + (width as usize * 4)..],
-                stride,
-                Rect::new(0, 0, mip_size.width, mip_size.height),
-                color,
+            decoder.read_surface(
+                decoded
+                    .view_mut()
+                    .cropped(Offset::new(width, offset_y), mip_size),
             )?;
 
-            offset_y += mip_size.height as usize;
+            offset_y += mip_size.height;
         }
 
-        _ = util::update_snapshot_png_u8(snap_path, &decoded)?;
+        _ = util::PngSnapshot.write(snap_path, &decoded)?;
 
         let hex = util::hash_hex(&decoded.data);
         Ok(hex)
@@ -790,6 +890,84 @@ fn test_unaligned() {
                     "Failed for {format:?} {color:?} {mipmaps:?}"
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn test_row_pitch() {
+    for &color in util::ALL_COLORS {
+        let bpp = color.bytes_per_pixel() as usize;
+
+        let backing_size = Size::new(256, 256);
+        let mut buffer = vec![0_u8; backing_size.pixels() as usize * bpp];
+        util::create_rng().fill_bytes(&mut buffer);
+        let backing = ImageView::new(&buffer, backing_size, color).unwrap();
+
+        // I'm using prime numbers for the rect to make things as difficult as possible for the impl
+        let image = backing.cropped(Offset::new(13, 29), Size::new(17, 51));
+
+        // create a contiguous version of the image
+        let mut cont = vec![0_u8; image.size().pixels() as usize * bpp];
+        let row_pitch = image.row_pitch();
+        let bytes_per_row = image.size().width as usize * bpp;
+        let data = image.data();
+        for y in 0..image.size().height as usize {
+            let src_row = &data[y * row_pitch..][..bytes_per_row];
+            let dst_row = &mut cont[y * bytes_per_row..][..bytes_per_row];
+            dst_row.copy_from_slice(src_row);
+        }
+        let cont_image = ImageView::new(&cont, image.size(), color).unwrap();
+
+        // check that the two images are the same
+        for (row, cont_row) in image.rows().zip(cont_image.rows()) {
+            assert_eq!(row, cont_row, "Row mismatch");
+        }
+
+        for format in util::ALL_FORMATS.iter().copied() {
+            let Some(encoding) = format.encoding_support() else {
+                // encoding isn't supported
+                continue;
+            };
+
+            let mut size = image.size();
+            if !encoding.supports_size(size) {
+                let (w_mul, h_mul) = encoding.size_multiple().unwrap();
+                // round down to the nearest multiple
+                let w_mul = w_mul.get();
+                let h_mul = h_mul.get();
+                size = Size::new((size.width / w_mul) * w_mul, (size.height / h_mul) * h_mul);
+            }
+
+            let image = image.cropped(Offset::ZERO, size);
+            let cont_image = cont_image.cropped(Offset::ZERO, size);
+
+            let mut header = Header::new_image(size.width, size.height, format);
+            if encoding.size_multiple().is_none() {
+                // size multiple make mipmaps difficult, so only do them for
+                // formats that support images of any size.
+                header = header.with_mipmaps();
+            }
+
+            let mut cont_encoded = Vec::new();
+            let mut cont_encoder = Encoder::new(&mut cont_encoded, format, &header).unwrap();
+            cont_encoder.mipmaps.generate = true;
+            cont_encoder.write_surface(cont_image).unwrap();
+            cont_encoder.finish().unwrap();
+
+            let mut non_cont_encoded = Vec::new();
+            let mut non_cont_encoder =
+                Encoder::new(&mut non_cont_encoded, format, &header).unwrap();
+            non_cont_encoder.mipmaps.generate = true;
+            non_cont_encoder.write_surface(image).unwrap();
+            non_cont_encoder.finish().unwrap();
+
+            assert_eq!(
+                cont_encoded.len(),
+                non_cont_encoded.len(),
+                "Failed for {format:?}"
+            );
+            assert!(cont_encoded == non_cont_encoded, "Failed for {format:?}");
         }
     }
 }

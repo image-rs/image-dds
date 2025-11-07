@@ -4,9 +4,8 @@
 use std::io::Read;
 use std::mem::size_of;
 
-use crate::util::round_down_to_multiple;
-use crate::{cast, util::div_ceil, DecodingError, Rect, Size};
-use crate::{convert_channels_for, util, Channels, ColorFormat};
+use crate::{cast, util::div_ceil, DecodingError, Offset, Size};
+use crate::{convert_channels_for, util, Channels, ColorFormat, ImageViewMut};
 
 use super::{DecodeContext, ReadSeek};
 
@@ -21,10 +20,10 @@ pub(crate) struct PixelSize {
 /// A function that processes a row of pixels.
 ///
 /// The first argument is a byte slice of encoded pixels. The slice is
-/// guaranteed te have a length that is a multiple of `size_of::<InPixel>()`.
+/// guaranteed to have a length that is a multiple of `size_of::<InPixel>()`.
 ///
 /// The second argument is a byte slice of decoded pixels. The slice is
-/// guaranteed te have a length that is a multiple of `size_of::<OutputPixel>()`.
+/// guaranteed to have a length that is a multiple of `size_of::<OutputPixel>()`.
 ///
 /// Both slices are guaranteed to have the same number of pixels.
 pub(crate) type ProcessPixelsFn = fn(&[u8], &mut [u8]);
@@ -87,144 +86,99 @@ pub(crate) fn process_pixels_helper_unroll<const UNROLL: usize, InPixel, OutPixe
 /// Helper method for decoding UNCOMPRESSED formats.
 pub(crate) fn for_each_pixel_untyped(
     r: &mut dyn Read,
-    buf: &mut [u8],
-    context: DecodeContext,
+    image: &mut ImageViewMut,
+    mut context: DecodeContext,
     native_color: ColorFormat,
     pixel_size: PixelSize,
     process_pixels: ProcessPixelsFn,
 ) -> Result<(), DecodingError> {
-    fn inner(
-        r: &mut dyn Read,
-        buf: &mut [u8],
-        context: DecodeContext,
-        native_color: ColorFormat,
-        size_of_in: usize,
-        process_pixels: ProcessPixelsFn,
-    ) -> Result<(), DecodingError> {
-        let buf_color = context.color;
-        let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
-        assert!(buf.len() % buf_bytes_per_pixel == 0);
-        let pixels = buf.len() / buf_bytes_per_pixel;
-
-        let mut read_buffer = UntypedPixelBuffer::new(pixels, size_of_in);
-        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
-        for buf in buf.chunks_mut(read_buffer.buffered_pixels() * buf_bytes_per_pixel) {
-            let row = read_buffer.read(r)?;
-            debug_assert!(row.len() % size_of_in == 0);
-            debug_assert!(buf.len() % buf_bytes_per_pixel == 0);
-            let pixels = row.len() / size_of_in;
-            debug_assert_eq!(pixels, buf.len() / buf_bytes_per_pixel);
-
-            conversion_buffer.process_pixels(row, buf, process_pixels);
-        }
-        Ok(())
-    }
-
-    debug_assert_eq!(context.color.precision, native_color.precision);
+    debug_assert_eq!(image.color().precision, native_color.precision);
     debug_assert_eq!(native_color.bytes_per_pixel(), pixel_size.decoded_size);
 
-    inner(
-        r,
-        buf,
-        context,
-        native_color,
-        pixel_size.encoded_size as usize,
-        process_pixels,
-    )
+    let size_of_in = pixel_size.encoded_size as usize;
+
+    let mut line_buffer = UntypedLineBuffer::new(
+        image.width() as usize * size_of_in,
+        image.height(),
+        &mut context,
+    )?;
+    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, image.color().channels);
+    for buf in image.rows_mut() {
+        let line = line_buffer
+            .next_line(r)?
+            .expect("height of image and line buffer must match");
+        debug_assert!(line.len() % size_of_in == 0);
+
+        conversion_buffer.process_pixels(line, buf, process_pixels);
+    }
+    Ok(())
 }
 
 /// Helper method for decoding UNCOMPRESSED formats.
 ///
 /// `process_pixels` has the same semantics as in `for_each_pixel_untyped`.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn for_each_pixel_rect_untyped(
     r: &mut dyn ReadSeek,
-    buf: &mut [u8],
-    row_pitch: usize,
-    context: DecodeContext,
-    rect: Rect,
+    image: &mut ImageViewMut,
+    offset: Offset,
+    mut context: DecodeContext,
     native_color: ColorFormat,
     pixel_size: PixelSize,
     process_pixels: ProcessPixelsFn,
 ) -> Result<(), DecodingError> {
-    #[allow(clippy::too_many_arguments)]
-    fn inner(
-        r: &mut dyn ReadSeek,
-        buf: &mut [u8],
-        row_pitch: usize,
-        mut context: DecodeContext,
-        rect: Rect,
-        native_color: ColorFormat,
-        size_of_in: usize,
-        process_pixels: ProcessPixelsFn,
-    ) -> Result<(), DecodingError> {
-        let size = context.size;
-        let buf_color = context.color;
-
-        // assert that no overflow will occur for byte positions in the encoded image/reader
-        assert!(size
-            .pixels()
-            .checked_mul(size_of_in as u64)
-            .map(|bytes| bytes <= i64::MAX as u64)
-            .unwrap_or(false));
-
-        let encoded_bytes_per_row = size.width as u64 * size_of_in as u64;
-        let encoded_bytes_before_rect = rect.x as u64 * size_of_in as u64;
-        let encoded_bytes_after_rect =
-            (size.width - rect.x - rect.width) as u64 * size_of_in as u64;
-
-        let buffer_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
-
-        // jump to the first pixel
-        util::io_skip_exact(
-            r,
-            encoded_bytes_per_row * rect.y as u64 + encoded_bytes_before_rect,
-        )?;
-
-        let pixels_per_line = rect.width as usize;
-        let mut row: Box<[u8]> = context.alloc(pixels_per_line * size_of_in)?;
-        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
-        for y in 0..rect.height {
-            if y > 0 {
-                // jump to the first pixel in the next row
-                // (this has already been done for the first row; see above)
-                util::io_skip_exact(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
-            }
-
-            // read next line
-            r.read_exact(&mut row)?;
-
-            let buf_start = y as usize * row_pitch;
-            let buf_len = pixels_per_line * buffer_bytes_per_pixel;
-            let buf = &mut buf[buf_start..(buf_start + buf_len)];
-            debug_assert_eq!(row.len() / size_of_in, buf.len() / buffer_bytes_per_pixel);
-
-            conversion_buffer.process_pixels(&row, buf, process_pixels);
-        }
-
-        // jump to the end of the surface to put the reader into a known position
-        util::io_skip_exact(
-            r,
-            encoded_bytes_after_rect
-                + (size.height - rect.y - rect.height) as u64 * encoded_bytes_per_row,
-        )?;
-
-        Ok(())
-    }
-
-    debug_assert_eq!(context.color.precision, native_color.precision);
+    debug_assert_eq!(image.color.precision, native_color.precision);
     debug_assert_eq!(native_color.bytes_per_pixel(), pixel_size.decoded_size);
 
-    inner(
+    let size_of_in = pixel_size.encoded_size as usize;
+
+    let surface_size = context.surface_size;
+
+    // assert that no overflow will occur for byte positions in the encoded image/reader
+    assert!(surface_size
+        .pixels()
+        .checked_mul(size_of_in as u64)
+        .map(|bytes| bytes <= i64::MAX as u64)
+        .unwrap_or(false));
+
+    let encoded_bytes_per_row = surface_size.width as u64 * size_of_in as u64;
+    let encoded_bytes_before_rect = offset.x as u64 * size_of_in as u64;
+    let encoded_bytes_after_rect =
+        (surface_size.width - offset.x - image.width()) as u64 * size_of_in as u64;
+
+    let image_bytes_per_pixel = image.color().bytes_per_pixel() as usize;
+
+    // jump to the first pixel
+    util::io_skip_exact(
         r,
-        buf,
-        row_pitch,
-        context,
-        rect,
-        native_color,
-        pixel_size.encoded_size as usize,
-        process_pixels,
-    )
+        encoded_bytes_per_row * offset.y as u64 + encoded_bytes_before_rect,
+    )?;
+
+    let mut row: Box<[u8]> = context.alloc(image.width() as usize * size_of_in)?;
+    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, image.color().channels);
+    for y in 0..image.height() {
+        if y > 0 {
+            // jump to the first pixel in the next row
+            // (this has already been done for the first row; see above)
+            util::io_skip_exact(r, encoded_bytes_before_rect + encoded_bytes_after_rect)?;
+        }
+
+        // read next line
+        r.read_exact(&mut row)?;
+
+        let buf = image.get_row(y as usize);
+        debug_assert_eq!(row.len() / size_of_in, buf.len() / image_bytes_per_pixel);
+
+        conversion_buffer.process_pixels(&row, buf, process_pixels);
+    }
+
+    // jump to the end of the surface to put the reader into a known position
+    util::io_skip_exact(
+        r,
+        encoded_bytes_after_rect
+            + (surface_size.height - offset.y - image.height()) as u64 * encoded_bytes_per_row,
+    )?;
+
+    Ok(())
 }
 
 /// A function that processes a row of blocks.
@@ -232,14 +186,14 @@ pub(crate) fn for_each_pixel_rect_untyped(
 /// Arguments:
 ///
 /// `encoded_blocks` is a byte slice of blocks. The slice is
-/// guaranteed te have a length that is a multiple of `BYTES_PER_BLOCK`.
+/// guaranteed to have a length that is a multiple of `BYTES_PER_BLOCK`.
 ///
 /// `decoded` is a byte slice of decoded pixels.
 ///
-/// `stride` is the number of bytes between the start of two consecutive rows
+/// `row_pitch` is the number of bytes between the start of two consecutive rows
 /// in `decoded`.
 pub(crate) type ProcessBlocksFn =
-    fn(encoded_blocks: &[u8], decoded: &mut [u8], stride: usize, range: PixelRange);
+    fn(encoded_blocks: &[u8], decoded: &mut [u8], row_pitch: usize, range: PixelRange);
 #[derive(Debug, Clone)]
 pub(crate) struct PixelRange {
     /// The number of pixels in a row. This might *not* be a multiple of `BLOCK_SIZE_X`
@@ -249,7 +203,30 @@ pub(crate) struct PixelRange {
     /// This is at most `BLOCK_SIZE_X - 1`.
     pub width_offset: u8,
     /// A non-empty range of the rows to decode. `rows.end` is at most `BLOCK_SIZE_Y`.
-    pub rows: core::ops::Range<u8>,
+    pub rows: RowRange,
+}
+/// A non-empty range of rows of pixels.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RowRange {
+    /// The start of the row range.
+    pub start: u8,
+    /// The end of the row range (exclusive).
+    pub end: u8,
+}
+impl RowRange {
+    pub fn new(start: u8, end: u8) -> Self {
+        debug_assert!(start < end);
+        Self { start, end }
+    }
+    /// Returns the number of rows in this range.
+    ///
+    /// This guaranteed to be at least 1.
+    pub fn len(self) -> u8 {
+        self.end - self.start
+    }
+    pub fn iter(self) -> core::ops::Range<u8> {
+        self.start..self.end
+    }
 }
 
 /// A helper function for implementing [`ProcessBlocksFn`]s.
@@ -346,7 +323,8 @@ pub(crate) fn process_4x4_blocks_helper<
     );
     debug_assert!(
         decoded.len()
-            >= stride * (range.rows.len() - 1) + range.width as usize * size_of::<OutPixel>(),
+            >= stride * (range.rows.len() as usize - 1)
+                + range.width as usize * size_of::<OutPixel>(),
         "decoded.len() = {}, stride = {}, range = {:?}",
         decoded.len(),
         stride,
@@ -422,8 +400,8 @@ pub(crate) fn process_4x4_blocks_helper<
 ///
 /// After this method returns, `range.width_offset` is guaranteed to be 0.
 fn handle_width_offset<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BLOCK_PIXELS: usize,
     const BYTES_PER_BLOCK: usize,
     OutPixel: cast::IntoNeBytes + Copy,
@@ -435,9 +413,9 @@ fn handle_width_offset<
     range: &mut PixelRange,
     process_block: F,
 ) -> usize {
-    let offset = range.width_offset as u32;
-    debug_assert!(offset < BLOCK_SIZE_X as u32);
-    let pixel_w = u32::min(BLOCK_SIZE_X as u32 - offset, range.width);
+    let offset = range.width_offset;
+    debug_assert!(offset < BLOCK_SIZE_X);
+    let pixel_w = u32::min((BLOCK_SIZE_X - offset) as u32, range.width);
     if pixel_w == 0 {
         return 0;
     }
@@ -449,7 +427,7 @@ fn handle_width_offset<
         PixelRange {
             width: pixel_w,
             width_offset: range.width_offset,
-            rows: range.rows.clone(),
+            rows: range.rows,
         },
         process_block,
     );
@@ -468,8 +446,8 @@ fn handle_width_offset<
 /// it's a lot slower than the specialized versions. Don't use this directly.
 /// Instead, use it as the starting point for a specialized implementation.
 pub(crate) fn general_process_blocks<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BLOCK_PIXELS: usize,
     const BYTES_PER_BLOCK: usize,
     OutPixel: cast::IntoNeBytes + Copy,
@@ -480,8 +458,8 @@ pub(crate) fn general_process_blocks<
     range: PixelRange,
     process_block: impl Fn([u8; BYTES_PER_BLOCK]) -> [OutPixel; BLOCK_PIXELS],
 ) {
-    debug_assert_eq!(BLOCK_SIZE_X * BLOCK_SIZE_Y, BLOCK_PIXELS);
-    debug_assert!((range.width_offset as usize) < BLOCK_SIZE_X);
+    debug_assert_eq!(BLOCK_SIZE_X as usize * BLOCK_SIZE_Y as usize, BLOCK_PIXELS);
+    debug_assert!(range.width_offset < BLOCK_SIZE_X);
 
     // group bytes into chunks
     let encoded_blocks: &[[u8; BYTES_PER_BLOCK]] =
@@ -494,15 +472,18 @@ pub(crate) fn general_process_blocks<
         } else {
             0
         };
-        let block_w = (BLOCK_SIZE_X - pixel_offset_x)
+        let block_w = (BLOCK_SIZE_X as usize - pixel_offset_x)
             .min(range.width as usize)
-            .min(range.width as usize + range.width_offset as usize - block_index * BLOCK_SIZE_X);
+            .min(
+                range.width as usize + range.width_offset as usize
+                    - block_index * BLOCK_SIZE_X as usize,
+            );
 
         // This whole method is structured to call this function exactly once.
         // This is done to reduce code size.
         let block = process_block(*block);
 
-        for y in range.rows.clone() {
+        for y in range.rows.iter() {
             let row_start =
                 (y - range.rows.start) as usize * stride + pixel_x * size_of::<OutPixel>();
             let row = &mut decoded[row_start..(row_start + block_w * size_of::<OutPixel>())];
@@ -512,7 +493,7 @@ pub(crate) fn general_process_blocks<
 
             for x in 0..block_w {
                 row[x] = cast::IntoNeBytes::into_ne_bytes(
-                    block[y as usize * BLOCK_SIZE_X + x + pixel_offset_x],
+                    block[y as usize * BLOCK_SIZE_X as usize + x + pixel_offset_x],
                 );
             }
         }
@@ -522,29 +503,27 @@ pub(crate) fn general_process_blocks<
 }
 
 pub(crate) fn for_each_block_untyped<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BYTES_PER_BLOCK: usize,
     OutPixel,
 >(
     r: &mut dyn Read,
-    buf: &mut [u8],
+    image: &mut ImageViewMut,
     context: DecodeContext,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodingError> {
-    #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn Read,
-        buf: &mut [u8],
+        image: &mut ImageViewMut,
         mut context: DecodeContext,
-        block_size: (usize, usize),
+        block_size: (u8, u8),
         bytes_per_block: usize,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
     ) -> Result<(), DecodingError> {
-        let size = context.size;
-        let buf_color = context.color;
+        let size = context.surface_size;
 
         // The basic idea here is to decode the image line by line. A line is a
         // sequence of encoded blocks that together describe BLOCK_SIZE_Y rows of
@@ -556,38 +535,41 @@ pub(crate) fn for_each_block_untyped<
 
         assert!(!size.is_empty());
 
-        let (block_size_x, block_size_y) = block_size;
-        let width_blocks = div_ceil(size.width, block_size_x as u32) as usize;
-        let height_blocks = div_ceil(size.height, block_size_y as u32) as usize;
+        let block_size_x = block_size.0 as u32;
+        let block_size_y = block_size.1 as u32;
+        let width_blocks = div_ceil(size.width, block_size_x);
+        let height_blocks = div_ceil(size.height, block_size_y);
 
-        let mut line_buffer =
-            UntypedLineBuffer::new(width_blocks * bytes_per_block, height_blocks, &mut context)?;
-        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+        let mut line_buffer = UntypedLineBuffer::new(
+            width_blocks as usize * bytes_per_block,
+            height_blocks,
+            &mut context,
+        )?;
+        let mut conversion_buffer =
+            ChannelConversionBuffer::new(native_color, image.color().channels);
+
+        let row_pitch = image.row_pitch();
 
         let mut block_y = 0;
         while let Some(block_line) = line_buffer.next_line(r)? {
             // how many rows of pixels we'll decode
             // this is usually BLOCK_SIZE_Y, but might be less for the last block
-            let pixel_rows = block_size_y.min(size.height as usize - block_y * block_size_y);
-            let pixel_row_bytes = size.width as usize * buf_color.bytes_per_pixel() as usize;
-            debug_assert!(buf.len() % pixel_row_bytes == 0);
+            let pixel_rows = block_size_y.min(size.height - block_y * block_size_y);
 
-            let start_pixel_y = block_y * block_size_y;
-            let buf = &mut buf
-                [start_pixel_y * pixel_row_bytes..(start_pixel_y + pixel_rows) * pixel_row_bytes];
+            let buf = image.get_row_range((block_y * block_size_y) as usize, pixel_rows as usize);
 
             let range = PixelRange {
                 width: size.width,
                 width_offset: 0,
-                rows: 0..pixel_rows as u8,
+                rows: RowRange::new(0, pixel_rows as u8),
             };
 
             conversion_buffer.process_blocks(
                 bytes_per_block,
-                block_size_x as u32,
+                block_size_x,
                 block_line,
                 buf,
-                pixel_row_bytes,
+                row_pitch,
                 range,
                 process_blocks,
             );
@@ -597,12 +579,15 @@ pub(crate) fn for_each_block_untyped<
         Ok(())
     }
 
-    debug_assert_eq!(context.color.precision, native_color.precision);
-    debug_assert_eq!(native_color.bytes_per_pixel(), size_of::<OutPixel>() as u8);
+    debug_assert_eq!(image.color().precision, native_color.precision);
+    debug_assert_eq!(
+        native_color.bytes_per_pixel() as usize,
+        size_of::<OutPixel>()
+    );
 
     inner(
         r,
-        buf,
+        image,
         context,
         (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
@@ -613,46 +598,46 @@ pub(crate) fn for_each_block_untyped<
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn for_each_block_rect_untyped<
-    const BLOCK_SIZE_X: usize,
-    const BLOCK_SIZE_Y: usize,
+    const BLOCK_SIZE_X: u8,
+    const BLOCK_SIZE_Y: u8,
     const BYTES_PER_BLOCK: usize,
 >(
     r: &mut dyn ReadSeek,
-    buf: &mut [u8],
-    row_pitch: usize,
+    image: &mut ImageViewMut,
+    offset: Offset,
     context: DecodeContext,
-    rect: Rect,
     native_color: ColorFormat,
     process_pixels: ProcessBlocksFn,
 ) -> Result<(), DecodingError> {
     #[allow(clippy::too_many_arguments)]
     fn inner(
         r: &mut dyn ReadSeek,
-        buf: &mut [u8],
-        row_pitch: usize,
+        image: &mut ImageViewMut,
+        offset: Offset,
         mut context: DecodeContext,
-        rect: Rect,
-        block_size: (usize, usize),
+        block_size: (u8, u8),
         bytes_per_block: usize,
         native_color: ColorFormat,
         process_blocks: ProcessBlocksFn,
     ) -> Result<(), DecodingError> {
-        let size = context.size;
-        let buf_color = context.color;
+        let surface_size = context.surface_size;
+        let image_width = image.width();
+        let image_height = image.height();
 
         // To make this algorithm easier to implement, we'll always read full
         // lines of blocks.
 
-        let (block_size_x, block_size_y) = block_size;
-        let blocks_per_line = div_ceil(size.width, block_size_x as u32) as usize;
+        let block_size_x = block_size.0 as u32;
+        let block_size_y = block_size.1 as u32;
+        let blocks_per_line = div_ceil(surface_size.width, block_size_x);
 
         // blocks before the block lines we want to read.
-        let skip_block_lines_before = rect.y as usize / block_size_y;
+        let skip_block_lines_before = offset.y / block_size_y;
         // blocks of the lines we want to read
         let block_lines_to_read =
-            div_ceil(rect.height + rect.y, block_size_y as u32) as usize - skip_block_lines_before;
+            div_ceil(image_height + offset.y, block_size_y) - skip_block_lines_before;
         // blocks after the block lines we want to read
-        let skip_block_lines_after = div_ceil(size.height, block_size_y as u32) as usize
+        let skip_block_lines_after = div_ceil(surface_size.height, block_size_y)
             - skip_block_lines_before
             - block_lines_to_read;
 
@@ -663,21 +648,21 @@ pub(crate) fn for_each_block_rect_untyped<
         )?;
 
         let mut line_buffer = UntypedLineBuffer::new(
-            blocks_per_line * bytes_per_block,
+            blocks_per_line as usize * bytes_per_block,
             block_lines_to_read,
             &mut context,
         )?;
-        let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+        let mut conversion_buffer =
+            ChannelConversionBuffer::new(native_color, image.color.channels);
 
         // the range of blocks within a block line
-        let block_range_start = rect.x as usize / block_size_x;
-        let block_range_end = div_ceil(rect.x + rect.width, block_size_x as u32) as usize;
-        let block_range =
-            (block_range_start * bytes_per_block)..(block_range_end * bytes_per_block);
+        let block_range_start = offset.x / block_size_x;
+        let block_range_end = div_ceil(offset.x + image_width, block_size_x);
+        let block_range = (block_range_start as usize * bytes_per_block)
+            ..(block_range_end as usize * bytes_per_block);
 
         // re-calculated parts of the pixel range
-        let width = rect.width;
-        let width_offset = (rect.x % block_size_x as u32) as u8;
+        let width_offset = (offset.x % block_size_x) as u8;
 
         let mut block_line_y = skip_block_lines_before;
         let mut pixel_row = 0;
@@ -685,34 +670,36 @@ pub(crate) fn for_each_block_rect_untyped<
             // ignore blocks not part of the rect
             let block_line = &block_line[block_range.clone()];
 
-            let rel_row_start = rect.y as isize - (block_line_y * block_size_y) as isize;
-            let rel_row_end =
-                (rect.y + rect.height) as isize - (block_line_y * block_size_y) as isize;
-            debug_assert!(rel_row_start < block_size_y as isize);
+            let rel_row_start = offset.y.saturating_sub(block_line_y * block_size_y);
+            let rel_row_end = offset.y + image_height - block_line_y * block_size_y;
+            debug_assert!(rel_row_start < block_size_y);
             debug_assert!(rel_row_end > 0);
 
-            let row_start = rel_row_start.clamp(0, block_size_y as isize) as u8;
-            let row_end = rel_row_end.clamp(0, block_size_y as isize) as u8;
-            let rows = row_start..row_end;
+            let row_start = rel_row_start as u8;
+            let row_end = rel_row_end.min(block_size_y) as u8;
+            let rows = RowRange::new(row_start, row_end);
 
             let range = PixelRange {
-                width,
+                width: image_width,
                 width_offset,
-                rows: rows.clone(),
+                rows,
             };
+
+            let row_pitch = image.row_pitch();
+            let out = &mut image.data()[pixel_row * row_pitch..];
 
             conversion_buffer.process_blocks(
                 bytes_per_block,
-                block_size_x as u32,
+                block_size_x,
                 block_line,
-                &mut buf[pixel_row * row_pitch..],
+                out,
                 row_pitch,
                 range,
                 process_blocks,
             );
 
             block_line_y += 1;
-            pixel_row += rows.len();
+            pixel_row += rows.len() as usize;
         }
 
         // jump to the end of the surface to put the reader into a known position
@@ -724,14 +711,13 @@ pub(crate) fn for_each_block_rect_untyped<
         Ok(())
     }
 
-    debug_assert_eq!(context.color.precision, native_color.precision);
+    debug_assert_eq!(image.color.precision, native_color.precision);
 
     inner(
         r,
-        buf,
-        row_pitch,
+        image,
+        offset,
         context,
-        rect,
         (BLOCK_SIZE_X, BLOCK_SIZE_Y),
         BYTES_PER_BLOCK,
         native_color,
@@ -796,17 +782,17 @@ impl ChannelConversionBuffer {
         block_width: u32,
         mut encoded_blocks: &[u8],
         mut out: &mut [u8],
-        stride: usize,
+        row_pitch: usize,
         mut range: PixelRange,
         f: ProcessBlocksFn,
     ) {
         // fast path: no conversion needed
         if self.native_color.channels == self.target {
-            f(encoded_blocks, out, stride, range);
+            f(encoded_blocks, out, row_pitch, range);
             return;
         }
 
-        let height = range.rows.len();
+        let height = range.rows.len() as usize;
         debug_assert!(height > 0);
         let buffer_bytes_per_pixel = self.native_color.bytes_per_pixel() as usize;
         let buffer_size = Size::new(
@@ -835,15 +821,15 @@ impl ChannelConversionBuffer {
                 PixelRange {
                     width: offset_width,
                     width_offset: range.width_offset,
-                    rows: range.rows.clone(),
+                    rows: range.rows,
                 },
             );
 
             // convert the channels into the output buffer
             for y in 0..height {
                 let buffer_row = &buffer[y * buffer_stride..(y + 1) * buffer_stride];
-                let out_row =
-                    &mut out[y * stride..y * stride + offset_width as usize * out_bytes_per_pixel];
+                let out_row = &mut out
+                    [y * row_pitch..y * row_pitch + offset_width as usize * out_bytes_per_pixel];
                 convert_channels_for(self.native_color, self.target, buffer_row, out_row);
             }
 
@@ -855,7 +841,7 @@ impl ChannelConversionBuffer {
         }
 
         debug_assert!(range.width_offset == 0);
-        let preferred_chunk_size = round_down_to_multiple(buffer_size.width, block_width);
+        let preferred_chunk_size = util::round_down_to_multiple(buffer_size.width, block_width);
         for chunk_start in (0..range.width).step_by(preferred_chunk_size as usize) {
             let chunk_end = (chunk_start + preferred_chunk_size).min(range.width);
             let chunk_size = chunk_end - chunk_start;
@@ -878,7 +864,7 @@ impl ChannelConversionBuffer {
                 PixelRange {
                     width: chunk_size,
                     width_offset: 0,
-                    rows: range.rows.clone(),
+                    rows: range.rows,
                 },
             );
 
@@ -886,7 +872,7 @@ impl ChannelConversionBuffer {
             for y in 0..height {
                 let buffer_row = &buffer_chunk[y * buffer_stride..(y + 1) * buffer_stride];
                 let out_row = &mut out_chunk
-                    [y * stride..y * stride + chunk_size as usize * out_bytes_per_pixel];
+                    [y * row_pitch..y * row_pitch + chunk_size as usize * out_bytes_per_pixel];
                 convert_channels_for(self.native_color, self.target, buffer_row, out_row);
             }
         }
@@ -959,7 +945,7 @@ impl ChannelConversionBuffer {
 
         debug_assert!(range.offset == 0);
         let preferred_chunk_size =
-            round_down_to_multiple(buffer_pixels, info.sub_sampling.0 as usize);
+            util::round_down_to_multiple(buffer_pixels, info.sub_sampling.0 as usize);
         for chunk_start in (0..range.width as usize).step_by(preferred_chunk_size) {
             let chunk_end = (chunk_start + preferred_chunk_size).min(range.width as usize);
             let chunk_size = chunk_end - chunk_start;
@@ -993,38 +979,6 @@ impl ChannelConversionBuffer {
     }
 }
 
-/// A buffer holding raw encoded pixels straight from the reader.
-struct UntypedPixelBuffer {
-    buf: [u8; 4096],
-    bytes_per_pixel: usize,
-    bytes_left: usize,
-}
-impl UntypedPixelBuffer {
-    #[inline(always)]
-    fn new(pixels: usize, bytes_per_pixel: usize) -> Self {
-        Self {
-            buf: [0; 4096],
-            bytes_per_pixel,
-            bytes_left: pixels * bytes_per_pixel,
-        }
-    }
-
-    fn buffered_pixels(&self) -> usize {
-        self.buf.len() / self.bytes_per_pixel
-    }
-
-    fn read<R: Read + ?Sized>(&mut self, r: &mut R) -> Result<&[u8], DecodingError> {
-        let full_pixel_bytes = self.buf.len() / self.bytes_per_pixel * self.bytes_per_pixel;
-        let bytes_to_read = full_pixel_bytes.min(self.bytes_left);
-        assert!(bytes_to_read > 0);
-        self.bytes_left -= bytes_to_read;
-
-        let buf = &mut self.buf[..bytes_to_read];
-        r.read_exact(buf)?;
-        Ok(buf)
-    }
-}
-
 /// A buffer holding raw encoded lines of pixels straight from the reader.
 struct UntypedLineBuffer {
     buf: Box<[u8]>,
@@ -1040,12 +994,12 @@ struct UntypedLineBuffer {
 impl UntypedLineBuffer {
     fn new(
         bytes_per_line: usize,
-        height: usize,
+        height: u32,
         context: &mut DecodeContext,
     ) -> Result<Self, DecodingError> {
         const TARGET_BUFFER_SIZE: usize = 64 * 1024; // 64 KB
 
-        let lines_in_buffer = (TARGET_BUFFER_SIZE / bytes_per_line).clamp(1, height);
+        let lines_in_buffer = (TARGET_BUFFER_SIZE / bytes_per_line).clamp(1, height as usize);
         let buf_len = lines_in_buffer * bytes_per_line;
         let buf = context.alloc(buf_len)?;
 
@@ -1053,7 +1007,7 @@ impl UntypedLineBuffer {
             buf,
             buf_filled: 0,
             bytes_per_line,
-            lines_on_disk: height,
+            lines_on_disk: height as usize,
             current_line_start: buf_len,
         })
     }
@@ -1175,45 +1129,41 @@ pub(crate) struct BiPlaneInfo {
 }
 pub(crate) fn for_each_bi_planar(
     r: &mut dyn Read,
-    buf: &mut [u8],
+    image: &mut ImageViewMut,
     mut context: DecodeContext,
     native_color: ColorFormat,
     info: BiPlaneInfo,
     process_bi_planar: ProcessBiPlanarFn,
 ) -> Result<(), DecodingError> {
-    let size = context.size;
-    let buf_color = context.color;
-    debug_assert_eq!(buf_color.precision, native_color.precision);
-
-    let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
-    assert_eq!(buf.len(), buf_bytes_per_pixel * size.pixels() as usize);
-    let buf_stride = size.width as usize * buf_bytes_per_pixel;
+    let size = context.surface_size;
+    debug_assert_eq!(image.color().precision, native_color.precision);
 
     // Step 1: Read the entirety of plane 1
     let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
-    let plane1_size = plain1_bytes_per_line * size.height as usize;
-    let mut plane1 = context.alloc_capacity(plane1_size)?;
-    read_exact_into(r, &mut plane1, plane1_size)?;
+    let plane1 = context.alloc_read(plain1_bytes_per_line as u64 * size.height as u64, r)?;
 
     // Step 2: Go through plane 2
-    let uv_width = div_ceil(size.width, info.sub_sampling.0 as u32) as usize;
-    let uv_lines = util::div_ceil(size.height, info.sub_sampling.1 as u32) as usize;
-    let uv_bytes_per_line = uv_width * info.plane2_element_size as usize;
+    let sub_sampling_x = info.sub_sampling.0 as u32;
+    let sub_sampling_y = info.sub_sampling.1 as u32;
+
+    let uv_width = div_ceil(size.width, sub_sampling_x);
+    let uv_lines = div_ceil(size.height, sub_sampling_y);
+    let uv_bytes_per_line = uv_width as usize * info.plane2_element_size as usize;
 
     let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines, &mut context)?;
-    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, image.color().channels);
 
     let mut y: usize = 0;
     while let Some(uv_line) = line_buffer.next_line(r)? {
         debug_assert!(y < size.height as usize);
 
-        for y_offset in 0..info.sub_sampling.1 {
+        for y_offset in 0..sub_sampling_y as u8 {
             if y >= size.height as usize {
                 break;
             }
 
             let plane1_line = &plane1[y * plain1_bytes_per_line..(y + 1) * plain1_bytes_per_line];
-            let out_line = &mut buf[y * buf_stride..(y + 1) * buf_stride];
+            let out_line = image.get_row(y);
 
             conversion_buffer.process_bi_planar(
                 info,
@@ -1234,80 +1184,72 @@ pub(crate) fn for_each_bi_planar(
 
     Ok(())
 }
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn for_each_bi_planar_rect(
     r: &mut dyn ReadSeek,
-    buf: &mut [u8],
-    row_pitch: usize,
+    image: &mut ImageViewMut,
+    offset: Offset,
     mut context: DecodeContext,
-    rect: Rect,
     native_color: ColorFormat,
     info: BiPlaneInfo,
     process_bi_planar: ProcessBiPlanarFn,
 ) -> Result<(), DecodingError> {
-    let size = context.size;
-    let buf_color = context.color;
-    debug_assert_eq!(buf_color.precision, native_color.precision);
+    let surface_size = context.surface_size;
+    let image_width = image.width();
+    let image_height = image.height();
 
-    let buf_bytes_per_pixel = buf_color.bytes_per_pixel() as usize;
+    debug_assert_eq!(image.color().precision, native_color.precision);
 
     // Step 1: Read the entirety of plane 1
-    let plain1_bytes_per_line = size.width as usize * info.plane1_element_size as usize;
-    util::io_skip_exact(r, plain1_bytes_per_line as u64 * rect.y as u64)?;
-    let plane1_bytes = plain1_bytes_per_line * rect.height as usize;
-    let mut plane1 = context.alloc_capacity(plane1_bytes)?;
-    read_exact_into(r, &mut plane1, plane1_bytes)?;
+    let plain1_bytes_per_line = surface_size.width as usize * info.plane1_element_size as usize;
+    util::io_skip_exact(r, plain1_bytes_per_line as u64 * offset.y as u64)?;
+    let plane1 = context.alloc_read(plain1_bytes_per_line as u64 * image_height as u64, r)?;
     util::io_skip_exact(
         r,
-        plain1_bytes_per_line as u64 * (size.height - rect.y - rect.height) as u64,
+        plain1_bytes_per_line as u64 * (surface_size.height - offset.y - image_height) as u64,
     )?;
 
     // Step 2: Go through plane 2
-    let uv_before = rect.y as usize / info.sub_sampling.1 as usize;
-    let uv_after = div_ceil(size.height as usize, info.sub_sampling.1 as usize)
-        - div_ceil(
-            (rect.y + rect.height) as usize,
-            info.sub_sampling.1 as usize,
-        );
-    let uv_width = div_ceil(size.width, info.sub_sampling.0 as u32) as usize;
-    let uv_lines =
-        util::div_ceil(size.height as usize, info.sub_sampling.1 as usize) - uv_before - uv_after;
-    let uv_bytes_per_line = uv_width * info.plane2_element_size as usize;
+    let sub_sampling_x = info.sub_sampling.0 as u32;
+    let sub_sampling_y = info.sub_sampling.1 as u32;
+
+    let uv_before = offset.y / sub_sampling_y;
+    let uv_after = div_ceil(surface_size.height, sub_sampling_y)
+        - div_ceil(offset.y + image_height, sub_sampling_y);
+    let uv_width = div_ceil(surface_size.width, sub_sampling_x);
+    let uv_lines = div_ceil(surface_size.height, sub_sampling_y) - uv_before - uv_after;
+    let uv_bytes_per_line = uv_width as usize * info.plane2_element_size as usize;
 
     util::io_skip_exact(r, uv_before as u64 * uv_bytes_per_line as u64)?;
 
     let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines, &mut context)?;
-    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, buf_color.channels);
+    let mut conversion_buffer = ChannelConversionBuffer::new(native_color, image.color().channels);
 
-    let mut y: usize = uv_before * info.sub_sampling.1 as usize;
+    let mut y: usize = uv_before as usize * sub_sampling_y as usize;
     while let Some(uv_line) = line_buffer.next_line(r)? {
-        debug_assert!(y < (rect.y + rect.height) as usize);
+        debug_assert!(y < (offset.y + image_height) as usize);
 
-        for y_offset in 0..info.sub_sampling.1 {
-            if y < rect.y as usize {
+        for y_offset in 0..sub_sampling_y as u8 {
+            if y < offset.y as usize {
                 y += 1;
                 continue;
             }
-            if y >= (rect.y + rect.height) as usize {
+            if y >= (offset.y + image_height) as usize {
                 break;
             }
 
-            let plane1_start = (y - rect.y as usize) * plain1_bytes_per_line
-                + rect.x as usize * info.plane1_element_size as usize;
+            let plane1_start = (y - offset.y as usize) * plain1_bytes_per_line
+                + offset.x as usize * info.plane1_element_size as usize;
             let plane1_line = &plane1[plane1_start
-                ..plane1_start + rect.width as usize * info.plane1_element_size as usize];
+                ..plane1_start + image_width as usize * info.plane1_element_size as usize];
 
-            let out_start = (y - rect.y as usize) * row_pitch;
-            let out_line =
-                &mut buf[out_start..out_start + rect.width as usize * buf_bytes_per_pixel];
+            let out_line = image.get_row(y - offset.y as usize);
 
-            let uv_start =
-                rect.x as usize / info.sub_sampling.0 as usize * info.plane2_element_size as usize;
-            let uv_end = div_ceil((rect.x + rect.width) as usize, info.sub_sampling.0 as usize)
+            let uv_start = (offset.x / sub_sampling_x) as usize * info.plane2_element_size as usize;
+            let uv_end = div_ceil(offset.x + image_width, sub_sampling_x) as usize
                 * info.plane2_element_size as usize;
             let uv_line = &uv_line[uv_start..uv_end];
 
-            let offset = rect.x % info.sub_sampling.0 as u32;
+            let offset = offset.x % sub_sampling_x;
 
             conversion_buffer.process_bi_planar(
                 info,
@@ -1316,7 +1258,7 @@ pub(crate) fn for_each_bi_planar_rect(
                 out_line,
                 PlaneRange {
                     offset,
-                    width: rect.width,
+                    width: image_width,
                     y: y_offset,
                 },
                 process_bi_planar,
@@ -1331,22 +1273,26 @@ pub(crate) fn for_each_bi_planar_rect(
     Ok(())
 }
 
-fn read_exact_into<R: Read + ?Sized>(
+pub(crate) fn read_exact_image<R: Read + ?Sized>(
     r: &mut R,
-    buf: &mut Vec<u8>,
-    count: usize,
+    image: &mut ImageViewMut,
 ) -> Result<(), std::io::Error> {
-    buf.clear();
-    buf.reserve(count);
-
-    let take = count as u64;
-    let copied = std::io::copy(&mut r.take(take), buf)?;
-    if copied < take {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::UnexpectedEof,
-            "Failed to read enough bytes",
-        ));
+    if image.is_contiguous() {
+        // we can read everything in one go
+        r.read_exact(image.data())
+    } else {
+        // read row by row
+        for row in image.rows_mut() {
+            r.read_exact(row)?;
+        }
+        Ok(())
     }
+}
 
-    Ok(())
+pub(crate) fn for_each_slice(image: &mut ImageViewMut, mut f: impl FnMut(&mut [u8])) {
+    if image.is_contiguous() {
+        f(image.data())
+    } else {
+        image.rows_mut().for_each(f);
+    }
 }

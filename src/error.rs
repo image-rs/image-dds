@@ -88,18 +88,6 @@ pub enum DecodingError {
     /// When decoding a rectangle, the rectangle is out of bounds of the size
     /// of the image.
     RectOutOfBounds,
-    /// When decoding a rectangle, the row pitch is too small.
-    ///
-    /// A row pitch must be at least `color.bytes_per_pixel() * rect.width` bytes.
-    RowPitchTooSmall {
-        required_minimum: usize,
-    },
-    /// When decoding a rectangle, the buffer is too small.
-    ///
-    /// A buffer much have at least `row_pitch * rect.height` bytes.
-    RectBufferTooSmall {
-        required_minimum: usize,
-    },
 
     /// Returned by [`Decoder::read_surface`](crate::Decoder::read_surface)
     /// when the user tries to decode a surface into an image that is not the
@@ -117,7 +105,8 @@ pub enum DecodingError {
     /// when the user tries to read a DDS file that isn't a cube map.
     NotACubeMap,
 
-    /// The decoder has exceeded its memory limit.
+    /// The decoder has exceeded its memory limit or was unable to allocate
+    /// memory.
     MemoryLimitExceeded,
 
     Layout(LayoutError),
@@ -131,18 +120,6 @@ impl std::fmt::Display for DecodingError {
         match self {
             DecodingError::RectOutOfBounds => {
                 write!(f, "Rectangle is out of bounds of the image size")
-            }
-            DecodingError::RowPitchTooSmall { required_minimum } => {
-                write!(
-                    f,
-                    "Row pitch too small: Must be at least `color.bytes_per_pixel() * rect.width` == {required_minimum} bytes"
-                )
-            }
-            DecodingError::RectBufferTooSmall { required_minimum } => {
-                write!(
-                    f,
-                    "Buffer too small for rectangle: required at least {required_minimum} bytes"
-                )
             }
             DecodingError::UnexpectedSurfaceSize => {
                 write!(f, "Unexpected surface size")
@@ -308,6 +285,10 @@ pub enum EncodingError {
     /// written all surfaces declared in the header.
     MissingSurfaces,
 
+    /// Returned when an operation given a [`CancellationToken`](crate::CancellationToken)
+    /// or [`Progress`](crate::Progress) was cancelled before or during the operation.
+    Cancelled,
+
     Layout(LayoutError),
     Io(std::io::Error),
 }
@@ -329,6 +310,8 @@ impl std::fmt::Display for EncodingError {
                 write!(f, "Too many surfaces are attempted to written")
             }
             EncodingError::MissingSurfaces => write!(f, "Not enough surfaces have been written"),
+
+            EncodingError::Cancelled => write!(f, "The operation was cancelled"),
 
             EncodingError::Layout(err) => write!(f, "Layout error: {err}"),
             EncodingError::Io(err) => write!(f, "IO error: {err}"),

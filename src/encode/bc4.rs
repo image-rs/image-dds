@@ -1,18 +1,78 @@
-use glam::Vec4;
+use glam::{UVec4, Vec4};
 
-use crate::{n8, s8, util::clamp_0_1};
+use crate::{n8, s8, util::unlikely_branch};
 
 use super::bcn_util::{self, Block4x4};
 
 #[derive(Debug, Clone, Copy)]
-pub struct Bc4Options {
+pub(crate) struct Bc4Options {
     pub dither: bool,
     pub snorm: bool,
     pub brute_force: bool,
     pub use_inter4: bool,
     pub use_inter4_heuristic: bool,
-    pub high_quality_quantize: bool,
+    pub quantization: Bc4Quantization,
     pub fast_iter: bool,
+    pub max_refine_iter: u8,
+    pub size_variations: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Bc4Quantization {
+    Round,
+    MediumQuality,
+    HighQuality,
+}
+
+struct Block {
+    b: [Vec4; 4],
+}
+impl Block {
+    fn from_raw(block: [f32; 16]) -> Self {
+        let b0 = Vec4::new(block[0], block[1], block[2], block[3]);
+        let b1 = Vec4::new(block[4], block[5], block[6], block[7]);
+        let b2 = Vec4::new(block[8], block[9], block[10], block[11]);
+        let b3 = Vec4::new(block[12], block[13], block[14], block[15]);
+
+        Self {
+            b: [
+                b0.clamp(Vec4::ZERO, Vec4::ONE),
+                b1.clamp(Vec4::ZERO, Vec4::ONE),
+                b2.clamp(Vec4::ZERO, Vec4::ONE),
+                b3.clamp(Vec4::ZERO, Vec4::ONE),
+            ],
+        }
+    }
+    /// Returns the minimum and maximum value in the block.
+    fn min_max(&self) -> (f32, f32) {
+        let [b0, b1, b2, b3] = self.b;
+        let min = b0.min(b1).min(b2).min(b3);
+        let max = b0.max(b1).max(b2).max(b3);
+        (min.min_element(), max.max_element())
+    }
+    /// Of the values in the block that are in the range [threshold, 1-threshold],
+    /// returns the minimum and maximum.
+    fn min_max_with_threshold(&self, threshold: f32) -> (f32, f32) {
+        let low = Vec4::splat(threshold);
+        let high = Vec4::splat(1.0 - threshold);
+
+        let mut min = Vec4::ONE;
+        let mut max = Vec4::ZERO;
+        for b in self.b {
+            min = min.min(Vec4::select(b.cmpge(low), b, Vec4::ONE));
+            max = max.max(Vec4::select(b.cmple(high), b, Vec4::ZERO));
+        }
+        (min.min_element(), max.max_element())
+    }
+}
+impl Block4x4<f32> for &Block {
+    #[inline(always)]
+    fn get_pixel_at(&self, index: usize) -> f32 {
+        debug_assert!(index < 16);
+        let vec_index = (index / 4) % 4;
+        let component_index = index % 4;
+        self.b[vec_index][component_index]
+    }
 }
 
 /// The smallest non-zero value that can be represented in a BC4 block.
@@ -22,16 +82,10 @@ const BC4_MIN_VALUE: f32 = 1. / (255. * 7.);
 /// 2 values that are this close will be considered equal.
 const BC4_EPSILON: f32 = 1. / (65536.);
 
-pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [u8; 8] {
-    // clamp to 0-1
-    block.iter_mut().for_each(|x| *x = clamp_0_1(*x));
+pub(crate) fn compress_bc4_block(block: [f32; 16], options: Bc4Options) -> [u8; 8] {
+    let block = Block::from_raw(block);
 
-    let mut min = block[0];
-    let mut max = block[0];
-    for value in block {
-        min = min.min(value);
-        max = max.max(value);
-    }
+    let (min, max) = block.min_max();
     let diff = max - min;
 
     // reference for testing
@@ -69,9 +123,8 @@ pub(crate) fn compress_bc4_block(mut block: [f32; 16], options: Bc4Options) -> [
 ///
 /// This is intended for testing purposes only. It's EXTREMELY slow. If you do
 /// use it, make sure to enable optimizations.
-fn reference_brute_force(block: [f32; 16]) -> [u8; 8] {
-    let block_min = block.iter().copied().fold(f32::INFINITY, f32::min);
-    let block_max = block.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+fn reference_brute_force(block: Block) -> [u8; 8] {
+    let (block_min, block_max) = block.min_max();
     let min_max = (block_max * 255. + 2.) as u8;
     let max_min = (block_min * 255. - 1.) as u8;
 
@@ -130,7 +183,7 @@ fn single_color(value: f32, options: Bc4Options) -> [u8; 8] {
         let (index_value4, _, error4) = palette4.closest(value);
         let (index_value6, _, error6) = palette6.closest(value);
 
-        if error4.abs() < error6.abs() {
+        if error4 < error6 {
             endpoints4.with_indexes(IndexList::new_all(index_value4))
         } else {
             endpoints6.with_indexes(IndexList::new_all(index_value6))
@@ -142,46 +195,87 @@ fn refine_endpoints(
     mut min: f32,
     mut max: f32,
     mut compute_error: impl Copy + FnMut((f32, f32)) -> f32,
-    mut quantize: impl FnMut((f32, f32)) -> (f32, f32),
     options: Bc4Options,
 ) -> (f32, f32) {
     // Step 1: Improve the endpoints with a local search
-    (min, max) = bcn_util::refine_endpoints(
-        min,
-        max,
-        if options.fast_iter {
-            bcn_util::RefinementOptions::new_bc4_fast(min, max)
-        } else {
-            bcn_util::RefinementOptions::new_bc4(min, max)
-        },
-        compute_error,
-    );
+    if options.max_refine_iter > 0 {
+        (min, max) = bcn_util::refine_endpoints(
+            min,
+            max,
+            if options.fast_iter {
+                bcn_util::RefinementOptions {
+                    step_initial: 0.1 * (max - min),
+                    step_decay: 0.5,
+                    step_min: 1. / 255.,
+                    max_iter: options.max_refine_iter as u32,
+                }
+            } else {
+                bcn_util::RefinementOptions {
+                    step_initial: 0.15 * (max - min),
+                    step_decay: 0.5,
+                    step_min: 1. / 255. / 2.,
+                    max_iter: options.max_refine_iter as u32,
+                }
+            },
+            compute_error,
+        );
+    }
 
     // Step 2: Quantize the endpoints and select the best
-    if !options.high_quality_quantize {
-        return (min, max);
-    }
 
     const QUANT_STEP: f32 = 1. / 254. + 0.0001;
-    let mut error = compute_error(quantize((min, max)));
-    for pair in [
-        (min + QUANT_STEP, max),
-        (min, max - QUANT_STEP),
-        (min + QUANT_STEP, max - QUANT_STEP),
-    ] {
-        let new_error = compute_error(quantize(pair));
-        if new_error < error {
-            error = new_error;
-            min = pair.0;
-            max = pair.1;
+    match options.quantization {
+        Bc4Quantization::Round => (min, max),
+        Bc4Quantization::MediumQuality => {
+            let base_quantized = EndPoints::quantize((min, max), options.snorm);
+            let min_diff = min - base_quantized.0;
+            let max_diff = max - base_quantized.1;
+            let other = if min_diff.abs() > max_diff.abs() {
+                let step = if min_diff > 0.0 {
+                    QUANT_STEP
+                } else {
+                    -QUANT_STEP
+                };
+                (min + step, max)
+            } else {
+                let step = if max_diff > 0.0 {
+                    QUANT_STEP
+                } else {
+                    -QUANT_STEP
+                };
+                (min, max + step)
+            };
+            let other_quantized = EndPoints::quantize(other, options.snorm);
+            let base_error = compute_error(base_quantized);
+            let other_error = compute_error(other_quantized);
+            if other_error < base_error {
+                other_quantized
+            } else {
+                base_quantized
+            }
+        }
+        Bc4Quantization::HighQuality => {
+            let mut best = EndPoints::quantize((min, max), options.snorm);
+            let mut error = compute_error(best);
+            for pair in [
+                (min + QUANT_STEP, max),
+                (min, max - QUANT_STEP),
+                (min + QUANT_STEP, max - QUANT_STEP),
+            ] {
+                let q = EndPoints::quantize(pair, options.snorm);
+                let new_error = compute_error(q);
+                if new_error < error {
+                    error = new_error;
+                    best = q;
+                }
+            }
+            best
         }
     }
-
-    (min, max)
 }
 
 fn refinement_error_metric<P: Palette>(
-    block: &[f32; 16],
+    block: &Block,
     _options: Bc4Options,
 ) -> impl Copy + Fn((f32, f32)) -> f32 + '_ {
     move |(min, max)| {
@@ -192,19 +286,70 @@ fn refinement_error_metric<P: Palette>(
 }
 
 fn compress_inter6(
-    block: &[f32; 16],
+    block: &Block,
     mut min: f32,
     mut max: f32,
     options: Bc4Options,
 ) -> ([u8; 8], f32) {
+    // Nudge the min and max closer to the mean to reduce the impact of outliers.
+    let mean = {
+        let [b0, b1, b2, b3] = block.b;
+        let b = b0 + b1 + b2 + b3;
+        ((b.x + b.y) + (b.z + b.w)) * (1.0 / 16.0)
+    };
+    let nudge = 0.95;
+    min = mean + (min - mean) * nudge;
+    max = mean + (max - mean) * nudge;
+
+    let mut best = compress_inter6_impl(block, min, max, options);
+
+    // Instead of interpolating a total of 8 values, try interpolating 5 values
+    // as well. 7 can be reached by refinement, 6 is already covered by
+    // `compress_inter4`, and 4/3/2/1 are already covered by other sizes.
+    if options.size_variations {
+        let dist = max - min;
+
+        // To test a palette with N interpolated values, we need a factor of
+        // 1/(N-1). So for 5 values, we need 1/4 and so on.
+        let min_5 = min - dist * 0.25;
+        let max_5 = max + dist * 0.25;
+
+        // We can chose between using (min_f, max) or (min, max_f) as the
+        // endpoints. Since the implementation will try variations of
+        // endpoints, we want to select the pair that can move around move.
+        let min_movement = min_5;
+        let max_movement = 1.0 - max_5;
+        let pair = if min_movement > max_movement {
+            (min_5.max(0.0), max)
+        } else {
+            (min, max_5.min(1.0))
+        };
+
+        let p5 = compress_inter6_impl(block, pair.0, pair.1, options);
+        if p5.1 < best.1 {
+            best = p5;
+        }
+    }
+
+    best
+}
+fn compress_inter6_impl(
+    block: &Block,
+    mut min: f32,
+    mut max: f32,
+    options: Bc4Options,
+) -> ([u8; 8], f32) {
+    for _ in 0..2 {
+        let weights = Inter6Palette::new(min, max).block_closest_weights(block);
+        (min, max) = bcn_util::least_squares_weights_f32_vec4(&block.b, &weights);
+        min = min.clamp(0.0, 1.0);
+        max = max.clamp(0.0, 1.0);
+    }
+
     (min, max) = refine_endpoints(
         min,
         max,
         refinement_error_metric::<Inter6Palette>(block, options),
-        move |(min, max)| {
-            let endpoints = EndPoints::new_inter6(min, max, options.snorm);
-            (endpoints.c0_f, endpoints.c1_f)
-        },
         options,
     );
 
@@ -220,26 +365,13 @@ fn compress_inter6(
     (endpoints.with_indexes(indexes), error)
 }
 
-fn compress_inter4(block: &[f32; 16], options: Bc4Options) -> ([u8; 8], f32) {
-    let mut min: f32 = 1.0;
-    let mut max: f32 = 0.0;
-    for &value in block {
-        if value > BC4_MIN_VALUE {
-            min = min.min(value);
-        }
-        if value < 1.0 - BC4_MIN_VALUE {
-            max = max.max(value);
-        }
-    }
+fn compress_inter4(block: &Block, options: Bc4Options) -> ([u8; 8], f32) {
+    let (mut min, mut max) = block.min_max_with_threshold(BC4_MIN_VALUE);
 
     (min, max) = refine_endpoints(
         min,
         max,
         refinement_error_metric::<Inter4Palette>(block, options),
-        move |(min, max)| {
-            let endpoints = EndPoints::new_inter4(min, max, options.snorm);
-            (endpoints.c0_f, endpoints.c1_f)
-        },
         options,
     );
 
@@ -289,22 +421,101 @@ impl EndPoints {
             Self { c0, c1, c0_f, c1_f }
         }
     }
+
+    fn quantize((e0, e1): (f32, f32), snorm: bool) -> (f32, f32) {
+        let min = e0.min(e1);
+        let max = e0.max(e1);
+
+        if snorm {
+            unlikely_branch();
+
+            let min = min.clamp(0.0, 1.0);
+            let max = max.clamp(0.0, 1.0);
+
+            // round to nearest
+            let mut min_s8_norm = (254.0 * min + 0.5) as u8;
+            let mut max_s8_norm = (254.0 * max + 0.5) as u8;
+
+            // make sure they are different
+            if min_s8_norm == max_s8_norm {
+                unlikely_branch();
+
+                // round down min and round up max
+                min_s8_norm = (254.0 * min) as u8;
+                max_s8_norm = 254 - (254.0 * (1.0 - max)) as u8;
+
+                if min_s8_norm == max_s8_norm {
+                    if min_s8_norm == 0 {
+                        max_s8_norm = 1;
+                    } else {
+                        min_s8_norm -= 1;
+                    }
+                }
+            }
+            debug_assert!(min_s8_norm < max_s8_norm);
+
+            let c0 = s8::from_norm(max_s8_norm);
+            let c1 = s8::from_norm(min_s8_norm);
+            debug_assert!(c0 != c1);
+
+            let c0_f = s8::uf32(c0);
+            let c1_f = s8::uf32(c1);
+
+            (c0_f, c1_f)
+        } else {
+            // round to nearest
+            let mut min_u8 = (255.0 * min + 0.5) as u8;
+            let mut max_u8 = (255.0 * max + 0.5) as u8;
+
+            // make sure they are different
+            if min_u8 == max_u8 {
+                unlikely_branch();
+
+                // round down min and round up max
+                min_u8 = (255.0 * min) as u8;
+                max_u8 = 255 - (255.0 * (1.0 - max)) as u8;
+
+                if min_u8 == max_u8 {
+                    if min_u8 == 0 {
+                        max_u8 = 1;
+                    } else {
+                        min_u8 -= 1;
+                    }
+                }
+            }
+            debug_assert!(min_u8 < max_u8);
+
+            (n8::f32(max_u8), n8::f32(min_u8))
+        }
+    }
+
     fn new_inter6(e0: f32, e1: f32, snorm: bool) -> Self {
         let min = e0.min(e1);
         let max = e0.max(e1);
 
         // For the 6 interpolation mode, we need c0 > c1
         if snorm {
-            // round down min and round up max
-            let mut min_s8_norm = (254.0 * min) as u8;
-            let mut max_s8_norm = 254 - (254.0 * (1.0 - max)) as u8;
+            let min = min.clamp(0.0, 1.0);
+            let max = max.clamp(0.0, 1.0);
+
+            // round to nearest
+            let mut min_s8_norm = (254.0 * min + 0.5) as u8;
+            let mut max_s8_norm = (254.0 * max + 0.5) as u8;
 
             // make sure they are different
             if min_s8_norm == max_s8_norm {
-                if min_s8_norm == 0 {
-                    max_s8_norm = 1;
-                } else {
-                    min_s8_norm -= 1;
+                unlikely_branch();
+
+                // round down min and round up max
+                min_s8_norm = (254.0 * min) as u8;
+                max_s8_norm = 254 - (254.0 * (1.0 - max)) as u8;
+
+                if min_s8_norm == max_s8_norm {
+                    if min_s8_norm == 0 {
+                        max_s8_norm = 1;
+                    } else {
+                        min_s8_norm -= 1;
+                    }
                 }
             }
             debug_assert!(min_s8_norm < max_s8_norm);
@@ -322,16 +533,24 @@ impl EndPoints {
 
             Self { c0, c1, c0_f, c1_f }
         } else {
-            // round down min and round up max
-            let mut min_u8 = (255.0 * min) as u8;
-            let mut max_u8 = 255 - (255.0 * (1.0 - max)) as u8;
+            // round to nearest
+            let mut min_u8 = (255.0 * min + 0.5) as u8;
+            let mut max_u8 = (255.0 * max + 0.5) as u8;
 
             // make sure they are different
             if min_u8 == max_u8 {
-                if min_u8 == 0 {
-                    max_u8 = 1;
-                } else {
-                    min_u8 -= 1;
+                unlikely_branch();
+
+                // round down min and round up max
+                min_u8 = (255.0 * min) as u8;
+                max_u8 = 255 - (255.0 * (1.0 - max)) as u8;
+
+                if min_u8 == max_u8 {
+                    if min_u8 == 0 {
+                        max_u8 = 1;
+                    } else {
+                        min_u8 -= 1;
+                    }
                 }
             }
             debug_assert!(min_u8 < max_u8);
@@ -349,7 +568,7 @@ impl EndPoints {
     }
 
     fn new_inter6_unorm(c0: u8, c1: u8) -> Self {
-        assert!(c0 > c1);
+        debug_assert!(c0 > c1);
         let c0_f = n8::f32(c0);
         let c1_f = n8::f32(c1);
         Self { c0, c1, c0_f, c1_f }
@@ -421,23 +640,38 @@ trait Palette {
     where
         Self: Sized;
 
-    /// Returns:
-    /// 0: The index value of the closest color in the palette
-    /// 1: The closest color in the palette
-    /// 2: `pixel - closest`, aka the (signed) error
-    fn closest(&self, pixel: f32) -> (u8, f32, f32);
-
-    /// Returns the square of the error between the pixel and the closest color
-    /// in the palette.
-    ///
-    /// Same as `self.closest(pixel).2.powi(2)`.
-    fn closest_error_sq(&self, pixel: f32) -> f32;
-
     fn from_endpoints(endpoints: &EndPoints) -> Self
     where
         Self: Sized,
     {
         Self::new(endpoints.c0_f, endpoints.c1_f)
+    }
+
+    /// Returns:
+    /// 0: The index value of the closest color in the palette
+    /// 1: The closest color in the palette
+    /// 2: `abs(pixel - closest)`, aka the absolute error
+    fn closest(&self, pixel: f32) -> (u8, f32, f32);
+
+    /// Same as calling `self.closest` for each component of the vector.
+    /// Returns:
+    /// 0: The index values of the closest colors in the palette
+    /// 1: `abs(pixel - closest)`, aka the absolute error
+    ///
+    /// NOTE: This default implementation doesn't need to be replaced, because
+    /// the compiler is good enough at auto-vectorizing. In fact, a custom
+    /// implementation is likely slower, since it prevents the compiler for
+    /// using AVX instructions.
+    fn closest_4(&self, pixels: Vec4) -> (UVec4, Vec4) {
+        let (i0, _, e0) = self.closest(pixels.x);
+        let (i1, _, e1) = self.closest(pixels.y);
+        let (i2, _, e2) = self.closest(pixels.z);
+        let (i3, _, e3) = self.closest(pixels.w);
+
+        (
+            UVec4::new(i0 as u32, i1 as u32, i2 as u32, i3 as u32),
+            Vec4::new(e0, e1, e2, e3),
+        )
     }
 
     /// Returns the index list of the colors in the palette that together
@@ -449,14 +683,16 @@ trait Palette {
     ///
     /// Note that the MSE is **NOT** normalized. In other words, the result is
     /// 16x the actual MSE.
-    fn block_closest(&self, block: &[f32; 16]) -> (IndexList, f32) {
+    fn block_closest(&self, block: &Block) -> (IndexList, f32) {
         let mut total_error = 0.0;
         let mut index_list = IndexList::new_empty();
-        for (pixel_index, pixel) in block.iter().copied().enumerate() {
-            let (index_value, _, error) = self.closest(pixel);
+        for (pixel_index, pixels) in block.b.iter().enumerate() {
+            let (index_value, error) = self.closest_4(*pixels);
 
-            index_list.set(pixel_index, index_value);
-            total_error += error * error;
+            for i in 0..4 {
+                index_list.set(pixel_index * 4 + i, index_value[i] as u8);
+            }
+            total_error += error.dot(error);
         }
 
         (index_list, total_error)
@@ -466,13 +702,7 @@ trait Palette {
     /// the palette.
     ///
     /// Same as `self.block_closest(block).1`.
-    fn block_closest_error_sq(&self, block: &[f32; 16]) -> f32 {
-        block
-            .iter()
-            .copied()
-            .map(|pixel| self.closest_error_sq(pixel))
-            .sum()
-    }
+    fn block_closest_error_sq(&self, block: &Block) -> f32;
 
     fn block_dither(&self, block: impl Block4x4<f32>) -> (IndexList, f32) {
         let mut index_list = IndexList::new_empty();
@@ -491,7 +721,7 @@ trait Palette {
 }
 
 struct Inter6Palette {
-    // c0: f32,
+    c0: f32,
     c1: f32,
     factor1: f32,
     factor2: f32,
@@ -499,6 +729,14 @@ struct Inter6Palette {
 }
 impl Inter6Palette {
     const INDEX_MAP: [u8; 8] = [1, 7, 6, 5, 4, 3, 2, 0];
+
+    fn closest_weights4(&self, pixels: Vec4) -> Vec4 {
+        let blend = (pixels * self.factor1 + self.add1).min(Vec4::splat(7.0));
+        1.0 - blend.trunc() * (1.0 / 7.0)
+    }
+    fn block_closest_weights(&self, block: &Block) -> [Vec4; 4] {
+        block.b.map(|pixels| self.closest_weights4(pixels))
+    }
 }
 impl Palette for Inter6Palette {
     fn new(c0: f32, c1: f32) -> Self {
@@ -509,7 +747,7 @@ impl Palette for Inter6Palette {
         let add1 = 0.5 - c1 * factor1;
 
         Self {
-            // c0,
+            c0,
             c1,
             factor1,
             factor2,
@@ -525,16 +763,38 @@ impl Palette for Inter6Palette {
         let closest = blend7 as f32 * self.factor2 + self.c1;
         let error = pixel - closest;
 
-        (index_value, closest, error)
+        (index_value, closest, error.abs())
     }
-    fn closest_error_sq(&self, pixel: f32) -> f32 {
-        let blend = pixel * self.factor1 + self.add1;
-        let blend7 = ((blend) as u8).min(7) as f32;
 
-        let closest = blend7 * self.factor2 + self.c1;
-        let error = pixel - closest;
+    fn block_closest_error_sq(&self, block: &Block) -> f32 {
+        // compute all min errors in parallel
+        let [b0, b1, b2, b3] = block.b;
 
-        error * error
+        // prepare endpoints for interpolation
+        let c0 = Vec4::splat(self.c0);
+        let cd = Vec4::splat(self.c1 - self.c0);
+
+        // start with c0
+        let mut e0 = (c0 - b0).abs();
+        let mut e1 = (c0 - b1).abs();
+        let mut e2 = (c0 - b2).abs();
+        let mut e3 = (c0 - b3).abs();
+
+        // and now the other 7 colors
+        const FACTORS: [f32; 7] = [1. / 7., 2. / 7., 3. / 7., 4. / 7., 5. / 7., 6. / 7., 1.];
+        for f in FACTORS {
+            let c = c0 + cd * f;
+
+            e0 = e0.min((c - b0).abs());
+            e1 = e1.min((c - b1).abs());
+            e2 = e2.min((c - b2).abs());
+            e3 = e3.min((c - b3).abs());
+        }
+
+        // e0-3 now contain the min error for all pixels
+        // so now just square and add
+        let e = e0 * e0 + e1 * e1 + e2 * e2 + e3 * e3;
+        e.x + e.y + e.z + e.w
     }
 }
 
@@ -568,8 +828,8 @@ impl Palette for Inter4Palette {
         // for the rest, check the palette
         #[allow(clippy::needless_range_loop)]
         for i in 0..6 {
-            let error = pixel - self.colors[i];
-            if error.abs() < min_error.abs() {
+            let error = (pixel - self.colors[i]).abs();
+            if error < min_error {
                 min_error = error;
                 index_value = i as u8;
             }
@@ -578,23 +838,30 @@ impl Palette for Inter4Palette {
         (index_value, self.colors[index_value as usize], min_error)
     }
 
-    fn closest_error_sq(&self, pixel: f32) -> f32 {
-        let p0 = Vec4::new(
-            self.colors[0],
-            self.colors[1],
-            self.colors[2],
-            self.colors[3],
-        );
-        let p1 = Vec4::new(
-            self.colors[4],
-            self.colors[5],
-            self.colors[6],
-            self.colors[7],
-        );
+    fn block_closest_error_sq(&self, block: &Block) -> f32 {
+        // compute all min errors in parallel
+        let [b0, b1, b2, b3] = block.b;
 
-        let p0_error = (p0 - Vec4::splat(pixel)).abs().min_element();
-        let p1_error = (p1 - Vec4::splat(pixel)).abs().min_element();
-        let error = p0_error.min(p1_error);
-        error * error
+        // since all pixels are in the range 0-1, we can initialize the min
+        // error with pixel.min(1.0 - pixel) and then do the other 6 colors
+        let mut e0 = b0.min(1.0 - b0);
+        let mut e1 = b1.min(1.0 - b1);
+        let mut e2 = b2.min(1.0 - b2);
+        let mut e3 = b3.min(1.0 - b3);
+
+        // and now the other 6 colors
+        for i in 0..6 {
+            let c = Vec4::splat(self.colors[i]);
+
+            e0 = e0.min((c - b0).abs());
+            e1 = e1.min((c - b1).abs());
+            e2 = e2.min((c - b2).abs());
+            e3 = e3.min((c - b3).abs());
+        }
+
+        // e0-3 now contain the min error for all pixels
+        // so now just square and add
+        let e = e0 * e0 + e1 * e1 + e2 * e2 + e3 * e3;
+        e.x + e.y + e.z + e.w
     }
 }
