@@ -77,8 +77,13 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         Ok(())
     })?;
 
+    debug_assert_eq!(
+        plane2.len(),
+        plane2_len,
+        "expected the pre-allocated memory for plane2 to fit exactly"
+    );
+
     progress.check_cancelled()?;
-    debug_assert_eq!(plane2.len(), plane2_len);
     P2::to_le(&mut plane2);
     writer.write_all(cast::as_bytes(&plane2))?;
 
