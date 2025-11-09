@@ -37,8 +37,9 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
         ));
     }
 
-    let mut plane1_buffer = vec![P1::default(); width * BLOCK_HEIGHT];
-    let mut plane2: Vec<P2> = Vec::new();
+    let mut plane1_buffer = vec![P1::default(); width * BLOCK_HEIGHT].into_boxed_slice();
+    let plane2_len = (width / BLOCK_WIDTH) * (height / BLOCK_HEIGHT);
+    let mut plane2: Vec<P2> = Vec::with_capacity(plane2_len);
 
     let line_group_count = util::div_ceil(height, BLOCK_HEIGHT);
     let report_frequency = util::div_ceil(1024 * 1024, width * BLOCK_HEIGHT);
@@ -77,6 +78,7 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     })?;
 
     progress.check_cancelled()?;
+    debug_assert_eq!(plane2.len(), plane2_len);
     P2::to_le(&mut plane2);
     writer.write_all(cast::as_bytes(&plane2))?;
 
