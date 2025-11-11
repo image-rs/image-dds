@@ -1,6 +1,6 @@
 # Changes
 
-## Version 0.2.0 [Unreleased]
+## Version 0.2.0 (2025-11-10)
 
 Breaking:
 
