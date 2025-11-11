@@ -1,6 +1,6 @@
 [package]
 name = "dds"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.63.0"
 
@@ -16,7 +16,7 @@ include = [
 	"src/",
 	"benches/",
 	"README.md",
-	"CHANGELOG.md",
+	"CHANGES.md",
 	"supported-formats.md",
 	"LICENSE-APACHE",
 	"LICENSE-MIT",
