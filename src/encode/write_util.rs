@@ -18,7 +18,7 @@ pub(crate) fn for_each_f32_rgba_rows<E>(
     let height = image.height() as usize;
 
     // this is the one and only buffer we need
-    let mut intermediate_buffer = vec![[0_f32; 4]; width * block_height];
+    let mut intermediate_buffer = vec![[0_f32; 4]; width * block_height].into_boxed_slice();
 
     // go through the image row by row, convert it to f32 RGBA, and then
     // pass it to the closure
@@ -35,7 +35,7 @@ pub(crate) fn for_each_f32_rgba_rows<E>(
             );
         }
 
-        f(intermediate_buffer.as_mut_slice())?;
+        f(&mut intermediate_buffer)?;
     }
 
     let rest_blocks = height % block_height;
@@ -57,7 +57,7 @@ pub(crate) fn for_each_f32_rgba_rows<E>(
             intermediate_buffer.copy_within(..width, i * width);
         }
 
-        f(intermediate_buffer.as_mut_slice())?;
+        f(&mut intermediate_buffer)?;
     }
 
     Ok(())

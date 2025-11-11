@@ -1,5 +1,3 @@
-// helpers
-
 use glam::Vec4;
 
 use crate::{
@@ -16,14 +14,26 @@ use super::{
     CompressionQuality, EncodeOptions, ErrorMetric, PreferredFragmentSize,
 };
 
+type EncodeBlockFn<const BLOCK_BYTES: usize> =
+    fn(&[[f32; 4]], usize, &EncodeOptions, &mut [u8; BLOCK_BYTES]);
+
+fn block_4x4<const BLOCK_BYTES: usize>(
+    args: Args,
+    encode_block: EncodeBlockFn<BLOCK_BYTES>,
+) -> Result<(), EncodingError> {
+    block_universal::<4, 4, 16, BLOCK_BYTES>(args, encode_block)
+}
 fn block_universal<
     const BLOCK_WIDTH: usize,
     const BLOCK_HEIGHT: usize,
+    const BLOCK_SIZE: usize,
     const BLOCK_BYTES: usize,
 >(
     args: Args,
-    encode_block: fn(&[[f32; 4]], usize, &EncodeOptions, &mut [u8; BLOCK_BYTES]),
+    encode_block: EncodeBlockFn<BLOCK_BYTES>,
 ) -> Result<(), EncodingError> {
+    debug_assert_eq!(BLOCK_SIZE, BLOCK_WIDTH * BLOCK_HEIGHT);
+
     let Args {
         image,
         writer,
@@ -34,7 +44,8 @@ fn block_universal<
     let width = image.width() as usize;
     let height = image.height() as usize;
 
-    let mut encoded_buffer = vec![[0_u8; BLOCK_BYTES]; util::div_ceil(width, BLOCK_WIDTH)];
+    let mut encoded_buffer =
+        vec![[0_u8; BLOCK_BYTES]; util::div_ceil(width, BLOCK_WIDTH)].into_boxed_slice();
 
     // Report frequencies were chosen manually.
     // I just tried to pick frequencies such that every quality level reports
@@ -76,7 +87,7 @@ fn block_universal<
             let block_width = width - block_start;
 
             // fill block data
-            let mut block_data = vec![[0_f32; 4]; BLOCK_WIDTH * BLOCK_HEIGHT];
+            let mut block_data = [[0_f32; 4]; BLOCK_SIZE];
             for i in 0..BLOCK_HEIGHT {
                 let row = &mut block_data[i * BLOCK_WIDTH..(i + 1) * BLOCK_WIDTH];
                 let partial_row = &rows[block_start + i * width..][..block_width];
@@ -185,7 +196,7 @@ fn get_bc1_options(options: &EncodeOptions) -> bc1::Bc1Options {
     }
 }
 pub(crate) const BC1_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
+    block_4x4::<8>(args, |data, row_pitch, options, out| {
         let bc1_options = get_bc1_options(options);
         let mut block = get_4x4_rgba(data, row_pitch);
 
@@ -228,7 +239,7 @@ fn bc2_alpha(alpha: [f32; 16], options: &EncodeOptions) -> [u8; 8] {
 }
 
 pub(crate) const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
         let (bc1_options, _) = get_bc3_options(options);
 
         let block = get_4x4_rgba(data, row_pitch);
@@ -244,7 +255,7 @@ pub(crate) const BC2_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 
 pub(crate) const BC2_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+        block_4x4::<16>(args, |data, row_pitch, options, out| {
             let (bc1_options, _) = get_bc3_options(options);
 
             let mut block = get_4x4_rgba(data, row_pitch);
@@ -269,7 +280,7 @@ fn get_bc3_options(options: &EncodeOptions) -> (bc1::Bc1Options, bc4::Bc4Options
     (bc1_options, bc4_options)
 }
 pub(crate) const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
         let (bc1_options, bc4_options) = get_bc3_options(options);
 
         let block = get_4x4_rgba(data, row_pitch);
@@ -285,7 +296,7 @@ pub(crate) const BC3_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 
 pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+        block_4x4::<16>(args, |data, row_pitch, options, out| {
             let (bc1_options, bc4_options) = get_bc3_options(options);
 
             let mut block = get_4x4_rgba(data, row_pitch);
@@ -302,7 +313,7 @@ pub(crate) const BC3_UNORM_PREMULTIPLIED_ALPHA: EncoderSet =
 
 pub(crate) const BC3_UNORM_RXGB: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+        block_4x4::<16>(args, |data, row_pitch, options, out| {
             let (bc1_options, bc4_options) = get_bc3_options(options);
 
             let block_r = get_4x4_select_channel::<0>(data, row_pitch);
@@ -329,7 +340,7 @@ pub(crate) const BC3_UNORM_RXGB: EncoderSet =
 
 pub(crate) const BC3_UNORM_NORMAL: EncoderSet =
     EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-        block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+        block_4x4::<16>(args, |data, row_pitch, options, out| {
             let (bc1_options, bc4_options) = get_bc3_options(options);
 
             let block_a = get_4x4_select_channel::<0>(data, row_pitch);
@@ -378,7 +389,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
 }
 
 pub(crate) const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
+    block_4x4::<8>(args, |data, row_pitch, options, out| {
         let mut options = get_bc4_options(options);
         options.snorm = false;
         *out = handle_bc4(data, row_pitch, options);
@@ -388,7 +399,7 @@ pub(crate) const BC4_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 .with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC4_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 8>(args, |data, row_pitch, options, out| {
+    block_4x4::<8>(args, |data, row_pitch, options, out| {
         let mut options = get_bc4_options(options);
         options.snorm = true;
         *out = handle_bc4(data, row_pitch, options);
@@ -408,7 +419,7 @@ fn handle_bc5(data: &[[f32; 4]], row_pitch: usize, options: bc4::Bc4Options) -> 
 }
 
 pub(crate) const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
         let mut options = get_bc4_options(options);
         options.snorm = false;
         *out = handle_bc5(data, row_pitch, options);
@@ -418,7 +429,7 @@ pub(crate) const BC5_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 .with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
         let mut options = get_bc4_options(options);
         options.snorm = true;
         *out = handle_bc5(data, row_pitch, options);
@@ -428,7 +439,7 @@ pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 .with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
 pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
-    block_universal::<4, 4, 16>(args, |data, row_pitch, options, out| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
         let block_vec: [Vec4; 16] = get_4x4_rgba_vec4(data, row_pitch);
 
         let block = if options.dithering == Dithering::None {
