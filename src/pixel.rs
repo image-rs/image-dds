@@ -155,7 +155,7 @@ impl PixelInfo {
     pub const fn fixed(bytes_per_pixel: u8) -> Self {
         Self::Fixed { bytes_per_pixel }
     }
-    /// Creates a new [`PixelInfo::Fixed`].
+    /// Creates a new [`PixelInfo::Block`].
     ///
     /// ## Panics
     ///
