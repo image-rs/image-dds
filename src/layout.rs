@@ -9,6 +9,7 @@ use crate::{
     LayoutError, PixelInfo, Size,
 };
 
+/// An object or collection of objects in the data section of a DDS file.
 pub trait DataRegion {
     /// The number of bytes this object occupies in the data section of a DDS file.
     ///
@@ -396,6 +397,7 @@ impl DataRegion for Volume {
     }
 }
 
+/// Describes what kind of elements the texture array contains.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TextureArrayKind {
     /// An array of textures.
@@ -589,7 +591,7 @@ pub enum DataLayout {
     /// }
     /// ```
     Volume(Volume),
-    /// A simply array of 2D textures.
+    /// A simple array of 2D textures.
     ///
     /// All textures within the array have the same size, mipmap count, and
     /// pixel format.

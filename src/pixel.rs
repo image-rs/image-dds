@@ -9,7 +9,7 @@ use crate::{util::div_ceil, Format, FormatError, Size};
 /// - simple uncompressed (but quantized) formats like `R8G8B8A8_UNORM` and
 ///   `B5G6R5_UNORM`,
 /// - block-compressed formats like `BC1_UNORM` (DXT1),
-/// - chroma sub-sampled formats like `NV12` which store the luma and chroma in
+/// - chroma subsampled formats like `NV12` which store the luma and chroma in
 ///   different planes,
 /// - and more.
 ///
@@ -18,9 +18,10 @@ use crate::{util::div_ceil, Format, FormatError, Size};
 ///
 /// ## Unsupported pixel formats
 ///
-/// Note that [`PixelInfo`] can describe pixel formats are **not** supported for
-/// decoding. This is by design to allow users to get the data layout for DDS
-/// files this library doesn't fully support.
+/// [`PixelInfo`] **can** describe pixel formats **not** supported for
+/// de-/encoding. This is by design to enable the creation of
+/// [`DataLayout`](crate::DataLayout)s for DDS files this library doesn't fully
+/// support.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PixelInfo {
     /// Each pixel has a fixed number of bytes, regardless of the dimensions of
@@ -28,20 +29,25 @@ pub enum PixelInfo {
     ///
     /// This is only the case for uncompressed image formats. E.g.
     /// `R8G8B8A8_UNORM`.
-    Fixed { bytes_per_pixel: u8 },
+    Fixed {
+        /// The number of bytes per pixel.
+        ///
+        /// This is typically between 1 and 16.
+        bytes_per_pixel: u8,
+    },
     /// Pixels are grouped into blocks of constant byte size.
     ///
-    /// This is used for block-compressed and channel-packed sub-sampled pixel
+    /// This is used for block-compressed and channel-packed subsampled pixel
     /// formats. E.g. `BC1_UNORM` (`DXT1`) has 8 bytes per 4x4 block, and
     /// `R8G8B8G8_UNORM` has 4 bytes per pair (2x1 block).
     Block(BlockPixelInfo),
-    /// Pixels are stored as sub-sampled YUV (or YCbCr) samples in separate
+    /// Pixels are stored as subsampled YUV (or YCbCr) samples in separate
     /// planes.
     ///
-    /// Separate planes means that the Y and U/V components for one pixel are
+    /// Separate planes mean that the Y and U/V components for one pixel are
     /// stored in separate arrays. One example of this is the
     /// [`NV12` format](https://learn.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering#nv12).
-    /// This an 8-bit YUV 4:2:0 (meaning that U and V are sub-sampled to half
+    /// This an 8-bit YUV 4:2:0 (meaning that U and V are subsampled to half
     /// width and height) with the following memory layout:
     ///
     /// ```text
@@ -72,22 +78,33 @@ pub struct BlockPixelInfo {
 }
 impl BlockPixelInfo {
     const fn new(bytes_per_block: u8, block_size: (u8, u8)) -> Self {
+        debug_assert!(block_size.0 > 0 && block_size.1 > 0);
+
         Self {
             bytes_per_block,
             size: pack_2_u4(block_size),
         }
     }
 
+    /// Returns the number of bytes per block.
+    ///
+    /// Note: Partial blocks (e.g. at the edges of a surface) still occupy the
+    /// full number of bytes.
     pub const fn bytes_per_block(&self) -> u8 {
         self.bytes_per_block
     }
     /// Returns the `(width, height)` of a block.
+    ///
+    /// Both components are guaranteed to be non-zero.
     pub const fn size(&self) -> (u8, u8) {
         unpack_2_u4(self.size)
     }
     /// Returns the number of pixels in a block.
+    ///
+    /// This is guaranteed to be non-zero.
     pub const fn pixels(&self) -> u8 {
         let (x, y) = self.size();
+        debug_assert!(x > 0 && y > 0);
         x * y
     }
 }
@@ -103,35 +120,69 @@ impl BiPlanarPixelInfo {
         plane2_bytes_per_sample: u8,
         plane2_sub_sampling: (u8, u8),
     ) -> Self {
+        debug_assert!(plane2_sub_sampling.0 > 0 && plane2_sub_sampling.1 > 0);
+
         Self {
             bytes: pack_2_u4((plane1_bytes_per_pixel, plane2_bytes_per_sample)),
             plane2_sub_sampling: pack_2_u4(plane2_sub_sampling),
         }
     }
 
+    /// The number of bytes per pixel in plane 1 (typically the luma plane).
     pub const fn plane1_bytes_per_pixel(&self) -> u8 {
         unpack_2_u4(self.bytes).0
     }
+    /// The number of bytes per (subsampled) sample in plane 2 (typically the
+    /// chroma plane).
+    ///
+    /// The chroma plane typically contains the U and V (or Cb and Cr) channels.
+    /// U and V combined are considered one sample. E.g. if U and V are 1 byte
+    /// each, plane 2 is considered to be 2 bytes per sample.
     pub const fn plane2_bytes_per_sample(&self) -> u8 {
         unpack_2_u4(self.bytes).1
     }
+    /// The subsampling factor of plane 2.
+    ///
+    /// Subsampling factors are in the order X,Y (horizontal,vertical) and are
+    /// guaranteed to be non-zero.
     pub const fn plane2_sub_sampling(&self) -> (u8, u8) {
         unpack_2_u4(self.plane2_sub_sampling)
     }
 }
 
 impl PixelInfo {
+    /// Creates a new [`PixelInfo::Fixed`].
     pub const fn fixed(bytes_per_pixel: u8) -> Self {
         Self::Fixed { bytes_per_pixel }
     }
+    /// Creates a new [`PixelInfo::Fixed`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `block_size` components are 0 or >= 16.
     pub const fn block(bytes_per_block: u8, block_size: (u8, u8)) -> Self {
+        assert!(block_size.0 > 0 && block_size.1 > 0);
+        assert!(block_size.0 < 16 && block_size.1 < 16);
+
         Self::Block(BlockPixelInfo::new(bytes_per_block, block_size))
     }
+    /// Creates a new [`PixelInfo::BiPlanar`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if:
+    ///
+    /// 1. `bytes_per_pixel` or `bytes_per_sample` are >= 16.
+    /// 2. `sub_sampling` components are 0 or >= 16.
     pub const fn bi_planar(
         bytes_per_pixel: u8,
         bytes_per_sample: u8,
         sub_sampling: (u8, u8),
     ) -> Self {
+        assert!(bytes_per_pixel < 16 && bytes_per_sample < 16);
+        assert!(sub_sampling.0 > 0 && sub_sampling.1 > 0);
+        assert!(sub_sampling.0 < 16 && sub_sampling.1 < 16);
+
         Self::BiPlanar(BiPlanarPixelInfo::new(
             bytes_per_pixel,
             bytes_per_sample,
@@ -139,6 +190,7 @@ impl PixelInfo {
         ))
     }
 
+    /// Detects the pixel format from a DDS header.
     pub fn from_header(header: &Header) -> Result<Self, FormatError> {
         match header {
             Header::Dx9(dx9) => match &dx9.pixel_format {
@@ -246,7 +298,7 @@ impl From<Format> for PixelInfo {
             // 3 bytes per pixel
             F::R8G8B8_UNORM | F::B8G8R8_UNORM => Self::fixed(3),
 
-            // sub-sampled formats
+            // subsampled formats
             // 4 bytes per one 2x1 block
             F::UYVY => Self::block(4, (2, 1)),
 
@@ -277,7 +329,7 @@ impl TryFrom<DxgiFormat> for PixelInfo {
         match value {
             // Fixed
 
-            // 1 bytes per pixel
+            // 1 byte per pixel
             F::R8_TYPELESS | F::R8_UNORM | F::R8_UINT | F::R8_SNORM | F::R8_SINT | F::A8_UNORM => {
                 Ok(Self::fixed(1))
             }
@@ -361,7 +413,7 @@ impl TryFrom<DxgiFormat> for PixelInfo {
             | F::R32G32B32A32_UINT
             | F::R32G32B32A32_SINT => Ok(Self::fixed(16)),
 
-            // Sub-sampled 2x1
+            // Subsampled 2x1
             F::R8G8_B8G8_UNORM | F::G8R8_G8B8_UNORM => Ok(Self::block(4, (2, 1))),
             // YUV 4:2:2 formats
             // https://learn.microsoft.com/en-us/windows/win32/medfound/recommended-8-bit-yuv-formats-for-video-rendering#yuy2

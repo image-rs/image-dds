@@ -21,13 +21,13 @@ pub struct Encoder<W> {
 
     /// The encoding options used to encode surfaces.
     ///
-    /// Defaults: `EncodeOptions::default()`
+    /// Default: `EncodeOptions::default()`
     pub encoding: EncodeOptions,
     /// Options regarding automatic mipmap generation.
     ///
     /// Set `self.mipmaps.generate = true` to enable automatic mipmap generation.
     ///
-    /// Defaults: `MipmapOptions::default()`
+    /// Default: `MipmapOptions::default()`
     pub mipmaps: MipmapOptions,
 
     // internal cache for resizing
@@ -283,6 +283,11 @@ impl<W> Encoder<W> {
     }
 }
 
+/// The filter to use when resizing images for mipmap generation.
+///
+/// ## See also
+///
+/// - [`MipmapOptions::resize_filter`]
 #[derive(Debug, Clone, Copy, Default)]
 pub enum ResizeFilter {
     Nearest,
@@ -293,6 +298,7 @@ pub enum ResizeFilter {
     Lanczos3,
 }
 
+/// Options for automatic mipmap generation in [`Encoder`].
 #[derive(Debug, Clone, Copy)]
 pub struct MipmapOptions {
     /// Whether to generate mipmaps for the texture.
@@ -301,23 +307,25 @@ pub struct MipmapOptions {
     /// generate all mipmaps until the next level 0 object or EOF.
     ///
     /// Note: Generating mipmaps for volume depth slices is not supported. This
-    /// will **NOT** result in an error and instead the encoder will silently
-    /// ignore the option.
+    /// will **NOT** result in an error. Instead, the encoder will silently
+    /// ignore the option and assume mipmap generation is disabled.
     ///
     /// Default: `false`
     pub generate: bool,
-    /// Whether the alpha channel (if any) is straight alpha.
+    /// Whether the alpha channel (if any) is straight alpha transparency.
     ///
     /// This is important when generating mipmaps. Resizing RGBA with straight
     /// alpha requires that the alpha channel is premultiplied into the color
-    /// channels before resizing and then unpremultiplied after resizing. This
+    /// channels before resizing and then un-premultiplied after resizing. This
     /// is necessary to avoid color bleeding.
     ///
-    /// If the alpha channel is premultiplied alpha or custom (e.g. like in
-    /// channel-packed textures), this option should be set to `false`.
+    /// If the alpha channel is premultiplied alpha transparency or custom
+    /// (e.g. like in channel-packed textures), this option should be set to
+    /// `false`.
     ///
     /// If this option is set to `false`, all channels will be resized
-    /// independently of each other.
+    /// independently of each other. If set to `true`, the alpha channel will
+    /// be interpreted as straight alpha transparency and handled accordingly.
     ///
     /// Default: `true`
     pub resize_straight_alpha: bool,
