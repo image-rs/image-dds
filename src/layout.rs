@@ -13,13 +13,14 @@ use crate::{
 pub trait DataRegion {
     /// The number of bytes this object occupies in the data section of a DDS file.
     ///
-    /// It is guaranteed that `self.offset() + self.len() <= u64::MAX`.
+    /// It is guaranteed that `self.data_offset() + self.data_len() <= u64::MAX`.
+    /// See [`DataRegion::data_end()`].
     fn data_len(&self) -> u64;
     /// The byte offset of this object in the data section of a DDS file.
     fn data_offset(&self) -> u64;
     /// The byte offset of the byte after this object in the data section of a DDS file.
     ///
-    /// This is equivalent to `self.offset() + self.len()`.
+    /// This is equivalent to `self.data_offset() + self.data_len()`.
     fn data_end(&self) -> u64 {
         self.data_offset() + self.data_len()
     }
