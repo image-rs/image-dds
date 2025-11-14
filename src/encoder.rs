@@ -283,7 +283,7 @@ impl<W> Encoder<W> {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ResizeFilter {
     Nearest,
     #[default]
