@@ -16,3 +16,21 @@ base @ straight-alpha - Mitchell.png: >
 base @ straight-alpha - Lanczos3.png: >
     50ce5bf37b01ec925c5a2188dfdf83be0e4ff0060923261e030741a1b0025e30
 
+bricks-d @ straight-alpha - Box.png: >
+    3b615f955e1bb504ba1d7c08ed948926fbbc39d78f2b211c655f33afb7ec633b
+
+bricks-d @ no-straight-alpha - Box.png: >
+    3b615f955e1bb504ba1d7c08ed948926fbbc39d78f2b211c655f33afb7ec633b
+
+bricks-d @ straight-alpha - Nearest.png: >
+    9ce443a23c8483064d2ef4ac494397c94a0954a0c4833f9934df0252c3ffea56
+
+bricks-d @ straight-alpha - Triangle.png: >
+    f1db1ac5255e309ee51d6fb1bdf1d45288a3161ed0f02629e7ac2fac90f88247
+
+bricks-d @ straight-alpha - Mitchell.png: >
+    d298d727e988a53adaf9d4ffe2b9752046e434cef024667004d9f88412d673c7
+
+bricks-d @ straight-alpha - Lanczos3.png: >
+    c1442ac7b53cc5c6531900bcabf63509fadeaafdd26ae9e61a78f29397f4ec34
+
