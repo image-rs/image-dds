@@ -69,7 +69,7 @@ pub(crate) const fn dxgi_format_to_supported(dxgi_format: DxgiFormat) -> Option<
         DxgiFormat::Y410 => Some(Format::Y410),
         DxgiFormat::Y416 => Some(Format::Y416),
 
-        // sub-sampled formats
+        // subsampled formats
         DxgiFormat::R8G8_B8G8_UNORM => Some(Format::R8G8_B8G8_UNORM),
         DxgiFormat::G8R8_G8B8_UNORM => Some(Format::G8R8_G8B8_UNORM),
         DxgiFormat::YUY2 => Some(Format::YUY2),

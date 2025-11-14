@@ -152,6 +152,11 @@
 //! to get periodic updates on the encoding progress. See the [`Progress`] type
 //! for more details.
 //!
+//! #### Cancellation
+//!
+//! The encoder supports cancelling the encoding operation using a
+//! [`CancellationToken`] and [`Progress::with_cancellation()`].
+//!
 //! ### Low-level API
 //!
 //! Besides the `Encoder` and `Decoder` types, the library also exposes a low-level

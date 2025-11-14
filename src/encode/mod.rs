@@ -61,7 +61,7 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::Y410 => Y410,
         Format::Y416 => Y416,
 
-        // sub-sampled formats
+        // subsampled formats
         Format::R1_UNORM => R1_UNORM,
         Format::R8G8_B8G8_UNORM => R8G8_B8G8_UNORM,
         Format::G8R8_G8B8_UNORM => G8R8_G8B8_UNORM,
@@ -222,6 +222,12 @@ fn encode_parallel(
     progress.checked_report(1.0)
 }
 
+/// Options for encoding images.
+///
+/// ## See also
+///
+/// - [`encode`]
+/// - [`Encoder::encoding`](crate::Encoder::encoding)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct EncodeOptions {
@@ -239,6 +245,9 @@ pub struct EncodeOptions {
     /// Default: [`Dithering::None`]
     pub dithering: Dithering,
     /// The error metric for block compression formats.
+    ///
+    /// This is currently only supported for BC1-3. All other formats will
+    /// ignore this option and assume [`ErrorMetric::Uniform`].
     ///
     /// Default: [`ErrorMetric::Uniform`]
     pub error_metric: ErrorMetric,
@@ -276,6 +285,8 @@ impl Default for EncodeOptions {
     }
 }
 
+/// Specifies whether dithering is enabled/supported for color and/or alpha
+/// channels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Dithering {
     /// Dithering is disabled for all channels.
@@ -289,6 +300,7 @@ pub enum Dithering {
     Alpha = 0b10,
 }
 impl Dithering {
+    /// Creates a new `Dithering` given the channels it is enabled for.
     pub const fn new(color: bool, alpha: bool) -> Self {
         match (color, alpha) {
             (true, true) => Dithering::ColorAndAlpha,
@@ -298,9 +310,11 @@ impl Dithering {
         }
     }
 
+    /// Whether dithering is enabled for color channels.
     pub const fn color(self) -> bool {
         matches!(self, Dithering::ColorAndAlpha | Dithering::Color)
     }
+    /// Whether dithering is enabled for the alpha channel.
     pub const fn alpha(self) -> bool {
         matches!(self, Dithering::ColorAndAlpha | Dithering::Alpha)
     }
@@ -318,10 +332,20 @@ impl Dithering {
     }
 }
 
+/// The error metric encoders use to optimize compressed formats.
+///
+/// Not all formats support all error metrics. See
+/// [`EncodeOptions::error_metric`] for more details.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ErrorMetric {
+    /// The error of all channels is weighted equally.
     #[default]
     Uniform,
+    /// Color is assumed to be sRGB, and the error is calculated in a
+    /// perceptually uniform color space.
+    ///
+    /// [Oklab](https://en.wikipedia.org/wiki/Oklab_color_space) is currently
+    /// used as the perceptually uniform color space.
     Perceptual,
 }
 

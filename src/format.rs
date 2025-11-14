@@ -49,7 +49,7 @@ pub enum Format {
     Y410,
     Y416,
 
-    // sub-sampled formats
+    // subsampled formats
     R1_UNORM,
     R8G8_B8G8_UNORM,
     G8R8_G8B8_UNORM,
@@ -147,13 +147,13 @@ impl Format {
     }
     /// Returns the format of a surface from a DXGI format.
     ///
-    /// `None` if the DXGI format is not supported for decoding.
+    /// `None` if the DXGI format is not supported for decoding/encoding.
     pub const fn from_dxgi(dxgi: DxgiFormat) -> Option<Format> {
         detect::dxgi_format_to_supported(dxgi)
     }
     /// Returns the format of a surface from a FourCC code.
     ///
-    /// `None` if the FourCC code is not supported for decoding.
+    /// `None` if the FourCC code is not supported for decoding/encoding.
     pub const fn from_four_cc(four_cc: FourCC) -> Option<Format> {
         detect::four_cc_to_supported(four_cc)
     }
@@ -240,7 +240,7 @@ impl TryFrom<Format> for DxgiFormat {
             Format::Y410 => DxgiFormat::Y410,
             Format::Y416 => DxgiFormat::Y416,
 
-            // sub-sampled
+            // subsampled
             Format::R1_UNORM => DxgiFormat::R1_UNORM,
             Format::R8G8_B8G8_UNORM => DxgiFormat::R8G8_B8G8_UNORM,
             Format::G8R8_G8B8_UNORM => DxgiFormat::G8R8_G8B8_UNORM,

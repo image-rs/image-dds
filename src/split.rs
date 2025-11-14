@@ -6,15 +6,14 @@ use crate::{util, Dithering, EncodeOptions, Format, ImageView, Offset, Size};
 ///
 /// ## Purpose
 ///
-/// The main use case of this type is to allow end users to implement custom
-/// concurrent/parallel encoding schemes. The parallel encoding implemented by
+/// The primary purpose of this type is to enable the creation of custom
+/// concurrent or parallel encoding schemes. The parallel encoding implemented by
 /// [`encode`](crate::encode()) may not fit every use case, so this type can be
-/// used to split a single [`ImageView`] into multiple fragments that can be
-/// encoded independently.
+/// used to encode fragments of an image independently of each other.
 ///
-/// Note that split views depend on the [`Format`] and [`EncodeOptions`] that
-/// are used to create them. The encoding fragments with different formats
-/// or options may yield unexpected results.
+/// Note: Split views are specific to the [`Format`] and [`EncodeOptions`] used
+/// to create them. Encoding fragments with different formats or options may
+/// yield unexpected results.
 pub struct SplitView<'a> {
     image: ImageView<'a>,
     len: u32,
@@ -54,6 +53,8 @@ impl<'a> SplitView<'a> {
         self.len
     }
 
+    /// Returns the fragment at the given index, or `None` if the index is out
+    /// of bounds.
     pub fn get(&self, index: u32) -> Option<ImageView<'a>> {
         if index >= self.len {
             return None;

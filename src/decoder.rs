@@ -19,6 +19,9 @@ pub struct Decoder<R> {
     layout: DataLayout,
 
     iter: SurfaceIterator,
+    /// The options used for decoding.
+    ///
+    /// Default: [`DecodeOptions::default()`]
     pub options: DecodeOptions,
 }
 impl<R> Decoder<R> {

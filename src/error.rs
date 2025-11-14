@@ -272,6 +272,11 @@ pub enum EncodingError {
     /// Returned by [`Encoder`](crate::Encoder) and [`encode()`](crate::encode()) when the format
     /// does not support encoding.
     UnsupportedFormat(Format),
+    /// Returned when the format requires the image size to be a multiple of
+    /// certain dimensions, but the provided image does not satisfy this.
+    ///
+    /// The two `NonZeroU32` values specify the required width and height
+    /// multiples respectively.
     InvalidSize(NonZeroU32, NonZeroU32),
 
     /// Returned by [`Encoder`](crate::Encoder) when the user tries to write a surface

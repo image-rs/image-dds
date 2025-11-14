@@ -1,5 +1,11 @@
 use crate::{DataLayout, DataRegion, Size, SurfaceDescriptor, Texture, Volume};
 
+/// Information about the surface to be read or written.
+///
+/// ## See also
+///
+/// - [`Decoder::surface_info`](crate::Decoder::surface_info)
+/// - [`Encoder::surface_info`](crate::Encoder::surface_info)
 #[derive(Debug, Clone, Copy)]
 pub struct SurfaceInfo<'a> {
     size: Size,
@@ -27,7 +33,7 @@ impl SurfaceInfo<'_> {
         self.len
     }
 
-    /// Whether this surface is has a mipmapping level greater than 0.
+    /// Whether this surface has a mipmap level greater than 0.
     ///
     /// For textures and texture arrays, this means that the texture is not
     /// a level 0 texture. For volumes, this means that the surface is not a

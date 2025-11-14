@@ -59,7 +59,7 @@ pub(crate) const fn get_decoders(format: Format) -> DecoderSet {
         Format::Y410 => Y410,
         Format::Y416 => Y416,
 
-        // sub-sampled formats
+        // subsampled formats
         Format::R1_UNORM => R1_UNORM,
         Format::R8G8_B8G8_UNORM => R8G8_B8G8_UNORM,
         Format::G8R8_G8B8_UNORM => G8R8_G8B8_UNORM,
@@ -223,6 +223,13 @@ pub fn decode_rect<R: Read + Seek>(
     }
 }
 
+/// Options for decoding images.
+///
+/// ## See also
+///
+/// - [`decode`]
+/// - [`decode_rect`]
+/// - [`Decoder::options`](crate::Decoder::options)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct DecodeOptions {
