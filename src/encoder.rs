@@ -290,11 +290,19 @@ impl<W> Encoder<W> {
 /// - [`MipmapOptions::resize_filter`]
 #[derive(Debug, Clone, Copy, Default)]
 pub enum ResizeFilter {
+    /// Nearest neighbor interpolation (=point filtering).
     Nearest,
+    /// Box (also called area or binning).
+    ///
+    /// This is the default filter, because it produces mipmaps that are
+    /// generally free of artifacts and sharp (without being over sharpened).
     #[default]
     Box,
+    /// Triangle filtering (=linear interpolation).
     Triangle,
+    /// Mitchell interpolation.
     Mitchell,
+    /// Lanczos interpolation with a radius of 3.
     Lanczos3,
 }
 
