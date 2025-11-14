@@ -189,7 +189,7 @@ impl<W> Encoder<W> {
 
             let mut level = 0;
             self.mipmap_cache
-                .for_each(image, &mipmap_sizes, self.mipmaps, |mipmap| {
+                .generate(image, &mipmap_sizes, self.mipmaps, |mipmap| {
                     level += 1;
                     encode(
                         &mut self.writer,
@@ -261,7 +261,7 @@ impl<W> Encoder<W> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum ResizeFilter {
     Nearest,
     #[default]
@@ -326,7 +326,7 @@ impl MipmapCache {
         }
     }
 
-    fn for_each(
+    fn generate(
         &mut self,
         image: ImageView,
         sizes: &[Size],
@@ -345,10 +345,10 @@ impl MipmapCache {
 
         // decide which path to take
 
-        if options.resize_filter == ResizeFilter::Nearest {
+        if matches!(options.resize_filter, ResizeFilter::Nearest) {
             // NN produces vastly different results when generated from previous
             // mipmaps. No idea why.
-            return self.for_each_from_source(image, sizes, options, true, f);
+            return self.generate_from_source(image, sizes, options, true, f);
         }
 
         if sizes
@@ -358,20 +358,20 @@ impl MipmapCache {
         {
             // Mipmap generation behaves more nicely when all sizes are powers of two.
 
-            if options.resize_filter == ResizeFilter::Box {
+            if matches!(options.resize_filter, ResizeFilter::Box) {
                 // Box filter behaves well enough that we can generate each
                 // mipmap from the previous one.
-                return self.for_each_from_previous(image, sizes, options, f);
+                return self.generate_from_previous(image, sizes, options, f);
             }
 
-            return self.for_each_from_previous_two(image, sizes, options, f);
+            return self.generate_from_previous_two(image, sizes, options, f);
         }
 
-        self.for_each_from_source(image, sizes, options, true, f)
+        self.generate_from_source(image, sizes, options, true, f)
     }
 
     /// Generates each mipmap directly from the source image.
-    fn for_each_from_source(
+    fn generate_from_source(
         &mut self,
         image: ImageView,
         sizes: &[Size],
@@ -413,7 +413,7 @@ impl MipmapCache {
     }
 
     /// Generates each mipmap from the previous mipmap.
-    fn for_each_from_previous(
+    fn generate_from_previous(
         &mut self,
         image: ImageView,
         sizes: &[Size],
@@ -443,7 +443,7 @@ impl MipmapCache {
     }
 
     /// Generates each mipmap from the previous previous mipmap.
-    fn for_each_from_previous_two(
+    fn generate_from_previous_two(
         &mut self,
         image: ImageView,
         sizes: &[Size],

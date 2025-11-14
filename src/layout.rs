@@ -754,7 +754,7 @@ impl DataLayout {
     /// The number of mipmaps per surface/volume.
     ///
     /// This is guaranteed to be at least 1.
-    pub fn mipmaps(&self) -> u8 {
+    pub(crate) fn mipmaps(&self) -> u8 {
         match self {
             DataLayout::Texture(texture) => texture.mipmaps(),
             DataLayout::Volume(volume) => volume.mipmaps(),
