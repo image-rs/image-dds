@@ -2560,7 +2560,11 @@ impl<'a> PartitionSelect<'a> {
 
         let partitions_64: [u8; 64] = scored.map(|(p, _)| p);
         let mut iter_16 = partitions_64.iter().copied().filter(|p| *p < 16);
-        let partitions_16: [u8; 16] = std::array::from_fn(move |_| iter_16.next().unwrap());
+        let partitions_16: [u8; 16] = std::array::from_fn(move |_| {
+            iter_16
+                .next()
+                .expect("iterator should have exactly 16 items")
+        });
 
         self.cache_partitions_3_64 = Some(partitions_64);
         self.cache_partitions_3_16 = Some(partitions_16);

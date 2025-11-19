@@ -147,9 +147,9 @@ fn resize_typed<P>(
         P::default(),
         filter,
     )
-    .unwrap();
+    .expect("failed to create resizer");
 
-    resizes.resize(src_slice, dst_slice).unwrap();
+    resizes.resize(src_slice, dst_slice).expect("resize failed");
 }
 
 fn get_aligned_slice(buffer: &mut Vec<u8>, size: Size, bytes_per_pixel: usize) -> &mut [u8] {

@@ -714,10 +714,8 @@ impl Header {
     /// If the mipmap count is 0.
     #[track_caller]
     pub fn with_mipmap_count(mut self, mipmap_count: u32) -> Header {
-        if mipmap_count == 0 {
-            panic!("Mipmap count must be greater than 0");
-        }
-        let mipmap_count = NonZeroU32::new(mipmap_count).unwrap();
+        let mipmap_count =
+            NonZeroU32::new(mipmap_count).expect("Mipmap count must be greater than 0");
 
         match &mut self {
             Header::Dx9(header) => header.mipmap_count = mipmap_count,

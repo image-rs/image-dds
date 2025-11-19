@@ -248,7 +248,7 @@ pub(crate) fn process_2x1_blocks_helper<
     let mut decoded: &mut [OutPixel::Bytes] =
         cast::from_bytes_mut(&mut decoded[..width * size_of::<OutPixel>()])
             .expect("Invalid output buffer");
-    debug_assert!(decoded.len() == width);
+    debug_assert_eq!(decoded.len(), width);
 
     let width_offset = range.width_offset;
     if width_offset == 1 {
@@ -264,6 +264,7 @@ pub(crate) fn process_2x1_blocks_helper<
         decoded = &mut decoded[1..];
     }
 
+    debug_assert_eq!(encoded_blocks.len(), util::div_ceil(width, 2));
     let width_half = width / 2;
 
     // do full pairs first
@@ -277,7 +278,7 @@ pub(crate) fn process_2x1_blocks_helper<
 
     // last lone pixel (if any)
     if width % 2 == 1 {
-        let encoded = encoded_blocks.last().unwrap();
+        let encoded = encoded_blocks.last().expect("invalid block buffer");
         let [p0, _] = process_block(*encoded);
         decoded[width - 1] = cast::IntoNeBytes::into_ne_bytes(p0);
     }

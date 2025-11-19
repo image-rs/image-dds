@@ -550,8 +550,9 @@ mod blocks {
 
     /// Decodes a BC5 UNORM block into 16 RGB pixels.
     pub(crate) fn bc5u_rgb<T: BC4uOperations>(block_bytes: [u8; 16]) -> [[T; 3]; 16] {
-        let red = bc4u_gray(block_bytes[0..8].try_into().unwrap());
-        let green = bc4u_gray(block_bytes[8..16].try_into().unwrap());
+        let (red_bytes, green_bytes) = split_16(block_bytes);
+        let red = bc4u_gray(red_bytes);
+        let green = bc4u_gray(green_bytes);
 
         let mut pixels: [[T; 3]; 16] = Default::default();
         for (i, pixel) in pixels.iter_mut().enumerate() {
@@ -565,8 +566,9 @@ mod blocks {
 
     /// Decodes a BC5 SNORM block into 16 RGB pixels.
     pub(crate) fn bc5s_rgb<T: BC4sOperations>(block_bytes: [u8; 16]) -> [[T; 3]; 16] {
-        let red = bc4s_gray(block_bytes[0..8].try_into().unwrap());
-        let green = bc4s_gray(block_bytes[8..16].try_into().unwrap());
+        let (red_bytes, green_bytes) = split_16(block_bytes);
+        let red = bc4s_gray(red_bytes);
+        let green = bc4s_gray(green_bytes);
 
         let mut pixels: [[T; 3]; 16] = Default::default();
         for (i, pixel) in pixels.iter_mut().enumerate() {
