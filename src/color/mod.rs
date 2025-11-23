@@ -67,10 +67,13 @@ impl Precision {
 /// A color format with a specific number of channels and precision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ColorFormat {
+    /// The number and semantics of the channels.
     pub channels: Channels,
+    /// The precision/bit depth of the values in all channels.
     pub precision: Precision,
 }
 impl ColorFormat {
+    /// Creates a new `ColorFormat` with the given channels and precision.
     pub const fn new(channels: Channels, precision: Precision) -> Self {
         Self {
             channels,

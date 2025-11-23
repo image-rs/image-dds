@@ -58,7 +58,7 @@ impl Default for ProgressRange {
 /// [`encode()`](crate::encode()).
 ///
 /// This structure is just a wrapper around a function that handles progress
-/// reports. A progress report is a single `f32` value between 0 to 1
+/// reports. A progress report is a single `f32` value between 0 and 1
 /// representing the percentage of the task that has been completed.
 ///
 /// Encoders will generally try to make 10 to 50 progress reports per second.
@@ -69,7 +69,7 @@ impl Default for ProgressRange {
 /// has been reported, the next report may be 40% again, 42%, or similar, but
 /// never 39% or lower. In particular, there may be multiple reports for 100%.
 ///
-/// ## Multi-threaded progress reporting
+/// ## Multithreaded progress reporting
 ///
 /// Encoding may happen in parallel across multiple threads. As such, progress
 /// reports may come from multiple threads at the same time.
@@ -101,7 +101,7 @@ pub struct Progress<'a> {
 impl<'a> Progress<'a> {
     /// Creates a new progress reporter.
     ///
-    /// This reporter supports multi-threaded progress reporting. See the
+    /// This reporter supports multithreaded progress reporting. See the
     /// documentation of [`Progress`] for more details.
     pub fn new<F: FnMut(f32) + Send>(reporter: &'a mut F) -> Self {
         Self {
@@ -112,7 +112,7 @@ impl<'a> Progress<'a> {
     }
     /// Creates a new progress reporter.
     ///
-    /// This reporter does **not** support multi-threaded progress reporting.
+    /// This reporter does **not** support multithreaded progress reporting.
     /// See the documentation of [`Progress`] for more details.
     pub fn new_single_threaded<F: FnMut(f32)>(reporter: &'a mut F) -> Self {
         Self {
@@ -160,6 +160,7 @@ impl<'a> Progress<'a> {
     /// Returns whether the operation has been cancelled.
     ///
     /// If no [`CancellationToken`] was set, this will always return `false`.
+    /// If a token was set, this will return [`CancellationToken::is_cancelled`].
     pub fn is_cancelled(&self) -> bool {
         if let Some(cancel) = &self.cancel {
             cancel.is_cancelled()
@@ -219,6 +220,11 @@ impl<'a> Progress<'a> {
 /// same cancellation state. Cancelling one token will cancel all clones and
 /// vice versa. This behavior can be used to cancel multiple operations at
 /// once.
+///
+/// ## See also
+///
+/// - [`Progress::with_cancellation()`]
+/// - [`Progress::is_cancelled()`]
 pub struct CancellationToken {
     cancelled: Arc<AtomicBool>,
 }
