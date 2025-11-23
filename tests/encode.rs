@@ -720,7 +720,7 @@ fn encode_mipmap() {
         let height = image.height();
 
         let mut encoded = Vec::new();
-        let mut encoder = Encoder::new_image(&mut encoded, base.size, format, true)?;
+        let mut encoder = Encoder::new_image(&mut encoded, image.size(), format, true)?;
         encoder.mipmaps = mipmaps;
         encoder.write_surface(image)?;
         encoder.finish()?;
@@ -924,14 +924,12 @@ fn test_row_pitch() {
             let mut cont_encoded = Vec::new();
             let mut cont_encoder =
                 Encoder::new_image(&mut cont_encoded, size, format, mipmaps).unwrap();
-            cont_encoder.mipmaps.generate = true;
             cont_encoder.write_surface(cont_image).unwrap();
             cont_encoder.finish().unwrap();
 
             let mut non_cont_encoded = Vec::new();
             let mut non_cont_encoder =
                 Encoder::new_image(&mut non_cont_encoded, size, format, mipmaps).unwrap();
-            non_cont_encoder.mipmaps.generate = true;
             non_cont_encoder.write_surface(image).unwrap();
             non_cont_encoder.finish().unwrap();
 

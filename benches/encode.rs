@@ -317,7 +317,6 @@ pub fn generate_mipmaps(c: &mut Criterion) {
                     let mut encoder =
                         Encoder::new_image(black_box(&mut output), image.size(), format, true)
                             .unwrap();
-                    encoder.mipmaps.generate = true; // enable mipmap generation for this test
                     encoder.mipmaps.resize_filter = filter;
                     let result = encoder.write_surface(image);
                     black_box(result).unwrap();
