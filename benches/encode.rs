@@ -276,29 +276,57 @@ pub fn encode_parallel(c: &mut Criterion) {
 }
 
 pub fn generate_mipmaps(c: &mut Criterion) {
+    // Create a new group to make the benchmark faster.
+    // It's fine if the results are less accurate in this case.
+    let mut group = c.benchmark_group("mip");
+    group.warm_up_time(std::time::Duration::from_millis(500));
+    group.measurement_time(std::time::Duration::from_secs(3));
+    group.sample_size(10);
+
     use Channels::*;
 
     // images
-    let image: Image<f32> = Image::random(Size::new(4096, 4096), Rgba);
+    let image_u8: Image<u8> = Image::random(Size::new(2048, 2048), Rgba);
+    let image_f32: Image<f32> = Image::random(Size::new(2048, 2048), Rgba);
     let format = Format::R8G8B8A8_UNORM;
 
-    c.bench_function("generate mipmaps", |b| {
-        let mut output: Vec<u8> = Vec::with_capacity(image.size.pixels() as usize * 16);
+    for image in [image_u8.view(), image_f32.view()] {
+        for filter in [
+            ResizeFilter::Box,
+            ResizeFilter::Triangle,
+            ResizeFilter::Mitchell,
+            ResizeFilter::Lanczos3,
+            ResizeFilter::Nearest,
+        ] {
+            let name = format!(
+                "generate mipmaps - {filter:?} {}x{} {:?} {:?}",
+                image.width(),
+                image.height(),
+                image.color().channels,
+                image.color().precision
+            );
+            group.bench_function(name, |b| {
+                let len = image.color().buffer_size(image.size()).unwrap();
+                let mut output: Vec<u8> = Vec::with_capacity(len);
 
-        b.iter(|| {
-            output.truncate(0);
+                b.iter(|| {
+                    output.truncate(0);
 
-            let image = black_box(&image);
+                    let image = black_box(image);
 
-            let mut encoder =
-                Encoder::new_image(black_box(&mut output), image.size, format, false).unwrap();
-            encoder.mipmaps.generate = true; // enable mipmap generation for this test
-            let result = encoder.write_surface(black_box(image.view()));
-            black_box(result).unwrap();
-            black_box(encoder.finish()).unwrap();
-            assert!(!black_box(&output).is_empty());
-        });
-    });
+                    let mut encoder =
+                        Encoder::new_image(black_box(&mut output), image.size(), format, true)
+                            .unwrap();
+                    encoder.mipmaps.generate = true; // enable mipmap generation for this test
+                    encoder.mipmaps.resize_filter = filter;
+                    let result = encoder.write_surface(image);
+                    black_box(result).unwrap();
+                    black_box(encoder.finish()).unwrap();
+                    assert!(!black_box(&output).is_empty());
+                });
+            });
+        }
+    }
 }
 
 criterion_group!(

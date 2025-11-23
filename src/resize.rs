@@ -1,9 +1,78 @@
-use crate::{cast, ColorFormat, ImageView, Precision, ResizeFilter, Size};
+use crate::{cast, util, Channels, ColorFormat, ImageView, Precision, ResizeFilter, Size};
 
 use resize::{Filter, Resizer};
 
+pub(crate) use aligned_types::*;
+
+mod aligned_types {
+    use crate::{cast, resize::is_aligned, ColorFormat, ImageView, Size};
+
+    pub(crate) type AlignTo = u32;
+
+    #[derive(Clone, Copy)]
+    pub(crate) struct AlignedView<'a> {
+        view: &'a [u8],
+        size: Size,
+        color: ColorFormat,
+    }
+    impl<'a> AlignedView<'a> {
+        pub fn new(view: &'a [u8], size: Size, color: ColorFormat) -> Self {
+            debug_assert_eq!(view.len(), color.buffer_size(size).expect("Invalid size"));
+            debug_assert!(is_aligned(view, color.precision.size() as usize));
+
+            Self { view, size, color }
+        }
+
+        pub fn view(&self) -> &'a [u8] {
+            self.view
+        }
+        pub fn size(&self) -> Size {
+            self.size
+        }
+        pub fn color(&self) -> ColorFormat {
+            self.color
+        }
+
+        pub fn as_image_view(&self) -> ImageView<'a> {
+            ImageView::new(self.view, self.size, self.color).expect("invalid aligned view")
+        }
+    }
+
+    pub(crate) struct AlignedBuffer {
+        buffer: Vec<AlignTo>,
+        size: Size,
+        color: ColorFormat,
+    }
+    impl AlignedBuffer {
+        pub fn new(buffer: Vec<AlignTo>, size: Size, color: ColorFormat) -> Self {
+            debug_assert!(
+                buffer.len() * std::mem::size_of::<AlignTo>()
+                    >= color.buffer_size(size).expect("Invalid size"),
+                "Buffer too small for aligned buffer"
+            );
+
+            Self {
+                buffer,
+                size,
+                color,
+            }
+        }
+
+        pub fn as_view(&self) -> AlignedView<'_> {
+            let byte_slice = cast::as_bytes(&self.buffer);
+            let len = self.color.buffer_size(self.size).expect("Invalid size");
+
+            AlignedView {
+                view: &byte_slice[..len],
+                size: self.size,
+                color: self.color,
+            }
+        }
+    }
+}
+
 pub(crate) struct Aligner {
-    buffer: Vec<u8>,
+    buffer: Vec<AlignTo>,
 }
 impl Aligner {
     pub fn new() -> Self {
@@ -20,7 +89,7 @@ impl Aligner {
         let view = if !image.is_contiguous() {
             // Right now, the implementation assumes that the data to be
             // contiguous, so we need to copy it to an aligned buffer line by line.
-            let aligned_slice = get_aligned_slice(&mut self.buffer, size, bytes_per_pixel);
+            let aligned_slice = get_aligned_slice(&mut self.buffer, size, color);
             let bytes_per_row = size.width as usize * bytes_per_pixel;
             for (y, data_row) in image.rows().enumerate() {
                 debug_assert_eq!(data_row.len(), bytes_per_row);
@@ -33,23 +102,17 @@ impl Aligner {
             data
         } else {
             // the image data isn't aligned, so we need to copy it to an aligned buffer
-            let aligned_slice = get_aligned_slice(&mut self.buffer, size, bytes_per_pixel);
+            let aligned_slice = get_aligned_slice(&mut self.buffer, size, color);
             aligned_slice.copy_from_slice(data);
             aligned_slice
         };
 
-        AlignedView { view, size, color }
+        AlignedView::new(view, size, color)
     }
 }
 
-pub(crate) struct AlignedView<'a> {
-    view: &'a [u8],
-    size: Size,
-    color: ColorFormat,
-}
-
 pub(crate) struct ResizeState {
-    dest_buffer: Vec<u8>,
+    dest_buffer: Vec<AlignTo>,
 }
 impl ResizeState {
     pub fn new() -> Self {
@@ -60,73 +123,127 @@ impl ResizeState {
 
     pub fn resize<'a>(
         &'a mut self,
-        src: &AlignedView,
+        src: AlignedView,
         new_size: Size,
         straight_alpha: bool,
         filter: ResizeFilter,
-    ) -> &'a [u8] {
-        let bytes_per_pixel = src.color.bytes_per_pixel() as usize;
+    ) -> AlignedView<'a> {
+        let color = src.color();
 
         // prepare the destination buffer
-        let dest_slice = get_aligned_slice(&mut self.dest_buffer, new_size, bytes_per_pixel);
+        let dest_slice = get_aligned_slice(&mut self.dest_buffer, new_size, color);
 
-        let filter = to_resize_filter_type(filter);
-        let args = Args {
-            size: src.size,
-            src_bytes: src.view,
-            new_size,
-            dst_bytes: dest_slice,
-            filter,
-        };
+        resize_into(src, dest_slice, new_size, straight_alpha, filter);
 
-        use Precision::*;
-        match (src.color.precision, src.color.channels.count()) {
-            (U8, 1) => resize_typed::<Pixel<[u8; 1]>>(args),
-            (U16, 1) => resize_typed::<Pixel<[u16; 1]>>(args),
-            (F32, 1) => resize_typed::<Pixel<[f32; 1]>>(args),
-            (U8, 3) => resize_typed::<Pixel<[u8; 3]>>(args),
-            (U16, 3) => resize_typed::<Pixel<[u16; 3]>>(args),
-            (F32, 3) => resize_typed::<Pixel<[f32; 3]>>(args),
-            (U8, 4) => {
-                if straight_alpha {
-                    resize_typed::<StraightAlpha<[u8; 4]>>(args)
-                } else {
-                    resize_typed::<Pixel<[u8; 4]>>(args)
-                }
+        AlignedView::new(dest_slice, new_size, color)
+    }
+}
+
+pub(crate) fn resize(
+    src: AlignedView,
+    new_size: Size,
+    straight_alpha: bool,
+    filter: ResizeFilter,
+) -> AlignedBuffer {
+    let color = src.color();
+
+    // prepare the destination buffer
+    let mut dest_buffer: Vec<AlignTo> = Vec::new();
+    let dest_slice = get_aligned_slice(&mut dest_buffer, new_size, color);
+
+    resize_into(src, dest_slice, new_size, straight_alpha, filter);
+
+    AlignedBuffer::new(dest_buffer, new_size, color)
+}
+
+fn get_aligned_slice(buffer: &mut Vec<AlignTo>, size: Size, color: ColorFormat) -> &mut [u8] {
+    let slice_len = color
+        .buffer_size(size)
+        .expect("size too big for aligned slice");
+
+    // reserve enough space in the buffer
+    let buffer_len = util::div_ceil(slice_len, std::mem::size_of::<AlignTo>());
+    if buffer.len() < buffer_len {
+        buffer.resize(buffer_len, 0);
+    }
+
+    &mut cast::as_bytes_mut(buffer.as_mut_slice())[..slice_len]
+}
+fn is_aligned(slice: &[u8], alignment: usize) -> bool {
+    (slice.as_ptr() as usize) % alignment == 0
+}
+
+fn resize_into(
+    src: AlignedView,
+    dest_slice: &mut [u8],
+    new_size: Size,
+    straight_alpha: bool,
+    filter: ResizeFilter,
+) {
+    let color = src.color();
+
+    debug_assert_eq!(
+        dest_slice.len(),
+        color
+            .buffer_size(new_size)
+            .expect("invalid size for destination slice")
+    );
+    debug_assert!(is_aligned(src.view(), color.precision.size() as usize));
+    debug_assert!(is_aligned(dest_slice, color.precision.size() as usize));
+
+    let args = Args {
+        src_size: src.size(),
+        src_bytes: src.view(),
+        dst_size: new_size,
+        dst_bytes: dest_slice,
+        filter,
+    };
+
+    use Channels as C;
+    use Precision as P;
+    match (color.precision, color.channels) {
+        (P::U8, C::Alpha | C::Grayscale) => resize_typed::<Pixel<[u8; 1]>>(args),
+        (P::U16, C::Alpha | C::Grayscale) => resize_typed::<Pixel<[u16; 1]>>(args),
+        (P::F32, C::Alpha | C::Grayscale) => resize_typed::<Pixel<[f32; 1]>>(args),
+        (P::U8, C::Rgb) => resize_typed::<Pixel<[u8; 3]>>(args),
+        (P::U16, C::Rgb) => resize_typed::<Pixel<[u16; 3]>>(args),
+        (P::F32, C::Rgb) => resize_typed::<Pixel<[f32; 3]>>(args),
+        (P::U8, C::Rgba) => {
+            if straight_alpha {
+                resize_typed::<StraightAlpha<[u8; 4]>>(args)
+            } else {
+                resize_typed::<Pixel<[u8; 4]>>(args)
             }
-            (U16, 4) => {
-                if straight_alpha {
-                    resize_typed::<StraightAlpha<[u16; 4]>>(args)
-                } else {
-                    resize_typed::<Pixel<[u16; 4]>>(args)
-                }
-            }
-            (F32, 4) => {
-                if straight_alpha {
-                    resize_typed::<StraightAlpha<[f32; 4]>>(args)
-                } else {
-                    resize_typed::<Pixel<[f32; 4]>>(args)
-                }
-            }
-            _ => unreachable!(),
         }
-
-        dest_slice
+        (P::U16, C::Rgba) => {
+            if straight_alpha {
+                resize_typed::<StraightAlpha<[u16; 4]>>(args)
+            } else {
+                resize_typed::<Pixel<[u16; 4]>>(args)
+            }
+        }
+        (P::F32, C::Rgba) => {
+            if straight_alpha {
+                resize_typed::<StraightAlpha<[f32; 4]>>(args)
+            } else {
+                resize_typed::<Pixel<[f32; 4]>>(args)
+            }
+        }
     }
 }
 
 struct Args<'a, 'b> {
-    size: Size,
+    src_size: Size,
     src_bytes: &'a [u8],
-    new_size: Size,
+    dst_size: Size,
     dst_bytes: &'b mut [u8],
-    filter: resize::Type,
+    filter: ResizeFilter,
 }
 fn resize_typed<P>(
     Args {
-        size,
+        src_size,
         src_bytes,
-        new_size,
+        dst_size,
         dst_bytes,
         filter,
     }: Args,
@@ -140,44 +257,16 @@ fn resize_typed<P>(
         cast::from_bytes_mut(dst_bytes).expect("invalid destination data");
 
     let mut resizes: Resizer<P> = resize::Resizer::new(
-        size.width as usize,
-        size.height as usize,
-        new_size.width as usize,
-        new_size.height as usize,
+        src_size.width as usize,
+        src_size.height as usize,
+        dst_size.width as usize,
+        dst_size.height as usize,
         P::default(),
-        filter,
+        to_resize_filter_type(filter),
     )
-    .unwrap();
+    .expect("failed to create resizer");
 
-    resizes.resize(src_slice, dst_slice).unwrap();
-}
-
-fn get_aligned_slice(buffer: &mut Vec<u8>, size: Size, bytes_per_pixel: usize) -> &mut [u8] {
-    let slice_len = size.pixels() as usize * bytes_per_pixel;
-    let align_to = 4;
-
-    // we want the buffer to slightly larger than the slice, so we have
-    // some space to align the slice
-    let buffer_len = size.pixels() as usize * bytes_per_pixel + align_to;
-    if buffer.len() < buffer_len {
-        buffer.resize(buffer_len, 0);
-    }
-
-    // figure out the offset which aligns the slice
-    let mut aligned_offset = 0;
-    for offset in 0..align_to {
-        let slice = &mut buffer[offset..offset + slice_len];
-        if is_aligned(slice, align_to) {
-            aligned_offset = offset;
-            break;
-        }
-    }
-
-    &mut buffer[aligned_offset..aligned_offset + slice_len]
-}
-
-fn is_aligned(slice: &[u8], alignment: usize) -> bool {
-    (slice.as_ptr() as usize) % alignment == 0
+    resizes.resize(src_slice, dst_slice).expect("resize failed");
 }
 
 fn to_resize_filter_type(filter: ResizeFilter) -> resize::Type {

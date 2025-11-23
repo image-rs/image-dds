@@ -248,7 +248,7 @@ pub(crate) fn process_2x1_blocks_helper<
     let mut decoded: &mut [OutPixel::Bytes] =
         cast::from_bytes_mut(&mut decoded[..width * size_of::<OutPixel>()])
             .expect("Invalid output buffer");
-    debug_assert!(decoded.len() == width);
+    debug_assert_eq!(decoded.len(), width);
 
     let width_offset = range.width_offset;
     if width_offset == 1 {
@@ -264,6 +264,7 @@ pub(crate) fn process_2x1_blocks_helper<
         decoded = &mut decoded[1..];
     }
 
+    debug_assert_eq!(encoded_blocks.len(), util::div_ceil(width, 2));
     let width_half = width / 2;
 
     // do full pairs first
@@ -277,7 +278,7 @@ pub(crate) fn process_2x1_blocks_helper<
 
     // last lone pixel (if any)
     if width % 2 == 1 {
-        let encoded = encoded_blocks.last().unwrap();
+        let encoded = encoded_blocks.last().expect("invalid block buffer");
         let [p0, _] = process_block(*encoded);
         decoded[width - 1] = cast::IntoNeBytes::into_ne_bytes(p0);
     }
@@ -1124,7 +1125,7 @@ pub(crate) fn process_bi_planar_helper<
 pub(crate) struct BiPlaneInfo {
     pub plane1_element_size: u8,
     pub plane2_element_size: u8,
-    /// The sub-sampling of plane2.
+    /// The subsampling of plane2.
     pub sub_sampling: (u8, u8),
 }
 pub(crate) fn for_each_bi_planar(
