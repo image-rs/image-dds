@@ -25,7 +25,8 @@ pub struct Encoder<W> {
     pub encoding: EncodeOptions,
     /// Options regarding automatic mipmap generation.
     ///
-    /// Set `self.mipmaps.generate = true` to enable automatic mipmap generation.
+    /// Set `self.mipmaps.generate = false` to disable automatic mipmap
+    /// generation.
     ///
     /// Defaults: `MipmapOptions::default()`
     pub mipmaps: MipmapOptions,
@@ -65,6 +66,31 @@ impl<W> Encoder<W> {
             mipmaps: MipmapOptions::default(),
             resize: None,
         })
+    }
+
+    /// Creates a new encoder for a single image with the given size and format.
+    ///
+    /// If `mipmaps` is `true`, a full mipmap chain will be declared in the
+    /// header.
+    ///
+    /// The header is created using [`Header::new_image`] and immediately
+    /// written to the writer. For more control over the header, use
+    /// [`Encoder::new`].
+    pub fn new_image(
+        writer: W,
+        size: Size,
+        format: Format,
+        mipmaps: bool,
+    ) -> Result<Self, EncodingError>
+    where
+        W: Write,
+    {
+        let mut header = Header::new_image(size.width, size.height, format);
+        if mipmaps {
+            header = header.with_mipmaps();
+        }
+
+        Self::new(writer, format, &header)
     }
 
     /// The format of the pixel data.
@@ -304,7 +330,7 @@ pub struct MipmapOptions {
     /// will **NOT** result in an error and instead the encoder will silently
     /// ignore the option.
     ///
-    /// Default: `false`
+    /// Default: `true`
     pub generate: bool,
     /// Whether the alpha channel (if any) is straight alpha.
     ///
@@ -329,7 +355,7 @@ pub struct MipmapOptions {
 impl Default for MipmapOptions {
     fn default() -> Self {
         Self {
-            generate: false,
+            generate: true,
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
         }

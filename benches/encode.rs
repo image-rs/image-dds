@@ -1,7 +1,7 @@
 #![allow(unused)]
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dds::{header::*, *};
+use dds::*;
 use rand::Rng;
 
 struct Image<T> {
@@ -100,8 +100,8 @@ where
 
             let image = black_box(image);
 
-            let header = Header::new_image(image.size.width, image.size.height, format);
-            let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
+            let mut encoder =
+                Encoder::new_image(black_box(&mut output), image.size, format, false).unwrap();
             encoder.encoding = black_box(options).clone();
             let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
@@ -290,8 +290,8 @@ pub fn generate_mipmaps(c: &mut Criterion) {
 
             let image = black_box(&image);
 
-            let header = Header::new_image(image.size.width, image.size.height, format);
-            let mut encoder = Encoder::new(black_box(&mut output), format, &header).unwrap();
+            let mut encoder =
+                Encoder::new_image(black_box(&mut output), image.size, format, false).unwrap();
             encoder.mipmaps.generate = true; // enable mipmap generation for this test
             let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
