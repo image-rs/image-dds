@@ -264,9 +264,9 @@ fn resize_typed<P>(
         P::default(),
         to_resize_filter_type(filter),
     )
-    .unwrap();
+    .expect("failed to create resizer");
 
-    resizes.resize(src_slice, dst_slice).unwrap();
+    resizes.resize(src_slice, dst_slice).expect("resize failed");
 }
 
 fn to_resize_filter_type(filter: ResizeFilter) -> resize::Type {

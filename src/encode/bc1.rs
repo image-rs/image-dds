@@ -665,7 +665,7 @@ impl bcn_util::WithChannels for R5G6B5Color {
             0 => self.r,
             1 => self.g,
             2 => self.b,
-            _ => panic!("Channel index out of bounds"),
+            _ => unreachable!("Channel index out of bounds"),
         }
     }
     #[inline(always)]
@@ -674,7 +674,7 @@ impl bcn_util::WithChannels for R5G6B5Color {
             0 => self.r = value,
             1 => self.g = value,
             2 => self.b = value,
-            _ => panic!("Channel index out of bounds"),
+            _ => unreachable!("Channel index out of bounds"),
         }
         self.debug_check();
     }
