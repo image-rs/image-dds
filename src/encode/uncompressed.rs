@@ -92,7 +92,7 @@ fn uncompressed_universal_dither(
     assert!(encoded_pixel_align <= std::mem::align_of::<EncodedBufferType>());
 
     let error_padding = 2;
-    let mut error_buffer = vec![Vec4::ZERO; 2 * (width + error_padding * 2)];
+    let mut error_buffer = vec![Vec4::ZERO; 2 * (width + error_padding * 2)].into_boxed_slice();
     let (mut current_line_error, mut next_line_error) =
         error_buffer.split_at_mut(width + error_padding * 2);
 
