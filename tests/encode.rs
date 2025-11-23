@@ -727,10 +727,10 @@ fn encode_mipmap() {
         snap_path: &Path,
         format: Format,
         mipmaps: MipmapOptions,
+        image: ImageView,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let base = util::read_png_u8(&get_sample("base.png"))?;
-        let width = base.size.width;
-        let height = base.size.height;
+        let width = image.width();
+        let height = image.height();
 
         let mut encoded = Vec::new();
         let mut encoder = Encoder::new(
@@ -739,13 +739,13 @@ fn encode_mipmap() {
             &Header::new_image(width, height, format).with_mipmaps(),
         )?;
         encoder.mipmaps = mipmaps;
-        encoder.write_surface(base.view())?;
+        encoder.write_surface(image)?;
         encoder.finish()?;
 
         let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
         let mut decoded: Image<u8> =
             Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
-        decoder.read_surface(decoded.view_mut().cropped(Offset::ZERO, base.size))?;
+        decoder.read_surface(decoded.view_mut().cropped(Offset::ZERO, image.size()))?;
         let mut offset_y = 0;
         while let Some(info) = decoder.surface_info() {
             let mip_size = info.size();
@@ -794,26 +794,34 @@ fn encode_mipmap() {
         },
     ];
 
+    let image_names = ["base", "bricks-d"];
+
     let mut summaries = util::OutputSummaries::new("_hashes");
-    for mut option in options {
-        option.generate = true;
+    for image_name in image_names {
+        let image = util::read_png_u8(&get_sample(&format!("{image_name}.png"))).unwrap();
+        for mut option in options {
+            option.generate = true;
 
-        let mut name = "base @ ".to_string();
-        name.push_str(if option.resize_straight_alpha {
-            "straight-alpha"
-        } else {
-            "no-straight-alpha"
-        });
-        name.push_str(&format!(" - {:?}", option.resize_filter));
+            let name = image_name.to_string()
+                + " @ "
+                + if option.resize_straight_alpha {
+                    "straight-alpha"
+                } else {
+                    "no-straight-alpha"
+                }
+                + " - "
+                + &format!("{:?}", option.resize_filter)
+                + ".png";
 
-        let snapshot_file = util::test_data_dir()
-            .join("output-encode/mipmaps")
-            .join(format!("{name}.png"));
+            let snapshot_file = util::test_data_dir()
+                .join("output-encode/mipmaps")
+                .join(name);
 
-        summaries.add_output_file_result(
-            &snapshot_file,
-            create_mipmap_image(&snapshot_file, Format::R8G8B8A8_UNORM, option),
-        );
+            summaries.add_output_file_result(
+                &snapshot_file,
+                create_mipmap_image(&snapshot_file, Format::R8G8B8A8_UNORM, option, image.view()),
+            );
+        }
     }
 
     summaries.snapshot_or_fail();

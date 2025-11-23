@@ -1125,7 +1125,7 @@ pub(crate) fn process_bi_planar_helper<
 pub(crate) struct BiPlaneInfo {
     pub plane1_element_size: u8,
     pub plane2_element_size: u8,
-    /// The sub-sampling of plane2.
+    /// The subsampling of plane2.
     pub sub_sampling: (u8, u8),
 }
 pub(crate) fn for_each_bi_planar(
