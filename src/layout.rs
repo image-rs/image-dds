@@ -754,7 +754,7 @@ impl DataLayout {
             DataLayout::TextureArray(texture_array) => texture_array.size(),
         }
     }
-    /// The number of mipmaps each texture/volume in this layout has.
+    /// The number of mipmaps per surface/volume.
     ///
     /// This is guaranteed to be at least 1.
     pub fn mipmaps(&self) -> u8 {

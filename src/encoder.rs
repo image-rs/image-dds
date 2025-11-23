@@ -4,7 +4,7 @@ use crate::{
     encode,
     header::Header,
     iter::{SurfaceInfo, SurfaceIterator},
-    resize::{Aligner, ResizeState},
+    resize::{AlignedBuffer, Aligner, ResizeState},
     ColorFormat, DataLayout, EncodeOptions, EncodingError, Format, ImageView, Progress,
     ProgressRange, Size,
 };
@@ -31,7 +31,7 @@ pub struct Encoder<W> {
     pub mipmaps: MipmapOptions,
 
     // internal cache for resizing
-    resize: Option<Box<(Aligner, ResizeState)>>,
+    mipmap_cache: MipmapCache,
 }
 impl<W> Encoder<W> {
     /// Creates a new encoder and immediately writes the header to the writer.
@@ -63,7 +63,7 @@ impl<W> Encoder<W> {
             iter: SurfaceIterator::new(layout),
             encoding: EncodeOptions::default(),
             mipmaps: MipmapOptions::default(),
-            resize: None,
+            mipmap_cache: MipmapCache::new(),
         })
     }
 
@@ -142,19 +142,15 @@ impl<W> Encoder<W> {
         }
 
         // Figure out how many mipmaps we'll generate ahead of time.
-        let generated_mipmaps = if self.mipmaps.generate {
-            let total_mipmaps = match &self.layout {
-                DataLayout::Texture(texture) => texture.mipmaps(),
-                DataLayout::Volume(_) => 0, // volumes aren't supported
-                DataLayout::TextureArray(texture_array) => texture_array.mipmaps(),
-            };
-            total_mipmaps.saturating_sub(current.mipmap_level + 1)
+        let mipmaps_to_generate = if self.mipmaps.generate && !self.layout.is_volume() {
+            let mipmap_levels = self.layout.mipmaps();
+            mipmap_levels.saturating_sub(current.mipmap_level + 1)
         } else {
             0
         };
 
         let get_level_progress_range = move |level: u8| -> ProgressRange {
-            if generated_mipmaps == 0 {
+            if mipmaps_to_generate == 0 {
                 ProgressRange::FULL
             } else {
                 // This is how much progress the main surface accounts for.
@@ -177,56 +173,38 @@ impl<W> Encoder<W> {
         )?;
         self.iter.advance();
 
-        if generated_mipmaps > 0 {
+        // write all mipmaps, if any
+        if mipmaps_to_generate > 0 {
             progress.check_cancelled()?;
 
-            let (align, resize) = Self::get_or_init(&mut self.resize);
-            let src = align.align(image);
-
-            let mut count = 0;
-            while let Some(current) = self.iter.current() {
-                if !current.is_mipmap() {
-                    debug_assert!(count > 0);
+            // gather the sizes of all mipmaps to generate
+            let mut mipmap_sizes: Vec<Size> = Vec::with_capacity(16);
+            while let Some(mipmap) = self.iter.current() {
+                if !mipmap.is_mipmap() {
                     break;
                 }
-
-                count += 1;
-                progress.check_cancelled()?;
-
-                let mipmap_size = current.size();
-                let mip_data = resize.resize(
-                    &src,
-                    mipmap_size,
-                    self.mipmaps.resize_straight_alpha,
-                    self.mipmaps.resize_filter,
-                );
-                let mip =
-                    ImageView::new(mip_data, mipmap_size, image.color).expect("invalid mipmap");
-
-                encode(
-                    &mut self.writer,
-                    mip,
-                    self.format,
-                    Some(&mut progress.sub_range(get_level_progress_range(count))),
-                    &self.encoding,
-                )?;
+                mipmap_sizes.push(mipmap.size());
                 self.iter.advance();
             }
+
+            let mut level = 0;
+            self.mipmap_cache
+                .generate(image, &mipmap_sizes, self.mipmaps, |mipmap| {
+                    level += 1;
+                    encode(
+                        &mut self.writer,
+                        mipmap,
+                        self.format,
+                        Some(&mut progress.sub_range(get_level_progress_range(level))),
+                        &self.encoding,
+                    )
+                })?;
         }
 
         // report 100% progress
         progress.checked_report(1.0)?;
 
         Ok(())
-    }
-
-    fn get_or_init(
-        resize: &mut Option<Box<(Aligner, ResizeState)>>,
-    ) -> &mut (Aligner, ResizeState) {
-        if resize.is_none() {
-            *resize = Some(Box::new((Aligner::new(), ResizeState::new())));
-        }
-        resize.as_mut().unwrap()
     }
 
     /// Returns information about the surface about to be written.
@@ -349,5 +327,177 @@ impl Default for MipmapOptions {
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
         }
+    }
+}
+
+struct MipmapCache {
+    aligner: Aligner,
+    resizer: ResizeState,
+}
+impl MipmapCache {
+    fn new() -> Self {
+        Self {
+            aligner: Aligner::new(),
+            resizer: ResizeState::new(),
+        }
+    }
+
+    fn generate(
+        &mut self,
+        image: ImageView,
+        sizes: &[Size],
+        options: MipmapOptions,
+        f: impl FnMut(ImageView) -> Result<(), EncodingError>,
+    ) -> Result<(), EncodingError> {
+        // check that sizes are decreasing
+        let mut last_size = image.size();
+        for &size in sizes {
+            debug_assert!(
+                size.width <= last_size.width && size.height <= last_size.height,
+                "Mipmap sizes must be in decreasing order"
+            );
+            last_size = size;
+        }
+
+        // decide which path to take
+
+        if options.resize_filter == ResizeFilter::Nearest {
+            // NN produces vastly different results when generated from previous
+            // mipmaps. No idea why.
+            return self.generate_from_source(image, sizes, options, true, f);
+        }
+
+        if sizes
+            .iter()
+            .chain(&[image.size])
+            .all(|s| s.width.is_power_of_two() && s.height.is_power_of_two())
+        {
+            // Mipmap generation behaves more nicely when all sizes are powers of two.
+
+            if options.resize_filter == ResizeFilter::Box {
+                // Box filter behaves well enough that we can generate each
+                // mipmap from the previous one.
+                return self.generate_from_previous(image, sizes, options, f);
+            }
+
+            return self.generate_from_previous_two(image, sizes, options, f);
+        }
+
+        self.generate_from_source(image, sizes, options, true, f)
+    }
+
+    /// Generates each mipmap directly from the source image.
+    fn generate_from_source(
+        &mut self,
+        image: ImageView,
+        sizes: &[Size],
+        options: MipmapOptions,
+        parallel: bool,
+        mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
+    ) -> Result<(), EncodingError> {
+        let straight_alpha = options.resize_straight_alpha;
+        let filter = options.resize_filter;
+
+        let src = self.aligner.align(image);
+
+        // when rayon is available, generate mipmaps in parallel
+        #[cfg(feature = "rayon")]
+        if parallel {
+            use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+            let precomputed_mipmaps: Vec<AlignedBuffer> = sizes
+                .par_iter()
+                .map(|&mipmap_size| crate::resize::resize(src, mipmap_size, straight_alpha, filter))
+                .collect();
+
+            for mipmap in precomputed_mipmaps {
+                f(mipmap.as_view().as_image_view())?;
+            }
+            return Ok(());
+        }
+
+        // otherwise, generate mipmaps sequentially
+        for &mipmap_size in sizes {
+            let mipmap = self
+                .resizer
+                .resize(src, mipmap_size, straight_alpha, filter);
+
+            f(mipmap.as_image_view())?;
+        }
+
+        Ok(())
+    }
+
+    /// Generates each mipmap from the previous mipmap.
+    fn generate_from_previous(
+        &mut self,
+        image: ImageView,
+        sizes: &[Size],
+        options: MipmapOptions,
+        mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
+    ) -> Result<(), EncodingError> {
+        let straight_alpha = options.resize_straight_alpha;
+        let filter = options.resize_filter;
+
+        let src = self.aligner.align(image);
+
+        let first_mipmap = crate::resize::resize(src, sizes[0], straight_alpha, filter);
+        f(first_mipmap.as_view().as_image_view())?;
+
+        let mut prev_mipmap = first_mipmap;
+
+        for &mipmap_size in &sizes[1..] {
+            let next_mipmap =
+                crate::resize::resize(prev_mipmap.as_view(), mipmap_size, straight_alpha, filter);
+
+            f(next_mipmap.as_view().as_image_view())?;
+
+            prev_mipmap = next_mipmap;
+        }
+
+        Ok(())
+    }
+
+    /// Generates each mipmap from the previous previous mipmap.
+    fn generate_from_previous_two(
+        &mut self,
+        image: ImageView,
+        sizes: &[Size],
+        options: MipmapOptions,
+        mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
+    ) -> Result<(), EncodingError> {
+        let straight_alpha = options.resize_straight_alpha;
+        let filter = options.resize_filter;
+
+        let src = self.aligner.align(image);
+
+        let first_mipmap = crate::resize::resize(src, sizes[0], straight_alpha, filter);
+        f(first_mipmap.as_view().as_image_view())?;
+
+        if sizes.len() == 1 {
+            return Ok(());
+        }
+
+        let second_mipmap = crate::resize::resize(src, sizes[1], straight_alpha, filter);
+        f(second_mipmap.as_view().as_image_view())?;
+
+        let mut prev_prev_mipmap = first_mipmap;
+        let mut prev_mipmap = second_mipmap;
+
+        for &mipmap_size in &sizes[2..] {
+            let next_mipmap = crate::resize::resize(
+                prev_prev_mipmap.as_view(),
+                mipmap_size,
+                straight_alpha,
+                filter,
+            );
+
+            f(next_mipmap.as_view().as_image_view())?;
+
+            prev_prev_mipmap = prev_mipmap;
+            prev_mipmap = next_mipmap;
+        }
+
+        Ok(())
     }
 }
