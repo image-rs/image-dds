@@ -361,7 +361,7 @@ impl MipmapCache {
 
         // decide which path to take
 
-        if matches!(options.resize_filter, ResizeFilter::Nearest) {
+        if options.resize_filter == ResizeFilter::Nearest {
             // NN produces vastly different results when generated from previous
             // mipmaps. No idea why.
             return self.generate_from_source(image, sizes, options, true, f);
@@ -374,7 +374,7 @@ impl MipmapCache {
         {
             // Mipmap generation behaves more nicely when all sizes are powers of two.
 
-            if matches!(options.resize_filter, ResizeFilter::Box) {
+            if options.resize_filter == ResizeFilter::Box {
                 // Box filter behaves well enough that we can generate each
                 // mipmap from the previous one.
                 return self.generate_from_previous(image, sizes, options, f);
