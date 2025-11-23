@@ -288,7 +288,7 @@ impl<W> Encoder<W> {
 /// ## See also
 ///
 /// - [`MipmapOptions::resize_filter`]
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ResizeFilter {
     /// Nearest neighbor interpolation (=point filtering).
     Nearest,
