@@ -102,7 +102,7 @@ where
 
             let mut encoder =
                 Encoder::new_image(black_box(&mut output), image.size, format, false).unwrap();
-            encoder.encoding = black_box(options).clone();
+            encoder.options = black_box(options).clone();
             let result = encoder.write_surface(black_box(image.view()));
             black_box(result).unwrap();
             black_box(encoder.finish()).unwrap();

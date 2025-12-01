@@ -83,7 +83,7 @@
 //!     let size = Size::new(width, height);
 //!     let mut encoder = Encoder::new_image(file, size, Format::BC7_UNORM, mipmaps)?;
 //!     // lower quality for faster encoding
-//!     encoder.encoding.quality = CompressionQuality::Fast;
+//!     encoder.options.quality = CompressionQuality::Fast;
 //!
 //!     let view = ImageView::new(image_data, size, ColorFormat::RGBA_U8)
 //!         .expect("invalid image data");
@@ -97,7 +97,7 @@
 //! are generated can be configured using [`Encoder::mipmaps`].
 //!
 //! Most formats also support encoding options to change the encoded image data
-//! in some way. These can be set using the [`Encoder::encoding`] field. E.g.
+//! in some way. These can be set using the [`Encoder::options`] field. E.g.
 //! most formats support [dithering](EncodeOptions::dithering) and compressed
 //! formats support different [quality levels](EncodeOptions::quality) among
 //! others.

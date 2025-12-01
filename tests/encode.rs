@@ -60,7 +60,7 @@ fn encode_decode(
     // encode
     let mut encoded = Vec::new();
     let mut encoder = Encoder::new_image(&mut encoded, image.size, format, false).unwrap();
-    encoder.encoding = options.clone();
+    encoder.options = options.clone();
     encoder.write_surface(image.view()).unwrap();
     encoder.finish().unwrap();
 
@@ -117,8 +117,8 @@ fn encode_base() {
 
         let mut output = Vec::new();
         let mut encoder = Encoder::new_image(&mut output, size, format, false)?;
-        encoder.encoding.quality = CompressionQuality::High;
-        encoder.encoding.parallel = false;
+        encoder.options.quality = CompressionQuality::High;
+        encoder.options.parallel = false;
 
         // and now the image data
         if format.precision() == Precision::U16 {
@@ -161,8 +161,8 @@ fn encode_dither() {
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = Vec::new();
         let mut encoder = Encoder::new_image(&mut output, image.size, format, false)?;
-        encoder.encoding.quality = CompressionQuality::High;
-        encoder.encoding.dithering = Dithering::ColorAndAlpha;
+        encoder.options.quality = CompressionQuality::High;
+        encoder.options.dithering = Dithering::ColorAndAlpha;
         encoder.write_surface(image.view())?;
         encoder.finish()?;
 
