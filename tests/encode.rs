@@ -1,4 +1,4 @@
-use dds::{header::*, *};
+use dds::*;
 use rand::{Rng, RngCore};
 use std::path::{Path, PathBuf};
 
@@ -59,12 +59,7 @@ fn encode_decode(
 ) -> (Vec<u8>, Image<f32>) {
     // encode
     let mut encoded = Vec::new();
-    let mut encoder = Encoder::new(
-        &mut encoded,
-        format,
-        &Header::new_image(image.size.width, image.size.height, format),
-    )
-    .unwrap();
+    let mut encoder = Encoder::new_image(&mut encoded, image.size, format, false).unwrap();
     encoder.encoding = options.clone();
     encoder.write_surface(image.view()).unwrap();
     encoder.finish().unwrap();
@@ -121,11 +116,7 @@ fn encode_base() {
         };
 
         let mut output = Vec::new();
-        let mut encoder = Encoder::new(
-            &mut output,
-            format,
-            &Header::new_image(size.width, size.height, format),
-        )?;
+        let mut encoder = Encoder::new_image(&mut output, size, format, false)?;
         encoder.encoding.quality = CompressionQuality::High;
         encoder.encoding.parallel = false;
 
@@ -169,11 +160,7 @@ fn encode_dither() {
         dds_path: &Path,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let mut output = Vec::new();
-        let mut encoder = Encoder::new(
-            &mut output,
-            format,
-            &Header::new_image(image.size.width, image.size.height, format),
-        )?;
+        let mut encoder = Encoder::new_image(&mut output, image.size, format, false)?;
         encoder.encoding.quality = CompressionQuality::High;
         encoder.encoding.dithering = Dithering::ColorAndAlpha;
         encoder.write_surface(image.view())?;
@@ -733,11 +720,7 @@ fn encode_mipmap() {
         let height = image.height();
 
         let mut encoded = Vec::new();
-        let mut encoder = Encoder::new(
-            &mut encoded,
-            format,
-            &Header::new_image(width, height, format).with_mipmaps(),
-        )?;
+        let mut encoder = Encoder::new_image(&mut encoded, image.size(), format, true)?;
         encoder.mipmaps = mipmaps;
         encoder.write_surface(image)?;
         encoder.finish()?;
@@ -863,33 +846,17 @@ fn test_unaligned() {
             let aligned = ImageView::new(aligned, size, color).unwrap();
             let unaligned = ImageView::new(unaligned, size, color).unwrap();
 
-            for mipmaps in [
-                MipmapOptions {
-                    generate: false,
-                    ..MipmapOptions::default()
-                },
-                MipmapOptions {
-                    generate: true,
-                    ..MipmapOptions::default()
-                },
-            ] {
+            for mipmaps in [false, true] {
                 aligned_encoded.clear();
                 unaligned_encoded.clear();
 
-                let mut header = Header::new_image(size.width, size.height, format);
-                if mipmaps.generate {
-                    header = header.with_mipmaps();
-                }
-
                 let mut aligned_encoder =
-                    Encoder::new(&mut aligned_encoded, format, &header).unwrap();
-                aligned_encoder.mipmaps = mipmaps;
+                    Encoder::new_image(&mut aligned_encoded, size, format, mipmaps).unwrap();
                 aligned_encoder.write_surface(aligned).unwrap();
                 aligned_encoder.finish().unwrap();
 
                 let mut unaligned_encoder =
-                    Encoder::new(&mut unaligned_encoded, format, &header).unwrap();
-                unaligned_encoder.mipmaps = mipmaps;
+                    Encoder::new_image(&mut unaligned_encoded, size, format, mipmaps).unwrap();
                 unaligned_encoder.write_surface(unaligned).unwrap();
                 unaligned_encoder.finish().unwrap();
 
@@ -950,23 +917,19 @@ fn test_row_pitch() {
             let image = image.cropped(Offset::ZERO, size);
             let cont_image = cont_image.cropped(Offset::ZERO, size);
 
-            let mut header = Header::new_image(size.width, size.height, format);
-            if encoding.size_multiple().is_none() {
-                // size multiple make mipmaps difficult, so only do them for
-                // formats that support images of any size.
-                header = header.with_mipmaps();
-            }
+            // size multiple make mipmaps difficult, so only do them for
+            // formats that support images of any size.
+            let mipmaps = encoding.size_multiple().is_none();
 
             let mut cont_encoded = Vec::new();
-            let mut cont_encoder = Encoder::new(&mut cont_encoded, format, &header).unwrap();
-            cont_encoder.mipmaps.generate = true;
+            let mut cont_encoder =
+                Encoder::new_image(&mut cont_encoded, size, format, mipmaps).unwrap();
             cont_encoder.write_surface(cont_image).unwrap();
             cont_encoder.finish().unwrap();
 
             let mut non_cont_encoded = Vec::new();
             let mut non_cont_encoder =
-                Encoder::new(&mut non_cont_encoded, format, &header).unwrap();
-            non_cont_encoder.mipmaps.generate = true;
+                Encoder::new_image(&mut non_cont_encoded, size, format, mipmaps).unwrap();
             non_cont_encoder.write_surface(image).unwrap();
             non_cont_encoder.finish().unwrap();
 
@@ -985,10 +948,11 @@ mod errors {
 
     #[test]
     fn unsupported_format() {
-        let result = Encoder::new(
+        let result = Encoder::new_image(
             std::io::sink(),
+            Size::new(1, 1),
             Format::ASTC_10X10_UNORM,
-            &Header::new_image(1, 1, Format::ASTC_10X10_UNORM),
+            false,
         );
         assert!(result.is_err());
         let err = result.err().unwrap();
@@ -1006,12 +970,8 @@ mod errors {
     fn size_multiple() {
         // size is required to be multiple of a certain number
         // NV12 requires 2x2
-        let mut encoder = Encoder::new(
-            std::io::sink(),
-            Format::NV12,
-            &Header::new_image(5, 5, Format::NV12),
-        )
-        .unwrap();
+        let mut encoder =
+            Encoder::new_image(std::io::sink(), Size::new(5, 5), Format::NV12, false).unwrap();
         let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(5, 5));
 
         let result = encoder.write_surface(image.view());
@@ -1023,12 +983,8 @@ mod errors {
 
     #[test]
     fn wrong_surface_size() {
-        let mut encoder = Encoder::new(
-            std::io::sink(),
-            Format::R8_UNORM,
-            &Header::new_image(8, 8, Format::R8_UNORM),
-        )
-        .unwrap();
+        let mut encoder =
+            Encoder::new_image(std::io::sink(), Size::new(8, 8), Format::R8_UNORM, false).unwrap();
         let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(8, 10));
 
         let result = encoder.write_surface(image.view());
@@ -1040,12 +996,8 @@ mod errors {
 
     #[test]
     fn too_many_surfaces() {
-        let mut encoder = Encoder::new(
-            std::io::sink(),
-            Format::R8_UNORM,
-            &Header::new_image(8, 8, Format::R8_UNORM),
-        )
-        .unwrap();
+        let mut encoder =
+            Encoder::new_image(std::io::sink(), Size::new(8, 8), Format::R8_UNORM, false).unwrap();
         let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(8, 8));
         encoder.write_surface(image.view()).unwrap(); // write surface
 
@@ -1061,13 +1013,10 @@ mod errors {
 
     #[test]
     fn missing_surfaces() {
-        let mut encoder = Encoder::new(
-            std::io::sink(),
-            Format::R8_UNORM,
-            &Header::new_image(8, 8, Format::R8_UNORM).with_mipmaps(),
-        )
-        .unwrap();
+        let mut encoder =
+            Encoder::new_image(std::io::sink(), Size::new(8, 8), Format::R8_UNORM, true).unwrap();
         let image = util::Image::<u8>::new_empty(Channels::Rgb, Size::new(8, 8));
+        encoder.mipmaps.generate = false;
         encoder.write_surface(image.view()).unwrap(); // write surface
 
         let result = encoder.finish();

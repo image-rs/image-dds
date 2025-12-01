@@ -3,7 +3,7 @@ use std::sync::{
     Arc,
 };
 
-use dds::{header::*, *};
+use dds::*;
 use rand::Rng;
 
 use util::{Image, Snapshot};
@@ -75,14 +75,13 @@ fn track_progress() {
         };
         let mut progress = Progress::new(&mut consume_progress);
 
-        let mut header = Header::new_image(image.width(), image.height(), format);
-        if mipmaps && format.encoding_support().unwrap().size_multiple().is_none() {
-            header = header.with_mipmaps();
-        }
-
-        let mut encoder = Encoder::new(std::io::sink(), format, &header)?;
+        let mut encoder = Encoder::new_image(
+            std::io::sink(),
+            image.size(),
+            format,
+            mipmaps && format.encoding_support().unwrap().size_multiple().is_none(),
+        )?;
         encoder.encoding = options.clone();
-        encoder.mipmaps.generate = true;
 
         encoder.write_surface_with_progress(image, &mut progress)?;
         encoder.finish()?;
@@ -194,14 +193,13 @@ fn forward_progress() {
         };
         let mut progress = Progress::new(&mut consume_progress);
 
-        let mut header = Header::new_image(image.width(), image.height(), format);
-        if format.encoding_support().unwrap().size_multiple().is_none() {
-            header = header.with_mipmaps();
-        }
-
-        let mut encoder = Encoder::new(std::io::sink(), format, &header)?;
+        let mut encoder = Encoder::new_image(
+            std::io::sink(),
+            image.size(),
+            format,
+            format.encoding_support().unwrap().size_multiple().is_none(),
+        )?;
         encoder.encoding = options.clone();
-        encoder.mipmaps.generate = true;
 
         encoder.write_surface_with_progress(image, &mut progress)?;
         encoder.finish()?;

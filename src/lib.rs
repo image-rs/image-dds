@@ -65,12 +65,12 @@
 //!
 //! ### Encoding
 //!
-//! Since the data of a DDS file is determined by the header, the first step to
-//! encoding a DDS file is to create a header. See the documentation of
-//! the [`dds::header`](crate::header) module for more details.
+//! [`Encoder`] defines the high-level interface for encoding DDS images.
+//!
+//! A single texture can be encoded as follows:
 //!
 //! ```no_run
-//! use dds::{*, header::*};
+//! use dds::*;
 //! use std::fs::File;
 //!
 //! fn save_rgba_image(
@@ -78,14 +78,14 @@
 //!     image_data: &[u8],
 //!     width: u32,
 //!     height: u32,
+//!     mipmaps: bool,
 //! ) -> Result<(), EncodingError> {
-//!     let format = Format::BC1_UNORM;
-//!     let header = Header::new_image(width, height, format);
-//!
-//!     let mut encoder = Encoder::new(file, format, &header)?;
+//!     let size = Size::new(width, height);
+//!     let mut encoder = Encoder::new_image(file, size, Format::BC7_UNORM, mipmaps)?;
+//!     // lower quality for faster encoding
 //!     encoder.encoding.quality = CompressionQuality::Fast;
 //!
-//!     let view = ImageView::new(image_data, Size::new(width, height), ColorFormat::RGBA_U8)
+//!     let view = ImageView::new(image_data, size, ColorFormat::RGBA_U8)
 //!         .expect("invalid image data");
 //!     encoder.write_surface(view)?;
 //!     encoder.finish()?;
@@ -93,54 +93,36 @@
 //! }
 //! ```
 //!
-//! Note the use of [`Encoder::finish()`]. This method will verify that the
-//! file has been created correctly and contains all necessary data. Always
-//! use [`Encoder::finish()`] instead of dropping the encoder.
+//! Mipmaps are automatically generated if requested (by default). How mipmaps
+//! are generated can be configured using [`Encoder::mipmaps`].
 //!
-//! To create DDS files with mipmaps, we simply create a header with mipmaps and
-//! enable automatic mipmap generation in the encoder:
+//! Most formats also support encoding options to change the encoded image data
+//! in some way. These can be set using the [`Encoder::encoding`] field. E.g.
+//! most formats support [dithering](EncodeOptions::dithering) and compressed
+//! formats support different [quality levels](EncodeOptions::quality) among
+//! others.
 //!
-//! ```no_run
-//! use dds::{*, header::*};
-//! use std::fs::File;
+//! Also note the use of [`Encoder::finish()`]. This method verifies that the
+//! DDS file contains all necessary data and is valid. ALWAYS use
+//! [`Encoder::finish()`] instead of dropping the encoder.
 //!
-//! fn save_rgba_image_with_mipmaps(
-//!     file: &mut File,
-//!     image_data: &[u8],
-//!     width: u32,
-//!     height: u32,
-//! ) -> Result<(), EncodingError> {
-//!     let format = Format::BC1_UNORM;
-//!     // Create a header with mipmaps
-//!     let header = Header::new_image(width, height, format).with_mipmaps();
+//! #### Texture arrays, cube maps, and volumes
 //!
-//!     let mut encoder = Encoder::new(file, format, &header)?;
-//!     encoder.encoding.quality = CompressionQuality::Fast;
-//!     encoder.mipmaps.generate = true; // Enable automatic mipmap generation
-//!
-//!     let view = ImageView::new(image_data, Size::new(width, height), ColorFormat::RGBA_U8)
-//!         .expect("invalid image data");
-//!     encoder.write_surface(view)?;
-//!     encoder.finish()?;
-//!     Ok(())
-//! }
-//! ```
-//!
-//! Note: If the header does not specify mipmaps, no mipmaps will be generated
-//! even if automatic mipmap generation is enabled.
-//!
-//! For other types of data:
+//! Other types of data work slightly differently. You need to create a
+//! [`Header`](crate::header::Header) for them manually and pass it to
+//! [`Encoder::new`]. After the encoder has been created, the process is
+//! similar:
 //!
 //! - Texture arrays can be encoded using [`Encoder::write_surface`] for each
 //!   texture in the array.
 //! - Cube maps, like texture arrays, can be encoded using [`Encoder::write_surface`]
 //!   for each face. The order of the faces must be +X, -X, +Y, -Y, +Z, -Z.
-//!   Writing whole cube maps at once is not supported.
 //! - Volumes can be encoded one depth slice at a time using
 //!   [`Encoder::write_surface`].
 //!
-//!   Automatic mipmap generation is **not** supported for volumes. If enabled,
-//!   the options will be silently ignored and no mipmaps will be generated.
+//!   Automatic mipmap generation is **not** supported for volumes. If automatic
+//!   mipmap generation is enabled, it will silently do nothing. Use
+//!   [`Encoder::finish()`] to prevent the creation of invalid DDS files.
 //!
 //! ### Progress reporting
 //!
