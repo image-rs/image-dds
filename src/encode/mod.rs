@@ -227,7 +227,7 @@ fn encode_parallel(
 /// ## See also
 ///
 /// - [`encode`]
-/// - [`Encoder::encoding`](crate::Encoder::encoding)
+/// - [`Encoder::options`](crate::Encoder::options)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub struct EncodeOptions {

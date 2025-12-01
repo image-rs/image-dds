@@ -81,7 +81,7 @@ fn track_progress() {
             format,
             mipmaps && format.encoding_support().unwrap().size_multiple().is_none(),
         )?;
-        encoder.encoding = options.clone();
+        encoder.options = options.clone();
 
         encoder.write_surface_with_progress(image, &mut progress)?;
         encoder.finish()?;
@@ -199,7 +199,7 @@ fn forward_progress() {
             format,
             format.encoding_support().unwrap().size_multiple().is_none(),
         )?;
-        encoder.encoding = options.clone();
+        encoder.options = options.clone();
 
         encoder.write_surface_with_progress(image, &mut progress)?;
         encoder.finish()?;

@@ -21,14 +21,14 @@ pub struct Encoder<W> {
 
     /// The encoding options used to encode surfaces.
     ///
-    /// Default: `EncodeOptions::default()`
-    pub encoding: EncodeOptions,
+    /// Default: [`EncodeOptions::default()`]
+    pub options: EncodeOptions,
     /// Options regarding automatic mipmap generation.
     ///
     /// Set `self.mipmaps.generate = false` to disable automatic mipmap
     /// generation.
     ///
-    /// Default: `MipmapOptions::default()`
+    /// Default: [`MipmapOptions::default()`]
     pub mipmaps: MipmapOptions,
 
     // internal cache for resizing
@@ -62,7 +62,7 @@ impl<W> Encoder<W> {
             format,
             layout,
             iter: SurfaceIterator::new(layout),
-            encoding: EncodeOptions::default(),
+            options: EncodeOptions::default(),
             mipmaps: MipmapOptions::default(),
             mipmap_cache: MipmapCache::new(),
         })
@@ -195,7 +195,7 @@ impl<W> Encoder<W> {
             image,
             self.format,
             Some(&mut progress.sub_range(get_level_progress_range(0))),
-            &self.encoding,
+            &self.options,
         )?;
         self.iter.advance();
 
@@ -222,7 +222,7 @@ impl<W> Encoder<W> {
                         mipmap,
                         self.format,
                         Some(&mut progress.sub_range(get_level_progress_range(level))),
-                        &self.encoding,
+                        &self.options,
                     )
                 })?;
         }
