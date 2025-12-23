@@ -385,6 +385,7 @@ fn get_bc4_options(options: &EncodeOptions) -> bc4::Bc4Options {
             CompressionQuality::Unreasonable => 10,
         },
         size_variations: options.quality >= CompressionQuality::High,
+        iter_initial_inter4: options.quality >= CompressionQuality::High,
     }
 }
 
