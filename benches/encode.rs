@@ -283,47 +283,74 @@ pub fn generate_mipmaps(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_secs(3));
     group.sample_size(10);
 
-    use Channels::*;
-
     // images
-    let image_u8: Image<u8> = Image::random(Size::new(2048, 2048), Rgba);
-    let image_f32: Image<f32> = Image::random(Size::new(2048, 2048), Rgba);
-    let format = Format::R8G8B8A8_UNORM;
+    for (channels, straight_alpha) in [
+        (Channels::Rgba, true),
+        (Channels::Rgba, false),
+        (Channels::Rgb, true),
+        (Channels::Grayscale, true),
+    ] {
+        let image_u8: Image<u8> = Image::random(Size::new(2048, 2048), channels);
+        let image_u16: Image<u16> = Image::random(Size::new(2048, 2048), channels);
+        let image_f32: Image<f32> = Image::random(Size::new(2048, 2048), channels);
 
-    for image in [image_u8.view(), image_f32.view()] {
-        for filter in [
-            ResizeFilter::Box,
-            ResizeFilter::Triangle,
-            ResizeFilter::Mitchell,
-            ResizeFilter::Lanczos3,
-            ResizeFilter::Nearest,
-        ] {
-            let name = format!(
-                "generate mipmaps - {filter:?} {}x{} {:?} {:?}",
-                image.width(),
-                image.height(),
-                image.color().channels,
-                image.color().precision
-            );
-            group.bench_function(name, |b| {
-                let len = image.color().buffer_size(image.size()).unwrap();
-                let mut output: Vec<u8> = Vec::with_capacity(len);
+        for image in [image_u8.view(), image_u16.view(), image_f32.view()] {
+            let format = match image.color() {
+                ColorFormat::ALPHA_U8 => Format::A8_UNORM,
+                ColorFormat::ALPHA_U16 => todo!(),
+                ColorFormat::ALPHA_F32 => todo!(),
+                ColorFormat::GRAYSCALE_U8 => Format::R8_UNORM,
+                ColorFormat::GRAYSCALE_U16 => Format::R16_UNORM,
+                ColorFormat::GRAYSCALE_F32 => Format::R32_FLOAT,
+                ColorFormat::RGB_U8 => Format::R8G8B8_UNORM,
+                ColorFormat::RGB_U16 => Format::R16G16B16A16_UNORM, // close enough
+                ColorFormat::RGB_F32 => Format::R32G32B32_FLOAT,
+                ColorFormat::RGBA_U8 => Format::R8G8B8A8_UNORM,
+                ColorFormat::RGBA_U16 => Format::R16G16B16A16_UNORM,
+                ColorFormat::RGBA_F32 => Format::R32G32B32A32_FLOAT,
+            };
 
-                b.iter(|| {
-                    output.truncate(0);
+            for filter in [
+                ResizeFilter::Box,
+                ResizeFilter::Triangle,
+                ResizeFilter::Mitchell,
+                ResizeFilter::Lanczos3,
+                ResizeFilter::Nearest,
+            ] {
+                let channels_desc: String = if channels == Channels::Rgba && !straight_alpha {
+                    "Rgb+A".into()
+                } else {
+                    format!("{:?}", channels)
+                };
+                let name = format!(
+                    "generate mipmaps - {filter:?} {}x{} {channels_desc} {:?} -> {:?}",
+                    image.width(),
+                    image.height(),
+                    image.color().precision,
+                    format
+                );
 
-                    let image = black_box(image);
+                group.bench_function(name, |b| {
+                    let len = image.color().buffer_size(image.size()).unwrap();
+                    let mut output: Vec<u8> = Vec::with_capacity(len);
 
-                    let mut encoder =
-                        Encoder::new_image(black_box(&mut output), image.size(), format, true)
-                            .unwrap();
-                    encoder.mipmaps.resize_filter = filter;
-                    let result = encoder.write_surface(image);
-                    black_box(result).unwrap();
-                    black_box(encoder.finish()).unwrap();
-                    assert!(!black_box(&output).is_empty());
+                    b.iter(|| {
+                        output.truncate(0);
+
+                        let image = black_box(image);
+
+                        let mut encoder =
+                            Encoder::new_image(black_box(&mut output), image.size(), format, true)
+                                .unwrap();
+                        encoder.mipmaps.resize_filter = filter;
+                        encoder.mipmaps.resize_straight_alpha = straight_alpha;
+                        let result = encoder.write_surface(image);
+                        black_box(result).unwrap();
+                        black_box(encoder.finish()).unwrap();
+                        assert!(!black_box(&output).is_empty());
+                    });
                 });
-            });
+            }
         }
     }
 }
