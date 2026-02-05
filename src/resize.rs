@@ -201,6 +201,15 @@ fn resize_into(
 
     use Channels as C;
     use Precision as P;
+
+    if straight_alpha && color.channels == C::Rgba {
+        return match color.precision {
+            P::U8 => resize_typed::<StraightAlpha<[u8; 4]>>(args),
+            P::U16 => resize_typed::<StraightAlpha<[u16; 4]>>(args),
+            P::F32 => resize_typed::<StraightAlpha<[f32; 4]>>(args),
+        };
+    }
+
     match (color.precision, color.channels) {
         (P::U8, C::Alpha | C::Grayscale) => resize_typed::<Pixel<[u8; 1]>>(args),
         (P::U16, C::Alpha | C::Grayscale) => resize_typed::<Pixel<[u16; 1]>>(args),
@@ -208,27 +217,9 @@ fn resize_into(
         (P::U8, C::Rgb) => resize_typed::<Pixel<[u8; 3]>>(args),
         (P::U16, C::Rgb) => resize_typed::<Pixel<[u16; 3]>>(args),
         (P::F32, C::Rgb) => resize_typed::<Pixel<[f32; 3]>>(args),
-        (P::U8, C::Rgba) => {
-            if straight_alpha {
-                resize_typed::<StraightAlpha<[u8; 4]>>(args)
-            } else {
-                resize_typed::<Pixel<[u8; 4]>>(args)
-            }
-        }
-        (P::U16, C::Rgba) => {
-            if straight_alpha {
-                resize_typed::<StraightAlpha<[u16; 4]>>(args)
-            } else {
-                resize_typed::<Pixel<[u16; 4]>>(args)
-            }
-        }
-        (P::F32, C::Rgba) => {
-            if straight_alpha {
-                resize_typed::<StraightAlpha<[f32; 4]>>(args)
-            } else {
-                resize_typed::<Pixel<[f32; 4]>>(args)
-            }
-        }
+        (P::U8, C::Rgba) => resize_typed::<Pixel<[u8; 4]>>(args),
+        (P::U16, C::Rgba) => resize_typed::<Pixel<[u16; 4]>>(args),
+        (P::F32, C::Rgba) => resize_typed::<Pixel<[f32; 4]>>(args),
     }
 }
 
@@ -362,11 +353,8 @@ mod pixel {
             Vec4::new(self[0] as f32, self[1] as f32, self[2] as f32, 0.0)
         }
         fn to_value(acc: Vec4) -> Self {
-            [
-                (acc.x + 0.5) as u8,
-                (acc.y + 0.5) as u8,
-                (acc.z + 0.5) as u8,
-            ]
+            let out = acc + 0.5;
+            [out.x as u8, out.y as u8, out.z as u8]
         }
     }
     impl IntoAccumulator<Vec4> for [u16; 3] {
@@ -374,11 +362,8 @@ mod pixel {
             Vec4::new(self[0] as f32, self[1] as f32, self[2] as f32, 0.0)
         }
         fn to_value(acc: Vec4) -> Self {
-            [
-                (acc.x + 0.5) as u16,
-                (acc.y + 0.5) as u16,
-                (acc.z + 0.5) as u16,
-            ]
+            let out = acc + 0.5;
+            [out.x as u16, out.y as u16, out.z as u16]
         }
     }
     impl IntoAccumulator<Vec4> for [f32; 3] {
@@ -399,12 +384,8 @@ mod pixel {
             )
         }
         fn to_value(acc: Vec4) -> Self {
-            [
-                (acc.x + 0.5) as u8,
-                (acc.y + 0.5) as u8,
-                (acc.z + 0.5) as u8,
-                (acc.w + 0.5) as u8,
-            ]
+            let out = acc + 0.5;
+            [out.x as u8, out.y as u8, out.z as u8, out.w as u8]
         }
     }
     impl IntoAccumulator<Vec4> for [u16; 4] {
@@ -417,12 +398,8 @@ mod pixel {
             )
         }
         fn to_value(acc: Vec4) -> Self {
-            [
-                (acc.x + 0.5) as u16,
-                (acc.y + 0.5) as u16,
-                (acc.z + 0.5) as u16,
-                (acc.w + 0.5) as u16,
-            ]
+            let out = acc + 0.5;
+            [out.x as u16, out.y as u16, out.z as u16, out.w as u16]
         }
     }
     impl IntoAccumulator<Vec4> for [f32; 4] {
@@ -480,38 +457,31 @@ mod pixel {
     }
     impl IntoStraightAlphaAccumulator<Vec4> for [u8; 4] {
         fn to_accumulator(self) -> Vec4 {
-            let a = self[3] as f32;
-            Vec4::new(
-                self[0] as f32 * a,
-                self[1] as f32 * a,
-                self[2] as f32 * a,
-                a,
-            )
+            let v = Vec4::new(
+                self[0] as f32,
+                self[1] as f32,
+                self[2] as f32,
+                self[3] as f32,
+            );
+            v * Vec4::new(v.w, v.w, v.w, 1.0)
         }
         fn to_value(acc: Vec4) -> Self {
             let a = acc.w;
-            let a_out = (a + 0.5) as u8;
-            if a_out == 0 {
-                return [0, 0, 0, 0];
-            }
-            let a_r = a.recip();
-            [
-                (acc.x * a_r + 0.5) as u8,
-                (acc.y * a_r + 0.5) as u8,
-                (acc.z * a_r + 0.5) as u8,
-                a_out,
-            ]
+            let a_r = if a < (0.5 / 255.0) { 0.0 } else { a.recip() };
+            let f = Vec4::new(a_r, a_r, a_r, 1.0);
+            let out = acc * f + 0.5;
+            [out.x as u8, out.y as u8, out.z as u8, out.w as u8]
         }
     }
     impl IntoStraightAlphaAccumulator<Vec4> for [u16; 4] {
         fn to_accumulator(self) -> Vec4 {
-            let a = self[3] as f32;
-            Vec4::new(
-                self[0] as f32 * a,
-                self[1] as f32 * a,
-                self[2] as f32 * a,
-                a,
-            )
+            let v = Vec4::new(
+                self[0] as f32,
+                self[1] as f32,
+                self[2] as f32,
+                self[3] as f32,
+            );
+            v * Vec4::new(v.w, v.w, v.w, 1.0)
         }
         fn to_value(acc: Vec4) -> Self {
             let a = acc.w;
@@ -530,8 +500,8 @@ mod pixel {
     }
     impl IntoStraightAlphaAccumulator<Vec4> for [f32; 4] {
         fn to_accumulator(self) -> Vec4 {
-            let a = self[3];
-            Vec4::new(self[0] * a, self[1] * a, self[2] * a, a)
+            let v = Vec4::new(self[0], self[1], self[2], self[3]);
+            v * Vec4::new(v.w, v.w, v.w, 1.0)
         }
         fn to_value(acc: Vec4) -> Self {
             let a = acc.w;
