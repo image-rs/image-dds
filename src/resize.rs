@@ -5,9 +5,7 @@ use resize::{Filter, Resizer};
 pub(crate) use aligned_types::*;
 
 mod aligned_types {
-    use crate::{cast, resize::is_aligned, ColorFormat, ImageView, Size};
-
-    pub(crate) type AlignTo = u32;
+    use crate::{cast, resize::is_aligned, Channels, ColorFormat, ImageView, Precision, Size};
 
     #[derive(Clone, Copy)]
     pub(crate) struct AlignedView<'a> {
@@ -38,38 +36,100 @@ mod aligned_types {
         }
     }
 
+    pub(crate) enum Backing {
+        U8(Vec<u8>),
+        U16(Vec<u16>),
+        F32(Vec<f32>),
+    }
+    impl Backing {
+        fn precision(&self) -> Precision {
+            match self {
+                Self::U8(_) => Precision::U8,
+                Self::U16(_) => Precision::U16,
+                Self::F32(_) => Precision::F32,
+            }
+        }
+
+        fn bytes(&self) -> &[u8] {
+            match self {
+                Self::U8(v) => v.as_slice(),
+                Self::U16(v) => cast::as_bytes(v.as_slice()),
+                Self::F32(v) => cast::as_bytes(v.as_slice()),
+            }
+        }
+        fn bytes_mut(&mut self) -> &mut [u8] {
+            match self {
+                Self::U8(v) => v.as_mut_slice(),
+                Self::U16(v) => cast::as_bytes_mut(v.as_mut_slice()),
+                Self::F32(v) => cast::as_bytes_mut(v.as_mut_slice()),
+            }
+        }
+    }
+    impl From<Vec<u8>> for Backing {
+        fn from(value: Vec<u8>) -> Self {
+            Self::U8(value)
+        }
+    }
+    impl From<Vec<u16>> for Backing {
+        fn from(value: Vec<u16>) -> Self {
+            Self::U16(value)
+        }
+    }
+    impl From<Vec<f32>> for Backing {
+        fn from(value: Vec<f32>) -> Self {
+            Self::F32(value)
+        }
+    }
+
     pub(crate) struct AlignedBuffer {
-        buffer: Vec<AlignTo>,
+        buffer: Backing,
         size: Size,
-        color: ColorFormat,
+        channels: Channels,
     }
     impl AlignedBuffer {
-        pub fn new(buffer: Vec<AlignTo>, size: Size, color: ColorFormat) -> Self {
-            debug_assert!(
-                buffer.len() * std::mem::size_of::<AlignTo>()
-                    >= color.buffer_size(size).expect("Invalid size"),
-                "Buffer too small for aligned buffer"
-            );
+        pub fn zeroed(size: Size, color: ColorFormat) -> Self {
+            let ColorFormat {
+                channels,
+                precision,
+            } = color;
+
+            let element_len =
+                size.width as usize * size.height as usize * channels.count() as usize;
+
+            let buffer = match precision {
+                Precision::U8 => Backing::U8(vec![0_u8; element_len]),
+                Precision::U16 => Backing::U16(vec![0_u16; element_len]),
+                Precision::F32 => Backing::F32(vec![0.0_f32; element_len]),
+            };
 
             Self {
                 buffer,
                 size,
-                color,
+                channels,
             }
         }
 
+        pub fn color(&self) -> ColorFormat {
+            ColorFormat::new(self.channels, self.buffer.precision())
+        }
+
+        pub fn bytes_mut(&mut self) -> &mut [u8] {
+            self.buffer.bytes_mut()
+        }
+
         pub fn as_view(&self) -> AlignedView<'_> {
-            let byte_slice = cast::as_bytes(&self.buffer);
-            let len = self.color.buffer_size(self.size).expect("Invalid size");
+            let color = self.color();
 
             AlignedView {
-                view: &byte_slice[..len],
+                view: self.buffer.bytes(),
                 size: self.size,
-                color: self.color,
+                color,
             }
         }
     }
 }
+
+type AlignTo = u32;
 
 pub(crate) struct Aligner {
     buffer: Vec<AlignTo>,
@@ -145,15 +205,12 @@ pub(crate) fn resize(
     straight_alpha: bool,
     filter: ResizeFilter,
 ) -> AlignedBuffer {
-    let color = src.color();
-
     // prepare the destination buffer
-    let mut dest_buffer: Vec<AlignTo> = Vec::new();
-    let dest_slice = get_aligned_slice(&mut dest_buffer, new_size, color);
+    let mut dest = AlignedBuffer::zeroed(new_size, src.color());
 
-    resize_into(src, dest_slice, new_size, straight_alpha, filter);
+    resize_into(src, dest.bytes_mut(), new_size, straight_alpha, filter);
 
-    AlignedBuffer::new(dest_buffer, new_size, color)
+    dest
 }
 
 fn get_aligned_slice(buffer: &mut Vec<AlignTo>, size: Size, color: ColorFormat) -> &mut [u8] {
@@ -538,6 +595,129 @@ mod pixel {
 
         fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
             Self::OutputPixel::to_value(acc)
+        }
+    }
+}
+
+pub(crate) fn resize_nearest(src: ImageView, new_size: Size) -> AlignedBuffer {
+    let mut dest = AlignedBuffer::zeroed(new_size, src.color());
+    let dest_bytes = dest.bytes_mut();
+
+    match src.color() {
+        ColorFormat::ALPHA_U8 | ColorFormat::GRAYSCALE_U8 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<1>(src, dest, new_size)
+        }
+        ColorFormat::ALPHA_U16 | ColorFormat::GRAYSCALE_U16 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<2>(src, dest, new_size)
+        }
+        ColorFormat::RGB_U8 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<3>(src, dest, new_size)
+        }
+        ColorFormat::ALPHA_F32 | ColorFormat::GRAYSCALE_F32 | ColorFormat::RGBA_U8 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<4>(src, dest, new_size)
+        }
+        ColorFormat::RGB_U16 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<6>(src, dest, new_size)
+        }
+        ColorFormat::RGBA_U16 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<8>(src, dest, new_size)
+        }
+        ColorFormat::RGB_F32 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<12>(src, dest, new_size)
+        }
+        ColorFormat::RGBA_F32 => {
+            let dest = cast::as_array_chunks_mut(dest_bytes).unwrap();
+            resize_nearest_n::<16>(src, dest, new_size)
+        }
+    }
+
+    dest
+}
+fn resize_nearest_n<const N: usize>(src: ImageView, dest: &mut [[u8; N]], new_size: Size) {
+    let src_w = src.width();
+    let src_h = src.height();
+    let dest_w = new_size.width;
+    let dest_h = new_size.height;
+
+    if dest_w == 0 || dest_h == 0 {
+        return;
+    }
+
+    debug_assert_eq!(N, src.color().bytes_per_pixel() as usize);
+    debug_assert_eq!(dest.len(), dest_w as usize * dest_h as usize);
+
+    // fast path for scaling down by an integer ratio
+    let s_x = src_w / dest_w;
+    let s_y = src_h / dest_h;
+    if src_w == dest_w * s_x && src_h == dest_h * s_y {
+        let s_x_half = s_x / 2;
+        let s_y_half = s_y / 2;
+
+        for dest_y in 0..dest_h {
+            let src_y = dest_y * s_y + s_y_half;
+            let src_row = src.row(src_y);
+            debug_assert!(src_row.len() % N == 0);
+            let src_row = cast::as_array_chunks(src_row).unwrap();
+
+            let dest_i = dest_y as usize * dest_w as usize;
+            let dest_row = &mut dest[dest_i..dest_i + dest_w as usize];
+
+            let mut src_x = s_x_half;
+            for d in dest_row.iter_mut() {
+                // TODO: This bounds check hurts perf. Removing it would give
+                //       another 25% for Grayscale U8 and Grayscale U16.
+                *d = src_row[src_x as usize];
+                src_x += s_x;
+            }
+        }
+
+        return;
+    }
+
+    // This uses fixed point arithmetic to avoid floating point and divisions.
+    // Basic NN works like this:
+    // We imagine that each pixel coordinate is at the center of the pixel and
+    // that center coordinate is then mapped to the src image. For the x
+    // coordinate this means:
+    //
+    //   src_x = round((dest_x + 0.5) * src_w / dest_w - 0.5)
+    //         = floor((dest_x + 0.5) * src_w / dest_w)
+    //
+    // Let `k = src_w / dest_w`:
+    //
+    //         = floor((dest_x + 0.5) * k)
+    //         = floor(dest_x * k + k/2)
+    //
+    // And with fixed point, `floor(x)` is just a cheap bit shift. Same also
+    // applies to the y coordinate, of course.
+    const SHIFT: i32 = 32;
+
+    let k_x: u64 = ((src_w as u64) << SHIFT) / dest_w as u64;
+    let k_y: u64 = ((src_h as u64) << SHIFT) / dest_h as u64;
+    let k_x_half: u64 = k_x >> 1;
+    let k_y_half: u64 = k_y >> 1;
+
+    for dest_y in 0..dest_h {
+        let src_y = (dest_y as u64 * k_y + k_y_half) >> SHIFT;
+        let src_row = src.row(src_y as u32);
+        debug_assert!(src_row.len() % N == 0);
+        let src_row = cast::as_array_chunks(src_row).unwrap();
+
+        let dest_i = dest_y as usize * dest_w as usize;
+        let dest_row = &mut dest[dest_i..dest_i + dest_w as usize];
+
+        let mut src_x_fixed = k_x_half;
+        for d in dest_row.iter_mut() {
+            let src_x = src_x_fixed >> SHIFT;
+            *d = src_row[src_x as usize];
+            src_x_fixed += k_x;
         }
     }
 }
