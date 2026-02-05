@@ -415,14 +415,15 @@ impl MipmapCache {
         self.generate_from_source(image, sizes, options, true, f)
     }
 
-    /// Generates each mipmap directly from the source image.
+    /// Generates each mipmap with Nearest filtering directly from the source image.
     fn generate_nearest(
         &mut self,
         image: ImageView,
         sizes: &[Size],
         mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
     ) -> Result<(), EncodingError> {
-        // otherwise, generate mipmaps sequentially
+        // An optimized nearest filtering implementation is entirely memory bound,
+        // so multiple threads won't help.
         for &mipmap_size in sizes {
             let mipmap = crate::resize::resize_nearest(image, mipmap_size);
             f(mipmap.as_view().as_image_view())?;
