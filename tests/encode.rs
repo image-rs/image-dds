@@ -744,6 +744,8 @@ fn create_mipmap_chain_image(
 
     decoded
 }
+// Don't run this on big endian targets, they have problems with f32 precision
+#[cfg(not(target_endian = "big"))]
 /// This tests mipmap generation.
 #[test]
 fn encode_mipmap_chain() {
@@ -814,6 +816,8 @@ fn encode_mipmap_chain() {
 
     summaries.snapshot_or_fail();
 }
+// Don't run this on big endian targets, it takes too long
+#[cfg(not(target_endian = "big"))]
 /// This test verifies the correctness of mipmap generation of all channel
 /// variants by checking against RGBA. This means that other tests verifying
 /// mipmap generation only need to consider RGBA.
