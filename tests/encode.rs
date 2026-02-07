@@ -2,7 +2,7 @@ use dds::*;
 use rand::{Rng, RngCore};
 use std::path::{Path, PathBuf};
 
-use util::{test_data_dir, Image, Snapshot, WithPrecision};
+use util::{test_data_dir, Image, Snapshot, WithPrecision, ALL_COLORS};
 
 mod util;
 
@@ -707,107 +707,283 @@ fn encode_all_color_formats() {
     }
 }
 
+fn create_mipmap_chain_image(
+    image: ImageView,
+    mipmaps: MipmapOptions,
+    format: Format,
+) -> Image<u8> {
+    let width = image.width();
+    let height = image.height();
+
+    let mut encoded = Vec::new();
+    let mut encoder = Encoder::new_image(&mut encoded, image.size(), format, true).unwrap();
+    encoder.mipmaps = mipmaps;
+    encoder.mipmaps.generate = true;
+    encoder.write_surface(image).unwrap();
+    encoder.finish().unwrap();
+
+    let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice())).unwrap();
+    let mut decoded: Image<u8> = Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
+    decoder
+        .read_surface(decoded.view_mut().cropped(Offset::ZERO, image.size()))
+        .unwrap();
+    let mut offset_y = 0;
+    while let Some(info) = decoder.surface_info() {
+        let mip_size = info.size();
+
+        decoder
+            .read_surface(
+                decoded
+                    .view_mut()
+                    .cropped(Offset::new(width, offset_y), mip_size),
+            )
+            .unwrap();
+
+        offset_y += mip_size.height;
+    }
+
+    decoded
+}
+// Don't run this on big endian targets, they have problems with f32 precision
+#[cfg(not(target_endian = "big"))]
 /// This tests mipmap generation.
 #[test]
-fn encode_mipmap() {
-    fn create_mipmap_image(
+fn encode_mipmap_chain() {
+    fn save_mipmap_chain_image(
         snap_path: &Path,
         format: Format,
         mipmaps: MipmapOptions,
         image: ImageView,
     ) -> Result<String, Box<dyn std::error::Error>> {
-        let width = image.width();
-        let height = image.height();
-
-        let mut encoded = Vec::new();
-        let mut encoder = Encoder::new_image(&mut encoded, image.size(), format, true)?;
-        encoder.mipmaps = mipmaps;
-        encoder.write_surface(image)?;
-        encoder.finish()?;
-
-        let mut decoder = Decoder::new(std::io::Cursor::new(encoded.as_slice()))?;
-        let mut decoded: Image<u8> =
-            Image::new_empty(Channels::Rgba, Size::new(width * 3 / 2, height));
-        decoder.read_surface(decoded.view_mut().cropped(Offset::ZERO, image.size()))?;
-        let mut offset_y = 0;
-        while let Some(info) = decoder.surface_info() {
-            let mip_size = info.size();
-
-            decoder.read_surface(
-                decoded
-                    .view_mut()
-                    .cropped(Offset::new(width, offset_y), mip_size),
-            )?;
-
-            offset_y += mip_size.height;
-        }
-
-        _ = util::PngSnapshot.write(snap_path, &decoded)?;
-
-        let hex = util::hash_hex(&decoded.data);
+        let chain = create_mipmap_chain_image(image, mipmaps, format);
+        _ = util::PngSnapshot.write(snap_path, &chain)?;
+        let hex = util::hash_hex(&chain.data);
         Ok(hex)
     }
-
-    let options = [
-        MipmapOptions {
-            resize_straight_alpha: true,
-            resize_filter: ResizeFilter::Box,
-            ..MipmapOptions::default()
-        },
-        MipmapOptions {
-            resize_straight_alpha: false,
-            resize_filter: ResizeFilter::Box,
-            ..MipmapOptions::default()
-        },
-        MipmapOptions {
-            resize_filter: ResizeFilter::Nearest,
-            ..MipmapOptions::default()
-        },
-        MipmapOptions {
-            resize_filter: ResizeFilter::Triangle,
-            ..MipmapOptions::default()
-        },
-        MipmapOptions {
-            resize_filter: ResizeFilter::Mitchell,
-            ..MipmapOptions::default()
-        },
-        MipmapOptions {
-            resize_filter: ResizeFilter::Lanczos3,
-            ..MipmapOptions::default()
-        },
-    ];
 
     let image_names = ["base", "bricks-d"];
 
     let mut summaries = util::OutputSummaries::new("_hashes");
     for image_name in image_names {
         let image = util::read_png_u8(&get_sample(&format!("{image_name}.png"))).unwrap();
-        for mut option in options {
-            option.generate = true;
+        let is_rgba =
+            image.channels == Channels::Rgba && image.data.chunks_exact(4).any(|c| c[3] != 255);
 
-            let name = image_name.to_string()
-                + " @ "
-                + if option.resize_straight_alpha {
-                    "straight-alpha"
-                } else {
-                    "no-straight-alpha"
+        let image_u8 = image.to_channels(Channels::Rgba);
+        let image_u16 = image_u8.to_u16();
+        let image_f32 = image_u8.to_f32();
+
+        let straight_alpha_options: &[bool] = if is_rgba { &[false, true] } else { &[true] };
+
+        for image in [image_u8.view(), image_u16.view(), image_f32.view()] {
+            for &filter in util::ALL_RESIZE_FILTERS {
+                for &straight_alpha in straight_alpha_options {
+                    let option = MipmapOptions {
+                        generate: true,
+                        resize_filter: filter,
+                        resize_straight_alpha: straight_alpha,
+                        ..Default::default()
+                    };
+
+                    let mut name = format!("{image_name} @ {filter:?} {}", image.color());
+
+                    if image.color().channels == Channels::Rgba && is_rgba {
+                        name += " ";
+                        name += if option.resize_straight_alpha {
+                            "alpha-straight"
+                        } else {
+                            "alpha-custom"
+                        };
+                    }
+
+                    let snapshot_file = util::test_data_dir()
+                        .join("output-encode/mipmaps")
+                        .join(name + ".png");
+
+                    summaries.add_output_file_result(
+                        &snapshot_file,
+                        save_mipmap_chain_image(
+                            &snapshot_file,
+                            Format::R8G8B8A8_UNORM,
+                            option,
+                            image,
+                        ),
+                    );
                 }
-                + " - "
-                + &format!("{:?}", option.resize_filter)
-                + ".png";
-
-            let snapshot_file = util::test_data_dir()
-                .join("output-encode/mipmaps")
-                .join(name);
-
-            summaries.add_output_file_result(
-                &snapshot_file,
-                create_mipmap_image(&snapshot_file, Format::R8G8B8A8_UNORM, option, image.view()),
-            );
+            }
         }
     }
 
     summaries.snapshot_or_fail();
+}
+// Don't run this on big endian targets, it takes too long
+#[cfg(not(target_endian = "big"))]
+/// This test verifies the correctness of mipmap generation of all channel
+/// variants by checking against RGBA. This means that other tests verifying
+/// mipmap generation only need to consider RGBA.
+#[test]
+fn mipmap_channel_invariants() {
+    fn check_invariants(
+        filter: ResizeFilter,
+        image_rgba: ImageView,
+        image_rgb: ImageView,
+        image_gray: ImageView,
+        image_alpha: ImageView,
+        info: &str,
+    ) {
+        let mut option = MipmapOptions {
+            resize_filter: filter,
+            ..Default::default()
+        };
+        let filter = Format::R8G8B8A8_UNORM;
+
+        option.resize_straight_alpha = true;
+        let chain_rgba_straight = create_mipmap_chain_image(image_rgba, option, filter);
+        option.resize_straight_alpha = false;
+        let chain_rgba_custom = create_mipmap_chain_image(image_rgba, option, filter);
+
+        let chain_rgb = create_mipmap_chain_image(image_rgb, option, filter);
+        let chain_gray = create_mipmap_chain_image(image_gray, option, filter);
+        let chain_alpha = create_mipmap_chain_image(image_alpha, option, filter);
+
+        assert_eq!(chain_rgba_straight.size, chain_rgba_custom.size);
+        assert_eq!(chain_rgba_straight.size, chain_rgb.size);
+        assert_eq!(chain_rgba_straight.size, chain_gray.size);
+        assert_eq!(chain_rgba_straight.size, chain_alpha.size);
+
+        assert_eq!(chain_rgba_straight.channels, Channels::Rgba);
+        assert_eq!(chain_rgba_custom.channels, Channels::Rgba);
+        assert_eq!(chain_rgb.channels, Channels::Rgba);
+        assert_eq!(chain_gray.channels, Channels::Rgba);
+        assert_eq!(chain_alpha.channels, Channels::Rgba);
+
+        let rgba_straight: &[[u8; 4]] = util::from_bytes(&chain_rgba_straight.data).unwrap();
+        let rgba_custom: &[[u8; 4]] = util::from_bytes(&chain_rgba_custom.data).unwrap();
+        let rgb: &[[u8; 4]] = util::from_bytes(&chain_rgb.data).unwrap();
+        let gray: &[[u8; 4]] = util::from_bytes(&chain_gray.data).unwrap();
+        let alpha: &[[u8; 4]] = util::from_bytes(&chain_alpha.data).unwrap();
+
+        for i in 0..rgba_straight.len() {
+            let rgba_straight = rgba_straight[i];
+            let rgba_custom = rgba_custom[i];
+            let rgb = rgb[i];
+            let gray = gray[i];
+            let alpha = alpha[i];
+
+            // the RGBAs
+            assert_eq!(rgba_straight[3], rgba_custom[3], "Failed at {i} for {info}");
+
+            // RGB
+            assert_eq!(rgb[0], rgba_custom[0], "Failed at {i} for {info}");
+            assert_eq!(rgb[1], rgba_custom[1], "Failed at {i} for {info}");
+            assert_eq!(rgb[2], rgba_custom[2], "Failed at {i} for {info}");
+
+            // Gray
+            assert_eq!(gray[0], rgb[0], "Failed at {i} for {info}");
+
+            // Alpha
+            assert_eq!(alpha[3], rgba_custom[3], "Failed at {i} for {info}");
+        }
+    }
+
+    let image_names = ["base", "bricks-d"];
+
+    for image_name in image_names {
+        let image_rgba = util::read_png_u8(&get_sample(&format!("{image_name}.png")))
+            .unwrap()
+            .to_channels(Channels::Rgba);
+
+        let image_rgb = image_rgba.to_channels(Channels::Rgb);
+        let image_gray = image_rgba.to_channels(Channels::Grayscale);
+        let image_alpha = image_rgba.to_channels(Channels::Alpha);
+
+        for &filter in util::ALL_RESIZE_FILTERS {
+            let info = format!("{image_name} with {filter:?}");
+
+            check_invariants(
+                filter,
+                image_rgba.view(),
+                image_rgb.view(),
+                image_gray.view(),
+                image_alpha.view(),
+                &info,
+            );
+            check_invariants(
+                filter,
+                image_rgba.to_u16().view(),
+                image_rgb.to_u16().view(),
+                image_gray.to_u16().view(),
+                image_alpha.to_u16().view(),
+                &info,
+            );
+            check_invariants(
+                filter,
+                image_rgba.to_f32().view(),
+                image_rgb.to_f32().view(),
+                image_gray.to_f32().view(),
+                image_alpha.to_f32().view(),
+                &info,
+            );
+        }
+    }
+}
+/// This test verifies the correctness of mipmap generation of all precision
+/// variants by checking against F32. This means that other tests verifying
+/// mipmap generation only need to consider one precision.
+#[test]
+fn mipmap_precision_invariants() {
+    fn image_diff(a: &Image<u8>, b: &Image<u8>) -> u8 {
+        assert_eq!(a.channels, Channels::Rgba);
+        assert_eq!(b.channels, Channels::Rgba);
+        assert_eq!(a.size, b.size);
+
+        let mut max_diff = 0;
+        for (&a, &b) in a.data.iter().zip(&b.data) {
+            max_diff = a.abs_diff(b).max(max_diff);
+        }
+
+        max_diff
+    }
+
+    let image_names = ["base", "bricks-d"];
+
+    for image_name in image_names {
+        let image_u8 = util::read_png_u8(&get_sample(&format!("{image_name}.png")))
+            .unwrap()
+            .to_channels(Channels::Rgba);
+
+        let image_u16 = image_u8.to_u16();
+        let image_f32 = image_u8.to_f32();
+
+        for &filter in util::ALL_RESIZE_FILTERS {
+            for straight_alpha in [false, true] {
+                let info =
+                    format!("{image_name} with {filter:?} and straight_alpha={straight_alpha}");
+                let options = MipmapOptions {
+                    resize_filter: filter,
+                    resize_straight_alpha: straight_alpha,
+                    ..Default::default()
+                };
+                let format = Format::R8G8B8A8_UNORM;
+
+                let chain_u8 = create_mipmap_chain_image(image_u8.view(), options, format);
+                let chain_u16 = create_mipmap_chain_image(image_u16.view(), options, format);
+                let chain_f32 = create_mipmap_chain_image(image_f32.view(), options, format);
+
+                let u8_diff = image_diff(&chain_u8, &chain_f32);
+                let u16_diff = image_diff(&chain_u16, &chain_f32);
+
+                assert!(
+                    u8_diff <= 1,
+                    "Expected U8 diff ({u8_diff}) to be smaller for {info}"
+                );
+                assert!(
+                    u16_diff <= 1,
+                    "Expected U16 diff ({u16_diff}) to be smaller for {info}"
+                );
+            }
+        }
+    }
 }
 
 #[test]
@@ -865,6 +1041,83 @@ fn test_unaligned() {
                     "Failed for {format:?} {color:?} {mipmaps:?}"
                 );
             }
+        }
+    }
+}
+
+// This test ensures that mipmap generation has the same results for unaligned
+// and non-contiguous images as for simple aligned contiguous images.
+#[test]
+fn test_unaligned_mipmaps() {
+    fn for_each_unaligned(image: ImageView, consume: impl FnOnce(ImageView, ImageView, ImageView)) {
+        assert!(image.is_contiguous());
+        let image_bytes = image.data();
+
+        // a version of the image that is unaligned
+        let mut offset_bytes = vec![0_u8; image_bytes.len() + 1];
+        offset_bytes[1..].copy_from_slice(image_bytes);
+        let offset_view = ImageView::new(&offset_bytes[1..], image.size(), image.color()).unwrap();
+
+        // a version of the image that is unaligned and non-contiguous
+        let row_pitch = image.row_pitch() + 5;
+        let mut row_pitch_bytes = vec![0_u8; 1 + image.height() as usize * row_pitch];
+        let row_pitch_bytes = &mut row_pitch_bytes[1..];
+        for (y, row) in image.rows().enumerate() {
+            let offset = y * row_pitch;
+            let rrow = &mut row_pitch_bytes[offset..offset + image.row_pitch()];
+            rrow.copy_from_slice(row);
+        }
+        let row_pitch_view =
+            ImageView::new_with(&row_pitch_bytes, row_pitch, image.size(), image.color()).unwrap();
+
+        consume(image, offset_view, row_pitch_view);
+    }
+
+    fn encode_dds_bytes(image: ImageView, filter: ResizeFilter, straight_alpha: bool) -> Vec<u8> {
+        let mut buffer = Vec::new();
+
+        let mut encoder =
+            Encoder::new_image(&mut buffer, image.size(), Format::R8G8B8A8_UNORM, true).unwrap();
+        encoder.mipmaps.resize_filter = filter;
+        encoder.mipmaps.resize_straight_alpha = straight_alpha;
+        encoder.write_surface(image).unwrap();
+        encoder.finish().unwrap();
+
+        buffer
+    }
+
+    for &color in ALL_COLORS {
+        for size in [Size::new(128, 128), Size::new(101, 127)] {
+            let image_bytes = color.buffer_size(size).unwrap();
+            let mut buffer = vec![0_u32; image_bytes.div_ceil(4)];
+            let buffer = &mut util::as_bytes_mut(&mut buffer)[..image_bytes];
+            let mut rng = util::create_rng();
+            rng.fill_bytes(buffer);
+
+            let image = ImageView::new(buffer, size, color).unwrap();
+
+            for_each_unaligned(image, |image, image_unaligned, image_row_pitch| {
+                for &filter in util::ALL_RESIZE_FILTERS {
+                    for straight_alpha in [false, true] {
+                        let config = format!("color={color} size={size:?} filter={filter:?} straight_alpha={straight_alpha}");
+
+                        let dds = encode_dds_bytes(image, filter, straight_alpha);
+                        let dds_unaligned =
+                            encode_dds_bytes(image_unaligned, filter, straight_alpha);
+                        let dds_row_pitch =
+                            encode_dds_bytes(image_row_pitch, filter, straight_alpha);
+
+                        assert!(
+                            dds == dds_unaligned,
+                            "encoding unaligned is different for config: {config}"
+                        );
+                        assert!(
+                            dds == dds_row_pitch,
+                            "encoding with row pitch is different for config: {config}"
+                        );
+                    }
+                }
+            });
         }
     }
 }

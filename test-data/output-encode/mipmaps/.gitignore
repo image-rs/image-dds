@@ -1,0 +1,3 @@
+# don't commit the F32 and U16 versions, they are just here for debugging
+* F32*.png
+* U16*.png
