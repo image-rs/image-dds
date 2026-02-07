@@ -1,36 +1,135 @@
-base @ straight-alpha - Box.png: >
-    42d9db52df97d460c35cdeaf07cba92a84de2ba1e18e0cd5415abda16aae04ab
-
-base @ no-straight-alpha - Box.png: >
+base @ Box Rgba U8 alpha-custom.png: >
     c5a489502b956d81ee366e6c4bfc708d8c7fe3671af41cc31c2f9c57872b6e5c
 
-base @ straight-alpha - Nearest.png: >
-    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+base @ Box Rgba U8 alpha-straight.png: >
+    42d9db52df97d460c35cdeaf07cba92a84de2ba1e18e0cd5415abda16aae04ab
 
-base @ straight-alpha - Triangle.png: >
+base @ Triangle Rgba U8 alpha-custom.png: >
+    e39f4769086577a33d9a68ff89bbdc86d18f6e2b9ec1390f1bea95578a952e7b
+
+base @ Triangle Rgba U8 alpha-straight.png: >
     3fd7d24d40a624c753e6ebc288a60ec606ccc154585f684c996fed119de70eb2
 
-base @ straight-alpha - Mitchell.png: >
+base @ Mitchell Rgba U8 alpha-custom.png: >
+    c1ce4a66035f3e144ecda3b4462ad59f07db65a858e604752aad1e2ecd757987
+
+base @ Mitchell Rgba U8 alpha-straight.png: >
     c811a10453695b2169ae564d41ac2656a053aa9f347c4d324c1b7457c506e1be
 
-base @ straight-alpha - Lanczos3.png: >
+base @ Lanczos3 Rgba U8 alpha-custom.png: >
+    f0dc976646e5fa2d49d8d7fb632776eda427d37a5d6eb6aa524df96da7877e28
+
+base @ Lanczos3 Rgba U8 alpha-straight.png: >
     d6a01e86fa5c948b333a073b537037ff9daa9428becd45ae0f480bd6b15cc89f
 
-bricks-d @ straight-alpha - Box.png: >
+base @ Nearest Rgba U8 alpha-custom.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+base @ Nearest Rgba U8 alpha-straight.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+base @ Box Rgba U16 alpha-custom.png: >
+    8c6204ba07184414e77e5f2639cc64e68405b481e0fddcf11cd1e62379065124
+
+base @ Box Rgba U16 alpha-straight.png: >
+    7616ea5cb7fbfe334ae92ef962d0465adc15831f26c1453c4dd935abbc547616
+
+base @ Triangle Rgba U16 alpha-custom.png: >
+    4c0160941a6b112e20b0e3a974d0ab3191176210d222e447f8c0bd9f5f87cff3
+
+base @ Triangle Rgba U16 alpha-straight.png: >
+    a17afb15d3da1bbeaa9285f08b00f8359575052d1a52a0c2ae80fa2258ee11bc
+
+base @ Mitchell Rgba U16 alpha-custom.png: >
+    c1ce4a66035f3e144ecda3b4462ad59f07db65a858e604752aad1e2ecd757987
+
+base @ Mitchell Rgba U16 alpha-straight.png: >
+    dcfc79fdd80b48298dee9a254447cef8fda67a06bc5d396c267b790c08be0ebe
+
+base @ Lanczos3 Rgba U16 alpha-custom.png: >
+    f0dc976646e5fa2d49d8d7fb632776eda427d37a5d6eb6aa524df96da7877e28
+
+base @ Lanczos3 Rgba U16 alpha-straight.png: >
+    d6a01e86fa5c948b333a073b537037ff9daa9428becd45ae0f480bd6b15cc89f
+
+base @ Nearest Rgba U16 alpha-custom.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+base @ Nearest Rgba U16 alpha-straight.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+base @ Box Rgba F32 alpha-custom.png: >
+    c3566d415c73cd88cdff9e5be83a6285c793d884ede079c589e61ea16ee347f7
+
+base @ Box Rgba F32 alpha-straight.png: >
+    4bff24571c90de1491954b2cc5c6ba1a5167679171326e9c06fc5250655ce5a9
+
+base @ Triangle Rgba F32 alpha-custom.png: >
+    b7933aa2ce66592f362406ab173c2a52908130f2e2e12bfdc9b75d2af222429e
+
+base @ Triangle Rgba F32 alpha-straight.png: >
+    fe9faeffc6364e0bd7feb8fbe8e8a336018523a457586fd09f2cf6042fc85b75
+
+base @ Mitchell Rgba F32 alpha-custom.png: >
+    9e79573ddaf9f2050cc36cdedce34a690eef4fc2a5aeb2142f3f81b07fb01ae1
+
+base @ Mitchell Rgba F32 alpha-straight.png: >
+    dcfc79fdd80b48298dee9a254447cef8fda67a06bc5d396c267b790c08be0ebe
+
+base @ Lanczos3 Rgba F32 alpha-custom.png: >
+    f0dc976646e5fa2d49d8d7fb632776eda427d37a5d6eb6aa524df96da7877e28
+
+base @ Lanczos3 Rgba F32 alpha-straight.png: >
+    d6a01e86fa5c948b333a073b537037ff9daa9428becd45ae0f480bd6b15cc89f
+
+base @ Nearest Rgba F32 alpha-custom.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+base @ Nearest Rgba F32 alpha-straight.png: >
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
+
+bricks-d @ Box Rgba U8.png: >
     3b615f955e1bb504ba1d7c08ed948926fbbc39d78f2b211c655f33afb7ec633b
 
-bricks-d @ no-straight-alpha - Box.png: >
-    3b615f955e1bb504ba1d7c08ed948926fbbc39d78f2b211c655f33afb7ec633b
+bricks-d @ Triangle Rgba U8.png: >
+    475b28ad5841a53a739cb029e1843a375a4128776ddd7138d787bdcc39bdf3f8
 
-bricks-d @ straight-alpha - Nearest.png: >
-    9ce443a23c8483064d2ef4ac494397c94a0954a0c4833f9934df0252c3ffea56
-
-bricks-d @ straight-alpha - Triangle.png: >
-    f1db1ac5255e309ee51d6fb1bdf1d45288a3161ed0f02629e7ac2fac90f88247
-
-bricks-d @ straight-alpha - Mitchell.png: >
+bricks-d @ Mitchell Rgba U8.png: >
     d298d727e988a53adaf9d4ffe2b9752046e434cef024667004d9f88412d673c7
 
-bricks-d @ straight-alpha - Lanczos3.png: >
-    c1442ac7b53cc5c6531900bcabf63509fadeaafdd26ae9e61a78f29397f4ec34
+bricks-d @ Lanczos3 Rgba U8.png: >
+    2e5da503d55695c06e4f7a82c13b4795ca670350f0ab8d3e3000a37e2c251a8f
+
+bricks-d @ Nearest Rgba U8.png: >
+    9ce443a23c8483064d2ef4ac494397c94a0954a0c4833f9934df0252c3ffea56
+
+bricks-d @ Box Rgba U16.png: >
+    b9c7b33dbfaf2439810be92dd541858b4b3586710ae562b98cd2372d7f22f12c
+
+bricks-d @ Triangle Rgba U16.png: >
+    79185eae0e2ba07f5616ff79db45bd8fdb1d213fa3076626e9813a6d0b731cec
+
+bricks-d @ Mitchell Rgba U16.png: >
+    2f5ed38ae29f47a181a6139da3a8ee8663ab9cf692e40d83d97a0039bb65a55b
+
+bricks-d @ Lanczos3 Rgba U16.png: >
+    7ca3d092d3a1b14f22aef6ce470896e7fe6dede5044de700f3566bb7d1aea20c
+
+bricks-d @ Nearest Rgba U16.png: >
+    9ce443a23c8483064d2ef4ac494397c94a0954a0c4833f9934df0252c3ffea56
+
+bricks-d @ Box Rgba F32.png: >
+    3394819883baea5610ba252acc85f17b5ae719ad2fbf12b824ecc175a74c1afd
+
+bricks-d @ Triangle Rgba F32.png: >
+    ad4460c48a964174684b6f955953b87848616a795d159f532e33c7a28b76c955
+
+bricks-d @ Mitchell Rgba F32.png: >
+    2f5ed38ae29f47a181a6139da3a8ee8663ab9cf692e40d83d97a0039bb65a55b
+
+bricks-d @ Lanczos3 Rgba F32.png: >
+    3c37440fd8b8f2f98551b1a287fe358f7fb7c91335ee19ced6f0dc61f6f33d86
+
+bricks-d @ Nearest Rgba F32.png: >
+    9ce443a23c8483064d2ef4ac494397c94a0954a0c4833f9934df0252c3ffea56
 
