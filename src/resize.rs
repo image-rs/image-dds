@@ -505,10 +505,10 @@ mod pixel {
         }
         fn to_value(acc: Vec4) -> Self {
             let a = acc.w;
-            if a == 0.0 {
+            if a <= 0.0 {
                 return [0.0, 0.0, 0.0, 0.0];
             }
-            let a_r = 1.0 / a.recip();
+            let a_r = a.recip();
             [acc.x * a_r, acc.y * a_r, acc.z * a_r, a]
         }
     }
