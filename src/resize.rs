@@ -657,26 +657,35 @@ fn resize_nearest_n<const N: usize>(src: ImageView, dest: &mut [[u8; N]], new_si
     let s_x = src_w / dest_w;
     let s_y = src_h / dest_h;
     if src_w == dest_w * s_x && src_h == dest_h * s_y {
+        assert!(s_x > 0 && s_y > 0);
+
         let s_x_half = s_x / 2;
         let s_y_half = s_y / 2;
 
-        for dest_y in 0..dest_h {
-            let src_y = dest_y * s_y + s_y_half;
-            let src_row = src.row(src_y);
-            debug_assert!(src_row.len() % N == 0);
-            let src_row = cast::as_array_chunks(src_row).unwrap();
+        #[cfg(feature = "rayon")]
+        use rayon::prelude::*;
 
-            let dest_i = dest_y as usize * dest_w as usize;
-            let dest_row = &mut dest[dest_i..dest_i + dest_w as usize];
+        let iter;
+        #[cfg(not(feature = "rayon"))]
+        {
+            iter = dest.chunks_exact_mut(dest_w as usize);
+        }
+        #[cfg(feature = "rayon")]
+        {
+            iter = dest.par_chunks_exact_mut(dest_w as usize);
+        }
+
+        iter.enumerate().for_each(|(dest_y, dest_row)| {
+            let src_y = dest_y as u32 * s_y + s_y_half;
+            let src_row = src.row(src_y);
+            let src_row = cast::as_array_chunks(src_row).unwrap();
 
             let mut src_x = s_x_half;
             for d in dest_row.iter_mut() {
-                // TODO: This bounds check hurts perf. Removing it would give
-                //       another 25% for Grayscale U8 and Grayscale U16.
                 *d = src_row[src_x as usize];
                 src_x += s_x;
             }
-        }
+        });
 
         return;
     }
@@ -704,20 +713,18 @@ fn resize_nearest_n<const N: usize>(src: ImageView, dest: &mut [[u8; N]], new_si
     let k_x_half: u64 = k_x >> 1;
     let k_y_half: u64 = k_y >> 1;
 
-    for dest_y in 0..dest_h {
-        let src_y = (dest_y as u64 * k_y + k_y_half) >> SHIFT;
-        let src_row = src.row(src_y as u32);
-        debug_assert!(src_row.len() % N == 0);
-        let src_row = cast::as_array_chunks(src_row).unwrap();
+    dest.chunks_exact_mut(dest_w as usize)
+        .enumerate()
+        .for_each(|(dest_y, dest_row)| {
+            let src_y = (dest_y as u64 * k_y + k_y_half) >> SHIFT;
+            let src_row = src.row(src_y as u32);
+            let src_row = cast::as_array_chunks(src_row).unwrap();
 
-        let dest_i = dest_y as usize * dest_w as usize;
-        let dest_row = &mut dest[dest_i..dest_i + dest_w as usize];
-
-        let mut src_x_fixed = k_x_half;
-        for d in dest_row.iter_mut() {
-            let src_x = src_x_fixed >> SHIFT;
-            *d = src_row[src_x as usize];
-            src_x_fixed += k_x;
-        }
-    }
+            let mut src_x_fixed = k_x_half;
+            for d in dest_row.iter_mut() {
+                let src_x = src_x_fixed >> SHIFT;
+                *d = src_row[src_x as usize];
+                src_x_fixed += k_x;
+            }
+        });
 }
