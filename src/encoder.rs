@@ -376,22 +376,24 @@ impl MipmapCache {
         options: MipmapOptions,
         f: impl FnMut(ImageView) -> Result<(), EncodingError>,
     ) -> Result<(), EncodingError> {
-        // check that sizes are decreasing
-        let mut last_size = image.size();
-        for &size in sizes {
-            debug_assert!(
-                size.width <= last_size.width && size.height <= last_size.height,
-                "Mipmap sizes must be in decreasing order"
-            );
-            last_size = size;
+        #[cfg(debug_assertions)]
+        {
+            // check that sizes are decreasing
+            let mut last_size = image.size();
+            for &size in sizes {
+                debug_assert!(
+                    size.width <= last_size.width && size.height <= last_size.height,
+                    "Mipmap sizes must be in decreasing order"
+                );
+                last_size = size;
+            }
         }
 
         // decide which path to take
 
         if options.resize_filter == ResizeFilter::Nearest {
-            // NN produces vastly different results when generated from previous
-            // mipmaps. No idea why.
-            return self.generate_from_source(image, sizes, options, true, f);
+            // Fast path for custom Nearest implementation.
+            return self.generate_nearest(image, sizes, f);
         }
 
         if sizes
@@ -411,6 +413,23 @@ impl MipmapCache {
         }
 
         self.generate_from_source(image, sizes, options, true, f)
+    }
+
+    /// Generates each mipmap with Nearest filtering directly from the source image.
+    fn generate_nearest(
+        &mut self,
+        image: ImageView,
+        sizes: &[Size],
+        mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
+    ) -> Result<(), EncodingError> {
+        // An optimized nearest filtering implementation is entirely memory bound,
+        // so multiple threads won't help.
+        for &mipmap_size in sizes {
+            let mipmap = crate::resize::resize_nearest(image, mipmap_size);
+            f(mipmap.as_view().as_image_view())?;
+        }
+
+        Ok(())
     }
 
     /// Generates each mipmap directly from the source image.
