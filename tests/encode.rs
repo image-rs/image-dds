@@ -779,7 +779,6 @@ fn encode_mipmap_chain() {
             for &filter in util::ALL_RESIZE_FILTERS {
                 for &straight_alpha in straight_alpha_options {
                     let option = MipmapOptions {
-                        generate: true,
                         resize_filter: filter,
                         resize_straight_alpha: straight_alpha,
                         ..Default::default()
@@ -1068,7 +1067,7 @@ fn test_unaligned_mipmaps() {
             rrow.copy_from_slice(row);
         }
         let row_pitch_view =
-            ImageView::new_with(&row_pitch_bytes, row_pitch, image.size(), image.color()).unwrap();
+            ImageView::new_with(row_pitch_bytes, row_pitch, image.size(), image.color()).unwrap();
 
         consume(image, offset_view, row_pitch_view);
     }
