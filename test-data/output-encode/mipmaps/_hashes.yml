@@ -23,10 +23,10 @@ base @ Lanczos3 Rgba U8 alpha-straight.png: >
     d6a01e86fa5c948b333a073b537037ff9daa9428becd45ae0f480bd6b15cc89f
 
 base @ Nearest Rgba U8 alpha-custom.png: >
-    fb872f49d8a3d0562da5cc0f35013af559ff9033ff0c49ca40e61db4438a26a0
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
 
 base @ Nearest Rgba U8 alpha-straight.png: >
-    87cfc13df79b2864edab2507b8da67ab15281f0784ef3b82947bb33c61ef30af
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
 
 base @ Box Rgba U16 alpha-custom.png: >
     8c6204ba07184414e77e5f2639cc64e68405b481e0fddcf11cd1e62379065124
@@ -53,10 +53,10 @@ base @ Lanczos3 Rgba U16 alpha-straight.png: >
     d6a01e86fa5c948b333a073b537037ff9daa9428becd45ae0f480bd6b15cc89f
 
 base @ Nearest Rgba U16 alpha-custom.png: >
-    fb872f49d8a3d0562da5cc0f35013af559ff9033ff0c49ca40e61db4438a26a0
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
 
 base @ Nearest Rgba U16 alpha-straight.png: >
-    87cfc13df79b2864edab2507b8da67ab15281f0784ef3b82947bb33c61ef30af
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
 
 base @ Box Rgba F32 alpha-custom.png: >
     c3566d415c73cd88cdff9e5be83a6285c793d884ede079c589e61ea16ee347f7
@@ -83,10 +83,10 @@ base @ Lanczos3 Rgba F32 alpha-straight.png: >
     d6a01e86fa5c948b333a073b537037ff9daa9428becd45ae0f480bd6b15cc89f
 
 base @ Nearest Rgba F32 alpha-custom.png: >
-    fb872f49d8a3d0562da5cc0f35013af559ff9033ff0c49ca40e61db4438a26a0
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
 
 base @ Nearest Rgba F32 alpha-straight.png: >
-    87cfc13df79b2864edab2507b8da67ab15281f0784ef3b82947bb33c61ef30af
+    816ff0ba22193965468249f09585e24ef42a395ddf99bbb207ae9808a6cea50e
 
 bricks-d @ Box Rgba U8.png: >
     3b615f955e1bb504ba1d7c08ed948926fbbc39d78f2b211c655f33afb7ec633b

@@ -336,6 +336,14 @@ impl<'a> ImageView<'a> {
             &data[start..end]
         })
     }
+    pub(crate) fn row(&self, y: u32) -> &'a [u8] {
+        let bytes_per_row = self.width() as usize * self.color.bytes_per_pixel() as usize;
+        let data = self.data;
+
+        let start = y as usize * self.row_pitch;
+        let end = start + bytes_per_row;
+        &data[start..end]
+    }
 }
 
 /// A borrowed mutable slice of image data.
