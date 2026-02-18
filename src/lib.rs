@@ -22,6 +22,13 @@
 //!   high-level [`Encoder`] and low-level [`encode()`] functions will take
 //!   advantage of `rayon` for faster processing, but may use more memory.
 //!
+//! - `image`: Integration with the [`image` crate](https://crates.io/crates/image).
+//!
+//!   This feature enables conversions between `image` crate image/color types
+//!   and this crate's image/color types. In particular, `image::DynamicImage`
+//!   and `image::ImageBuffer` can be converted to both [`ImageView`] and
+//!   [`ImageViewMut`].
+//!
 //! All features marked with "*(default)*" are enabled by default.
 //!
 //! ## Usage
@@ -168,6 +175,8 @@ mod encoder;
 mod error;
 mod format;
 pub mod header;
+#[cfg(feature = "image")]
+mod image_integration;
 mod iter;
 mod layout;
 mod pixel;
