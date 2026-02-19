@@ -1,0 +1,709 @@
+R8G8B8_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Fixed(3 bytes/px)
+  headers: DX9
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+B8G8R8_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Fixed(3 bytes/px)
+  headers: DX9
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R8G8B8A8_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R8G8B8A8_UNORM (28)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R8G8B8A8_SNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R8G8B8A8_SNORM (31)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+B8G8R8A8_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: B8G8R8A8_UNORM (87)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+B8G8R8X8_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: B8G8R8X8_UNORM (88)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+B5G6R5_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: B5G6R5_UNORM (85)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+B5G5R5A1_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: B5G5R5A1_UNORM (86)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+B4G4R4A4_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: B4G4R4A4_UNORM (115)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+A4B4G4R4_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX10
+  dxgi: A4B4G4R4_UNORM (191)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R8_SNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U8 }
+  pixel: Fixed(1 bytes/px)
+  headers: DX10
+  dxgi: R8_SNORM (63)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R8_UNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U8 }
+  pixel: Fixed(1 bytes/px)
+  headers: DX9 DX10
+  dxgi: R8_UNORM (61)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R8G8_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: R8G8_UNORM (49)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R8G8_SNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: R8G8_SNORM (51)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+A8_UNORM: >
+  color: ColorFormat { channels: Alpha, precision: U8 }
+  pixel: Fixed(1 bytes/px)
+  headers: DX9 DX10
+  dxgi: A8_UNORM (65)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Alpha
+
+
+R16_UNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U16 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16_UNORM (56)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16_SNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U16 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX10
+  dxgi: R16_SNORM (58)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16G16_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U16 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16G16_UNORM (35)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16G16_SNORM: >
+  color: ColorFormat { channels: Rgb, precision: U16 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16G16_SNORM (37)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16G16B16A16_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U16 }
+  pixel: Fixed(8 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16G16B16A16_UNORM (11)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R16G16B16A16_SNORM: >
+  color: ColorFormat { channels: Rgba, precision: U16 }
+  pixel: Fixed(8 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16G16B16A16_SNORM (13)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R10G10B10A2_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U16 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R10G10B10A2_UNORM (24)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R11G11B10_FLOAT: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX10
+  dxgi: R11G11B10_FLOAT (26)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R9G9B9E5_SHAREDEXP: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX10
+  dxgi: R9G9B9E5_SHAREDEXP (67)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16_FLOAT: >
+  color: ColorFormat { channels: Grayscale, precision: F32 }
+  pixel: Fixed(2 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16_FLOAT (54)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16G16_FLOAT: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16G16_FLOAT (34)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R16G16B16A16_FLOAT: >
+  color: ColorFormat { channels: Rgba, precision: F32 }
+  pixel: Fixed(8 bytes/px)
+  headers: DX9 DX10
+  dxgi: R16G16B16A16_FLOAT (10)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R32_FLOAT: >
+  color: ColorFormat { channels: Grayscale, precision: F32 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX9 DX10
+  dxgi: R32_FLOAT (41)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+R32G32_FLOAT: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Fixed(8 bytes/px)
+  headers: DX9 DX10
+  dxgi: R32G32_FLOAT (16)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+R32G32B32_FLOAT: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Fixed(12 bytes/px)
+  headers: DX10
+  dxgi: R32G32B32_FLOAT (6)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+R32G32B32A32_FLOAT: >
+  color: ColorFormat { channels: Rgba, precision: F32 }
+  pixel: Fixed(16 bytes/px)
+  headers: DX9 DX10
+  dxgi: R32G32B32A32_FLOAT (2)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+R10G10B10_XR_BIAS_A2_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: F32 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX10
+  dxgi: R10G10B10_XR_BIAS_A2_UNORM (89)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+AYUV: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX10
+  dxgi: AYUV (100)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+Y410: >
+  color: ColorFormat { channels: Rgba, precision: U16 }
+  pixel: Fixed(4 bytes/px)
+  headers: DX10
+  dxgi: Y410 (101)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+Y416: >
+  color: ColorFormat { channels: Rgba, precision: U16 }
+  pixel: Fixed(8 bytes/px)
+  headers: DX10
+  dxgi: Y416 (102)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: ColorAndAlpha
+
+
+R1_UNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U8 }
+  pixel: Block(1 bytes/8x1px)
+  headers: DX10
+  dxgi: R1_UNORM (66)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: Color
+
+
+R8G8_B8G8_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(4 bytes/2x1px)
+  headers: DX9 DX10
+  four_cc: FourCC(RGBG)
+  dxgi: R8G8_B8G8_UNORM (68)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+G8R8_G8B8_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(4 bytes/2x1px)
+  headers: DX9 DX10
+  four_cc: FourCC(GRGB)
+  dxgi: G8R8_G8B8_UNORM (69)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+UYVY: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(4 bytes/2x1px)
+  headers: DX9
+  four_cc: FourCC(UYVY)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+YUY2: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(4 bytes/2x1px)
+  headers: DX9 DX10
+  four_cc: FourCC(YUY2)
+  dxgi: YUY2 (107)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+Y210: >
+  color: ColorFormat { channels: Rgb, precision: U16 }
+  pixel: Block(8 bytes/2x1px)
+  headers: DX10
+  dxgi: Y210 (108)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+Y216: >
+  color: ColorFormat { channels: Rgb, precision: U16 }
+  pixel: Block(8 bytes/2x1px)
+  headers: DX10
+  dxgi: Y216 (109)
+  encoding: ✔️
+    split_height: Some(1)
+    dithering: None
+
+
+NV12: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: BiPlanar(plane1: 1 bytes/px, plane2: 2 bytes/2x2px)
+  headers: DX10
+  dxgi: NV12 (103)
+  encoding: ✔️
+    split_height: None
+    dithering: None
+    size_multiple: 2x2
+
+
+P010: >
+  color: ColorFormat { channels: Rgb, precision: U16 }
+  pixel: BiPlanar(plane1: 2 bytes/px, plane2: 4 bytes/2x2px)
+  headers: DX10
+  dxgi: P010 (104)
+  encoding: ✔️
+    split_height: None
+    dithering: None
+    size_multiple: 2x2
+
+
+P016: >
+  color: ColorFormat { channels: Rgb, precision: U16 }
+  pixel: BiPlanar(plane1: 2 bytes/px, plane2: 4 bytes/2x2px)
+  headers: DX10
+  dxgi: P016 (105)
+  encoding: ✔️
+    split_height: None
+    dithering: None
+    size_multiple: 2x2
+
+
+BC1_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(8 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(DXT1)
+  dxgi: BC1_UNORM (71)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: ColorAndAlpha (local)
+
+
+BC2_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(DXT3)
+  dxgi: BC2_UNORM (74)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: ColorAndAlpha (local)
+
+
+BC2_UNORM_PREMULTIPLIED_ALPHA: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(DXT2)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: ColorAndAlpha (local)
+
+
+BC3_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(DXT5)
+  dxgi: BC3_UNORM (77)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: ColorAndAlpha (local)
+
+
+BC3_UNORM_PREMULTIPLIED_ALPHA: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(DXT4)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: ColorAndAlpha (local)
+
+
+BC4_UNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U8 }
+  pixel: Block(8 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(BC4U)
+  dxgi: BC4_UNORM (80)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: Color (local)
+
+
+BC4_SNORM: >
+  color: ColorFormat { channels: Grayscale, precision: U8 }
+  pixel: Block(8 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(BC4S)
+  dxgi: BC4_SNORM (81)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: Color (local)
+
+
+BC5_UNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(BC5U)
+  dxgi: BC5_UNORM (83)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: Color (local)
+
+
+BC5_SNORM: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  four_cc: FourCC(BC5S)
+  dxgi: BC5_SNORM (84)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: Color (local)
+
+
+BC6H_UF16: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX10
+  dxgi: BC6H_UF16 (95)
+  encoding: ❌
+
+
+BC6H_SF16: >
+  color: ColorFormat { channels: Rgb, precision: F32 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX10
+  dxgi: BC6H_SF16 (96)
+  encoding: ❌
+
+
+BC7_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX10
+  dxgi: BC7_UNORM (98)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: ColorAndAlpha (local)
+
+
+ASTC_4X4_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX10
+  dxgi: ASTC_4X4_UNORM (134)
+  encoding: ❌
+
+
+ASTC_5X4_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/5x4px)
+  headers: DX10
+  dxgi: ASTC_5X4_UNORM (138)
+  encoding: ❌
+
+
+ASTC_5X5_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/5x5px)
+  headers: DX10
+  dxgi: ASTC_5X5_UNORM (142)
+  encoding: ❌
+
+
+ASTC_6X5_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/6x5px)
+  headers: DX10
+  dxgi: ASTC_6X5_UNORM (146)
+  encoding: ❌
+
+
+ASTC_6X6_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/6x6px)
+  headers: DX10
+  dxgi: ASTC_6X6_UNORM (150)
+  encoding: ❌
+
+
+ASTC_8X5_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/8x5px)
+  headers: DX10
+  dxgi: ASTC_8X5_UNORM (154)
+  encoding: ❌
+
+
+ASTC_8X6_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/8x6px)
+  headers: DX10
+  dxgi: ASTC_8X6_UNORM (158)
+  encoding: ❌
+
+
+ASTC_8X8_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/8x8px)
+  headers: DX10
+  dxgi: ASTC_8X8_UNORM (162)
+  encoding: ❌
+
+
+ASTC_10X5_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/10x5px)
+  headers: DX10
+  dxgi: ASTC_10X5_UNORM (166)
+  encoding: ❌
+
+
+ASTC_10X6_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/10x6px)
+  headers: DX10
+  dxgi: ASTC_10X6_UNORM (170)
+  encoding: ❌
+
+
+ASTC_10X8_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/10x8px)
+  headers: DX10
+  dxgi: ASTC_10X8_UNORM (174)
+  encoding: ❌
+
+
+ASTC_10X10_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/10x10px)
+  headers: DX10
+  dxgi: ASTC_10X10_UNORM (178)
+  encoding: ❌
+
+
+ASTC_12X10_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/12x10px)
+  headers: DX10
+  dxgi: ASTC_12X10_UNORM (182)
+  encoding: ❌
+
+
+ASTC_12X12_UNORM: >
+  color: ColorFormat { channels: Rgba, precision: U8 }
+  pixel: Block(16 bytes/12x12px)
+  headers: DX10
+  dxgi: ASTC_12X12_UNORM (186)
+  encoding: ❌
+
+
+BC3_UNORM_RXGB: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9
+  four_cc: FourCC(RXGB)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: Color (local)
+
+
+BC3_UNORM_NORMAL: >
+  color: ColorFormat { channels: Rgb, precision: U8 }
+  pixel: Block(16 bytes/4x4px)
+  headers: DX9 DX10
+  dxgi: BC3_UNORM (77)
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: Color (local)
+
+

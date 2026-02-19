@@ -8,27 +8,14 @@ A DDS decoder and encoder written in 100% safe Rust.
 
 ## Features
 
-- Supports over 70 formats for decoding and most for encoding. See below for details.
+- Supports [over 70 formats](https://docs.rs/dds/latest/dds/enum.Format.html) for decoding and most for encoding. See below for details.
 - Both high-level and low-level APIs for decoding and encoding.
 - Automatic multi-threading with rayon.
-- Simple mipmap generation.
+- Easy automatic mipmap generation.
 
 ## Usage
 
 See [crate documentation](https://docs.rs/dds/).
-
-## Supported formats
-
-This library supports a total of over 70 formats for decoding, including:
-
-- All BCn/DXT formats. E.g. `BC1_UNORM`, `BC2_UNORM`, `BC3_UNORM`, `BC7_UNORM`.
-- All LDR ASTC formats. E.g. `ASTC_6x6_UNORM`.
-- Over 30 uncompressed formats. E.g. `R8G8B8A8_UNORM`, `R9G9B9E5_SHAREDEXP`, `R32G32B32_FLOAT`.
-- Many YUV formats. E.g. `AYUV`, `Y416`, `YUY2`, `NV12`.
-
-Most formats support encoding. Notable exceptions are the ASTC formats ([#23](https://github.com/image-rs/image-dds/issues/23)) and BC6 ([#88](https://github.com/image-rs/image-dds/issues/88)).
-
-For a full list of all support formats and their capabilities, see [this document](./supported-formats.md).
 
 ## License
 

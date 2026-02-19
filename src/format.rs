@@ -8,6 +8,7 @@ use crate::{
 ///
 /// This enumeration is modelled after the [DXGI_FORMAT enumeration](https://learn.microsoft.com/en-us/windows/win32/api/dxgiformat/ne-dxgiformat-dxgi_format)
 /// and has the same semantics and naming conventions.
+#[doc = include_str!("../supported-formats.md")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 #[allow(non_camel_case_types)]
