@@ -242,6 +242,9 @@ pub struct EncodeOptions {
     ///    (>= 16 bits per pixel). This option will be ignored for those formats.
     /// 2. YUV formats are not supported.
     ///
+    /// For a full list of formats and their support for dithering, see the
+    /// [`Format` documentation](crate::Format).
+    ///
     /// Default: [`Dithering::None`]
     pub dithering: Dithering,
     /// The error metric for block compression formats.
@@ -543,6 +546,10 @@ impl EncodingSupport {
     ///
     /// Use [`EncodingSupport::supports_size()`] to check if a given image size
     /// is supported by the format.
+    ///
+    /// Note: Size requirements also apply to mipmaps. This means that formats
+    /// with size requirements do **not** support full mipmap chains, since full
+    /// chains always end with a 1x1 mip.
     ///
     /// # Example
     ///
