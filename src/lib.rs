@@ -215,7 +215,7 @@ mod error;
 mod format;
 pub mod header;
 #[cfg(feature = "image")]
-mod image_integration;
+pub mod image_integration;
 mod iter;
 mod layout;
 mod pixel;
