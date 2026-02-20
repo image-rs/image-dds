@@ -470,11 +470,10 @@ impl PreferredFragmentSize {
 
 pub(crate) type SizeMultiple = (NonZeroU8, NonZeroU8);
 const SIZE_MUL_2X2: SizeMultiple = {
-    if let Some(two) = NonZeroU8::new(2) {
-        (two, two)
-    } else {
+    let Some(two) = NonZeroU8::new(2) else {
         unreachable!()
-    }
+    };
+    (two, two)
 };
 
 /// Describes the extent of support for encoding a format.
@@ -568,14 +567,13 @@ impl EncodingSupport {
     /// ```
     pub const fn size_multiple(&self) -> Option<(NonZeroU32, NonZeroU32)> {
         if let Some((w, h)) = self.size_multiple {
-            if let (Some(w), Some(h)) = (
+            let (Some(w), Some(h)) = (
                 NonZeroU32::new(w.get() as u32),
                 NonZeroU32::new(h.get() as u32),
-            ) {
-                Some((w, h))
-            } else {
+            ) else {
                 unreachable!()
-            }
+            };
+            Some((w, h))
         } else {
             None
         }

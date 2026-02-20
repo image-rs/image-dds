@@ -35,7 +35,7 @@ where
     let mut intermediate_buffer = [[0_f32; 4]; BUFFER_PIXELS];
     let mut encoded_buffer = [EncodedPixel::default(); BUFFER_PIXELS];
 
-    let chunk_count = util::div_ceil(image.size().pixels() as usize, BUFFER_PIXELS);
+    let chunk_count = usize::div_ceil(image.size().pixels() as usize, BUFFER_PIXELS);
     let mut chunk_index = 0;
     for_each_chunk(
         image,
@@ -110,7 +110,7 @@ fn uncompressed_universal_dither(
 
     let chunk_pixels = usize::min(BUFFER_PIXELS, encoded_buffer.len() / encoded_pixel_size);
     let chunk_size = chunk_pixels * bytes_per_pixel;
-    let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
+    let chunk_count = height * (width * bytes_per_pixel).div_ceil(chunk_size);
     let mut chunk_index: usize = 0;
     for row in image.rows() {
         debug_assert!(row.len() == width * bytes_per_pixel);
@@ -170,7 +170,7 @@ fn uncompressed_untyped(
     let mut raw_buffer = [0_u32; 1024];
     let encoded_buffer = cast::as_bytes_mut(&mut raw_buffer);
 
-    let chunk_count = util::div_ceil(
+    let chunk_count = usize::div_ceil(
         image.size().pixels() as usize,
         encoded_buffer.len() / bytes_per_encoded_pixel,
     );

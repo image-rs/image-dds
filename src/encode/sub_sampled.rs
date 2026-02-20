@@ -55,7 +55,7 @@ where
     let chunk_pixels = BUFFER_PIXELS / block_width * block_width;
     let chunk_size = chunk_pixels * bytes_per_pixel;
 
-    let chunk_count = height * util::div_ceil(width * bytes_per_pixel, chunk_size);
+    let chunk_count = height * (width * bytes_per_pixel).div_ceil(chunk_size);
     let mut chunk_index: usize = 0;
 
     for (y_index, y_line) in image.rows().enumerate() {
@@ -72,7 +72,7 @@ where
             let pixels = chunk.len() / bytes_per_pixel;
 
             let intermediate = &mut intermediate_buffer[..pixels];
-            let encoded = &mut encoded_buffer[..util::div_ceil(pixels, block_width)];
+            let encoded = &mut encoded_buffer[..pixels.div_ceil(block_width)];
 
             process(y_index, as_rgba_f32(color, chunk, intermediate), encoded);
 
