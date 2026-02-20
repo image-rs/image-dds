@@ -1,4 +1,4 @@
-use crate::{cast, util, Channels, ColorFormat, ImageView, Precision, ResizeFilter, Size};
+use crate::{cast, Channels, ColorFormat, ImageView, Precision, ResizeFilter, Size};
 
 use resize::{Filter, Resizer};
 
@@ -162,7 +162,7 @@ fn get_aligned_slice(buffer: &mut Vec<AlignTo>, size: Size, color: ColorFormat) 
         .expect("size too big for aligned slice");
 
     // reserve enough space in the buffer
-    let buffer_len = util::div_ceil(slice_len, std::mem::size_of::<AlignTo>());
+    let buffer_len = slice_len.div_ceil(std::mem::size_of::<AlignTo>());
     if buffer.len() < buffer_len {
         buffer.resize(buffer_len, 0);
     }
