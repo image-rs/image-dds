@@ -4,30 +4,6 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dds::*;
 use rand::prelude::*;
 
-trait FillRandom: Sized {
-    fn fill_random(slice: &mut [Self]);
-}
-impl FillRandom for u8 {
-    fn fill_random(slice: &mut [Self]) {
-        let mut rng = rand::rng();
-        rng.fill(slice);
-    }
-}
-impl FillRandom for u16 {
-    fn fill_random(slice: &mut [Self]) {
-        let mut rng = rand::rng();
-        rng.fill(slice);
-    }
-}
-impl FillRandom for f32 {
-    fn fill_random(slice: &mut [Self]) {
-        let mut rng = rand::rng();
-        for x in slice.iter_mut() {
-            *x = rng.random();
-        }
-    }
-}
-
 struct Image<T> {
     data: Vec<T>,
     size: Size,
@@ -58,10 +34,11 @@ impl<T: 'static> Image<T> {
 
     fn random(size: Size, channels: Channels) -> Image<T>
     where
-        T: Default + Copy + FillRandom,
+        T: Default + Copy,
+        [T]: rand::Fill,
     {
         let mut data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
-        T::fill_random(data.as_mut_slice());
+        rand::rng().fill(data.as_mut_slice());
         Image::new(data, size, channels, "random_u8")
     }
 }
