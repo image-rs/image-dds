@@ -34,7 +34,7 @@ zerocopy = "0.8.14"
 
 # optional dependencies
 rayon = { version = "1.7.0", optional = true }
-image = { version = ">=0.24, <1.0", default-features = false, optional = true }
+image = { version = "0.25", default-features = false, optional = true }
 
 [dev-dependencies]
 criterion = "0.5"
