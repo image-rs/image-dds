@@ -1,8 +1,7 @@
 #![allow(unused)]
 
-use bitflags::bitflags;
 use dds::{header::*, *};
-use rand::SeedableRng;
+use rand::prelude::*;
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
@@ -27,8 +26,26 @@ pub use pretty_print::*;
 pub use snapshot::*;
 pub use table::*;
 
-pub fn create_rng() -> impl rand::Rng {
+/// Returns an RNG that always returns the same (pseudo) random sequence.
+pub fn deterministic_rng() -> impl rand::Rng {
     rand_chacha::ChaChaRng::seed_from_u64(123456789)
+}
+
+/// Fills the buffer with random data.
+/// The random data will be different each time the function is called.
+pub fn fill_random<T>(slice: &mut [T])
+where
+    [T]: rand::Fill,
+{
+    rand::rng().fill(slice);
+}
+/// Fills the buffer with random data, but always the same random data for the same seed.
+pub fn fill_random_deterministic<T>(slice: &mut [T], seed: impl Into<Option<u64>>)
+where
+    [T]: rand::Fill,
+{
+    let seed = seed.into().unwrap_or(123456789);
+    rand_chacha::ChaChaRng::seed_from_u64(seed).fill(slice);
 }
 
 pub fn hash_hex(data: &[u8]) -> String {
@@ -313,7 +330,7 @@ pub fn to_png_compatible_channels(channels: Channels) -> (Channels, png::ColorTy
 }
 
 pub fn read_png_u16(png_path: &Path) -> Result<Image<u16>, Box<dyn std::error::Error>> {
-    let png_decoder = png::Decoder::new(File::open(png_path)?);
+    let png_decoder = png::Decoder::new(std::io::BufReader::new(File::open(png_path)?));
     let mut png_reader = png_decoder.read_info()?;
     let (color, bits) = png_reader.output_color_type();
 
@@ -324,9 +341,11 @@ pub fn read_png_u16(png_path: &Path) -> Result<Image<u16>, Box<dyn std::error::E
         _ => return Err("Unsupported PNG color type".into()),
     };
 
+    let buffer_bytes = png_reader.output_buffer_size().unwrap_or(usize::MAX);
+
     match bits {
         png::BitDepth::Sixteen => {
-            let mut png_image_data: Vec<u16> = vec![0; png_reader.output_buffer_size() / 2];
+            let mut png_image_data: Vec<u16> = vec![0; buffer_bytes / 2];
             png_reader.next_frame(cast_slice_mut(&mut png_image_data))?;
             png_reader.finish()?;
 
@@ -339,7 +358,7 @@ pub fn read_png_u16(png_path: &Path) -> Result<Image<u16>, Box<dyn std::error::E
             ))
         }
         png::BitDepth::Eight => {
-            let mut png_image_data = vec![0; png_reader.output_buffer_size()];
+            let mut png_image_data = vec![0; buffer_bytes];
             png_reader.next_frame(&mut png_image_data)?;
             png_reader.finish()?;
 

@@ -1,5 +1,5 @@
 use dds::*;
-use rand::{Rng, RngCore};
+use rand::prelude::*;
 use std::path::{Path, PathBuf};
 
 use util::{test_data_dir, Image, Snapshot, WithPrecision, ALL_COLORS};
@@ -72,7 +72,7 @@ fn encode_decode(
     (encoded, decoded)
 }
 fn create_random_color_blocks() -> Image<f32> {
-    let mut rng = util::create_rng();
+    let mut rng = util::deterministic_rng();
 
     let width = 256;
     let height = 256;
@@ -80,7 +80,7 @@ fn create_random_color_blocks() -> Image<f32> {
     let block_stride = 4 * 3;
     for y in (0..height).step_by(4) {
         for x in (0..width).step_by(4) {
-            let rgb: [f32; 3] = rng.gen();
+            let rgb: [f32; 3] = rng.random();
             let block_line = [rgb; 4];
             let line_flat: &[f32] = util::cast_slice(&block_line);
             for j in 0..4 {
@@ -993,8 +993,7 @@ fn test_unaligned() {
     let aligned_buffer = util::as_bytes_mut(first);
     let unaligned_buffer = &mut util::as_bytes_mut(second)[1..];
 
-    let mut rng = util::create_rng();
-    rng.fill_bytes(aligned_buffer);
+    util::fill_random_deterministic(aligned_buffer, None);
     unaligned_buffer.copy_from_slice(&aligned_buffer[..unaligned_buffer.len()]);
 
     let size = Size::new(7, 7);
@@ -1090,8 +1089,7 @@ fn test_unaligned_mipmaps() {
             let image_bytes = color.buffer_size(size).unwrap();
             let mut buffer = vec![0_u32; image_bytes.div_ceil(4)];
             let buffer = &mut util::as_bytes_mut(&mut buffer)[..image_bytes];
-            let mut rng = util::create_rng();
-            rng.fill_bytes(buffer);
+            util::fill_random_deterministic(buffer, None);
 
             let image = ImageView::new(buffer, size, color).unwrap();
 
@@ -1128,7 +1126,7 @@ fn test_row_pitch() {
 
         let backing_size = Size::new(256, 256);
         let mut buffer = vec![0_u8; backing_size.pixels() as usize * bpp];
-        util::create_rng().fill_bytes(&mut buffer);
+        util::fill_random_deterministic(&mut buffer, None);
         let backing = ImageView::new(&buffer, backing_size, color).unwrap();
 
         // I'm using prime numbers for the rect to make things as difficult as possible for the impl
