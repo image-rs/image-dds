@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dds::{header::*, *};
-use rand::{seq::SliceRandom, Rng, RngCore};
+use rand::prelude::*;
 
 fn random_bytes(len: usize) -> Vec<u8> {
     let mut out = vec![0; len];
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     rng.fill_bytes(&mut out);
     out
 }
@@ -77,9 +77,9 @@ fn bench_decoder_with(
 /// Note that this is not a perfect solution either, but it should be good
 /// enough.
 fn random_bc7_modes(data: &mut [u8]) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for i in (0..data.len()).step_by(16) {
-        let mode: u8 = rng.gen_range(0..8);
+        let mode: u8 = rng.random_range(0..8);
         let mut byte = data[i];
         byte |= 1;
         byte <<= mode;
@@ -114,7 +114,7 @@ const BC6_MODES: [(u8, u8); 15] = [
 ];
 /// This sets the BC6 block modes such that each mode is equally likely.
 fn random_bc6_modes(data: &mut [u8]) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for i in (0..data.len()).step_by(16) {
         let (mode, mode_bits): (u8, u8) = *BC6_MODES.choose(&mut rng).unwrap();
         let mut byte = data[i];

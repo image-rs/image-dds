@@ -2,7 +2,7 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use dds::*;
-use rand::Rng;
+use rand::prelude::*;
 
 struct Image<T> {
     data: Vec<T>,
@@ -38,8 +38,7 @@ impl<T: 'static> Image<T> {
         [T]: rand::Fill,
     {
         let mut data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
-        let mut rng = rand::thread_rng();
-        rng.fill(data.as_mut_slice());
+        rand::rng().fill(data.as_mut_slice());
         Image::new(data, size, channels, "random_u8")
     }
 }
