@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use glam::{UVec4, Vec4};
 
 use crate::{n8, s8, util::unlikely_branch};
@@ -15,6 +17,7 @@ pub(crate) struct Bc4Options {
     pub fast_iter: bool,
     pub max_refine_iter: u8,
     pub size_variations: bool,
+    pub iter_initial_inter4: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -368,12 +371,13 @@ fn compress_inter6_impl(
 fn compress_inter4(block: &Block, options: Bc4Options) -> ([u8; 8], f32) {
     let (mut min, mut max) = block.min_max_with_threshold(BC4_MIN_VALUE);
 
-    (min, max) = refine_endpoints(
-        min,
-        max,
-        refinement_error_metric::<Inter4Palette>(block, options),
-        options,
-    );
+    let compute_error = refinement_error_metric::<Inter4Palette>(block, options);
+
+    if options.iter_initial_inter4 {
+        (min, max) = inter4_reassign_defaults(block, min, max, compute_error);
+    }
+
+    (min, max) = refine_endpoints(min, max, compute_error, options);
 
     let endpoints = EndPoints::new_inter4(min, max, options.snorm);
     let palette = Inter4Palette::from_endpoints(&endpoints);
@@ -385,6 +389,100 @@ fn compress_inter4(block: &Block, options: Bc4Options) -> ([u8; 8], f32) {
     };
 
     (endpoints.with_indexes(indexes), error)
+}
+/// The starting values for min/max for inter4 only assigns values very close to
+/// 0 or 1 to the default values. This is suboptimal, as a palette that assigns
+/// more pixels to the default values might better represent the block overall.
+///
+/// This function tries to reassign min/max to other values in the block to
+/// improve the overall error. The given error function is assumed to be MSE.
+fn inter4_reassign_defaults(
+    block: &Block,
+    mut min: f32,
+    mut max: f32,
+    compute_error: impl Fn((f32, f32)) -> f32,
+) -> (f32, f32) {
+    // There is no point in doing this optimization if min/max are sufficiently
+    // far away from 0/1.
+    const MAX_DISTANCE: f32 = 0.125;
+    if min > MAX_DISTANCE && max < 1.0 - MAX_DISTANCE {
+        return (min, max);
+    }
+
+    // sort values into an array
+    let mut values: [f32; 16] = [0.0; 16];
+    for i in 0..16 {
+        values[i] = block.get_pixel_at(i);
+    }
+    values.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+
+    // note the indexes of the min and max values
+    let mut min_index = 0;
+    let mut max_index = 0;
+    for i in 0..16 {
+        let v = values[i];
+        if v <= min {
+            min_index = i;
+        }
+        if v <= max {
+            max_index = i;
+        }
+    }
+
+    let mut error = compute_error((min, max));
+    #[derive(PartialEq, Eq)]
+    enum LastMove {
+        None,
+        Min,
+        Max,
+    }
+    let mut last_failed_move = LastMove::None;
+
+    const MAX_ITER: u8 = 4;
+    for _ in 0..MAX_ITER {
+        if min_index >= max_index {
+            break;
+        }
+
+        // distance of min/max to 0/1
+        let min_dist = min;
+        let max_dist = 1.0 - max;
+
+        // try to move endpoints towards each other, starting with the one closer to 0/1
+        if min_dist < max_dist {
+            if last_failed_move == LastMove::Min {
+                break;
+            }
+
+            // move min up
+            let new_min = values[min_index + 1];
+            let new_error = compute_error((new_min, max));
+            if new_error < error {
+                min = new_min;
+                error = new_error;
+                min_index += 1;
+            } else {
+                last_failed_move = LastMove::Min;
+            }
+        } else {
+            if last_failed_move == LastMove::Max {
+                break;
+            }
+
+            // move max down
+            let new_max = values[max_index - 1];
+            let new_error = compute_error((min, new_max));
+            if new_error < error {
+                max = new_max;
+                error = new_error;
+                max_index -= 1;
+            } else {
+                last_failed_move = LastMove::Max;
+            }
+        }
+    }
+
+    (min, max)
 }
 
 struct EndPoints {
