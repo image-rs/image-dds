@@ -56,6 +56,7 @@ fn decode_all_dds_files() {
 }
 
 #[test]
+#[cfg(feature = "encode")]
 fn decode_bc6_fuzz_hdr() {
     let bc_fuzz_output_dir = util::test_data_dir().join("output/bc fuzz");
 

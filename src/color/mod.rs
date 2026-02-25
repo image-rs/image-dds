@@ -4,9 +4,11 @@ use crate::{cast, Size};
 
 pub(crate) mod ch;
 mod formats;
+#[cfg(feature = "encode")]
 mod oklab;
 
 pub(crate) use formats::*;
+#[cfg(feature = "encode")]
 pub(crate) use oklab::*;
 
 /// The number and semantics of the color channels in a surface.
