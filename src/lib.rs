@@ -13,6 +13,11 @@
 //!
 //! # Features
 //!
+//! - `encode` *(default)*: Support for encoding DDS files.
+//!
+//!   This feature enables the [`Encoder`] type and the low-level [`encode()`]
+//!   function for encoding DDS files.
+//!
 //! - `rayon` *(default)*: Parallel encoding using the
 //!   [`rayon` crate](https://crates.io/crates/rayon).
 //!
@@ -70,6 +75,7 @@
 //!
 //! ```no_run
 //! # use dds::*;
+//! # #[cfg(feature = "encode")] {
 //! fn save_rgba_image(
 //!     file: &mut std::fs::File,
 //!     image_data: &[u8],
@@ -88,6 +94,7 @@
 //!     encoder.finish()?;
 //!     Ok(())
 //! }
+//! # }
 //! ```
 //!
 //! Of course, [other formats](crate::Format) are also available.
@@ -162,7 +169,9 @@ mod color;
 mod decode;
 mod decoder;
 mod detect;
+#[cfg(feature = "encode")]
 mod encode;
+#[cfg(feature = "encode")]
 mod encoder;
 mod error;
 mod format;
@@ -170,23 +179,30 @@ pub mod header;
 mod iter;
 mod layout;
 mod pixel;
+#[cfg(feature = "encode")]
 mod progress;
+#[cfg(feature = "encode")]
 mod resize;
+#[cfg(feature = "encode")]
 mod split;
 mod util;
 
 pub use color::*;
 pub use decode::{decode, decode_rect, DecodeOptions};
 pub use decoder::*;
+#[cfg(feature = "encode")]
 pub use encode::{
     encode, CompressionQuality, Dithering, EncodeOptions, EncodingSupport, ErrorMetric,
 };
+#[cfg(feature = "encode")]
 pub use encoder::*;
 pub use error::*;
 pub use format::*;
 pub use layout::*;
 pub use pixel::*;
+#[cfg(feature = "encode")]
 pub use progress::*;
+#[cfg(feature = "encode")]
 pub use split::*;
 
 /// A borrowed slice of image data.

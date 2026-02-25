@@ -28,12 +28,12 @@ include = [
 [dependencies]
 astc-decode = "=0.3.1"
 bitflags = "2.4.0"
-glam = ">=0.25.0"
-resize = { version = "0.8.4", default-features = false, features = ["std"] }
 zerocopy = "0.8.14"
 
 # optional dependencies
+glam = { version = ">=0.25.0", optional = true }
 rayon = { version = "1.7.0", optional = true }
+resize = { version = "0.8.4", optional = true, default-features = false, features = ["std"] }
 
 [dev-dependencies]
 criterion = "0.5"
@@ -44,9 +44,12 @@ rand_chacha = "0.9"
 sha2 = "0.10.8"
 
 [features]
-default = ["rayon"]
+default = ["encode", "rayon"]
 
-# Enables parallel encoding via rayon. This makes encoding BCn images 5-20x faster.
+# Enable the encoding API.
+encode = ["dep:glam", "dep:resize"]
+# Enable parallel encoding via rayon. This makes encoding BCn images 5-20x faster.
+# This feature has no effect without the `encode` feature.
 rayon = ["dep:rayon", "resize/rayon"]
 
 [[bench]]

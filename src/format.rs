@@ -1,8 +1,5 @@
 use crate::header::{Dx9PixelFormat, DxgiFormat, FourCC, Header, MaskPixelFormat};
-use crate::{
-    decode::get_decoders, detect, encode::get_encoders, Channels, ColorFormat, EncodingSupport,
-    FormatError, Precision,
-};
+use crate::{decode::get_decoders, detect, Channels, ColorFormat, FormatError, Precision};
 
 /// The format of the pixel data of a surface.
 ///
@@ -192,8 +189,9 @@ impl Format {
     /// Returns information about the encoding support of this format.
     ///
     /// If the format does not support encoding, `None` is returned.
-    pub const fn encoding_support(self) -> Option<EncodingSupport> {
-        if let Some(encoders) = get_encoders(self) {
+    #[cfg(feature = "encode")]
+    pub const fn encoding_support(self) -> Option<crate::EncodingSupport> {
+        if let Some(encoders) = crate::encode::get_encoders(self) {
             Some(encoders.encoding_support())
         } else {
             None

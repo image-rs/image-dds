@@ -1,3 +1,5 @@
+#![cfg(feature = "encode")]
+
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
