@@ -1,8 +1,11 @@
 use std::ops::Deref;
 
-use image::{ColorType, DynamicImage, ImageBuffer, Pixel};
+use image::{
+    error::{ImageFormatHint, LimitError, LimitErrorKind},
+    ColorType, DynamicImage, ImageBuffer, ImageError, Pixel,
+};
 
-use crate::{cast, ColorFormat, ImageView, ImageViewMut, Size};
+use crate::{cast, ColorFormat, DecodingError, EncodingError, ImageView, ImageViewMut, Size};
 
 /// Create a new `ImageView` from a raw byte slice from an `image` buffer.
 ///
@@ -177,6 +180,32 @@ impl TryFrom<ColorType> for ColorFormat {
             _ => return Err(color),
         })
     }
+}
+
+// Errors
+
+impl From<DecodingError> for ImageError {
+    fn from(error: DecodingError) -> Self {
+        match error {
+            DecodingError::Io(io_error) => ImageError::IoError(io_error),
+            DecodingError::MemoryLimitExceeded => {
+                ImageError::Limits(LimitError::from_kind(LimitErrorKind::InsufficientMemory))
+            }
+            _ => ImageError::Decoding(image::error::DecodingError::new(format_hint(), error)),
+        }
+    }
+}
+impl From<EncodingError> for ImageError {
+    fn from(error: EncodingError) -> Self {
+        match error {
+            EncodingError::Io(io_error) => ImageError::IoError(io_error),
+            _ => ImageError::Encoding(image::error::EncodingError::new(format_hint(), error)),
+        }
+    }
+}
+
+fn format_hint() -> ImageFormatHint {
+    ImageFormatHint::Name("DDS".into())
 }
 
 #[cfg(test)]
