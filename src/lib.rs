@@ -20,6 +20,13 @@
 //!   [`Encoder`] and low-level [`encode()`] function take advantage of `rayon`
 //!   for faster processing (but may use more memory).
 //!
+//! - `image`: Integration with the [`image` crate](https://crates.io/crates/image).
+//!
+//!   This feature enables conversions between `image` crate image/color types
+//!   and this crate's image/color types. In particular, `image::DynamicImage`
+//!   and `image::ImageBuffer` can be converted to both [`ImageView`] and
+//!   [`ImageViewMut`].
+//!
 //! All features marked with "*(default)*" are enabled by default.
 //!
 //! # Usage
@@ -38,8 +45,8 @@
 //! assert!(decoder.layout().is_texture());
 //! // prepare a buffer to decode as 8-bit RGBA
 //! let size = decoder.main_size();
-//! let mut data = vec![0_u8; size.pixels() as usize * 4];
-//! let view = ImageViewMut::new(&mut data, size, ColorFormat::RGBA_U8).unwrap();
+//! let mut buffer = vec![0_u8; size.pixels() as usize * 4];
+//! let view = ImageViewMut::new(&mut buffer, size, ColorFormat::RGBA_U8).unwrap();
 //! // decode into the buffer
 //! decoder.read_surface(view)?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
@@ -61,6 +68,26 @@
 //!   [`Decoder::read_surface`].
 //!
 //! If you only need a portion of a surface, use [`Decoder::read_surface_rect`].
+//!
+//! ### `image` integration
+//!
+//! Decoding DDS surfaces into `image::ImageBuffer`s is straightforward when the
+//! `image` feature is enabled.
+//!
+//! ```no_run
+//! # use dds::*;
+//! # let file = std::fs::File::open("path/to/file.dds")?;
+//! # let mut decoder = Decoder::new(file)?;
+//! # #[cfg(feature = "image")] {
+//! // create an RgbaImage and a view into it
+//! let Size { width, height } = decoder.main_size();
+//! let mut image = image::RgbaImage::new(width, height);
+//! let view = ImageViewMut::from(&mut image);
+//! // decode into image
+//! decoder.read_surface(view)?;
+//! # }
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 //!
 //! ## Encoding
 //!
@@ -104,6 +131,26 @@
 //! Also note the use of [`Encoder::finish()`]. This method verifies that the
 //! DDS file contains all necessary data and is valid. **Always** use
 //! [`Encoder::finish()`] instead of dropping the encoder.
+//!
+//! ### `image` integration
+//!
+//! Encoding `image::ImageBuffer`s is easy with the `image` feature enabled.
+//!
+//! ```no_run
+//! # use dds::*;
+//! # #[cfg(feature = "image")]
+//! fn save_rgba_image(
+//!     file: &mut std::fs::File,
+//!     image: &image::RgbaImage,
+//!     mipmaps: bool,
+//! ) -> Result<(), EncodingError> {
+//!     let size = Size::new(image.width(), image.height());
+//!     let mut encoder = Encoder::new_image(file, size, Format::BC7_UNORM, mipmaps)?;
+//!     encoder.write_surface(ImageView::from(image))?;
+//!     encoder.finish()?;
+//!     Ok(())
+//! }
+//! ```
 //!
 //! ### Texture arrays, cube maps, and volumes
 //!
@@ -167,6 +214,8 @@ mod encoder;
 mod error;
 mod format;
 pub mod header;
+#[cfg(feature = "image")]
+pub mod image_integration;
 mod iter;
 mod layout;
 mod pixel;
