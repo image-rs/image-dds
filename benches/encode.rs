@@ -303,11 +303,12 @@ pub fn generate_mipmaps(c: &mut Criterion) {
     group.sample_size(10);
 
     // images
-    for (channels, straight_alpha) in [
-        (Channels::Rgba, true),
-        (Channels::Rgba, false),
-        (Channels::Rgb, true),
-        (Channels::Grayscale, true),
+    for (channels, straight_alpha, gamma) in [
+        (Channels::Rgba, true, false),
+        (Channels::Rgba, false, false),
+        (Channels::Rgb, true, false),
+        (Channels::Rgb, true, true),
+        (Channels::Grayscale, true, false),
     ] {
         let image_u8: Image<u8> = Image::random(Size::new(2048, 2048), channels);
         let image_u16: Image<u16> = Image::random(Size::new(2048, 2048), channels);
@@ -342,7 +343,8 @@ pub fn generate_mipmaps(c: &mut Criterion) {
                     format!("{:?}", channels)
                 };
                 let name = format!(
-                    "generate mipmaps - {filter:?} {}x{} {channels_desc} {:?} -> {:?}",
+                    "generate mipmaps - {filter:?}{} {}x{} {channels_desc} {:?} -> {:?}",
+                    if gamma { " gamma-corrected" } else { "" },
                     image.width(),
                     image.height(),
                     image.color().precision,
@@ -363,6 +365,7 @@ pub fn generate_mipmaps(c: &mut Criterion) {
                                 .unwrap();
                         encoder.mipmaps.resize_filter = filter;
                         encoder.mipmaps.resize_straight_alpha = straight_alpha;
+                        encoder.mipmaps.resize_gamma_correction = gamma;
                         let result = encoder.write_surface(image);
                         black_box(result).unwrap();
                         black_box(encoder.finish()).unwrap();
