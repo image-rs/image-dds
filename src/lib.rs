@@ -15,15 +15,19 @@
 //!
 //! - `encode` *(default)*: Support for encoding DDS files.
 //!
-//!   This feature enables the [`Encoder`] type and the low-level [`encode()`]
-//!   function for encoding DDS files.
+//!   This feature enables [`Encoder`], the low-level [`encode()`] function, as
+//!   well as other types for encoding DDS files.
 //!
 //! - `rayon` *(default)*: Parallel encoding using the
 //!   [`rayon` crate](https://crates.io/crates/rayon).
 //!
-//!   This feature enables parallel encoding of DDS files. Both the high-level
-//!   [`Encoder`] and low-level [`encode()`] function take advantage of `rayon`
-//!   for faster processing (but may use more memory).
+//!   This feature enables parallel encoding of DDS files. Both [`Encoder`] and
+//!   the low-level [`encode()`] function take advantage of `rayon` for faster
+//!   processing (but may use more memory).
+//!
+//!   Note that this feature is not required for any type/function to be
+//!   available. Further, parallel encoding can also be controlled at runtime
+//!   using [`EncodeOptions::parallel`].
 //!
 //! All features marked with "*(default)*" are enabled by default.
 //!
@@ -162,6 +166,16 @@
     clippy::cast_sign_loss,
     clippy::cast_possible_truncation
 )]
+
+// Enable nightly features when building documentation (e.g. on docs.rs).
+// This allows the documentation to show which features are required for each
+// type or function. Use the following command to build the docs locally with
+// this feature enabled:
+//
+//    RUSTDOCFLAGS="--cfg docs_nightly" cargo +nightly doc --no-deps --open
+//
+//    $env:RUSTDOCFLAGS="--cfg docs_nightly"; cargo +nightly doc --no-deps --open; Remove-Item Env:\RUSTDOCFLAGS
+#![cfg_attr(docs_nightly, feature(doc_cfg))]
 
 mod bcn_data;
 mod cast;

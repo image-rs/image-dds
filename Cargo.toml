@@ -67,8 +67,13 @@ harness = false
 # image de/encoding without optimizations is extremely slow
 opt-level = 1
 
+[package.metadata.docs.rs]
+# We use nightly feature for better docs generation. Enable those on docs.rs
+all-features = true
+rustdoc-args = ["--cfg", "docs_nightly"]
+
 [lints.rust]
 # https://github.com/taiki-e/cargo-llvm-cov
 unexpected_cfgs = { level = "warn", check-cfg = [
-	'cfg(coverage,coverage_nightly)',
+	'cfg(coverage,coverage_nightly,docs_nightly)',
 ] }
