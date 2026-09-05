@@ -534,6 +534,7 @@ mod pixel {
         fn to_accumulator<G: GammaCorrection>(self) -> T;
         fn to_value<G: GammaCorrection>(acc: T) -> Self;
     }
+    const ALPHA_EPSILON: f32 = 0.01;
     impl IntoStraightAlphaAccumulator<Vec4> for [u8; 4] {
         fn to_accumulator<G: GammaCorrection>(self) -> Vec4 {
             let v = G::to_linear_vec4(Vec4::new(
@@ -546,7 +547,7 @@ mod pixel {
         }
         fn to_value<G: GammaCorrection>(acc: Vec4) -> Self {
             let a = acc.w;
-            let a_r = if a < (0.5 / 255.0) { 0.0 } else { a.recip() };
+            let a_r = if a <= ALPHA_EPSILON { 0.0 } else { a.recip() };
             let f = Vec4::new(a_r, a_r, a_r, 1.0);
             let out = G::from_linear_vec4(acc * f) + 0.5;
             [out.x as u8, out.y as u8, out.z as u8, out.w as u8]
@@ -564,7 +565,7 @@ mod pixel {
         }
         fn to_value<G: GammaCorrection>(acc: Vec4) -> Self {
             let a = acc.w;
-            let a_r = if a < (0.5 / 65535.0) { 0.0 } else { a.recip() };
+            let a_r = if a <= ALPHA_EPSILON { 0.0 } else { a.recip() };
             let f = Vec4::new(a_r, a_r, a_r, 1.0);
             let out = G::from_linear_vec4(acc * f) + 0.5;
             [out.x as u16, out.y as u16, out.z as u16, out.w as u16]
@@ -579,7 +580,7 @@ mod pixel {
             let a = acc.w;
             let a_r = if a <= 0.0 { 0.0 } else { a.recip() };
             let f = Vec4::new(a_r, a_r, a_r, 1.0);
-            let out = G::from_linear_vec4(acc * f);
+            let out = G::from_linear_vec4(acc * f).max(Vec4::ZERO);
             [out.x, out.y, out.z, out.w]
         }
     }
