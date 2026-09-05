@@ -1,5 +1,6 @@
 #![cfg(feature = "encode")]
 
+use bitflags::bitflags;
 use dds::*;
 use rand::prelude::*;
 use std::path::{Path, PathBuf};
@@ -839,58 +840,90 @@ fn mipmap_channel_invariants() {
         image_alpha: ImageView,
         info: &str,
     ) {
-        let mut option = MipmapOptions {
-            resize_filter: filter,
-            ..Default::default()
+        bitflags! {
+            #[derive(Clone, Copy, Debug)]
+            struct Options: u8 {
+                const STRAIGHT_ALPHA = 0b0000_0001;
+                const GAMMA_CORRECTION = 0b0000_0010;
+            }
+        }
+        use Channels::*;
+        let new_mips = |channels: Channels, options: Options| -> Vec<[u8; 4]> {
+            let option = MipmapOptions {
+                resize_filter: filter,
+                resize_straight_alpha: options.contains(Options::STRAIGHT_ALPHA),
+                resize_gamma_correction: options.contains(Options::GAMMA_CORRECTION),
+                ..Default::default()
+            };
+
+            let input_image = match channels {
+                Channels::Rgba => image_rgba,
+                Channels::Rgb => image_rgb,
+                Channels::Grayscale => image_gray,
+                Channels::Alpha => image_alpha,
+            };
+
+            let image = create_mipmap_chain_image(input_image, option, Format::R8G8B8A8_UNORM);
+            assert_eq!(image.channels, Channels::Rgba);
+
+            util::from_bytes(&image.data).unwrap().to_vec()
         };
-        let filter = Format::R8G8B8A8_UNORM;
 
-        option.resize_straight_alpha = true;
-        let chain_rgba_straight = create_mipmap_chain_image(image_rgba, option, filter);
-        option.resize_straight_alpha = false;
-        let chain_rgba_custom = create_mipmap_chain_image(image_rgba, option, filter);
+        let rgba = new_mips(Rgba, Options::empty());
+        let rgb = new_mips(Rgb, Options::empty());
+        let gray = new_mips(Grayscale, Options::empty());
+        let alpha = new_mips(Alpha, Options::empty());
 
-        let chain_rgb = create_mipmap_chain_image(image_rgb, option, filter);
-        let chain_gray = create_mipmap_chain_image(image_gray, option, filter);
-        let chain_alpha = create_mipmap_chain_image(image_alpha, option, filter);
+        let rgba_straight = new_mips(Rgba, Options::STRAIGHT_ALPHA);
+        let rgb_straight = new_mips(Rgb, Options::STRAIGHT_ALPHA);
+        let gray_straight = new_mips(Grayscale, Options::STRAIGHT_ALPHA);
+        let alpha_straight = new_mips(Alpha, Options::STRAIGHT_ALPHA);
 
-        assert_eq!(chain_rgba_straight.size, chain_rgba_custom.size);
-        assert_eq!(chain_rgba_straight.size, chain_rgb.size);
-        assert_eq!(chain_rgba_straight.size, chain_gray.size);
-        assert_eq!(chain_rgba_straight.size, chain_alpha.size);
-
-        assert_eq!(chain_rgba_straight.channels, Channels::Rgba);
-        assert_eq!(chain_rgba_custom.channels, Channels::Rgba);
-        assert_eq!(chain_rgb.channels, Channels::Rgba);
-        assert_eq!(chain_gray.channels, Channels::Rgba);
-        assert_eq!(chain_alpha.channels, Channels::Rgba);
-
-        let rgba_straight: &[[u8; 4]] = util::from_bytes(&chain_rgba_straight.data).unwrap();
-        let rgba_custom: &[[u8; 4]] = util::from_bytes(&chain_rgba_custom.data).unwrap();
-        let rgb: &[[u8; 4]] = util::from_bytes(&chain_rgb.data).unwrap();
-        let gray: &[[u8; 4]] = util::from_bytes(&chain_gray.data).unwrap();
-        let alpha: &[[u8; 4]] = util::from_bytes(&chain_alpha.data).unwrap();
+        let rgba_gamma = new_mips(Rgba, Options::GAMMA_CORRECTION);
+        let rgb_gamma = new_mips(Rgb, Options::GAMMA_CORRECTION);
+        let gray_gamma = new_mips(Grayscale, Options::GAMMA_CORRECTION);
+        let alpha_gamma = new_mips(Alpha, Options::GAMMA_CORRECTION);
 
         for i in 0..rgba_straight.len() {
-            let rgba_straight = rgba_straight[i];
-            let rgba_custom = rgba_custom[i];
+            let rgba = rgba[i];
             let rgb = rgb[i];
             let gray = gray[i];
             let alpha = alpha[i];
 
-            // the RGBAs
-            assert_eq!(rgba_straight[3], rgba_custom[3], "Failed at {i} for {info}");
+            let rgba_straight = rgba_straight[i];
+            let rgb_straight = rgb_straight[i];
+            let gray_straight = gray_straight[i];
+            let alpha_straight = alpha_straight[i];
 
-            // RGB
-            assert_eq!(rgb[0], rgba_custom[0], "Failed at {i} for {info}");
-            assert_eq!(rgb[1], rgba_custom[1], "Failed at {i} for {info}");
-            assert_eq!(rgb[2], rgba_custom[2], "Failed at {i} for {info}");
+            let rgba_gamma = rgba_gamma[i];
+            let rgb_gamma = rgb_gamma[i];
+            let gray_gamma = gray_gamma[i];
+            let alpha_gamma = alpha_gamma[i];
 
-            // Gray
-            assert_eq!(gray[0], rgb[0], "Failed at {i} for {info}");
+            // straight alpha has no effect when there is no alpha or only alpha
+            assert_eq!(rgb_straight, rgb, "Failed at {i} for {info}");
+            assert_eq!(gray_straight, gray, "Failed at {i} for {info}");
+            assert_eq!(alpha_straight, alpha, "Failed at {i} for {info}");
 
-            // Alpha
-            assert_eq!(alpha[3], rgba_custom[3], "Failed at {i} for {info}");
+            // straight alpha does not change alpha
+            assert_eq!(rgba_straight[3], rgba[3], "Failed at {i} for {info}");
+
+            // Individual channels get treated the same as RGBA, so they should be equal
+            assert_eq!(rgb[0], rgba[0], "Failed at {i} for {info}");
+            assert_eq!(rgb[1], rgba[1], "Failed at {i} for {info}");
+            assert_eq!(rgb[2], rgba[2], "Failed at {i} for {info}");
+            assert_eq!(gray[0], rgba[0], "Failed at {i} for {info}");
+            assert_eq!(alpha[3], rgba[3], "Failed at {i} for {info}");
+
+            // gamma correction has no effect on alpha
+            assert_eq!(rgba_gamma[3], rgba[3], "Failed at {i} for {info}");
+            assert_eq!(alpha_gamma, alpha, "Failed at {i} for {info}");
+
+            // Individual channels get treated the same as RGBA, so they should be equal
+            assert_eq!(rgb_gamma[0], rgba_gamma[0], "Failed at {i} for {info}");
+            assert_eq!(rgb_gamma[1], rgba_gamma[1], "Failed at {i} for {info}");
+            assert_eq!(rgb_gamma[2], rgba_gamma[2], "Failed at {i} for {info}");
+            assert_eq!(gray_gamma[0], rgba_gamma[0], "Failed at {i} for {info}");
         }
     }
 
