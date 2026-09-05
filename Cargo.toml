@@ -36,12 +36,12 @@ zerocopy = "0.8.14"
 rayon = { version = "1.7.0", optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 glob = "0.3.1"
 png = "0.18"
-rand = "0.9"
-rand_chacha = "0.9"
-sha2 = "0.10.8"
+rand = "0.10"
+rand_chacha = "0.10"
+sha2 = "0.11"
 
 [features]
 default = ["rayon"]

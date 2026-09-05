@@ -1,6 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use dds::{header::*, *};
 use rand::prelude::*;
+use std::hint::black_box;
 
 fn random_bytes(len: usize) -> Vec<u8> {
     let mut out = vec![0; len];
