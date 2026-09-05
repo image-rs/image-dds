@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use crate::{util, Dithering, EncodeOptions, Format, ImageView, Offset, Size};
+use crate::{Dithering, EncodeOptions, Format, ImageView, Offset, Size};
 
 /// An [`ImageView`] that has been split into horizontal fragments.
 ///
@@ -33,7 +33,7 @@ impl<'a> SplitView<'a> {
     /// Creates a new `SplitView` from the given image, format, and options.
     pub fn new(image: ImageView<'a>, format: Format, options: &EncodeOptions) -> Self {
         if let Some(fragment_height) = get_fragment_height(image.size(), format, options) {
-            let len = util::div_ceil(image.height(), fragment_height.get());
+            let len = image.height().div_ceil(fragment_height.get());
 
             Self {
                 image,

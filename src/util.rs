@@ -13,29 +13,6 @@ pub(crate) fn read_u32_le_array(
     Ok(())
 }
 
-/// An implementation of div_ceil to lower MSRV.
-pub(crate) fn div_ceil<T>(a: T, b: T) -> T
-where
-    T: Copy
-        + PartialEq
-        + PartialOrd
-        + From<u8>
-        + std::ops::Div<Output = T>
-        + std::ops::Rem<Output = T>
-        + std::ops::Add<Output = T>
-        + Unsigned,
-{
-    assert!(a >= T::from(0));
-    assert!(b > T::from(0));
-
-    let d = a / b;
-    if a % b != T::from(0) {
-        d + T::from(1)
-    } else {
-        d
-    }
-}
-
 pub(crate) fn round_down_to_multiple<T>(value: T, multiple: T) -> T
 where
     T: Copy + std::ops::Sub<Output = T> + std::ops::Rem<Output = T> + Unsigned,
@@ -50,13 +27,7 @@ impl Unsigned for u32 {}
 impl Unsigned for u64 {}
 impl Unsigned for usize {}
 
-pub(crate) const NON_ZERO_U32_ONE: NonZeroU32 = {
-    if let Some(n) = NonZeroU32::new(1) {
-        n
-    } else {
-        panic!()
-    }
-};
+pub(crate) const NON_ZERO_U32_ONE: NonZeroU32 = NonZeroU32::MIN;
 
 pub(crate) const fn get_mipmap_size(main_size: u32, level: u8) -> NonZeroU32 {
     // avoid overflow
@@ -147,7 +118,7 @@ pub(crate) fn io_skip_exact<R: std::io::Seek + ?Sized>(
     };
 
     let current = reader.stream_position()?;
-    // TODO: Use `seek_relative` once the MSRV allows it.
+    // TODO: Use `seek_relative` once the MSRV allows it (1.80.0).
     let actual = reader.seek(std::io::SeekFrom::Current(count_i))?;
 
     if actual != current.saturating_add(count) {
@@ -162,15 +133,6 @@ pub(crate) fn io_skip_exact<R: std::io::Seek + ?Sized>(
 
 #[cfg(test)]
 mod test {
-    #[test]
-    fn div_ceil() {
-        for a in 0..255 {
-            for b in 1..255 {
-                let expected = (a as f64 / b as f64).ceil() as u8;
-                assert_eq!(super::div_ceil(a, b), expected, "a={a}, b={b}");
-            }
-        }
-    }
     #[test]
     fn two_powi() {
         for i in -126..=127 {

@@ -4,7 +4,6 @@ use std::sync::{
 };
 
 use dds::*;
-use rand::Rng;
 
 use util::{Image, Snapshot};
 
@@ -27,12 +26,10 @@ fn track_progress() {
     use util::Image;
     use Channels::*;
 
-    let mut rng = util::create_rng();
-
     let mut image_rgba_u8: Image<u8> = Image::new_empty(Rgba, Size::new(4096, 2048));
-    rng.fill(image_rgba_u8.data.as_mut_slice());
+    util::fill_random(image_rgba_u8.data.as_mut_slice());
     let mut image_gray_f32: Image<f32> = Image::new_empty(Grayscale, Size::new(1024, 1024));
-    rng.fill(image_gray_f32.data.as_mut_slice());
+    util::fill_random(image_gray_f32.data.as_mut_slice());
 
     let mut options = EncodeOptions::default();
     options.quality = CompressionQuality::Fast;
@@ -134,7 +131,7 @@ fn track_progress() {
 
         let supports_dither = format
             .encoding_support()
-            .map_or(false, |e| e.dithering() != Dithering::None);
+            .is_some_and(|e| e.dithering() != Dithering::None);
         let is_slow_format = format!("{format:?}").contains("BC");
 
         for dither in [Dithering::None, Dithering::ColorAndAlpha] {
@@ -168,12 +165,10 @@ fn forward_progress() {
     use util::Image;
     use Channels::*;
 
-    let mut rng = util::create_rng();
-
     let mut image_rgba_u8: Image<u8> = Image::new_empty(Rgba, Size::new(1024, 1024));
-    rng.fill(image_rgba_u8.data.as_mut_slice());
+    util::fill_random(image_rgba_u8.data.as_mut_slice());
     let mut image_gray_f32: Image<f32> = Image::new_empty(Grayscale, Size::new(1024, 1024));
-    rng.fill(image_gray_f32.data.as_mut_slice());
+    util::fill_random(image_gray_f32.data.as_mut_slice());
 
     let mut options = EncodeOptions::default();
     options.quality = CompressionQuality::Fast;
@@ -210,7 +205,7 @@ fn forward_progress() {
     for format in formats {
         let supports_dither = format
             .encoding_support()
-            .map_or(false, |e| e.dithering() != Dithering::None);
+            .is_some_and(|e| e.dithering() != Dithering::None);
         for dither in [Dithering::None, Dithering::ColorAndAlpha] {
             if dither != Dithering::None && !supports_dither {
                 continue;

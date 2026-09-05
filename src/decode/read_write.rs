@@ -4,7 +4,7 @@
 use std::io::Read;
 use std::mem::size_of;
 
-use crate::{cast, util::div_ceil, DecodingError, Offset, Size};
+use crate::{cast, DecodingError, Offset, Size};
 use crate::{convert_channels_for, util, Channels, ColorFormat, ImageViewMut};
 
 use super::{DecodeContext, ReadSeek};
@@ -264,7 +264,7 @@ pub(crate) fn process_2x1_blocks_helper<
         decoded = &mut decoded[1..];
     }
 
-    debug_assert_eq!(encoded_blocks.len(), util::div_ceil(width, 2));
+    debug_assert_eq!(encoded_blocks.len(), width.div_ceil(2));
     let width_half = width / 2;
 
     // do full pairs first
@@ -320,7 +320,7 @@ pub(crate) fn process_4x4_blocks_helper<
     debug_assert!(encoded_blocks.len() % BYTES_PER_BLOCK == 0);
     debug_assert_eq!(
         encoded_blocks.len() / BYTES_PER_BLOCK,
-        div_ceil(range.width_offset as u32 + range.width, 4) as usize
+        (range.width_offset as u32 + range.width).div_ceil(4) as usize
     );
     debug_assert!(
         decoded.len()
@@ -538,8 +538,8 @@ pub(crate) fn for_each_block_untyped<
 
         let block_size_x = block_size.0 as u32;
         let block_size_y = block_size.1 as u32;
-        let width_blocks = div_ceil(size.width, block_size_x);
-        let height_blocks = div_ceil(size.height, block_size_y);
+        let width_blocks = size.width.div_ceil(block_size_x);
+        let height_blocks = size.height.div_ceil(block_size_y);
 
         let mut line_buffer = UntypedLineBuffer::new(
             width_blocks as usize * bytes_per_block,
@@ -630,15 +630,15 @@ pub(crate) fn for_each_block_rect_untyped<
 
         let block_size_x = block_size.0 as u32;
         let block_size_y = block_size.1 as u32;
-        let blocks_per_line = div_ceil(surface_size.width, block_size_x);
+        let blocks_per_line = surface_size.width.div_ceil(block_size_x);
 
         // blocks before the block lines we want to read.
         let skip_block_lines_before = offset.y / block_size_y;
         // blocks of the lines we want to read
         let block_lines_to_read =
-            div_ceil(image_height + offset.y, block_size_y) - skip_block_lines_before;
+            (image_height + offset.y).div_ceil(block_size_y) - skip_block_lines_before;
         // blocks after the block lines we want to read
-        let skip_block_lines_after = div_ceil(surface_size.height, block_size_y)
+        let skip_block_lines_after = surface_size.height.div_ceil(block_size_y)
             - skip_block_lines_before
             - block_lines_to_read;
 
@@ -658,7 +658,7 @@ pub(crate) fn for_each_block_rect_untyped<
 
         // the range of blocks within a block line
         let block_range_start = offset.x / block_size_x;
-        let block_range_end = div_ceil(offset.x + image_width, block_size_x);
+        let block_range_end = (offset.x + image_width).div_ceil(block_size_x);
         let block_range = (block_range_start as usize * bytes_per_block)
             ..(block_range_end as usize * bytes_per_block);
 
@@ -848,7 +848,7 @@ impl ChannelConversionBuffer {
             let chunk_size = chunk_end - chunk_start;
 
             let block_offset = (chunk_start / block_width) as usize;
-            let block_count = div_ceil(chunk_size, block_width) as usize;
+            let block_count = chunk_size.div_ceil(block_width) as usize;
 
             let encoded_chunk = &encoded_blocks
                 [block_offset * block_bytes..(block_offset + block_count) * block_bytes];
@@ -903,7 +903,7 @@ impl ChannelConversionBuffer {
         debug_assert_eq!(plane1.len(), range.width as usize * plane1_bytes_per_pixel);
         debug_assert_eq!(
             plane2.len(),
-            div_ceil(range.offset + range.width, info.sub_sampling.0 as u32) as usize
+            (range.offset + range.width).div_ceil(info.sub_sampling.0 as u32) as usize
                 * info.plane2_element_size as usize
         );
 
@@ -952,7 +952,7 @@ impl ChannelConversionBuffer {
             let chunk_size = chunk_end - chunk_start;
 
             let plane2_start = chunk_start / info.sub_sampling.0 as usize;
-            let plane2_end = div_ceil(chunk_end, info.sub_sampling.0 as usize);
+            let plane2_end = chunk_end.div_ceil(info.sub_sampling.0 as usize);
 
             let plane1_chunk =
                 &plane1[chunk_start * plane1_bytes_per_pixel..chunk_end * plane1_bytes_per_pixel];
@@ -1147,8 +1147,8 @@ pub(crate) fn for_each_bi_planar(
     let sub_sampling_x = info.sub_sampling.0 as u32;
     let sub_sampling_y = info.sub_sampling.1 as u32;
 
-    let uv_width = div_ceil(size.width, sub_sampling_x);
-    let uv_lines = div_ceil(size.height, sub_sampling_y);
+    let uv_width = size.width.div_ceil(sub_sampling_x);
+    let uv_lines = size.height.div_ceil(sub_sampling_y);
     let uv_bytes_per_line = uv_width as usize * info.plane2_element_size as usize;
 
     let mut line_buffer = UntypedLineBuffer::new(uv_bytes_per_line, uv_lines, &mut context)?;
@@ -1214,10 +1214,10 @@ pub(crate) fn for_each_bi_planar_rect(
     let sub_sampling_y = info.sub_sampling.1 as u32;
 
     let uv_before = offset.y / sub_sampling_y;
-    let uv_after = div_ceil(surface_size.height, sub_sampling_y)
-        - div_ceil(offset.y + image_height, sub_sampling_y);
-    let uv_width = div_ceil(surface_size.width, sub_sampling_x);
-    let uv_lines = div_ceil(surface_size.height, sub_sampling_y) - uv_before - uv_after;
+    let uv_after = surface_size.height.div_ceil(sub_sampling_y)
+        - (offset.y + image_height).div_ceil(sub_sampling_y);
+    let uv_width = surface_size.width.div_ceil(sub_sampling_x);
+    let uv_lines = surface_size.height.div_ceil(sub_sampling_y) - uv_before - uv_after;
     let uv_bytes_per_line = uv_width as usize * info.plane2_element_size as usize;
 
     util::io_skip_exact(r, uv_before as u64 * uv_bytes_per_line as u64)?;
@@ -1246,7 +1246,7 @@ pub(crate) fn for_each_bi_planar_rect(
             let out_line = image.get_row(y - offset.y as usize);
 
             let uv_start = (offset.x / sub_sampling_x) as usize * info.plane2_element_size as usize;
-            let uv_end = div_ceil(offset.x + image_width, sub_sampling_x) as usize
+            let uv_end = (offset.x + image_width).div_ceil(sub_sampling_x) as usize
                 * info.plane2_element_size as usize;
             let uv_line = &uv_line[uv_start..uv_end];
 

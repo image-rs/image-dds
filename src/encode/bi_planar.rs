@@ -9,7 +9,7 @@ use super::{
 use crate::{
     cast::{self, ToLe},
     encode::write_util::for_each_f32_rgba_rows,
-    util, yuv10, yuv16, yuv8, EncodingError,
+    yuv10, yuv16, yuv8, EncodingError,
 };
 
 #[allow(clippy::type_complexity)]
@@ -41,8 +41,8 @@ fn bi_planar_universal<P1: ToLe + cast::Castable + Default + Copy, P2: ToLe + ca
     let plane2_len = (width / BLOCK_WIDTH) * (height / BLOCK_HEIGHT);
     let mut plane2: Vec<P2> = Vec::with_capacity(plane2_len);
 
-    let line_group_count = util::div_ceil(height, BLOCK_HEIGHT);
-    let report_frequency = util::div_ceil(1024 * 1024, width * BLOCK_HEIGHT);
+    let line_group_count = height.div_ceil(BLOCK_HEIGHT);
+    let report_frequency = usize::div_ceil(1024 * 1024, width * BLOCK_HEIGHT);
     let mut group_index = 0;
     for_each_f32_rgba_rows(image, BLOCK_HEIGHT, |rows| -> Result<(), EncodingError> {
         // occasionally report progress

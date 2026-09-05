@@ -1,5 +1,4 @@
 use dds::{header::*, *};
-use rand::RngCore;
 use std::{
     fs::File,
     io::{Cursor, Read},
@@ -356,8 +355,7 @@ fn neg_infinity_bc6_blocks() {
 fn test_unaligned() {
     // dummy image data of the encoded image
     let mut dummy_data = vec![0_u8; 4096];
-    let mut rng = util::create_rng();
-    rng.fill_bytes(dummy_data.as_mut_slice());
+    util::fill_random(&mut dummy_data);
 
     // aligned and unaligned buffers
     let mut buffer = vec![0_u32; 4096];
@@ -400,7 +398,7 @@ fn test_row_pitch() {
     // dummy image data of the encoded image
     let surface_size = Size::new(7, 13);
     let mut dummy_data = vec![0_u8; surface_size.pixels() as usize * 16];
-    util::create_rng().fill_bytes(dummy_data.as_mut_slice());
+    util::fill_random_deterministic(&mut dummy_data, None);
 
     let options = DecodeOptions::default();
 

@@ -1,4 +1,4 @@
-use dds::{ColorFormat, Format};
+use dds::{ColorFormat, Format, ResizeFilter};
 
 pub const ALL_FORMATS: &[Format] = &[
     // uncompressed formats
@@ -95,4 +95,12 @@ pub const ALL_COLORS: &[ColorFormat] = &[
     ColorFormat::GRAYSCALE_F32,
     ColorFormat::RGB_F32,
     ColorFormat::RGBA_F32,
+];
+
+pub const ALL_RESIZE_FILTERS: &[ResizeFilter] = &[
+    ResizeFilter::Box,
+    ResizeFilter::Triangle,
+    ResizeFilter::Mitchell,
+    ResizeFilter::Lanczos3,
+    ResizeFilter::Nearest,
 ];

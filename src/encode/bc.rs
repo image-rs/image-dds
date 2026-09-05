@@ -4,7 +4,7 @@ use crate::{
     cast, ch,
     encode::{bc7::Bc7Modes, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
     n4,
-    util::{self, clamp_0_1},
+    util::clamp_0_1,
     Dithering, EncodingError,
 };
 
@@ -45,7 +45,7 @@ fn block_universal<
     let height = image.height() as usize;
 
     let mut encoded_buffer =
-        vec![[0_u8; BLOCK_BYTES]; util::div_ceil(width, BLOCK_WIDTH)].into_boxed_slice();
+        vec![[0_u8; BLOCK_BYTES]; width.div_ceil(BLOCK_WIDTH)].into_boxed_slice();
 
     // Report frequencies were chosen manually.
     // I just tried to pick frequencies such that every quality level reports
@@ -57,7 +57,7 @@ fn block_universal<
         CompressionQuality::High => 2048,
         CompressionQuality::Unreasonable => 256,
     };
-    let block_count = util::div_ceil(width, BLOCK_WIDTH) * util::div_ceil(height, BLOCK_HEIGHT);
+    let block_count = width.div_ceil(BLOCK_WIDTH) * height.div_ceil(BLOCK_HEIGHT);
     let mut block_index: usize = 0;
     let mut report_block = || -> Result<(), EncodingError> {
         progress.checked_report_if(

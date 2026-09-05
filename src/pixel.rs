@@ -1,5 +1,5 @@
 use crate::header::{Dx9PixelFormat, DxgiFormat, Header};
-use crate::{util::div_ceil, Format, FormatError, Size};
+use crate::{Format, FormatError, Size};
 
 /// This describes the number of bits per pixel and the layout of pixels within
 /// a surface.
@@ -217,14 +217,14 @@ impl PixelInfo {
             Self::Fixed { bytes_per_pixel } => bytes_per_pixel as u32 * 8,
             Self::Block(block) => {
                 let bits_per_block = block.bytes_per_block() as u32 * 8;
-                div_ceil(bits_per_block, block.pixels() as u32)
+                bits_per_block.div_ceil(block.pixels() as u32)
             }
             Self::BiPlanar(bi_planar) => {
                 let plane1_bits_per_pixel = bi_planar.plane1_bytes_per_pixel() as u32 * 8;
                 let plane2_sub_sampling = bi_planar.plane2_sub_sampling();
                 let sub_sampling = plane2_sub_sampling.0 as u32 * plane2_sub_sampling.1 as u32;
                 plane1_bits_per_pixel
-                    + div_ceil(bi_planar.plane2_bytes_per_sample() as u32 * 8, sub_sampling)
+                    + (bi_planar.plane2_bytes_per_sample() as u32 * 8).div_ceil(sub_sampling)
             }
         }
     }
@@ -240,8 +240,8 @@ impl PixelInfo {
             Self::Fixed { bytes_per_pixel } => size.pixels().checked_mul(bytes_per_pixel as u64),
             Self::Block(block) => {
                 let block_size = block.size();
-                let blocks_x = div_ceil(size.width, block_size.0 as u32);
-                let blocks_y = div_ceil(size.height, block_size.1 as u32);
+                let blocks_x = size.width.div_ceil(block_size.0 as u32);
+                let blocks_y = size.height.div_ceil(block_size.1 as u32);
                 // This cannot overflow, because both factors are u32.
                 let blocks = blocks_x as u64 * blocks_y as u64;
                 blocks.checked_mul(block.bytes_per_block() as u64)
@@ -252,8 +252,8 @@ impl PixelInfo {
                     .checked_mul(bi_planar.plane1_bytes_per_pixel() as u64)?;
 
                 let plane2_sub_sampling = bi_planar.plane2_sub_sampling();
-                let chroma_x = div_ceil(size.width, plane2_sub_sampling.0 as u32);
-                let chroma_y = div_ceil(size.height, plane2_sub_sampling.1 as u32);
+                let chroma_x = size.width.div_ceil(plane2_sub_sampling.0 as u32);
+                let chroma_y = size.height.div_ceil(plane2_sub_sampling.1 as u32);
                 // This cannot overflow, because both factors are u32.
                 let samples_chroma = chroma_x as u64 * chroma_y as u64;
                 let plane2_bytes =
@@ -528,7 +528,7 @@ mod test {
                 let size = 2 * 3 * 4 * 5 * 6;
                 let size = Size::new(size, size);
                 let bits_per_pixel_from_size =
-                    util::div_ceil(pixel.surface_bytes(size).unwrap() * 8, size.pixels());
+                    (pixel.surface_bytes(size).unwrap() * 8).div_ceil(size.pixels());
 
                 assert_eq!(
                     pixel.bits_per_pixel(),

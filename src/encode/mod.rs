@@ -242,6 +242,9 @@ pub struct EncodeOptions {
     ///    (>= 16 bits per pixel). This option will be ignored for those formats.
     /// 2. YUV formats are not supported.
     ///
+    /// For a full list of formats and their support for dithering, see the
+    /// [`Format` documentation](crate::Format).
+    ///
     /// Default: [`Dithering::None`]
     pub dithering: Dithering,
     /// The error metric for block compression formats.
@@ -467,11 +470,10 @@ impl PreferredFragmentSize {
 
 pub(crate) type SizeMultiple = (NonZeroU8, NonZeroU8);
 const SIZE_MUL_2X2: SizeMultiple = {
-    if let Some(two) = NonZeroU8::new(2) {
-        (two, two)
-    } else {
+    let Some(two) = NonZeroU8::new(2) else {
         unreachable!()
-    }
+    };
+    (two, two)
 };
 
 /// Describes the extent of support for encoding a format.
@@ -544,6 +546,10 @@ impl EncodingSupport {
     /// Use [`EncodingSupport::supports_size()`] to check if a given image size
     /// is supported by the format.
     ///
+    /// Note: Size requirements also apply to mipmaps. This means that formats
+    /// with size requirements do **not** support full mipmap chains, since full
+    /// chains always end with a 1x1 mip.
+    ///
     /// # Example
     ///
     /// ```
@@ -561,14 +567,13 @@ impl EncodingSupport {
     /// ```
     pub const fn size_multiple(&self) -> Option<(NonZeroU32, NonZeroU32)> {
         if let Some((w, h)) = self.size_multiple {
-            if let (Some(w), Some(h)) = (
+            let (Some(w), Some(h)) = (
                 NonZeroU32::new(w.get() as u32),
                 NonZeroU32::new(h.get() as u32),
-            ) {
-                Some((w, h))
-            } else {
+            ) else {
                 unreachable!()
-            }
+            };
+            Some((w, h))
         } else {
             None
         }
