@@ -35,17 +35,37 @@ pub fn deterministic_rng() -> impl rand::Rng {
 /// The random data will be different each time the function is called.
 pub fn fill_random<T>(slice: &mut [T])
 where
-    [T]: rand::Fill,
+    T: RandomFill,
 {
-    rand::rng().fill(slice);
+    T::fill(&mut rand::rng(), slice);
 }
 /// Fills the buffer with random data, but always the same random data for the same seed.
 pub fn fill_random_deterministic<T>(slice: &mut [T], seed: impl Into<Option<u64>>)
 where
-    [T]: rand::Fill,
+    T: RandomFill,
 {
     let seed = seed.into().unwrap_or(123456789);
-    rand_chacha::ChaChaRng::seed_from_u64(seed).fill(slice);
+    T::fill(&mut rand_chacha::ChaChaRng::seed_from_u64(seed), slice);
+}
+pub trait RandomFill: Sized {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]);
+}
+impl RandomFill for u8 {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]) {
+        rng.fill(data);
+    }
+}
+impl RandomFill for u16 {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]) {
+        rng.fill(data);
+    }
+}
+impl RandomFill for f32 {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]) {
+        for x in data {
+            *x = rng.random();
+        }
+    }
 }
 
 pub fn hash_hex(data: &[u8]) -> String {
