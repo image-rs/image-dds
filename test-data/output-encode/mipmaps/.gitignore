@@ -1,3 +1,9 @@
 # don't commit the F32 and U16 versions, they are just here for debugging
 * F32*.png
 * U16*.png
+
+# only commit gamma-corrected versions for Box filter
+* @ Lanczos3 * gamma-corrected*.png
+* @ Mitchell * gamma-corrected*.png
+* @ Nearest * gamma-corrected*.png
+* @ Triangle * gamma-corrected*.png
