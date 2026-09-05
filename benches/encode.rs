@@ -95,7 +95,7 @@ where
         let mut output: Vec<u8> = Vec::with_capacity(image.size.pixels() as usize * 16);
 
         b.iter(|| {
-            output.truncate(0);
+            output.clear();
 
             let image = black_box(image);
 
@@ -334,7 +334,7 @@ pub fn generate_mipmaps(c: &mut Criterion) {
                     let mut output: Vec<u8> = Vec::with_capacity(len);
 
                     b.iter(|| {
-                        output.truncate(0);
+                        output.clear();
 
                         let image = black_box(image);
 

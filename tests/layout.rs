@@ -34,7 +34,7 @@ fn parse_data_layout_of_all_dds_files() {
 
         let data_len = file_len - get_header_byte_len(&header);
         let expected_len = info.layout.data_len();
-        assert_eq!(data_len, expected_len, "File: {:?}", &dds_path);
+        assert_eq!(data_len, expected_len, "File: {:?}", dds_path);
     }
 }
 
