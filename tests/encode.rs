@@ -779,37 +779,44 @@ fn encode_mipmap_chain() {
 
         for image in [image_u8.view(), image_u16.view(), image_f32.view()] {
             for &filter in util::ALL_RESIZE_FILTERS {
-                for &straight_alpha in straight_alpha_options {
-                    let option = MipmapOptions {
-                        resize_filter: filter,
-                        resize_straight_alpha: straight_alpha,
-                        ..Default::default()
-                    };
-
-                    let mut name = format!("{image_name} @ {filter:?} {}", image.color());
-
-                    if image.color().channels == Channels::Rgba && is_rgba {
-                        name += " ";
-                        name += if option.resize_straight_alpha {
-                            "alpha-straight"
-                        } else {
-                            "alpha-custom"
+                for gamma_correction in [false, true] {
+                    for &straight_alpha in straight_alpha_options {
+                        let option = MipmapOptions {
+                            resize_filter: filter,
+                            resize_straight_alpha: straight_alpha,
+                            resize_gamma_correction: gamma_correction,
+                            ..Default::default()
                         };
-                    }
 
-                    let snapshot_file = util::test_data_dir()
-                        .join("output-encode/mipmaps")
-                        .join(name + ".png");
+                        let mut name = format!("{image_name} @ {filter:?} {}", image.color());
 
-                    summaries.add_output_file_result(
-                        &snapshot_file,
-                        save_mipmap_chain_image(
+                        if gamma_correction {
+                            name += " gamma-corrected";
+                        }
+
+                        if image.color().channels == Channels::Rgba && is_rgba {
+                            name += " ";
+                            name += if option.resize_straight_alpha {
+                                "alpha-straight"
+                            } else {
+                                "alpha-custom"
+                            };
+                        }
+
+                        let snapshot_file = util::test_data_dir()
+                            .join("output-encode/mipmaps")
+                            .join(name + ".png");
+
+                        summaries.add_output_file_result(
                             &snapshot_file,
-                            Format::R8G8B8A8_UNORM,
-                            option,
-                            image,
-                        ),
-                    );
+                            save_mipmap_chain_image(
+                                &snapshot_file,
+                                Format::R8G8B8A8_UNORM,
+                                option,
+                                image,
+                            ),
+                        );
+                    }
                 }
             }
         }

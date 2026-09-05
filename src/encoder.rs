@@ -325,6 +325,19 @@ pub struct MipmapOptions {
     ///
     /// Default: `true`
     pub generate: bool,
+    /// Whether to apply gamma correction when resizing the texture to generate
+    /// mipmaps.
+    ///
+    /// Gamma correction is necessary when the texture is in sRGB, producing
+    /// mipmaps that are slightly too dark otherwise. However, enabling gamma
+    /// correction for non-sRGB textures (e.g. normal maps) will produce
+    /// incorrect results and artifacts. Therefore, this option should only be
+    /// enabled for sRGB textures.
+    ///
+    /// Gamma correction does not affect alpha channels.
+    ///
+    /// Default: `false`
+    pub resize_gamma_correction: bool,
     /// Whether the alpha channel (if any) is straight alpha transparency.
     ///
     /// This is important when generating mipmaps. Resizing RGBA with straight
@@ -351,6 +364,7 @@ impl Default for MipmapOptions {
     fn default() -> Self {
         Self {
             generate: true,
+            resize_gamma_correction: false,
             resize_straight_alpha: true,
             resize_filter: ResizeFilter::Box,
         }
@@ -422,6 +436,7 @@ impl MipmapCache {
         parallel: bool,
         mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
     ) -> Result<(), EncodingError> {
+        let gamma_correction = options.resize_gamma_correction;
         let straight_alpha = options.resize_straight_alpha;
         let filter = options.resize_filter;
 
@@ -434,7 +449,15 @@ impl MipmapCache {
 
             let precomputed_mipmaps: Vec<AlignedBuffer> = sizes
                 .par_iter()
-                .map(|&mipmap_size| crate::resize::resize(src, mipmap_size, straight_alpha, filter))
+                .map(|&mipmap_size| {
+                    crate::resize::resize(
+                        src,
+                        mipmap_size,
+                        straight_alpha,
+                        gamma_correction,
+                        filter,
+                    )
+                })
                 .collect();
 
             for mipmap in precomputed_mipmaps {
@@ -445,9 +468,9 @@ impl MipmapCache {
 
         // otherwise, generate mipmaps sequentially
         for &mipmap_size in sizes {
-            let mipmap = self
-                .resizer
-                .resize(src, mipmap_size, straight_alpha, filter);
+            let mipmap =
+                self.resizer
+                    .resize(src, mipmap_size, straight_alpha, gamma_correction, filter);
 
             f(mipmap.as_image_view())?;
         }
@@ -463,19 +486,26 @@ impl MipmapCache {
         options: MipmapOptions,
         mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
     ) -> Result<(), EncodingError> {
+        let gamma_correction = options.resize_gamma_correction;
         let straight_alpha = options.resize_straight_alpha;
         let filter = options.resize_filter;
 
         let src = self.aligner.align(image);
 
-        let first_mipmap = crate::resize::resize(src, sizes[0], straight_alpha, filter);
+        let first_mipmap =
+            crate::resize::resize(src, sizes[0], straight_alpha, gamma_correction, filter);
         f(first_mipmap.as_view().as_image_view())?;
 
         let mut prev_mipmap = first_mipmap;
 
         for &mipmap_size in &sizes[1..] {
-            let next_mipmap =
-                crate::resize::resize(prev_mipmap.as_view(), mipmap_size, straight_alpha, filter);
+            let next_mipmap = crate::resize::resize(
+                prev_mipmap.as_view(),
+                mipmap_size,
+                straight_alpha,
+                gamma_correction,
+                filter,
+            );
 
             f(next_mipmap.as_view().as_image_view())?;
 
@@ -493,19 +523,22 @@ impl MipmapCache {
         options: MipmapOptions,
         mut f: impl FnMut(ImageView) -> Result<(), EncodingError>,
     ) -> Result<(), EncodingError> {
+        let gamma_correction = options.resize_gamma_correction;
         let straight_alpha = options.resize_straight_alpha;
         let filter = options.resize_filter;
 
         let src = self.aligner.align(image);
 
-        let first_mipmap = crate::resize::resize(src, sizes[0], straight_alpha, filter);
+        let first_mipmap =
+            crate::resize::resize(src, sizes[0], straight_alpha, gamma_correction, filter);
         f(first_mipmap.as_view().as_image_view())?;
 
         if sizes.len() == 1 {
             return Ok(());
         }
 
-        let second_mipmap = crate::resize::resize(src, sizes[1], straight_alpha, filter);
+        let second_mipmap =
+            crate::resize::resize(src, sizes[1], straight_alpha, gamma_correction, filter);
         f(second_mipmap.as_view().as_image_view())?;
 
         let mut prev_prev_mipmap = first_mipmap;
@@ -516,6 +549,7 @@ impl MipmapCache {
                 prev_prev_mipmap.as_view(),
                 mipmap_size,
                 straight_alpha,
+                gamma_correction,
                 filter,
             );
 
