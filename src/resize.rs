@@ -341,13 +341,13 @@ mod pixel {
         }
 
         fn from_linear_vec4(input: Vec4) -> Vec4 {
-            // TODO: Hope and pray that this mess gets optimized to a single sqrt_ps instruction by the compiler
-            let mut out = input.powf(0.5);
+            // TODO: Hope and pray that this mess gets optimized to a sqrt_ps instruction by the compiler
+            let mut out = input.max(Vec4::ZERO).powf(0.5);
             out.w = input.w;
             out
         }
         fn from_linear_f32(input: f32) -> f32 {
-            input.sqrt()
+            input.max(0.0).sqrt()
         }
     }
 
