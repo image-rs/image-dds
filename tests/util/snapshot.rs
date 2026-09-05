@@ -155,7 +155,9 @@ impl Snapshot<Image<u8>> for PngSnapshot {
     }
 }
 
+#[cfg(feature = "encode")]
 pub struct DdsF32Snapshot;
+#[cfg(feature = "encode")]
 impl Snapshot<Image<f32>> for DdsF32Snapshot {
     fn write(
         &self,

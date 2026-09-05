@@ -1,3 +1,5 @@
+#![cfg(feature = "encode")]
+
 use dds::*;
 use rand::prelude::*;
 use std::path::{Path, PathBuf};

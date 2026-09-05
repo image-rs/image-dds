@@ -268,6 +268,7 @@ impl std::error::Error for HeaderError {
 
 #[derive(Debug)]
 #[non_exhaustive]
+#[cfg(feature = "encode")]
 pub enum EncodingError {
     /// Returned by [`Encoder`](crate::Encoder) and [`encode()`](crate::encode()) when the format
     /// does not support encoding.
@@ -298,6 +299,7 @@ pub enum EncodingError {
     Io(std::io::Error),
 }
 
+#[cfg(feature = "encode")]
 impl std::fmt::Display for EncodingError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
@@ -323,6 +325,7 @@ impl std::fmt::Display for EncodingError {
         }
     }
 }
+#[cfg(feature = "encode")]
 impl std::error::Error for EncodingError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -333,11 +336,13 @@ impl std::error::Error for EncodingError {
     }
 }
 
+#[cfg(feature = "encode")]
 impl From<LayoutError> for EncodingError {
     fn from(err: LayoutError) -> Self {
         EncodingError::Layout(err)
     }
 }
+#[cfg(feature = "encode")]
 impl From<std::io::Error> for EncodingError {
     fn from(err: std::io::Error) -> Self {
         EncodingError::Io(err)

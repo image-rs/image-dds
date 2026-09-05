@@ -1,3 +1,5 @@
+#![cfg(feature = "encode")]
+
 use dds::{header::*, *};
 
 use util::Snapshot;

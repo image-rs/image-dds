@@ -1,4 +1,4 @@
-use dds::{ColorFormat, Format, ResizeFilter};
+use dds::*;
 
 pub const ALL_FORMATS: &[Format] = &[
     // uncompressed formats
@@ -97,6 +97,7 @@ pub const ALL_COLORS: &[ColorFormat] = &[
     ColorFormat::RGBA_F32,
 ];
 
+#[cfg(feature = "encode")]
 pub const ALL_RESIZE_FILTERS: &[ResizeFilter] = &[
     ResizeFilter::Box,
     ResizeFilter::Triangle,
