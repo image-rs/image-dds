@@ -1246,10 +1246,8 @@ impl Dx9Header {
                     DxgiFormat::BC2_UNORM
                 } else if *four_cc == FourCC::DXT4 {
                     DxgiFormat::BC3_UNORM
-                } else if let Some(dxgi) = four_cc_to_dxgi(*four_cc) {
-                    dxgi
                 } else {
-                    return None;
+                    four_cc_to_dxgi(*four_cc)?
                 }
             }
             Dx9PixelFormat::Mask(mask_pixel_format) => masked_to_dxgi(mask_pixel_format)?,

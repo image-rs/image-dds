@@ -17,6 +17,6 @@ fn from_header() {
         let from_format = PixelInfo::from(format);
         let from_header = PixelInfo::from_header(&header).ok();
 
-        assert_eq!(Some(from_format), from_header, "File: {:?}", &dds_path);
+        assert_eq!(Some(from_format), from_header, "File: {:?}", dds_path);
     }
 }

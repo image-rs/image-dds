@@ -1,8 +1,9 @@
 #![allow(unused)]
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use dds::*;
 use rand::prelude::*;
+use std::hint::black_box;
 
 struct Image<T> {
     data: Vec<T>,
@@ -34,12 +35,31 @@ impl<T: 'static> Image<T> {
 
     fn random(size: Size, channels: Channels) -> Image<T>
     where
-        T: Default + Copy,
-        [T]: rand::Fill,
+        T: Default + Copy + RandomFill,
     {
         let mut data = vec![T::default(); size.pixels() as usize * channels.count() as usize];
-        rand::rng().fill(data.as_mut_slice());
+        T::fill(&mut rand::rng(), data.as_mut_slice());
         Image::new(data, size, channels, "random_u8")
+    }
+}
+trait RandomFill: Sized {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]);
+}
+impl RandomFill for u8 {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]) {
+        rng.fill(data);
+    }
+}
+impl RandomFill for u16 {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]) {
+        rng.fill(data);
+    }
+}
+impl RandomFill for f32 {
+    fn fill(rng: &mut impl rand::Rng, data: &mut [Self]) {
+        for x in data {
+            *x = rng.random();
+        }
     }
 }
 trait ImageAsBytes {
@@ -95,7 +115,7 @@ where
         let mut output: Vec<u8> = Vec::with_capacity(image.size.pixels() as usize * 16);
 
         b.iter(|| {
-            output.truncate(0);
+            output.clear();
 
             let image = black_box(image);
 
@@ -334,7 +354,7 @@ pub fn generate_mipmaps(c: &mut Criterion) {
                     let mut output: Vec<u8> = Vec::with_capacity(len);
 
                     b.iter(|| {
-                        output.truncate(0);
+                        output.clear();
 
                         let image = black_box(image);
 
