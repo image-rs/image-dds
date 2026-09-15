@@ -8,6 +8,7 @@ use crate::{EncodingError, Format, ImageView, Progress, Size};
 mod bc;
 mod bc1;
 mod bc4;
+mod bc6;
 mod bc7;
 mod bcn_util;
 mod bi_planar;
@@ -85,6 +86,8 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         Format::BC4_SNORM => BC4_SNORM,
         Format::BC5_UNORM => BC5_UNORM,
         Format::BC5_SNORM => BC5_SNORM,
+        Format::BC6H_UF16 => BC6H_UF16,
+        Format::BC6H_SF16 => BC6H_SF16,
         Format::BC7_UNORM => BC7_UNORM,
 
         // ASTC formats
@@ -106,9 +109,6 @@ pub(crate) const fn get_encoders(format: Format) -> Option<EncoderSet> {
         // non-standard formats
         Format::BC3_UNORM_RXGB => BC3_UNORM_RXGB,
         Format::BC3_UNORM_NORMAL => BC3_UNORM_NORMAL,
-
-        // unsupported formats
-        Format::BC6H_UF16 | Format::BC6H_SF16 => return None,
     })
 }
 

@@ -415,6 +415,179 @@ pub(crate) const PARTITION_SET_3_DUPLICATES: [[u8; 3]; 64] = [
     [255, 20, 19],
 ];
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BC6HFormat {
+    UnsignedF16,
+    SignedF16,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct EndPointPair {
+    pub a: IntColor<i32>,
+    pub b: IntColor<i32>,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) struct IntColor<T> {
+    pub r: T,
+    pub g: T,
+    pub b: T,
+    _pad: T,
+}
+impl<T> IntColor<T> {
+    pub fn new(r: T, g: T, b: T) -> Self
+    where
+        T: Default,
+    {
+        Self {
+            r,
+            g,
+            b,
+            _pad: T::default(),
+        }
+    }
+    pub fn rgb(&self) -> [T; 3]
+    where
+        T: Copy,
+    {
+        [self.r, self.g, self.b]
+    }
+    #[inline]
+    pub fn get_channel(&self, channel: usize) -> T
+    where
+        T: Copy,
+    {
+        match channel {
+            0 => self.r,
+            1 => self.g,
+            2 => self.b,
+            _ => panic!("Invalid channel index"),
+        }
+    }
+    #[inline]
+    pub fn set_channel(&mut self, channel: usize, value: T) {
+        match channel {
+            0 => self.r = value,
+            1 => self.g = value,
+            2 => self.b = value,
+            _ => panic!("Invalid channel index"),
+        }
+    }
+}
+impl IntColor<i32> {
+    pub fn sign_extend_all(&mut self, bit_count: u8) {
+        self.r = sign_extend(self.r, bit_count);
+        self.g = sign_extend(self.g, bit_count);
+        self.b = sign_extend(self.b, bit_count);
+    }
+    pub fn sign_extend(&mut self, r_bit_count: u8, g_bit_count: u8, b_bit_count: u8) {
+        self.r = sign_extend(self.r, r_bit_count);
+        self.g = sign_extend(self.g, g_bit_count);
+        self.b = sign_extend(self.b, b_bit_count);
+    }
+
+    pub fn bit_and(&self, mask: i32) -> Self {
+        Self {
+            r: self.r & mask,
+            g: self.g & mask,
+            b: self.b & mask,
+            _pad: self._pad & mask,
+        }
+    }
+}
+impl core::ops::Add for IntColor<i32> {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        IntColor {
+            r: self.r.wrapping_add(rhs.r),
+            g: self.g.wrapping_add(rhs.g),
+            b: self.b.wrapping_add(rhs.b),
+            _pad: self._pad.wrapping_add(rhs._pad),
+        }
+    }
+}
+fn sign_extend(x: i32, bit_count: u8) -> i32 {
+    debug_assert!(bit_count > 0);
+    debug_assert!(bit_count < 32);
+
+    // check that all bits outsize bit_count are zero
+    debug_assert_eq!(x & !((1 << bit_count) - 1), 0);
+
+    let shift = 32 - bit_count;
+    (x << shift) >> shift
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum ModeTwo {
+    M10_555 = 0b00,
+    M7_666 = 0b01,
+
+    M11_544 = 0b00010,
+    M11_454 = 0b00110,
+    M11_445 = 0b01010,
+    M9_555 = 0b01110,
+    M8_655 = 0b10010,
+    M8_565 = 0b10110,
+    M8_556 = 0b11010,
+    M6_666 = 0b11110,
+}
+impl ModeTwo {
+    pub fn a0_bit_count(&self) -> u8 {
+        match self {
+            ModeTwo::M10_555 => 10,
+            ModeTwo::M7_666 => 7,
+
+            ModeTwo::M11_544 | ModeTwo::M11_454 | ModeTwo::M11_445 => 11,
+            ModeTwo::M9_555 => 9,
+            ModeTwo::M8_655 | ModeTwo::M8_565 | ModeTwo::M8_556 => 8,
+            ModeTwo::M6_666 => 6,
+        }
+    }
+    pub fn delta_bit_count(&self) -> [u8; 3] {
+        match self {
+            ModeTwo::M10_555 => [5, 5, 5],
+            ModeTwo::M7_666 => [6, 6, 6],
+
+            ModeTwo::M11_544 => [5, 4, 4],
+            ModeTwo::M11_454 => [4, 5, 4],
+            ModeTwo::M11_445 => [4, 4, 5],
+            ModeTwo::M9_555 => [5, 5, 5],
+            ModeTwo::M8_655 => [6, 5, 5],
+            ModeTwo::M8_565 => [5, 6, 5],
+            ModeTwo::M8_556 => [5, 5, 6],
+            ModeTwo::M6_666 => [6, 6, 6],
+        }
+    }
+
+    pub fn transformed(&self) -> bool {
+        !matches!(self, ModeTwo::M6_666)
+    }
+}
+#[derive(Clone, Copy)]
+pub(crate) enum ModeOne {
+    M10_10 = 0b00011,
+    M11_9 = 0b00111,
+    M12_8 = 0b01011,
+    M16_4 = 0b01111,
+}
+impl ModeOne {
+    pub fn a0_bit_count(&self) -> u8 {
+        match self {
+            ModeOne::M10_10 => 10,
+            ModeOne::M11_9 => 11,
+            ModeOne::M12_8 => 12,
+            ModeOne::M16_4 => 16,
+        }
+    }
+    pub fn b0_bit_count(&self) -> u8 {
+        20 - self.a0_bit_count()
+    }
+
+    pub fn transformed(&self) -> bool {
+        !matches!(self, ModeOne::M10_10)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

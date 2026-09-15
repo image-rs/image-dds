@@ -259,6 +259,7 @@ fn encode_measure_quality() {
 
     let bc1_metrics = MetricChannelSet::RGB | MetricChannel::L | MetricChannel::C;
     let bc7_metrics = MetricChannelSet::RGBA | MetricChannel::C;
+    let bc6_metrics = MetricChannelSet::RGB | MetricChannel::C;
     let cases = [
         TestCase {
             format: Format::BC1_UNORM,
@@ -345,6 +346,35 @@ fn encode_measure_quality() {
                 leaves,
                 random,
             ],
+        },
+        TestCase {
+            format: Format::BC6H_UF16,
+            get_overview_channel: Some(|_, _| MetricChannel::C),
+            options: vec![
+                ("fast", new_options!(Fast), bc6_metrics),
+                ("normal", new_options!(Normal), bc6_metrics),
+                ("high", new_options!(High), bc6_metrics),
+            ],
+            images: &[
+                base,
+                color_twirl,
+                bricks_d,
+                bricks_n,
+                clovers_d,
+                clovers_r,
+                stone_d,
+                random,
+            ],
+        },
+        TestCase {
+            format: Format::BC6H_SF16,
+            get_overview_channel: Some(|_, _| MetricChannel::C),
+            options: vec![
+                // ("fast", new_options!(Fast), bc6_metrics),
+                // ("normal", new_options!(Normal), bc6_metrics),
+                ("high", new_options!(High), bc6_metrics),
+            ],
+            images: &[base, color_twirl, bricks_d, random],
         },
     ];
 

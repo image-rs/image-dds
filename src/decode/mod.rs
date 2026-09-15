@@ -1,6 +1,6 @@
 mod astc;
 mod bc;
-mod bc6;
+pub(crate) mod bc6;
 mod bc7;
 mod bcn_util;
 mod bi_planar;

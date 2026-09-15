@@ -71,8 +71,8 @@
 | BC4_SNORM                     | Gray  U8  | 4   | ☑️     | BC4S   | ✔️       | ✔️
 | BC5_UNORM                     | RGB   U8  | 8   | ☑️     | BC5U   | ✔️       | ✔️
 | BC5_SNORM                     | RGB   U8  | 8   | ☑️     | BC5S   | ✔️       | ✔️
-| BC6H_UF16                     | RGB   F32 | 8   | DX10   |        | ❌        |
-| BC6H_SF16                     | RGB   F32 | 8   | DX10   |        | ❌        |
+| BC6H_UF16                     | RGB   F32 | 8   | DX10   |        | ✔️       | ❌
+| BC6H_SF16                     | RGB   F32 | 8   | DX10   |        | ✔️       | ❌
 | BC7_UNORM                     | RGBA  U8  | 8   | DX10   |        | ✔️       | ✔️
 | ▶ ***ASTC***                  |           |     |        |        |          |
 | ASTC_4X4_UNORM                | RGBA  U8  | 8   | DX10   |        | ❌        |

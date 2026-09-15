@@ -1,5 +1,7 @@
 use glam::{Vec3A, Vec4};
 
+use crate::bcn_data::{Subset2Map, Subset3Map};
+
 /// Indicates the color is not in RGB/sRGB, but a different color space.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[repr(transparent)]
@@ -836,5 +838,283 @@ impl Quantization {
         }
 
         (floor, ceil)
+    }
+}
+
+/// A list of 16 indexes each using I bits.
+///
+/// I must be 2, 3, or 4.
+pub(crate) struct IndexList<const I: u8> {
+    indexes: u64,
+}
+impl<const I: u8> IndexList<I> {
+    const MAX_INDEX: u8 = (1 << I) - 1;
+    const INDEXES_MASK: u64 = if I == 4 {
+        u64::MAX
+    } else {
+        (1 << (I * 16)) - 1
+    };
+
+    pub const fn new() -> Self {
+        debug_assert!(I == 2 || I == 3 || I == 4);
+        Self { indexes: 0 }
+    }
+    const CONSTANT_MULTIPLE: u64 = {
+        let mut m = 0;
+        let mut i = 0;
+        while i < 16 {
+            m |= 1 << (i * I);
+            i += 1;
+        }
+        m
+    };
+    pub fn constant(value: u8) -> Self {
+        debug_assert!(I == 2 || I == 3 || I == 4);
+        debug_assert!(value <= Self::MAX_INDEX);
+
+        Self {
+            indexes: value as u64 * Self::CONSTANT_MULTIPLE,
+        }
+    }
+
+    pub fn get(&self, index: usize) -> u8 {
+        debug_assert!(index < 16);
+        ((self.indexes >> (index * I as usize)) & Self::MAX_INDEX as u64) as u8
+    }
+    pub fn set(&mut self, index: usize, value: u8) {
+        debug_assert!(index < 16);
+        debug_assert!(value <= Self::MAX_INDEX);
+        debug_assert!(self.get(index) == 0, "Cannot set an index twice.");
+        self.indexes |= (value as u64) << (index * I as usize);
+    }
+
+    pub fn to_weights(&self) -> [f32; 16] {
+        let f = 1.0 / ((1_u8 << I) - 1) as f32;
+        std::array::from_fn(|i| self.get(i) as f32 * f)
+    }
+
+    /// Compresses the index list and returns whether the endpoints need to be swapped.
+    pub fn compress_p1(mut self) -> (CompressedIndexList, bool) {
+        let swap = self.ensure_msb_zero(0, Self::INDEXES_MASK);
+        let compressed = Self::compress_single_index(self.indexes, 0);
+        (
+            CompressedIndexList {
+                compressed_indexes: compressed,
+                bits: 16 * I - 1,
+            },
+            swap,
+        )
+    }
+    pub fn compress_p2(mut self, subset: Subset2Map) -> (CompressedIndexList, [bool; 2]) {
+        debug_assert!(I == 2 || I == 3);
+
+        let p2_fixup = subset.fixup_index_2;
+        debug_assert!(0 < p2_fixup && p2_fixup < 16);
+
+        let mask_s1 = match I {
+            2 => bits_repeat2_u16(subset.subset_indexes) as u64,
+            3 => bits_repeat3_u16(subset.subset_indexes),
+            _ => unreachable!(),
+        };
+        debug_assert!(mask_s1 & Self::INDEXES_MASK == mask_s1);
+
+        let swap1 = self.ensure_msb_zero(0, mask_s1 ^ Self::INDEXES_MASK);
+        let swap2 = self.ensure_msb_zero(p2_fixup, mask_s1);
+
+        let mut compressed = self.indexes;
+        compressed = Self::compress_single_index(compressed, p2_fixup);
+        compressed = Self::compress_single_index(compressed, 0);
+        (
+            CompressedIndexList {
+                compressed_indexes: compressed,
+                bits: 16 * I - 2,
+            },
+            [swap1, swap2],
+        )
+    }
+    pub fn compress_p3(mut self, subset: Subset3Map) -> (CompressedIndexList, [bool; 3]) {
+        debug_assert!(I == 2 || I == 3);
+
+        fn get_mask<const I: u8>(subset: Subset3Map, value: u8) -> u64 {
+            let mut mask = 0_u64;
+            let element_mask = (1 << I) - 1;
+            for i in 0..16 {
+                if subset.get_subset_index(i) == value {
+                    mask |= element_mask << (i * I);
+                }
+            }
+            mask
+        }
+
+        let p2_fixup = subset.fixup_index_2;
+        let p3_fixup = subset.fixup_index_3;
+        debug_assert!(0 < p2_fixup && p2_fixup < p3_fixup && p3_fixup < 16);
+
+        // Fix up indexes are stored ordered by ascending numeric value, not
+        // subset index. But here we need them ordered by subset index.
+        let (mut s1_index, mut s2_index) = (p2_fixup, p3_fixup);
+        if subset.get_subset_index(s1_index) == 2 {
+            std::mem::swap(&mut s1_index, &mut s2_index);
+        }
+        let swap1 = self.ensure_msb_zero(0, get_mask::<I>(subset, 0));
+        let swap2 = self.ensure_msb_zero(s1_index, get_mask::<I>(subset, 1));
+        let swap3 = self.ensure_msb_zero(s2_index, get_mask::<I>(subset, 2));
+
+        let mut compressed = self.indexes;
+        compressed = Self::compress_single_index(compressed, p3_fixup);
+        compressed = Self::compress_single_index(compressed, p2_fixup);
+        compressed = Self::compress_single_index(compressed, 0);
+        (
+            CompressedIndexList {
+                compressed_indexes: compressed,
+                bits: 16 * I - 3,
+            },
+            [swap1, swap2, swap3],
+        )
+    }
+
+    /// This method makes the MSB of the index-th value 0 by possibly flipping
+    /// all bits. Returns `true` if the bits were flipped, `false` otherwise.
+    fn ensure_msb_zero(&mut self, index: u8, subset_mask: u64) -> bool {
+        debug_assert!(I == 2 || I == 3 || I == 4);
+        debug_assert!(index < 16);
+
+        // the MSB of the index-th value has to be 0
+        let msb_mask = 1 << (I - 1 + index * I);
+        let swap = (self.indexes & msb_mask) != 0;
+
+        // if the MSB is 1, flip all bits
+        if swap {
+            self.indexes ^= subset_mask;
+        }
+
+        swap
+    }
+    fn compress_single_index(indexes: u64, index: u8) -> u64 {
+        debug_assert!(I == 2 || I == 3 || I == 4);
+        debug_assert!(index < 16);
+
+        // the MSB of the index-th value has to be 0
+        let msb_mask = 1 << (I - 1 + index * I);
+        // now the MSB of the given index value is 0, so we can drop it
+        debug_assert!((indexes & msb_mask) == 0);
+        let before_mask = msb_mask - 1;
+        let after_mask = !before_mask << 1;
+
+        (indexes & before_mask) | ((indexes & after_mask) >> 1)
+    }
+
+    pub fn merge2(subset: Subset2Map, s0: Self, s1: Self) -> Self {
+        let mut indexes = Self::new();
+        let mut s0_index = 0;
+        let mut s1_index = 0;
+        for i in 0..16 {
+            let value;
+            if subset.get_subset_index(i) == 0 {
+                value = s0.get(s0_index);
+                s0_index += 1;
+            } else {
+                value = s1.get(s1_index);
+                s1_index += 1;
+            }
+            indexes.set(i as usize, value);
+        }
+        indexes
+    }
+    pub fn merge3(subset: Subset3Map, s0: Self, s1: Self, s2: Self) -> Self {
+        let mut indexes = Self::new();
+        let mut s0_index = 0;
+        let mut s1_index = 0;
+        let mut s2_index = 0;
+        for i in 0..16 {
+            let value;
+            match subset.get_subset_index(i) {
+                0 => {
+                    value = s0.get(s0_index);
+                    s0_index += 1;
+                }
+                1 => {
+                    value = s1.get(s1_index);
+                    s1_index += 1;
+                }
+                2 => {
+                    value = s2.get(s2_index);
+                    s2_index += 1;
+                }
+                _ => unreachable!(),
+            }
+            indexes.set(i as usize, value);
+        }
+        indexes
+    }
+}
+
+pub(crate) struct CompressedIndexList {
+    pub compressed_indexes: u64,
+    pub bits: u8,
+}
+
+/// Turns a 16-bit value into a 32-bit value where each bit is duplicated.
+///
+/// E.g. `0b1010` becomes `0b11001100`.
+fn bits_repeat2_u16(x: u16) -> u32 {
+    let mut x = x as u32;
+    x = (x | (x << 8)) & 0x00FF_00FF;
+    x = (x | (x << 4)) & 0x0F0F_0F0F;
+    x = (x | (x << 2)) & 0x3333_3333;
+    x = (x | (x << 1)) & 0x5555_5555;
+    x | (x << 1)
+}
+/// Turns a 16-bit value into a 64-bit value where each bit is repeated 3 times.
+///
+/// E.g. `0b1010` becomes `0b111000111000`.
+fn bits_repeat3_u16(x: u16) -> u64 {
+    let mut x = x as u64;
+    x = (x | (x << 16)) & 0b000000000000000011111111_000000000000000011111111;
+    x = (x | (x << 8)) & 0b_000000001111000000001111_000000001111000000001111;
+    x = (x | (x << 4)) & 0b_000011000011000011000011_000011000011000011000011;
+    x = (x | (x << 2)) & 0b_001001001001001001001001_001001001001001001001001;
+    x | (x << 1) | (x << 2)
+}
+
+#[cfg(test)]
+mod tests_bit_repeat {
+    use super::*;
+
+    #[test]
+    fn repeat_bits() {
+        /// Reference implementation that repeats each bit `repeat` times.
+        fn repeat(x: u64, repeat: u8) -> u64 {
+            assert!(repeat > 0);
+            let mut result = 0;
+            for i in 0..64 / repeat {
+                let bit = (x >> i) & 1;
+                for j in 0..repeat {
+                    result |= bit << (i * repeat + j);
+                }
+            }
+            result
+        }
+
+        assert_eq!(repeat(0b0010_1100, 1), 0b0010_1100);
+        assert_eq!(repeat(0b0010_1100, 2), 0b00001100_11110000);
+        assert_eq!(repeat(0b0010_1100, 3), 0b000000111000_111111000000);
+        assert_eq!(repeat(0b0010_1100, 4), 0b0000000011110000_1111111100000000);
+
+        for x in 0..=u16::MAX {
+            assert_eq!(repeat(x as u64, 1), x as u64, "Failed for {x:#b}");
+
+            assert_eq!(
+                repeat(x as u64, 2),
+                bits_repeat2_u16(x) as u64,
+                "Failed for {x:#b}"
+            );
+
+            assert_eq!(
+                repeat(x as u64, 3),
+                bits_repeat3_u16(x),
+                "Failed for {x:#b}"
+            );
+        }
     }
 }

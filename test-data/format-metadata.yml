@@ -554,7 +554,9 @@ BC6H_UF16: >
   pixel: Block(16 bytes/4x4px)
   headers: DX10
   dxgi: BC6H_UF16 (95)
-  encoding: ❌
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: None (local)
 
 
 BC6H_SF16: >
@@ -562,7 +564,9 @@ BC6H_SF16: >
   pixel: Block(16 bytes/4x4px)
   headers: DX10
   dxgi: BC6H_SF16 (96)
-  encoding: ❌
+  encoding: ✔️
+    split_height: Some(4)
+    dithering: None (local)
 
 
 BC7_UNORM: >
