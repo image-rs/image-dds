@@ -790,7 +790,7 @@ trait Palette {
             for i in 0..4 {
                 index_list.set(pixel_index * 4 + i, index_value[i] as u8);
             }
-            total_error += error.dot(error);
+            total_error += bcn_util::dot4(error, error);
         }
 
         (index_list, total_error)

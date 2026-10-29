@@ -43,30 +43,15 @@ impl Operations for Reference {
     }
 }
 
-/// A fast fused multiply-add operation that uses hardware FMA if available.
-/// If hardware FMA is not available, it falls back to a regular multiply-add.
+/// A (non-fused) multiply-add operation.
+///
+/// This intentionally does NOT use hardware FMA, even where it is available
+/// (e.g. aarch64). FMA rounds differently than a separate multiply and add,
+/// so using it on some platforms but not others would make the encoded output
+/// platform-dependent.
 #[inline(always)]
 fn fma(a: Vec3A, b: Vec3A, c: Vec3A) -> Vec3A {
-    #[cfg(any(
-        all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_feature = "fma"
-        ),
-        target_arch = "aarch64"
-    ))]
-    {
-        a.mul_add(b, c)
-    }
-    #[cfg(not(any(
-        all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_feature = "fma"
-        ),
-        target_arch = "aarch64"
-    )))]
-    {
-        a * b + c
-    }
+    a * b + c
 }
 
 struct Fast;

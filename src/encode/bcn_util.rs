@@ -1,5 +1,34 @@
 use glam::{Vec3A, Vec4};
 
+/// Computes the dot product of two [`Vec4`]s.
+///
+/// glam's `Vec4::dot` (and everything built on it, like `length` and
+/// `normalize`) sums the products in a different order depending on the SIMD
+/// backend (SSE2: `(x+z)+(y+w)`, NEON: `(x+y)+(z+w)`, scalar: `((x+y)+z)+w`).
+/// This function always uses the SSE2 order, so encoded output is identical
+/// across architectures.
+#[inline(always)]
+pub(crate) fn dot4(a: Vec4, b: Vec4) -> f32 {
+    let p = a * b;
+    (p.x + p.z) + (p.y + p.w)
+}
+/// Same as `Vec4::distance_squared`, but with the summation order of [`dot4`].
+#[inline(always)]
+pub(crate) fn distance_squared4(a: Vec4, b: Vec4) -> f32 {
+    let d = a - b;
+    dot4(d, d)
+}
+/// Same as `Vec4::normalize_or_zero`, but with the summation order of [`dot4`].
+#[inline(always)]
+pub(crate) fn normalize4_or_zero(v: Vec4) -> Vec4 {
+    let rcp = 1.0 / dot4(v, v).sqrt();
+    if rcp.is_finite() && rcp > 0.0 {
+        v * rcp
+    } else {
+        Vec4::ZERO
+    }
+}
+
 /// Indicates the color is not in RGB/sRGB, but a different color space.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[repr(transparent)]
@@ -395,11 +424,11 @@ impl ColorLine4 {
             // A simple power iteration method to approximate the dominant eigenvector
             let mut v = Vec4::ONE;
             for _ in 0..2 {
-                let r = matrix[0].dot(v);
-                let g = matrix[1].dot(v);
-                let b = matrix[2].dot(v);
-                let a = matrix[3].dot(v);
-                v = Vec4::new(r, g, b, a).normalize_or_zero();
+                let r = dot4(matrix[0], v);
+                let g = dot4(matrix[1], v);
+                let b = dot4(matrix[2], v);
+                let a = dot4(matrix[3], v);
+                v = normalize4_or_zero(Vec4::new(r, g, b, a));
             }
             v
         }
@@ -423,7 +452,7 @@ impl ColorLine4 {
     /// Projects the points onto the line and returns the parameter `t`.
     pub fn project(&self, color: Vec4) -> f32 {
         let diff = color - self.centroid;
-        diff.dot(self.d)
+        dot4(diff, self.d)
     }
 
     /// Returns the sum of squared distance from the colors to the line.
@@ -431,7 +460,7 @@ impl ColorLine4 {
         let mut sum = Vec4::ZERO;
         for &color in colors {
             let diff = color - self.centroid;
-            let t = self.d.dot(diff);
+            let t = dot4(self.d, diff);
             let dist = diff - self.d * t;
             sum += dist * dist;
         }

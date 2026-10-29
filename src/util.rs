@@ -79,13 +79,20 @@ pub(crate) fn closure_types3<A1, A2, A3, B, F: Fn(A1, A2, A3) -> B>(f: F) -> F {
 #[inline(always)]
 #[allow(clippy::manual_clamp)]
 pub(crate) fn clamp_0_1(value: f32) -> f32 {
-    value.max(0.0).min(1.0)
+    clamp_0_max(value, 1.0)
 }
 #[inline(always)]
 #[allow(clippy::manual_clamp)]
 pub(crate) fn clamp_0_max(value: f32, max: f32) -> f32 {
     debug_assert!(max > 0.0);
-    value.max(0.0).min(max)
+    // Use comparisons instead of `f32::max`/`f32::min`. On aarch64, those lower
+    // to `fmaxnm`/`fminnm`, which return NaN for signaling NaN inputs.
+    let value = if value > 0.0 { value } else { 0.0 };
+    if value < max {
+        value
+    } else {
+        max
+    }
 }
 
 /// This can be used to hint to the compiler that a branch is unlikely to be taken.

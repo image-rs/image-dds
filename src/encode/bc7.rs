@@ -742,8 +742,8 @@ impl<const B: u8> EstimatePQuantizationError<B> for (Vec4, Vec4) {
     fn estimate(&self, p: impl PBitState) -> f32 {
         let (c0, c1) = *self;
         let [e0, e1] = p.promote_rgba(Rgba::<B>::round(c0), Rgba::<B>::round(c1));
-        let err0 = e0.to_vec().distance_squared(c0);
-        let err1 = e1.to_vec().distance_squared(c1);
+        let err0 = bcn_util::distance_squared4(e0.to_vec(), c0);
+        let err1 = bcn_util::distance_squared4(e1.to_vec(), c1);
         err0 + err1
     }
 }
@@ -877,7 +877,7 @@ fn fit_optimal_endpoints_rgba<const B: u8, const I: u8>(
     // This minimum distance is somewhat arbitrary. It seems to work, so I
     // haven't looked into other value.
     let min_dist = (1_u32 << I) as f32 / (1_u32 << B) as f32;
-    if c0.distance_squared(c1) < min_dist * min_dist {
+    if bcn_util::distance_squared4(c0, c1) < min_dist * min_dist {
         return (c0, c1);
     }
 
@@ -1004,7 +1004,7 @@ fn refine_along_line4(
     options: Bc7Options,
     compute_error: impl Fn((Vec4, Vec4)) -> u32,
 ) -> (Vec4, Vec4) {
-    let dist = min.distance(max);
+    let dist = bcn_util::distance_squared4(min, max).sqrt();
     if dist < 0.0001 {
         return (min, max);
     }

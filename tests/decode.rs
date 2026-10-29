@@ -573,9 +573,10 @@ mod errors {
         // To decode a P016 image, the decoder needs to allocate a buffer for
         // the first plane. Creating an invalid image with width=2^32-1, each
         // line of the first plane will require roughly 8GB of memory. Forcing
-        // the decoder to read 4096 lines, will cause it allocate 4096*8GB=32TB
-        // of memory, which should be OOM.
-        let output_size = Size::new(1, 4096);
+        // the decoder to read 2^20 lines, will cause it allocate 2^20*8GB=8PB
+        // of memory, which should be OOM. (Smaller sizes like 32TB may still
+        // succeed on systems that lazily commit memory, e.g. macOS.)
+        let output_size = Size::new(1, 1 << 20);
         let mut output_buffer = vec![0_u8; output_size.pixels() as usize];
         let surface_size = Size::new(u32::MAX, output_size.height);
 
@@ -591,6 +592,9 @@ mod errors {
             &options,
         );
 
-        assert!(matches!(result, Err(DecodingError::MemoryLimitExceeded)));
+        assert!(
+            matches!(result, Err(DecodingError::MemoryLimitExceeded)),
+            "{result:?}"
+        );
     }
 }
