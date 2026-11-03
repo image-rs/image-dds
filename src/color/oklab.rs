@@ -43,32 +43,6 @@ impl Operations for Reference {
     }
 }
 
-/// A fast fused multiply-add operation that uses hardware FMA if available.
-/// If hardware FMA is not available, it falls back to a regular multiply-add.
-#[inline(always)]
-fn fma(a: Vec3A, b: Vec3A, c: Vec3A) -> Vec3A {
-    #[cfg(any(
-        all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_feature = "fma"
-        ),
-        target_arch = "aarch64"
-    ))]
-    {
-        a.mul_add(b, c)
-    }
-    #[cfg(not(any(
-        all(
-            any(target_arch = "x86", target_arch = "x86_64"),
-            target_feature = "fma"
-        ),
-        target_arch = "aarch64"
-    )))]
-    {
-        a * b + c
-    }
-}
-
 struct Fast;
 #[allow(clippy::excessive_precision)]
 impl Operations for Fast {
@@ -84,10 +58,10 @@ impl Operations for Fast {
                 const A3: f32 = 0.47736490;
                 const A4: f32 = -0.08986699;
                 let c2 = c * c;
-                let p01 = fma(c, Vec3A::splat(A1), Vec3A::splat(A0));
-                let p23 = fma(c, Vec3A::splat(A3), Vec3A::splat(A2));
-                let t = fma(c2, Vec3A::splat(A4), p23);
-                fma(c2, t, p01)
+                let p01 = c * A1 + A0;
+                let p23 = c * A3 + A2;
+                let t = c2 * A4 + p23;
+                c2 * t + p01
             },
             c * (1.0 / 12.92),
         )
@@ -106,12 +80,12 @@ impl Operations for Fast {
                 const Q2: f32 = 1983.15;
                 const Q3: f32 = 1035.65;
                 let c2 = c * c;
-                let p01 = fma(c, Vec3A::splat(P1), Vec3A::splat(P0));
-                let p23 = fma(c, Vec3A::splat(P3), Vec3A::splat(P2));
-                let p = fma(c2, p23, p01);
-                let q01 = fma(c, Vec3A::splat(Q1), Vec3A::ONE);
-                let q23 = fma(c, Vec3A::splat(Q3), Vec3A::splat(Q2));
-                let q = fma(c2, q23, q01);
+                let p01 = c * P1 + P0;
+                let p23 = c * P3 + P2;
+                let p = c2 * p23 + p01;
+                let q01 = c * Q1 + 1.0;
+                let q23 = c * Q3 + Q2;
+                let q = c2 * q23 + q01;
                 p / q
             },
             c * 12.92,
@@ -138,7 +112,7 @@ impl Operations for Fast {
 
         // one halley iteration
         let s = t * t * t;
-        t * fma(Vec3A::splat(2.0), x, s) / fma(Vec3A::splat(2.0), s, x)
+        t * (2.0 * x + s) / (2.0 * s + x)
     }
 }
 
