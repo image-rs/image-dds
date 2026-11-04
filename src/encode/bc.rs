@@ -1,15 +1,15 @@
-use glam::Vec4;
+use glam::{Vec3A, Vec4};
 
 use crate::{
     cast, ch,
-    encode::{bc7::Bc7Modes, bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
+    encode::{bcn_util::Quantized, write_util::for_each_f32_rgba_rows},
     n4,
     util::clamp_0_1,
     Dithering, EncodingError,
 };
 
 use super::{
-    bc1, bc4, bc7, bcn_util,
+    bc1, bc4, bc6, bc7, bcn_util,
     encoder::{Args, Encoder, EncoderSet, Flags},
     CompressionQuality, EncodeOptions, ErrorMetric, PreferredFragmentSize,
 };
@@ -170,6 +170,8 @@ const BC3_FRAGMENT_SIZE: PreferredFragmentSize = BC1_FRAGMENT_SIZE.combine(BC4_F
 const BC4_FRAGMENT_SIZE: PreferredFragmentSize =
     PreferredFragmentSize::new(64 * 64, 32 * 32, 8 * 8);
 // TODO: adjust this later
+const BC6_FRAGMENT_SIZE: PreferredFragmentSize =
+    PreferredFragmentSize::new(16 * 16, 16 * 16, 16 * 16);
 const BC7_FRAGMENT_SIZE: PreferredFragmentSize =
     PreferredFragmentSize::new(16 * 16, 16 * 16, 16 * 16);
 
@@ -439,6 +441,52 @@ pub(crate) const BC5_SNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
 .add_flags(Flags::DITHER_COLOR)
 .with_fragment_size(BC4_FRAGMENT_SIZE)]);
 
+fn get_bc6_options(options: &EncodeOptions, format: bc6::BC6HFormat) -> bc6::Bc6Options {
+    use bc6::Bc6Modes as Modes;
+
+    bc6::Bc6Options {
+        format,
+        modes: match options.quality {
+            CompressionQuality::Fast => Modes::MODE_ONE,
+            CompressionQuality::Normal => {
+                Modes::MODE_ONE | Modes::M6_666 | Modes::M7_666 | Modes::M9_555 | Modes::M10_555
+            }
+            CompressionQuality::High => Modes::all(),
+            CompressionQuality::Unreasonable => Modes::all(),
+        },
+        top_partitions: match options.quality {
+            CompressionQuality::Fast => 1,
+            CompressionQuality::Normal => 1,
+            CompressionQuality::High => 2,
+            CompressionQuality::Unreasonable => 32,
+        },
+        quantization: match options.quality {
+            CompressionQuality::Fast => bcn_util::Quantization::ChannelWiseOptimized,
+            CompressionQuality::Normal => bcn_util::Quantization::ChannelWiseOptimized,
+            CompressionQuality::High => bcn_util::Quantization::ChannelWise,
+            CompressionQuality::Unreasonable => bcn_util::Quantization::ChannelWise,
+        },
+        pick_first_8_11: options.quality <= CompressionQuality::Normal,
+        check_transformable: options.quality <= CompressionQuality::Normal,
+    }
+}
+pub(crate) const BC6H_UF16: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
+        let block = get_4x4_rgba_vec4(data, row_pitch).map(Vec3A::from_vec4);
+        let options = get_bc6_options(options, bc6::BC6HFormat::UnsignedF16);
+        *out = bc6::compress_bc6_block(block, options);
+    })
+})
+.with_fragment_size(BC6_FRAGMENT_SIZE)]);
+pub(crate) const BC6H_SF16: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
+    block_4x4::<16>(args, |data, row_pitch, options, out| {
+        let block = get_4x4_rgba_vec4(data, row_pitch).map(Vec3A::from_vec4);
+        let options = get_bc6_options(options, bc6::BC6HFormat::SignedF16);
+        *out = bc6::compress_bc6_block(block, options);
+    })
+})
+.with_fragment_size(BC6_FRAGMENT_SIZE)]);
+
 pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_universal(|args| {
     block_4x4::<16>(args, |data, row_pitch, options, out| {
         let block_vec: [Vec4; 16] = get_4x4_rgba_vec4(data, row_pitch);
@@ -473,6 +521,7 @@ pub(crate) const BC7_UNORM: EncoderSet = EncoderSet::new_bc(&[Encoder::new_unive
             block
         };
 
+        use bc7::Bc7Modes;
         let options = bc7::Bc7Options {
             allowed_modes: match options.quality {
                 CompressionQuality::Fast => Bc7Modes::MODE0 | Bc7Modes::MODE4 | Bc7Modes::MODE6,

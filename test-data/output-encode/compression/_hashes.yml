@@ -391,3 +391,87 @@ BC7_UNORM norm random color.dds: >
 BC7_UNORM high random color.dds: >
     188d7df3c930e9bbeb7c02c5a2c25a0c6dd22e1fe104de498d473be7201bcd2d
 
+BC6H_UF16 fast base.dds: >
+    e7a53836bf51e5519995582eeea56d904960e88b20b1d0b92a5e627eda011eb4
+
+BC6H_UF16 normal base.dds: >
+    a176c04bd16c52fc84c9b42d51359cb5659d14e3bf3a819770855ef99abd2e19
+
+BC6H_UF16 high base.dds: >
+    3ec4b27d7b8d56fe58de2b4ca6814d5eb84ad6790d782195ff05b5a54c4cf911
+
+BC6H_UF16 fast color-twirl.dds: >
+    f57679d9415416c6f1fe0a179128aeed64d55972dcf993bfbf388b252bd05616
+
+BC6H_UF16 normal color-twirl.dds: >
+    5658daf22198358abea73f2512f0da18189c2ffdf0840b18ea1152c540473930
+
+BC6H_UF16 high color-twirl.dds: >
+    16f18665a528792185436d40662280b40a19ef1abc4754ce5c1f278d53cd156a
+
+BC6H_UF16 fast bricks-d.dds: >
+    fd50a46dd94551aef3407b393efcc5a64cbb27afd0c414829b2dfec09f44abfa
+
+BC6H_UF16 normal bricks-d.dds: >
+    eb7775b76a729f77b65d8326f556dcf2660f979e177c5483aa81b3d68660390d
+
+BC6H_UF16 high bricks-d.dds: >
+    98cdf7b2f93658574301b97168682968dfdfab3fba8f10544e82fedc01a70887
+
+BC6H_UF16 fast bricks-n.dds: >
+    296ab93daf56d2b223cdbca2822c9239d56ccff7bfa8ccf6f36d9e2283a25ea9
+
+BC6H_UF16 normal bricks-n.dds: >
+    0a997e68062e29200311b1303075cf0534105713c28b3aea6c2405f50d1bd0fd
+
+BC6H_UF16 high bricks-n.dds: >
+    0157592ccbdbf839a454c8d84217eb22bc9044074885b3cf4e711616ef8fb97b
+
+BC6H_UF16 fast clovers-d.dds: >
+    fc6f9f54d2f0f8bd50b1e3d45b3e051d913c083ddfa2dcdbadc02e357f017fda
+
+BC6H_UF16 normal clovers-d.dds: >
+    ca57e925e9f962e4c1b8ee376e4ce8696b6f3eebddef6578b6bf596dc0ea93f1
+
+BC6H_UF16 high clovers-d.dds: >
+    614c40c9f454e8f20e41bc48f342b88e1fa61c05d1a2a95df88fb0b373172e18
+
+BC6H_UF16 fast clovers-r.dds: >
+    7e54ccdf73ef41be90d37dfcf761d29ad832b7d4724f422eeb8ddb6c91e30057
+
+BC6H_UF16 normal clovers-r.dds: >
+    64be74de08e7183285c6d0771fa79530e582352220050dea44e6ffb448d3c919
+
+BC6H_UF16 high clovers-r.dds: >
+    3a77171d2487020dc28e1a2b11df6e470895cbaa4b4d6ef7004f34802a149e3b
+
+BC6H_UF16 fast stone-d.dds: >
+    1d79f2dddce0b3527b329932f06ca0dc8465a83642d464eeeca0c1658cc18d48
+
+BC6H_UF16 normal stone-d.dds: >
+    15ba965055d8c5a1255f524b5c065b00ec773b56f72688ef8fcf0631a8a2e518
+
+BC6H_UF16 high stone-d.dds: >
+    80486d672b737b4d8c349456bce073dd4b1b0a83968980d659b6e2b373c65717
+
+BC6H_UF16 fast random color.dds: >
+    028bc3f4243abdfc0018fd8847911da640cd16093c07447280acb8f45610d2cb
+
+BC6H_UF16 normal random color.dds: >
+    028bc3f4243abdfc0018fd8847911da640cd16093c07447280acb8f45610d2cb
+
+BC6H_UF16 high random color.dds: >
+    028bc3f4243abdfc0018fd8847911da640cd16093c07447280acb8f45610d2cb
+
+BC6H_SF16 high base.dds: >
+    146c952f80e386ed2406530449c41fc62febc4d1e59ffd0f61c580e5aeabb995
+
+BC6H_SF16 high color-twirl.dds: >
+    7f718145976d9dbb72bfd0ccd3d95a3318b83ae44449eed11aa47cf20f9b36a8
+
+BC6H_SF16 high bricks-d.dds: >
+    37ba61cceb522f1b136f06339e9ee4d0b8977cab4cfdba469b5aa271591c94d4
+
+BC6H_SF16 high random color.dds: >
+    88ef51baa0e17096a251569e58b96acbe79dbeb170262dababab32249d8fa998
+

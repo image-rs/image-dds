@@ -161,10 +161,10 @@ BC5_SNORM.dds: >
     76a3f43bf1ecb5a402f94771533e7cf69b1615bec6d70f5523db9ffddaae8ef7
 
 BC6H_UF16.dds: >
-    Error: Unsupported format for encoding: BC6H_UF16
+    3ec4b27d7b8d56fe58de2b4ca6814d5eb84ad6790d782195ff05b5a54c4cf911
 
 BC6H_SF16.dds: >
-    Error: Unsupported format for encoding: BC6H_SF16
+    146c952f80e386ed2406530449c41fc62febc4d1e59ffd0f61c580e5aeabb995
 
 BC7_UNORM.dds: >
     67fedcfadb70aaa1a200a5cbf083e034eea48ececdeb328bb0694adb8e4ceb80

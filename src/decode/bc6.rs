@@ -1,17 +1,13 @@
 use crate::{
-    bcn_data::{Subset2Map, PARTITION_SET_2},
+    bcn_data::{EndPointPair, IntColor, ModeOne, ModeTwo, Subset2Map, PARTITION_SET_2},
     decode::bcn_util::{BitStream, Indexes},
     util::unlikely_branch,
 };
 
+pub(crate) use crate::bcn_data::BC6HFormat;
+
 // Spec:
 // https://microsoft.github.io/DirectX-Specs/d3d/archive/D3D11_3_FunctionalSpec.htm#19.5.13%20BC6H%20/%20DXGI_FORMAT_BC6H
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum BC6HFormat {
-    UnsignedF16,
-    SignedF16,
-}
 
 pub(crate) fn decode_bc6_block(block: [u8; 16], format: BC6HFormat) -> [[u16; 3]; 16] {
     let mut stream = BitStream::new(block);
@@ -27,10 +23,8 @@ pub(crate) fn decode_bc6_block(block: [u8; 16], format: BC6HFormat) -> [[u16; 3]
             let index = Indexes::new_p1(4, &mut stream);
 
             let endpoints = decompress_endpoints_one(mode, format, endpoints);
-            let precision = mode.a0_bit_count();
 
-            let palette =
-                generate_palette_unquantized_one(endpoints.a, endpoints.b, precision, format);
+            let palette = generate_f16_palette_one(endpoints.a, endpoints.b, mode, format);
 
             for pixel_index in 0..16 {
                 let index = index.get_index(pixel_index);
@@ -46,10 +40,8 @@ pub(crate) fn decode_bc6_block(block: [u8; 16], format: BC6HFormat) -> [[u16; 3]
             let index = Indexes::new_p2(3, &mut stream, partition.fixup_index_2);
 
             let endpoints = decompress_endpoints_two(mode, format, endpoints);
-            let precision = mode.a0_bit_count();
 
-            let palette =
-                endpoints.map(|e| generate_palette_unquantized_two(e.a, e.b, precision, format));
+            let palette = endpoints.map(|e| generate_f16_palette_two(e.a, e.b, mode, format));
 
             for pixel_index in 0..16 {
                 let index: u8 = index.get_index(pixel_index);
@@ -78,77 +70,6 @@ enum Mode {
     One(ModeOne),
     Two(ModeTwo),
     Invalid,
-}
-
-#[derive(Clone, Copy)]
-enum ModeTwo {
-    M10_555 = 0b00,
-    M7_666 = 0b01,
-
-    M11_544 = 0b00010,
-    M11_454 = 0b00110,
-    M11_445 = 0b01010,
-    M9_555 = 0b01110,
-    M8_655 = 0b10010,
-    M8_565 = 0b10110,
-    M8_556 = 0b11010,
-    M6_666 = 0b11110,
-}
-impl ModeTwo {
-    fn a0_bit_count(&self) -> u8 {
-        match self {
-            ModeTwo::M10_555 => 10,
-            ModeTwo::M7_666 => 7,
-
-            ModeTwo::M11_544 | ModeTwo::M11_454 | ModeTwo::M11_445 => 11,
-            ModeTwo::M9_555 => 9,
-            ModeTwo::M8_655 | ModeTwo::M8_565 | ModeTwo::M8_556 => 8,
-            ModeTwo::M6_666 => 6,
-        }
-    }
-    fn delta_bit_count(&self) -> (u8, u8, u8) {
-        match self {
-            ModeTwo::M10_555 => (5, 5, 5),
-            ModeTwo::M7_666 => (6, 6, 6),
-
-            ModeTwo::M11_544 => (5, 4, 4),
-            ModeTwo::M11_454 => (4, 5, 4),
-            ModeTwo::M11_445 => (4, 4, 5),
-            ModeTwo::M9_555 => (5, 5, 5),
-            ModeTwo::M8_655 => (6, 5, 5),
-            ModeTwo::M8_565 => (5, 6, 5),
-            ModeTwo::M8_556 => (5, 5, 6),
-            ModeTwo::M6_666 => (6, 6, 6),
-        }
-    }
-
-    fn transformed(&self) -> bool {
-        !matches!(self, ModeTwo::M6_666)
-    }
-}
-#[derive(Clone, Copy)]
-enum ModeOne {
-    M10_10 = 0b00,
-    M11_9 = 0b01,
-    M12_8 = 0b10,
-    M16_4 = 0b11,
-}
-impl ModeOne {
-    fn a0_bit_count(&self) -> u8 {
-        match self {
-            ModeOne::M10_10 => 10,
-            ModeOne::M11_9 => 11,
-            ModeOne::M12_8 => 12,
-            ModeOne::M16_4 => 16,
-        }
-    }
-    fn b0_bit_count(&self) -> u8 {
-        20 - self.a0_bit_count()
-    }
-
-    fn transformed(&self) -> bool {
-        !matches!(self, ModeOne::M10_10)
-    }
 }
 
 fn extract_mode(stream: &mut BitStream) -> Mode {
@@ -196,71 +117,6 @@ fn extract_partition(stream: &mut BitStream) -> Subset2Map {
     PARTITION_SET_2[partition as usize]
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-struct EndPointPair {
-    a: IntColor<i32>,
-    b: IntColor<i32>,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-struct IntColor<T> {
-    r: T,
-    g: T,
-    b: T,
-    _pad: T,
-}
-impl<T> IntColor<T> {
-    fn new(r: T, g: T, b: T) -> Self
-    where
-        T: Default,
-    {
-        Self {
-            r,
-            g,
-            b,
-            _pad: T::default(),
-        }
-    }
-    fn rgb(&self) -> [T; 3]
-    where
-        T: Copy,
-    {
-        [self.r, self.g, self.b]
-    }
-}
-impl IntColor<i32> {
-    fn sign_extend_all(&mut self, bit_count: u8) {
-        self.r = sign_extend(self.r, bit_count);
-        self.g = sign_extend(self.g, bit_count);
-        self.b = sign_extend(self.b, bit_count);
-    }
-    fn sign_extend(&mut self, r_bit_count: u8, g_bit_count: u8, b_bit_count: u8) {
-        self.r = sign_extend(self.r, r_bit_count);
-        self.g = sign_extend(self.g, g_bit_count);
-        self.b = sign_extend(self.b, b_bit_count);
-    }
-
-    fn bit_and(&self, mask: i32) -> Self {
-        Self {
-            r: self.r & mask,
-            g: self.g & mask,
-            b: self.b & mask,
-            _pad: 0, // TODO: maybe mask this too for better vectorization?
-        }
-    }
-}
-impl core::ops::Add for IntColor<i32> {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        IntColor {
-            r: self.r.wrapping_add(rhs.r),
-            g: self.g.wrapping_add(rhs.g),
-            b: self.b.wrapping_add(rhs.b),
-            _pad: self._pad.wrapping_add(rhs._pad),
-        }
-    }
-}
-
 fn extract_compressed_endpoints_one(mode: ModeOne, stream: &mut BitStream) -> EndPointPair {
     let mut pair = EndPointPair::default();
 
@@ -288,7 +144,7 @@ fn extract_compressed_endpoints_one(mode: ModeOne, stream: &mut BitStream) -> En
 
     pair
 }
-fn decompress_endpoints_one(
+pub(crate) fn decompress_endpoints_one(
     mode: ModeOne,
     format: BC6HFormat,
     mut pair: EndPointPair,
@@ -315,17 +171,6 @@ fn decompress_endpoints_one(
     }
 
     pair
-}
-
-fn sign_extend(x: i32, bit_count: u8) -> i32 {
-    debug_assert!(bit_count > 0);
-    debug_assert!(bit_count < 32);
-
-    // check that all bits outsize bit_count are zero
-    debug_assert_eq!(x & !((1 << bit_count) - 1), 0);
-
-    let shift = 32 - bit_count;
-    (x << shift) >> shift
 }
 
 fn extract_compressed_endpoints_two(mode: ModeTwo, stream: &mut BitStream) -> [EndPointPair; 2] {
@@ -579,13 +424,13 @@ fn extract_compressed_endpoints_two(mode: ModeTwo, stream: &mut BitStream) -> [E
 
     [EndPointPair { a: w, b: x }, EndPointPair { a: y, b: z }]
 }
-fn decompress_endpoints_two(
+pub(crate) fn decompress_endpoints_two(
     mode: ModeTwo,
     format: BC6HFormat,
     mut endpoints: [EndPointPair; 2],
 ) -> [EndPointPair; 2] {
     let a_bit_count = mode.a0_bit_count();
-    let (delta_r, delta_g, delta_b) = mode.delta_bit_count();
+    let [delta_r, delta_g, delta_b] = mode.delta_bit_count();
 
     // sign extend the endpoints
     if format == BC6HFormat::SignedF16 {
@@ -617,7 +462,7 @@ fn decompress_endpoints_two(
     endpoints
 }
 
-fn unquantize(mut component: i32, u_bits_per_comp: u8, format: BC6HFormat) -> i32 {
+pub(crate) fn unquantize(mut component: i32, u_bits_per_comp: u8, format: BC6HFormat) -> i32 {
     let mut unq: i32;
     match format {
         BC6HFormat::UnsignedF16 => {
@@ -659,7 +504,7 @@ fn unquantize(mut component: i32, u_bits_per_comp: u8, format: BC6HFormat) -> i3
     unq
 }
 
-fn finish_unquantize(mut component: i32, format: BC6HFormat) -> u16 {
+pub(crate) fn finish_unquantize(mut component: i32, format: BC6HFormat) -> u16 {
     match format {
         BC6HFormat::UnsignedF16 => {
             component = (component * 31) >> 6; // scale the magnitude by 31/64
@@ -681,16 +526,18 @@ fn finish_unquantize(mut component: i32, format: BC6HFormat) -> u16 {
     }
 }
 
-const WEIGHT_3: [u8; 8] = [0, 9, 18, 27, 37, 46, 55, 64];
-const WEIGHT_4: [u8; 16] = [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64];
+pub(crate) const WEIGHT_3: [u8; 8] = [0, 9, 18, 27, 37, 46, 55, 64];
+pub(crate) const WEIGHT_4: [u8; 16] = [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64];
 
 // c1, c2: endpoints of a component
-fn generate_palette_unquantized_one(
+pub(crate) fn generate_f16_palette_one(
     c1: IntColor<i32>,
     c2: IntColor<i32>,
-    prec: u8,
+    mode: ModeOne,
     format: BC6HFormat,
 ) -> [IntColor<u16>; 16] {
+    let prec = mode.a0_bit_count();
+
     let a = IntColor::new(
         unquantize(c1.r, prec, format),
         unquantize(c1.g, prec, format),
@@ -713,12 +560,14 @@ fn generate_palette_unquantized_one(
 
     palette
 }
-fn generate_palette_unquantized_two(
+pub(crate) fn generate_f16_palette_two(
     c1: IntColor<i32>,
     c2: IntColor<i32>,
-    prec: u8,
+    mode: ModeTwo,
     format: BC6HFormat,
 ) -> [IntColor<u16>; 8] {
+    let prec = mode.a0_bit_count();
+
     let a = IntColor::new(
         unquantize(c1.r, prec, format),
         unquantize(c1.g, prec, format),

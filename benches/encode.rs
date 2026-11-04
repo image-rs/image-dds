@@ -228,6 +228,10 @@ pub fn encode_compressed(c: &mut Criterion) {
     bench_encoder(c, Format::BC4_UNORM, dither, &random_rgb);
     // bench_encoder(c, Format::BC4_UNORM, unreasonable, &random_tiny);
 
+    bench_encoder(c, Format::BC6H_UF16, fast, &random_rgb);
+    bench_encoder(c, Format::BC6H_UF16, normal, &random_rgb);
+    bench_encoder(c, Format::BC6H_UF16, high, &random_rgb);
+
     bench_encoder(c, Format::BC7_UNORM, fast, &random_rgb);
     bench_encoder(c, Format::BC7_UNORM, normal, &random_rgb);
     bench_encoder(c, Format::BC7_UNORM, high, &random_rgb);
